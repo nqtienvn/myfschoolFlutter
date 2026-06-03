@@ -1,17 +1,50 @@
-# myfschoolse1913
+# MyFschool
 
-A new Flutter project.
+MyFschool là app sổ liên lạc điện tử gồm Flutter Mobile, Flutter Admin Web,
+Backend API và MySQL.
 
-## Getting Started
+## Architecture
 
-This project is a starting point for a Flutter application.
+Flutter Mobile / Flutter Admin Web
+-> HTTPS + JWT
+-> Backend REST API
+-> Service / Repository
+-> MySQL
 
-A few resources to get you started if this is your first Flutter project:
+## Rule
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Flutter không kết nối trực tiếp MySQL. Flutter chỉ gọi Backend API.
+Backend chịu trách nhiệm xác thực, phân quyền, nghiệp vụ và truy vấn SQL.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Modules
+
+- Auth
+- Users
+- Students
+- Classes
+- Schedule
+- Attendance
+- Grades
+- Announcements
+- Messages
+- Tuition
+- Admin Reports
+
+## Setup Checklist
+
+- [x] Git installed
+- [x] Dart installed
+- [x] Flutter installed
+- [x] VS Code installed
+- [x] Android toolchain ready
+- [ ] Create first Flutter app
+- [ ] Create backend health endpoint
+
+## Request Flow Example
+
+Parent opens Grades screen
+-> Flutter calls GET /api/students/{id}/grades
+-> Backend checks JWT and permission
+-> Backend queries MySQL
+-> Backend returns JSON
+-> Flutter renders loading/error/empty/success UI
