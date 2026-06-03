@@ -2,7 +2,7 @@ class Grade {
   final int id;
   final String subjectName;
   final double value;
-  final double weight;
+  final double weight; //he so cua diem
   final DateTime createdAt;
   final String? comment;
 
