@@ -1,6 +1,6 @@
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/packages/core/core.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/core/core.dart';
 
 
 void main() {

@@ -1,4 +1,4 @@
-import 'package:myfschoolse1913/vn/edu/fpt/packages/api/exception/parse_exception.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/exception/parse_exception.dart';
 
 class StudentDemoDto {
   final int id;

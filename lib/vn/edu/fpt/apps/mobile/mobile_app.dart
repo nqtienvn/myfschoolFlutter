@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/packages/apps/mobile/screens/login_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/apps/mobile/screens/login_screen.dart';
 
 class MyFSchoolMobileApp extends StatelessWidget {
   const MyFSchoolMobileApp({super.key});

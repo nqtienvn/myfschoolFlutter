@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/packages/api/dto/grade_dto.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/packages/api/exception/parse_exception.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/dto/grade_dto.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/exception/parse_exception.dart';
 
 void main() {
   group('GradeDto.fromJson', () {

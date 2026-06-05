@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:myfschoolse1913/vn/edu/fpt/packages/api/exception/fake_api_exception.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/exception/fake_api_exception.dart';
 
 class FakeApiClient {
   final Duration delay;

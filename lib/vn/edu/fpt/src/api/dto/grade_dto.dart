@@ -1,4 +1,4 @@
-import 'package:myfschoolse1913/vn/edu/fpt/packages/core/models/grade.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/core/models/grade.dart';
 
 import '../exception/parse_exception.dart';
 
@@ -18,7 +18,9 @@ class GradeDto {
     required this.createdAt,
     this.comment,
   });
-  factory GradeDto.fromJson(Map<String, dynamic> json) { //tra ve json lay tu backend(can co jsondecode de lay ve map da)
+
+  factory GradeDto.fromJson(Map<String, dynamic> json) {
+    //tra ve json lay tu backend(can co jsondecode de lay ve map da)
     final rawValue = json['value'];
     final rawWeight = json['weight'];
     final rawCreatedAt = json['createdAt'];
@@ -50,9 +52,10 @@ class GradeDto {
       createdAt: createdAt,
       comment: json['comment'] as String?,
     );
-
   }
-  Map<String, dynamic> toJson() { //chuyen object dart thanh son de chuyen len backend
+
+  Map<String, dynamic> toJson() {
+    //chuyen object dart thanh son de chuyen len backend
     return {
       'id': id,
       'subjectName': subjectName,
@@ -62,7 +65,9 @@ class GradeDto {
       'comment': comment,
     };
   }
-  Grade toDomain() { // tra ve domain de hien thi len widget
+
+  Grade toDomain() {
+    // tra ve domain de hien thi len widget
     return Grade(
       id: id,
       subjectName: subjectName,
@@ -72,5 +77,4 @@ class GradeDto {
       comment: comment,
     );
   }
-
 }
