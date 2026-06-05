@@ -1,4 +1,4 @@
-import '../models/app_notification.dart';
+import '../../core/models/app_notification.dart';
 
 class NotificationService {
   const NotificationService();

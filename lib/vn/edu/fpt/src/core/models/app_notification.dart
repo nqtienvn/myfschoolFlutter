@@ -10,4 +10,8 @@ class AppNotification {
     required this.message,
     required this.createdAt,
   });
+
+  String get unreadLabel {
+    return '2 thông báo chưa đọc';
+  }
 }

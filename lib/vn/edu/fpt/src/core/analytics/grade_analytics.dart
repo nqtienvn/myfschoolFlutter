@@ -1,5 +1,25 @@
 import '../models/grade.dart';
 
+enum AcademicTrend { improving, declining, stable, unknown }
+
+AcademicTrend academicTrend({
+  required List<Grade> oldGrades,
+  required List<Grade> newGrades,
+}) {
+  if (oldGrades.isEmpty || newGrades.isEmpty) {
+    return AcademicTrend.unknown;
+  }
+  final oldAvg = weightedGradeAverage(oldGrades);
+  final newAvg = weightedGradeAverage(newGrades);
+  final diff = newAvg - oldAvg;
+  if (diff >= 0.5) {
+    return AcademicTrend.improving;
+  } else if (diff <= -0.5) {
+    return AcademicTrend.declining;
+  }
+  return AcademicTrend.unknown;
+}
+
 double gradeAverage(List<Grade> grades) {
   if (grades.isEmpty) return 0;
   final total = grades.fold<double>(0, (sum, grade) => sum + grade.value);
