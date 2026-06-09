@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/apps/mobile/screens/forgot_password_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/apps/mobile/screens/role_home_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/apps/mobile/theme/fpt_mobile_theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  static const routeName = '/login';
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  static const Color _orange = Color(0xFFF36F21);
   static const double _controlRadius = 7;
 
   final _formKey = GlobalKey<FormState>();
@@ -31,22 +35,20 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Thông tin đăng nhập hợp lệ')));
+    Navigator.of(context).pushReplacementNamed(
+      RoleHomeScreen.routeName,
+      arguments: HomeRole.parent,
+    );
   }
 
-  void _showForgotPasswordMessage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Vui lòng liên hệ nhà trường để được cấp lại mật khẩu.'),
-      ),
-    );
+  void _openForgotPassword() {
+    Navigator.of(context).pushNamed(ForgotPasswordScreen.routeName);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -144,9 +146,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
-                                onPressed: _showForgotPasswordMessage,
+                                onPressed: _openForgotPassword,
                                 style: TextButton.styleFrom(
-                                  foregroundColor: _orange,
+                                  foregroundColor: FptMobileColors.orange,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 18,
                                     horizontal: 0,
@@ -165,7 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: FilledButton(
                                 onPressed: _submit,
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: _orange,
+                                  backgroundColor: FptMobileColors.orange,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(
@@ -211,19 +213,19 @@ class _LoginScreenState extends State<LoginScreen> {
     final borderRadius = BorderRadius.circular(_controlRadius);
     final border = OutlineInputBorder(
       borderRadius: borderRadius,
-      borderSide: BorderSide(color: Color(0xFFE4E6E9), width: 1.4),
+      borderSide: const BorderSide(color: Color(0xFFE4E6E9), width: 1.4),
     );
 
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: Color(0xFFB4B8BE), fontSize: 16),
-      prefixIcon: Icon(prefixIcon, color: _orange, size: 22),
+      prefixIcon: Icon(prefixIcon, color: FptMobileColors.orange, size: 22),
       prefixIconConstraints: const BoxConstraints(minWidth: 42),
       suffixIcon: suffixIcon,
       enabledBorder: border,
       focusedBorder: OutlineInputBorder(
         borderRadius: borderRadius,
-        borderSide: const BorderSide(color: _orange, width: 1.8),
+        borderSide: const BorderSide(color: FptMobileColors.orange, width: 1.8),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: borderRadius,

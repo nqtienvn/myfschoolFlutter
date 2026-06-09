@@ -13,4 +13,29 @@ void main() {
     expect(find.text('© 2026 MyFSchool'), findsOneWidget);
     expect(find.text('Version 1.0'), findsOneWidget);
   });
+
+  testWidgets('forgot password route opens from login screen', (tester) async {
+    await tester.pumpWidget(const MyFSchoolMobileApp());
+
+    await tester.tap(find.text('Quên mật khẩu?'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quên mật khẩu'), findsOneWidget);
+    expect(find.text('Nhập số điện thoại'), findsOneWidget);
+    expect(find.text('Về Trang Chủ?'), findsOneWidget);
+  });
+
+  testWidgets('role home renders parent style content', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: FptMobileTheme.build(),
+        home: const RoleHomeScreen(role: HomeRole.parent),
+      ),
+    );
+
+    expect(find.text('Các chức năng'), findsOneWidget);
+    expect(find.text('Lớp 1A - FPT Schools'), findsOneWidget);
+    expect(find.text('Gửi thông báo học sinh'), findsOneWidget);
+    expect(find.text('Trang chủ'), findsOneWidget);
+  });
 }

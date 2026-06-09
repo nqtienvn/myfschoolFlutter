@@ -53,4 +53,3 @@ class FakeApiClient {
     return jsonDecode(rawJson) as Map<String, dynamic>;
   }
 }
-
