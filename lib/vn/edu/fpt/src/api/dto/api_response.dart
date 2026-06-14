@@ -3,16 +3,12 @@ class ApiResponse<T> {
   final String message;
   final T? result;
 
-  const ApiResponse({
-    required this.code,
-    required this.message,
-    this.result,
-  });
+  const ApiResponse({required this.code, required this.message, this.result});
 
   factory ApiResponse.fromJson(
-      Map<String, dynamic> json,
-      T Function(Object? json)? fromJsonT,
-      ) {
+    Map<String, dynamic> json,
+    T Function(Object? json)? fromJsonT,
+  ) {
     final rawCode = json['code'];
     final rawMessage = json['message'];
     final rawResult = json['result'];

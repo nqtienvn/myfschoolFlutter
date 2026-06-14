@@ -1,7 +1,7 @@
-import '../models/grade.dart';
-import '../analytics/grade_analytics.dart';
-import '../models/student.dart';
+import 'grade.dart';
+import 'grade_analytics.dart';
 import 'attendance_stats.dart';
+import 'student.dart';
 
 class StudentSummary {
   final Student student; //quan he hinh thoi den - rang buoc chat che

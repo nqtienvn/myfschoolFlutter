@@ -1,4 +1,4 @@
-import 'package:myfschoolse1913/vn/edu/fpt/src/core/models/grade.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/models/grade.dart';
 
 import '../exception/parse_exception.dart';
 

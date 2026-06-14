@@ -1,7 +1,7 @@
 class AttendanceStats {
-  final int presentCount;//so luong co mat
-  final int absentCount;//so luong vang mat
-  final int lateCount;//muon
+  final int presentCount; //so luong co mat
+  final int absentCount; //so luong vang mat
+  final int lateCount; //muon
   final int excusedCount; //buoi nghi co phep
 
   const AttendanceStats({
@@ -12,10 +12,10 @@ class AttendanceStats {
   });
 
   const AttendanceStats.empty()
-      : presentCount = 0,
-        absentCount = 0,
-        lateCount = 0,
-        excusedCount = 0;
+    : presentCount = 0,
+      absentCount = 0,
+      lateCount = 0,
+      excusedCount = 0;
 
   int get totalSessions =>
       presentCount + absentCount + lateCount + excusedCount;
@@ -25,7 +25,8 @@ class AttendanceStats {
     return (presentCount + lateCount + excusedCount) / totalSessions;
   }
 
-  factory AttendanceStats.fromStatuses(List<String> statuses) {//thuc hien logic truoc khi khoi tao --< co logic cai tao object luon
+  factory AttendanceStats.fromStatuses(List<String> statuses) {
+    //thuc hien logic truoc khi khoi tao --< co logic cai tao object luon
     var present = 0;
     var absent = 0;
     var late = 0;

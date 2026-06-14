@@ -1,10 +1,10 @@
-import 'package:myfschoolse1913/vn/edu/fpt/src/core/core.dart';
-import '../repositories/report_repository.dart';
+import '../models/models.dart';
+import '../repositories/school_repository.dart';
 
-class StudentReportService {
-  final ReportRepository repository;
+class SchoolService {
+  final SchoolRepository repository;
 
-  const StudentReportService({required this.repository});
+  const SchoolService({required this.repository});
 
   Future<StudentSummary> buildSummary(int studentId) async {
     final studentFuture = repository.loadStudent(studentId);
@@ -14,18 +14,23 @@ class StudentReportService {
     final missingHomeworkFuture = repository.loadMissingHomeworkCount(
       studentId,
     );
+
     final student = await studentFuture;
     final grades = await gradesFuture;
     final attendance = await attendanceFuture;
     final unreadCount = await unreadFuture;
-    final missingHomeWork = await missingHomeworkFuture;
+    final missingHomework = await missingHomeworkFuture;
 
     return StudentSummary(
       student: student,
       grades: grades,
       attendance: attendance,
       unreadAnnouncementCount: unreadCount,
-      missingHomeworkCount: missingHomeWork,
+      missingHomeworkCount: missingHomework,
     );
+  }
+
+  Stream<AppNotification> watchNotifications() {
+    return repository.watchNotifications();
   }
 }

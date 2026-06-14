@@ -1,4 +1,4 @@
-import '../../core/models/student.dart';
+import '../../models/student.dart';
 import '../exception/parse_exception.dart';
 
 class StudentDto {
@@ -20,15 +20,33 @@ class StudentDto {
   //decode chuyen tu Json sang Map String
   //fromJson -- chuyen tu Map String sang DTO
   factory StudentDto.fromJson(Map<String, dynamic> json) {
+    final rawDateOfBirth = json['dateOfBirth'];
+
     return StudentDto(
       id: requireField<int>(json, 'id'),
       code: requireField<String>(json, 'code'),
       fullName: requireField<String>(json, 'fullName'),
       status: requireField<String>(json, 'status'),
-      dateOfBirth: json['dateOfBirth'],
-      avatarUrl: json['comment'] as String?,
+      dateOfBirth: _parseDateOfBirth(rawDateOfBirth),
+      avatarUrl: json['avatarUrl'] as String?,
     );
   }
+
+  static DateTime? _parseDateOfBirth(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is String) {
+      return DateTime.parse(value);
+    }
+    if (value is DateTime) {
+      return value;
+    }
+    throw ParseException(
+      'Field "dateOfBirth" must is type String but received ${value.runtimeType}.',
+    );
+  }
+
   //toJson chuyen tu Request Sang Map
   Map<String, dynamic> toJson() {
     return {
@@ -40,6 +58,7 @@ class StudentDto {
       'avatarUrl': avatarUrl,
     };
   }
+
   //encode chuyen tu map sang json de request
   //ToDomain tu DTo sang Domain de in ra UI
   Student toDomain() {

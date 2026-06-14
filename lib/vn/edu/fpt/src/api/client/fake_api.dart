@@ -17,12 +17,11 @@ class FakeApiClient {
     await Future<void>.delayed(delay);
 
     if (shouldFail) {
-      throw const FakeApiException(
-        'Không thể tải điểm từ server giả lập.',
-      );
+      throw const FakeApiException('Không thể tải điểm từ server giả lập.');
     }
 
-    final rawJson = '''
+    final rawJson =
+        '''
     {
       "data": {
         "studentId": $studentId,

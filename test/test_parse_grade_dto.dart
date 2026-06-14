@@ -37,7 +37,7 @@ void main() {
 
     test('throws when value is not a number', () {
       expect(
-            () => GradeDto.fromJson({
+        () => GradeDto.fromJson({
           'id': 101,
           'subjectName': 'Toán',
           'value': 'k',

@@ -1,6 +1,6 @@
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/exception/parse_exception.dart';
 
-import '../../core/models/user.dart';
+import '../../models/user.dart';
 
 class UserDto {
   final int id;

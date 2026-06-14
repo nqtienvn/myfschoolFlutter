@@ -6,6 +6,7 @@ class ParseException implements Exception {
   @override
   String toString() => 'ParseException: $message';
 }
+
 T requireField<T>(Map<String, dynamic> json, String key) {
   final value = json[key];
 

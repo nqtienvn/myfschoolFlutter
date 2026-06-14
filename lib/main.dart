@@ -1,21 +1,39 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:myfschoolse1913/loginScreen.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/apps/mobile/theme/fpt_mobile_theme.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/apps/report_cli/lib/src/repositories/local_report_repository.dart';
 
-void main () {
-
-// class MyApp extends StatelessWidget {
-//   const MyApp({super.key});
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       debugShowCheckedModeBanner: false,
-//       theme: FptMobileTheme.build(),
-//       home: const LoginScreen(),
-//     );
-//   }
+void main() {
+  runApp(const CounterDemo());
 }
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(home: Text('Hello Flutter'));
+  }
+}
+
+class InfoCard extends StatelessWidget {
+  final String title;
+  final String content;
+
+  const InfoCard({super.key, required this.title, required this.content});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('$title\n$content'),
+            ),
+          ),
+        ),
+      ),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
