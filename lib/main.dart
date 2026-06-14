@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const CounterDemo());
+  runApp(const InfoCard(title: 'title', content: 'content',));
 }
 
 class MyApp extends StatelessWidget {
