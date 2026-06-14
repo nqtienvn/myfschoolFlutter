@@ -1,0 +1,18 @@
+[
+  {
+    "id": 10,
+    "code": "STU-001",
+    "fullName": "Nguyễn Minh An",
+    "status": "ACTIVE",
+    "dateOfBirth": "2010-09-01",
+    "avatarUrl": null
+  },
+  {
+    "id": 11,
+    "code": "STU-002",
+    "fullName": "Trần Bảo Ngọc",
+    "status": "ACTIVE",
+    "dateOfBirth": "2010-04-18",
+    "avatarUrl": null
+  }
+]

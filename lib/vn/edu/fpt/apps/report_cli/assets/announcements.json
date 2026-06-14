@@ -1,0 +1,6 @@
+[
+  {"id": 1, "studentId": 10, "title": "Họp phụ huynh", "isRead": false},
+  {"id": 2, "studentId": 10, "title": "Đổi phòng học", "isRead": false},
+  {"id": 3, "studentId": 10, "title": "Lịch kiểm tra", "isRead": true},
+  {"id": 4, "studentId": 11, "title": "Thông báo lớp", "isRead": false}
+]
