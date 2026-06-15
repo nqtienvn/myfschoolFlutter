@@ -1,5 +1,8 @@
 import 'package:flutter/cupertino.dart';
-import '../widgets/info_card.dart';
+import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/primary_button.dart';
+import '../design_system/widgets/info_card.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -34,6 +37,17 @@ class HomeScreen extends StatelessWidget {
           content:
           'Sau này dữ liệu này sẽ đến từ StudentSummary và backend API, không hard-code trong UI.',
         ),
+        PrimaryButton(
+          label: 'Đăng Nhập',
+          icon: Icons.login,
+          onPressed: null,
+        ),
+
+        AppCard(
+          child: Center(
+            child: Text("test Card nè"),
+          )
+        )
       ],
     );
   }

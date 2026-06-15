@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_theme.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/login_screen.dart';
 
 void main() {
-  runApp(const MyFSchoolApp());
+  runApp(const LoginScreen());
 }
 
 class MyFSchoolApp extends StatelessWidget {
@@ -12,7 +15,7 @@ class MyFSchoolApp extends StatelessWidget {
     return MaterialApp(
       title: 'myFschool',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: Colors.orange, useMaterial3: true),
+      theme: AppTheme.light(),
       home: const MainShell(),
     );
   }
@@ -30,6 +33,7 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
   final List<Widget> _screens = const [
+    HomeScreen(),
     ScheduleScreen(),
     GradesScreen(),
     MessagesScreen(),
