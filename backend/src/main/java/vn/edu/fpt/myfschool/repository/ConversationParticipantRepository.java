@@ -1,0 +1,18 @@
+package vn.edu.fpt.myfschool.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import vn.edu.fpt.myfschool.entity.ConversationParticipant;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface ConversationParticipantRepository extends JpaRepository<ConversationParticipant, Long> {
+    List<ConversationParticipant> findByConversationId(Long conversationId);
+    Optional<ConversationParticipant> findByConversationIdAndUserId(Long conversationId, Long userId);
+
+    @Query("SELECT cp.conversation.id FROM ConversationParticipant cp WHERE cp.user.id = :userId")
+    List<Long> findConversationIdsByUserId(@Param("userId") Long userId);
+}
