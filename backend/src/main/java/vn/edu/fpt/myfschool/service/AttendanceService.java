@@ -49,9 +49,9 @@ public class AttendanceService {
         return new DailyAttendanceDto(classId, cls.getName(), date, shift, entries);
     }
 
-    public List<AttendanceDto> submitAttendance(SubmitAttendanceRequest request, Long teacherId) {
-        Teacher teacher = teacherRepository.findById(teacherId)
-            .orElseThrow(() -> new ResourceNotFoundException("Teacher", "id", teacherId));
+    public List<AttendanceDto> submitAttendance(SubmitAttendanceRequest request, Long teacherUserId) {
+        Teacher teacher = teacherRepository.findByUserId(teacherUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("Teacher", "userId", teacherUserId));
         SchoolClass cls = classRepository.findById(request.classId())
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", request.classId()));
 

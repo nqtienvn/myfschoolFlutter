@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
 import vn.edu.fpt.myfschool.common.enums.Shift;
+import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.AttendanceService;
 
 import java.time.LocalDate;
@@ -40,7 +41,7 @@ public class AttendanceController {
     public ResponseEntity<ApiResponse<List<AttendanceDto>>> submitAttendance(
             @Valid @RequestBody SubmitAttendanceRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Điểm danh thành công",
-            attendanceService.submitAttendance(request, 1L)));
+            attendanceService.submitAttendance(request, SecurityUtil.getCurrentUserId())));
     }
 
     @PutMapping("/{id}")

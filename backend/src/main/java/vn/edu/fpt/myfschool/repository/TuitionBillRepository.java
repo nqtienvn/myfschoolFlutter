@@ -12,12 +12,15 @@ import java.util.List;
 @Repository
 public interface TuitionBillRepository extends JpaRepository<TuitionBill, Long> {
     List<TuitionBill> findByStudentIdOrderByCreatedAtDesc(Long studentId);
-    List<TuitionBill> findByClassIdAndSemesterIdOrderByCreatedAtDesc(Long classId, Long semesterId);
-    List<TuitionBill> findByClassIdAndSemesterIdAndStatus(Long classId, Long semesterId, BillStatus status);
+
+    @Query("SELECT tb FROM TuitionBill tb WHERE tb.cls.id = :classId AND tb.semester.id = :semesterId ORDER BY tb.createdAt DESC")
+    List<TuitionBill> findByClassIdAndSemesterIdOrderByCreatedAtDesc(@Param("classId") Long classId, @Param("semesterId") Long semesterId);
+
+    @Query("SELECT tb FROM TuitionBill tb WHERE tb.cls.id = :classId AND tb.semester.id = :semesterId AND tb.status = :status ORDER BY tb.createdAt DESC")
+    List<TuitionBill> findByClassIdAndSemesterIdAndStatus(@Param("classId") Long classId, @Param("semesterId") Long semesterId, @Param("status") BillStatus status);
 
     boolean existsByStudentIdAndSemesterIdAndName(Long studentId, Long semesterId, String name);
 
-    @Query("SELECT COALESCE(SUM(tb.amount), 0) FROM TuitionBill tb " +
-           "WHERE tb.student.id = :studentId AND tb.status = 'UNPAID'")
+    @Query("SELECT COALESCE(SUM(tb.amount), 0) FROM TuitionBill tb WHERE tb.student.id = :studentId AND tb.status = 'UNPAID'")
     BigDecimal totalUnpaidByStudent(@Param("studentId") Long studentId);
 }

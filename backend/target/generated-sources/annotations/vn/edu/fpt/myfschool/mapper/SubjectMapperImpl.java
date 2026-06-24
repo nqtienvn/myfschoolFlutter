@@ -7,7 +7,7 @@ import vn.edu.fpt.myfschool.entity.Subject;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-06-24T17:03:21+0700",
+    date = "2026-06-24T20:29:00+0700",
     comments = "version: 1.6.3, compiler: javac, environment: Java 21.0.7 (Microsoft)"
 )
 @Component

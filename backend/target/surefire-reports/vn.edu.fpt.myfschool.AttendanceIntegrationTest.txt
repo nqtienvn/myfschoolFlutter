@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: vn.edu.fpt.myfschool.AttendanceIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.33 s -- in vn.edu.fpt.myfschool.AttendanceIntegrationTest
