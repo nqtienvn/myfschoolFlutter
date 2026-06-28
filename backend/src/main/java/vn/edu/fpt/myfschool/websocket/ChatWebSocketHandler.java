@@ -1,17 +1,16 @@
 package vn.edu.fpt.myfschool.websocket;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.*;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 @Component
 @RequiredArgsConstructor
 public class ChatWebSocketHandler extends TextWebSocketHandler {
-
     private final WebSocketSessionManager sessionManager;
-    private final ObjectMapper objectMapper;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
@@ -19,6 +18,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         if (userId != null) {
             sessionManager.addSession(userId, session);
         }
+
     }
 
     @Override
