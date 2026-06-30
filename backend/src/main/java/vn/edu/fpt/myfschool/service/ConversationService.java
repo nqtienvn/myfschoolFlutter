@@ -8,6 +8,9 @@ import vn.edu.fpt.myfschool.common.dto.MessageDto;
 import vn.edu.fpt.myfschool.common.dto.ParticipantDto;
 import vn.edu.fpt.myfschool.common.dto.SendMessageRequest;
 import vn.edu.fpt.myfschool.common.enums.MessageType;
+import vn.edu.fpt.myfschool.common.exception.BadRequestException;
+import vn.edu.fpt.myfschool.common.exception.ConflictException;
+import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.entity.Conversation;
 import vn.edu.fpt.myfschool.entity.ConversationParticipant;
@@ -76,33 +79,82 @@ public class ConversationService {
     }
 
     public MessageDto sendMessage(Long conversationId, Long senderId, SendMessageRequest request) {
+        MessageType messageType = resolveMessageType(request);
+        String clientMessageId = normalizeClientMessageId(request);
+        String content = normalizeContent(request, messageType);
+
         Conversation conv = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Conversation", "id", conversationId));
+        if (!participantRepository.existsByConversationIdAndUserId(conversationId, senderId)) {
+            throw new ForbiddenException("Bạn không thuộc cuộc hội thoại này");
+        }
+
         User sender = userRepository.findById(senderId).orElseThrow();
+        var existingMessage = messageRepository.findBySenderIdAndClientMessageId(
+                senderId,
+                clientMessageId
+        );
+        if (existingMessage.isPresent()) {
+            Message msg = existingMessage.get();
+            if (!msg.getConversation().getId().equals(conversationId)) {
+                throw new ConflictException("clientMessageId đã được dùng cho hội thoại khác");
+            }
+            return toMessageDto(msg, senderId);
+        }
 
         Message msg = new Message();
         msg.setConversation(conv);
         msg.setSender(sender);
-        msg.setContent(request.content());
-        msg.setClientMessageId(request.clientMessageId());
-        msg.setMessageType(request.messageType() == null ? MessageType.TEXT : request.messageType());
+        msg.setContent(content);
+        msg.setClientMessageId(clientMessageId);
+        msg.setMessageType(messageType);
         msg.setServerSeq(messageRepository.findMaxServerSeq(conversationId) + 1);
         msg = messageRepository.save(msg);
 
-        conv.setLastMessage(request.content());
+        conv.setLastMessage(content);
         conv.setLastMessageAt(msg.getCreatedAt());
         conversationRepository.save(conv);
 
+        return toMessageDto(msg, senderId);
+    }
+
+    private MessageType resolveMessageType(SendMessageRequest request) {
+        return request.messageType() == null ? MessageType.TEXT : request.messageType();
+    }
+
+    private String normalizeClientMessageId(SendMessageRequest request) {
+        String clientMessageId = request.clientMessageId() == null ? "" : request.clientMessageId().trim();
+        if (clientMessageId.isEmpty()) {
+            throw new BadRequestException("clientMessageId không được để trống");
+        }
+        if (clientMessageId.length() > 80) {
+            throw new BadRequestException("clientMessageId không được vượt quá 80 ký tự");
+        }
+        return clientMessageId;
+    }
+
+    private String normalizeContent(SendMessageRequest request, MessageType messageType) {
+        String content = request.content() == null ? "" : request.content().trim();
+        if (messageType == MessageType.TEXT && content.isEmpty()) {
+            throw new BadRequestException("Nội dung tin nhắn không được để trống");
+        }
+        if (content.length() > 4000) {
+            throw new BadRequestException("Nội dung tin nhắn không được vượt quá 4000 ký tự");
+        }
+        return content;
+    }
+
+    private MessageDto toMessageDto(Message msg, Long currentUserId) {
         return new MessageDto(
                 msg.getId(),
                 msg.getClientMessageId(),
-                conv.getId(),
-                sender.getId(),
-                sender.getName(),
+                msg.getConversation().getId(),
+                msg.getSender().getId(),
+                msg.getSender().getName(),
                 msg.getMessageType(),
                 msg.getContent(),
                 msg.getServerSeq(),
-                true,
+                msg.getSender().getId().equals(currentUserId),
                 msg.getCreatedAt(),
                 List.of()
         );

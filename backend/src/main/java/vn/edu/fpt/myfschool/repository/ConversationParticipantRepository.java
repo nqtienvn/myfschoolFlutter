@@ -12,6 +12,11 @@ import java.util.Optional;
 public interface ConversationParticipantRepository extends JpaRepository<ConversationParticipant, Long> {
     List<ConversationParticipant> findByConversationId(Long conversationId);
     Optional<ConversationParticipant> findByConversationIdAndUserId(Long conversationId, Long userId);
+    boolean existsByConversationIdAndUserId(Long conversationId, Long userId);
+
+    @Query("SELECT cp.user.id FROM ConversationParticipant cp " +
+            "WHERE cp.conversation.id = :conversationId AND cp.user.id <> :userId")
+    List<Long> findOtherUserIds(@Param("conversationId") Long conversationId, @Param("userId") Long userId);
 
     @Query("SELECT cp.conversation.id FROM ConversationParticipant cp WHERE cp.user.id = :userId")
     List<Long> findConversationIdsByUserId(@Param("userId") Long userId);

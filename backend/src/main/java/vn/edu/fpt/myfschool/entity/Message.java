@@ -34,8 +34,7 @@ import java.util.List;
                 )
         },
         indexes = {
-                @Index(name = "idx_message_conversation_created", columnList = "conversation_id, created_at"),
-                @Index(name = "idx_message_conversation_seq", columnList = "conversation_id, server_seq")
+                @Index(name = "idx_message_conversation_created", columnList = "conversation_id, created_at")
         })
 @Getter
 @Setter
@@ -58,7 +57,7 @@ public class Message extends BaseEntity {
     @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Attachment> attachments = new ArrayList<>();
 
-    @Column(length = 80)
+    @Column(name = "client_message_id", nullable = false, length = 80)
     private String clientMessageId; //để chống gửi trùng tin nhắn
     //khi fe gửi tin nhắn qua ws nó tạo ra một mã tạm là clientId
     //khi lưu db thành công nhưng mang lag nên fe chưa nhận được thì fe tưởng fail và retry lại cùng message
@@ -67,10 +66,10 @@ public class Message extends BaseEntity {
 
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(name = "message_type", nullable = false, length = 20)
     private MessageType messageType = MessageType.TEXT;
 
-    @Column(nullable = false)
+    @Column(name = "server_seq", nullable = false)
     private Long serverSeq;
 //serverSeq là số thứ tự tăng dần của message trong từng conversation do be cấp
 //để Fe biết mình đã sync đến message số mấy
