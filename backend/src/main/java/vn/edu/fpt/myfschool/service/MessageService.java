@@ -26,8 +26,17 @@ public class MessageService {
             messages = messageRepository.findByConversationIdOrderByCreatedAtDesc(conversationId, PageRequest.of(0, limit));
         }
         return messages.stream().map(m -> new MessageDto(
-            m.getId(), m.getSender().getId(), m.getSender().getName(),
-            m.getContent(), m.getSender().getId().equals(userId),
-            m.getCreatedAt(), List.of())).collect(Collectors.toList());
+                m.getId(),
+                m.getClientMessageId(),
+                m.getConversation().getId(),
+                m.getSender().getId(),
+                m.getSender().getName(),
+                m.getMessageType(),
+                m.getContent(),
+                m.getServerSeq(),
+                m.getSender().getId().equals(userId),
+                m.getCreatedAt(),
+                List.of()
+        )).collect(Collectors.toList());
     }
 }

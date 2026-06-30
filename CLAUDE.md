@@ -86,9 +86,9 @@ Screen → Service → Repository → FakeApiClient → (future: REST API)
 `AppShell` (IndexedStack, 4 tabs):
 | Tab | Index | Parent | Student | Teacher |
 |-----|-------|--------|---------|---------|
-| 💬 Tin nhắn | 0 | ConversationsScreen | same | TeacherInboxScreen |
-| 📢 Thông báo | 1 | AnnouncementsScreen | same | same |
-| 🏠 Trang chủ | 2 | HomeParent | HomeStudent | HomeTeacher |
+| 🏠 Trang chủ | 0 | HomeParent | HomeStudent | HomeTeacher |
+| 💬 Tin nhắn | 1 | ConversationsScreen | same | TeacherInboxScreen |
+| 📢 Thông báo | 2 | AnnouncementsScreen | same | same |
 | 👤 Tài khoản | 3 | AccountProfileScreen | same | same |
 
 Each tab has its own `Navigator` (nested navigator pattern) — use `_navigatorKeys[index]` for in-tab navigation.

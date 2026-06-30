@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: vn.edu.fpt.myfschool.AuthIntegrationTest
--------------------------------------------------------------------------------
-Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.207 s -- in vn.edu.fpt.myfschool.AuthIntegrationTest

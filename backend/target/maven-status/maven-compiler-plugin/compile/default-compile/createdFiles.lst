@@ -74,6 +74,7 @@ vn\edu\fpt\myfschool\common\dto\UserSettingDto.class
 vn\edu\fpt\myfschool\common\dto\ConversationDto.class
 vn\edu\fpt\myfschool\entity\SchoolClass.class
 vn\edu\fpt\myfschool\repository\NotificationRepository.class
+vn\edu\fpt\myfschool\websocket\ChatHandshakeInterceptor.class
 vn\edu\fpt\myfschool\controller\DashboardController.class
 vn\edu\fpt\myfschool\repository\ClassSubjectRepository.class
 vn\edu\fpt\myfschool\config\WebSocketConfig.class

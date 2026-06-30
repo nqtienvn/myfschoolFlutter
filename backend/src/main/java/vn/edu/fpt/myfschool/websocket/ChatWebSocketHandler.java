@@ -14,11 +14,11 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        Long userId = (Long) session.getAttributes().get("userId");
+        Long userId = (Long) session.getAttributes().get("userId"); // lay trong attribute trong beforehandshake
         if (userId != null) {
             sessionManager.addSession(userId, session);
         }
-
+        sessionManager.sendToUser(userId, "upgraded ws");
     }
 
     @Override

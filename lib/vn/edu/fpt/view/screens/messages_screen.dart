@@ -3,6 +3,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/actor_models.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/chat_detail_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/login_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_inbox_screen.dart';
@@ -18,9 +19,32 @@ class ConversationsScreen extends StatelessWidget {
       return const TeacherInboxScreen();
     }
 
-    final threads = [
-      ('Cô Nguyễn Thu Hà', 'Cô đã nhận đơn nghỉ, gia đình theo dõi sức khỏe của An nhé.', '09:20', AppColors.fptOrange),
-      ('Thầy Trần Quốc Huy', 'An cần nộp lại ảnh chụp màn hình bài thực hành.', 'Hôm qua', AppColors.blue),
+    final threads = <ChatThread>[
+      const ChatThread(
+        title: 'Cô Nguyễn Thu Hà',
+        subtitle: 'Giáo viên chủ nhiệm • Lớp SE1913',
+        lastMessage: 'Cô đã nhận đơn nghỉ, gia đình theo dõi sức khỏe của An nhé.',
+        time: '09:20',
+        accentColor: AppColors.fptOrange,
+        tag: 'GV chủ nhiệm',
+        initialMessages: [
+          ChatMessage(text: 'Chào gia đình, cô đã nhận đơn nghỉ của An.', time: '09:12', isMine: false),
+          ChatMessage(text: 'Dạ gia đình cảm ơn cô đã hỗ trợ.', time: '09:16', isMine: true),
+          ChatMessage(text: 'Cô đã nhận đơn nghỉ, gia đình theo dõi sức khỏe của An nhé.', time: '09:20', isMine: false),
+        ],
+      ),
+      const ChatThread(
+        title: 'Thầy Trần Quốc Huy',
+        subtitle: 'Giáo viên Tin học • PRM393',
+        lastMessage: 'An cần nộp lại ảnh chụp màn hình bài thực hành.',
+        time: 'Hôm qua',
+        accentColor: AppColors.blue,
+        tag: 'Bài tập',
+        initialMessages: [
+          ChatMessage(text: 'Thầy ơi, em đã nộp bài Lab 2 trên hệ thống.', time: 'Hôm qua', isMine: true),
+          ChatMessage(text: 'An cần nộp lại ảnh chụp màn hình bài thực hành.', time: 'Hôm qua', isMine: false),
+        ],
+      ),
     ];
 
     return Scaffold(
@@ -33,41 +57,70 @@ class ConversationsScreen extends StatelessWidget {
             const SectionHeader(title: 'Hộp thoại gần đây'),
             for (final thread in threads) ...[
               AppCard(
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: thread.$4.withValues(alpha: 0.12),
-                      child: Icon(Icons.person, color: thread.$4),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                thread.$1,
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.ink),
-                              ),
-                              Text(
-                                thread.$3,
-                                style: const TextStyle(fontSize: 10, color: AppColors.quiet),
-                              ),
-                            ],
+                padding: 0,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (context) => ChatDetailScreen(thread: thread),
                           ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            thread.$2,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
-                          ),
-                        ],
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: thread.accentColor.withValues(alpha: 0.12),
+                              child: Icon(Icons.person, color: thread.accentColor),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          thread.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.ink,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Text(
+                                        thread.time,
+                                        style: const TextStyle(fontSize: 10, color: AppColors.quiet),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Text(
+                                    thread.lastMessage,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            const Icon(Icons.chevron_right, color: AppColors.quiet, size: 20),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_radius.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/chat_detail_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 
 class TeacherInboxScreen extends StatelessWidget {
@@ -80,87 +80,87 @@ class _ThreadCard extends StatelessWidget {
 
   final _InboxThread thread;
 
+  ChatThread _toChatThread() {
+    return ChatThread(
+      title: thread.parent,
+      subtitle: 'Học sinh: ${thread.student}',
+      lastMessage: thread.message,
+      time: thread.time,
+      accentColor: thread.color,
+      tag: thread.tag,
+      initialMessages: [
+        ChatMessage(text: thread.message, time: thread.time, isMine: false),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      child: InkWell(
-        onTap: () {
-          showDialog<void>(
-            context: context,
-            builder: (context) {
-              return AlertDialog(
-                title: Text(thread.parent, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Học sinh: ${thread.student}', style: const TextStyle(fontSize: 12, color: AppColors.muted)),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(thread.message, style: const TextStyle(fontSize: 13, height: 1.35)),
-                    const SizedBox(height: AppSpacing.lg),
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Phản hồi phụ huynh',
-                        hintText: 'Nhập câu trả lời...',
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.send, color: AppColors.fptOrange),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Đã gửi phản hồi thành công!'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
+      padding: 0,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => ChatDetailScreen(thread: _toChatThread()),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Đóng'),
-                  ),
-                ],
               );
             },
-          );
-        },
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    thread.parent,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.ink),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          thread.parent,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.ink),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      StatusPill(
+                        label: thread.tag,
+                        foreground: thread.color,
+                        background: thread.color.withValues(alpha: 0.12),
+                        compact: true,
+                      ),
+                    ],
                   ),
-                ),
-                StatusPill(
-                  label: thread.tag,
-                  foreground: thread.color,
-                  background: thread.color.withValues(alpha: 0.12),
-                  compact: true,
-                ),
-              ],
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Học sinh: ${thread.student} • ${thread.time}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.bold),
+                  ),
+                  const Divider(height: AppSpacing.lg),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          thread.message,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13, color: AppColors.ink, height: 1.3),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      const Icon(Icons.chevron_right, color: AppColors.quiet, size: 20),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Học sinh: ${thread.student} • ${thread.time}',
-              style: const TextStyle(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.bold),
-            ),
-            const Divider(height: AppSpacing.lg),
-            Text(
-              thread.message,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, color: AppColors.ink, height: 1.3),
-            ),
-          ],
+          ),
         ),
       ),
     );

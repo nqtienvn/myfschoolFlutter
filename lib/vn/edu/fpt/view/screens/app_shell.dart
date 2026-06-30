@@ -16,7 +16,7 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  int _selectedIndex = 2;
+  int _selectedIndex = 0;
   late final List<GlobalKey<NavigatorState>> _navigatorKeys;
 
   @override
@@ -44,11 +44,11 @@ class _AppShellState extends State<AppShell> {
           builder: (context) {
             switch (index) {
               case 0:
-                return ConversationsScreen(actor: widget.actor);
-              case 1:
-                return AnnouncementsScreen(actor: widget.actor);
-              case 2:
                 return _homeForActor();
+              case 1:
+                return ConversationsScreen(actor: widget.actor);
+              case 2:
+                return AnnouncementsScreen(actor: widget.actor);
               case 3:
                 return AccountProfileScreen(actor: widget.actor);
               default:
@@ -99,6 +99,11 @@ class _AppShellState extends State<AppShell> {
             onTap: _selectTab,
             items: const [
               BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined),
+                activeIcon: Icon(Icons.home),
+                label: 'Trang chủ',
+              ),
+              BottomNavigationBarItem(
                 icon: Icon(Icons.chat_bubble_outline),
                 activeIcon: Icon(Icons.chat_bubble),
                 label: 'Tin nhắn',
@@ -107,11 +112,6 @@ class _AppShellState extends State<AppShell> {
                 icon: Icon(Icons.mail_outline),
                 activeIcon: Icon(Icons.mail),
                 label: 'Thông báo',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home_outlined),
-                activeIcon: Icon(Icons.home),
-                label: 'Trang chủ',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.account_circle_outlined),

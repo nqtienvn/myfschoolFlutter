@@ -52,19 +52,19 @@ Chung cho tất cả 3 actor: Login → Role Selection → AppShell.
 ```text
 [APP SHELL — IndexedStack + Nested Navigator — 4 tabs]
   │
-  ├── Tab 0: 💬 Tin nhắn ──────► ConversationsScreen(actor)
-  │     ├── Parent/Student → Thread list (PH ↔ GV)
-  │     └── Teacher → TeacherInboxScreen (Unified inbox)
-  │
-  ├── Tab 1: 📢 Thông báo ─────► AnnouncementsScreen(actor)
-  │     ├── Parent → Thông báo lớp + TB Học phí
-  │     ├── Student → Thông báo cá nhân
-  │     └── Teacher → Thông báo đã gửi + Tracking
-  │
-  ├── Tab 2: 🏠 Trang chủ ─────► Home [actor-specific]
+  ├── Tab 0: 🏠 Trang chủ ─────► Home [actor-specific]
   │     ├── Parent → HomeParent (Student Switcher + 5 buttons)
   │     ├── Student → HomeStudent (Profile card + 5 buttons)
   │     └── Teacher → HomeTeacher (Profile card + 8 buttons)
+  │
+  ├── Tab 1: 💬 Tin nhắn ──────► ConversationsScreen(actor)
+  │     ├── Parent/Student → Thread list (PH ↔ GV)
+  │     └── Teacher → TeacherInboxScreen (Unified inbox)
+  │
+  ├── Tab 2: 📢 Thông báo ─────► AnnouncementsScreen(actor)
+  │     ├── Parent → Thông báo lớp + TB Học phí
+  │     ├── Student → Thông báo cá nhân
+  │     └── Teacher → Thông báo đã gửi + Tracking
   │
   └── Tab 3: 👤 Tài khoản ─────► AccountProfileScreen(actor)
         ├── Hồ sơ cá nhân
@@ -77,7 +77,7 @@ Chung cho tất cả 3 actor: Login → Role Selection → AppShell.
 ## 2. HomeParent Flow
 
 ```text
-[APP SHELL — Tab 2: Trang chủ]
+[APP SHELL — Tab 0: Trang chủ]
   │
   ▼
 [SCR-PH-01: HOME PARENT (HomeParent)]
@@ -202,7 +202,7 @@ Chung cho tất cả 3 actor: Login → Role Selection → AppShell.
   │     └── Chuyên cần tự động cập nhật: 'Vắng có phép' + mã đơn
   │
   └── Gửi tin nhắn GV
-        └── (qua Tab 0: Tin nhắn — không qua Home)
+        └── (qua Tab 1: Tin nhắn — không qua Home)
 ```
 
 ---
@@ -210,7 +210,7 @@ Chung cho tất cả 3 actor: Login → Role Selection → AppShell.
 ## 3. HomeStudent Flow
 
 ```text
-[APP SHELL — Tab 2: Trang chủ]
+[APP SHELL — Tab 0: Trang chủ]
   │
   ▼
 [SCR-HS-01: HOME STUDENT (HomeStudent)]
@@ -332,7 +332,7 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
 ## 4. HomeTeacher Flow
 
 ```text
-[APP SHELL — Tab 2: Trang chủ]
+[APP SHELL — Tab 0: Trang chủ]
   │
   ▼
 [SCR-GV-01: HOME TEACHER (HomeTeacher)]
@@ -485,8 +485,8 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
   │     └── HS thấy 'Vắng có phép' trong AttendanceScreen
   │
   ├── Gửi thông báo lớp → API POST /api/announcements
-  │     ├── PH thấy trong Tab 1: Thông báo (requiresReply: true → badge đỏ)
-  │     └── HS thấy trong Tab 1: Thông báo
+  │     ├── PH thấy trong Tab 2: Thông báo (requiresReply: true → badge đỏ)
+  │     └── HS thấy trong Tab 2: Thông báo
   │
   ├── Nhập/Upload điểm → API POST /api/grades
   │     ├── PH thấy điểm mới trong GradesScreen
@@ -497,17 +497,17 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
   │     └── HS thấy tuition notification mới
   │
   └── Trả lời tin nhắn PH
-        └── PH thấy reply trong Tab 0: Tin nhắn
+        └── PH thấy reply trong Tab 1: Tin nhắn
 ```
 
 ---
 
 ## 5. Bottom Navigation Tabs
 
-### 5.1. Tab 0: 💬 Tin nhắn (ConversationsScreen)
+### 5.1. Tab 1: 💬 Tin nhắn (ConversationsScreen)
 
 ```text
-[TAB 0: TIN NHẮN — ConversationsScreen(actor)]
+[TAB 1: TIN NHẮN — ConversationsScreen(actor)]
   │
   ├──► [IF actor == TEACHER]
   │         │
@@ -521,9 +521,9 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
   │            │     ├── Tin nhắn preview (dòng cuối)
   │            │     ├── Tag pill (Đơn nghỉ / Điểm / Thông báo)
   │            │     └── Thời gian
-  │            └── Tap thread → Chi tiết hội thoại (chưa có screen)
-  │                  └── Gửi reply → API: POST /api/messages
-  │                       └── PH nhận trong Tab 0
+  │            └── Tap thread → ChatDetailScreen
+  │                  └── Gửi reply → thêm tin nhắn mock trong UI hiện tại
+  │                       └── PH nhận trong Tab 1
   │
   └──► [IF actor == PARENT hoặc STUDENT]
             │
@@ -536,15 +536,15 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
                │     ├── Tên GV ("Cô Nguyễn Thu Hà")
                │     ├── Tin nhắn preview (dòng cuối)
                │     └── Thời gian
-               └── Tap thread → Chi tiết hội thoại (chưa có screen)
-                     └── Gửi reply → API: POST /api/messages
+               └── Tap thread → ChatDetailScreen
+                     └── Gửi reply → thêm tin nhắn mock trong UI hiện tại
                           └── GV nhận trong TeacherInboxScreen
 ```
 
-### 5.2. Tab 1: 📢 Thông báo (AnnouncementsScreen)
+### 5.2. Tab 2: 📢 Thông báo (AnnouncementsScreen)
 
 ```text
-[TAB 1: THÔNG BÁO — AnnouncementsScreen(actor)]
+[TAB 2: THÔNG BÁO — AnnouncementsScreen(actor)]
   │
   ├──► [IF actor == PARENT]
   │         │
@@ -631,20 +631,20 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
 
 ## Tổng kết: Cross-Actor Interactions
 
-### Qua Tin nhắn (Tab 0)
+### Qua Tin nhắn (Tab 1)
 
 ```text
-[CROSS-ACTOR: Tin nhắn (Tab 0)]
+[CROSS-ACTOR: Tin nhắn (Tab 1)]
   │
   ├── PH/HS gửi tin nhắn → GV thấy trong TeacherInboxScreen
   │
   └── GV reply tin nhắn → PH/HS thấy trong ConversationsScreen
 ```
 
-### Qua Thông báo (Tab 1)
+### Qua Thông báo (Tab 2)
 
 ```text
-[CROSS-ACTOR: Thông báo (Tab 1)]
+[CROSS-ACTOR: Thông báo (Tab 2)]
   │
   ├── GV tạo thông báo → PH/HS thấy trong AnnouncementsScreen
   │     └── requiresReply: true → badge đỏ cho đến khi xác nhận

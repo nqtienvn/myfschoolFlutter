@@ -1,14 +1,16 @@
 package vn.edu.fpt.myfschool.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.enums.UserStatus;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter
+@Setter
 @EqualsAndHashCode(callSuper = true)
 public class User extends BaseEntity {
 
