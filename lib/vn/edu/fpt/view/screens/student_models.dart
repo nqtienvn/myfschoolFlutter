@@ -426,7 +426,7 @@ final mockStudents = [
         date: '12/06',
         session: 'Chiều',
         status: 'Có mặt',
-        reason: 'Đã điểm danh CLB',
+        reason: 'Đã điểm danh chiều',
         color: AppColors.success,
         background: AppColors.successSoft,
       ),

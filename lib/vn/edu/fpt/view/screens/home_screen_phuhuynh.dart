@@ -8,6 +8,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/leave_request_list_scree
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/tuition_payment_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_bottom_sheet.dart';
 
 
 class HomeParent extends StatefulWidget {
@@ -33,123 +34,97 @@ class _HomeParentState extends State<HomeParent> {
             .toList()
         : <ParentNotification>[];
 
-    showModalBottomSheet<void>(
+    showAppBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Thông báo học phí',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.line,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+          const SizedBox(height: 12),
+          if (tuitionNotifs.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  'Không có thông báo học phí nào mới.',
+                  style: TextStyle(color: AppColors.muted, fontSize: 13),
                 ),
               ),
-              const SizedBox(height: 20),
-              const Text(
-                'Thông báo học phí',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink),
+            )
+          else
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.4,
               ),
-              const SizedBox(height: 12),
-              if (tuitionNotifs.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                    child: Text(
-                      'Không có thông báo học phí nào mới.',
-                      style: TextStyle(color: AppColors.muted, fontSize: 13),
+              child: ListView(
+                shrinkWrap: true,
+                children: tuitionNotifs.map((n) {
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    color: AppColors.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: AppColors.line.withValues(alpha: 0.5)),
                     ),
-                  ),
-                )
-              else
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.4,
-                  ),
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: tuitionNotifs.map((n) {
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        color: AppColors.surface,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: AppColors.line.withValues(alpha: 0.5)),
-                        ),
-                        elevation: 0,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    elevation: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.warning_amber_rounded, color: n.color, size: 20),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      n.title,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.ink),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                n.body,
-                                style: const TextStyle(fontSize: 12.5, color: AppColors.muted, height: 1.4),
+                              Icon(Icons.warning_amber_rounded, color: n.color, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  n.title,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.ink),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              if (tuitionNotifs.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => TuitionPaymentScreen(student: _student),
-                        ),
-                      ).then((_) => setState(() {}));
-                    },
-                    icon: const Icon(Icons.account_balance_wallet_outlined),
-                    label: const Text('Đóng học phí', style: TextStyle(fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.fptOrange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          const SizedBox(height: 8),
+                          Text(
+                            n.body,
+                            style: const TextStyle(fontSize: 12.5, color: AppColors.muted, height: 1.4),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  );
+                }).toList(),
+              ),
+            ),
+          if (tuitionNotifs.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => TuitionPaymentScreen(student: _student),
+                    ),
+                  ).then((_) => setState(() {}));
+                },
+                icon: const Icon(Icons.account_balance_wallet_outlined),
+                label: const Text('Đóng học phí', style: TextStyle(fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.fptOrange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-              ],
-            ],
-          ),
-        );
-      },
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 

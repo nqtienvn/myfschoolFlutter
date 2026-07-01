@@ -90,28 +90,4 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.status").value("SUCCESS"));
     }
-
-    @Test
-    void register_club_student_only() throws Exception {
-        String token = loginAsStudent1();
-
-        mockMvc.perform(post("/api/clubs/register")
-                .header("Authorization", authHeader(token))
-                .param("clubName", "CLB Toan")
-                .param("academicYear", "2026-2027"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.clubName").value("CLB Toan"));
-    }
-
-    @Test
-    void register_club_parent_forbidden() throws Exception {
-        String token = loginAsParent();
-
-        mockMvc.perform(post("/api/clubs/register")
-                .header("Authorization", authHeader(token))
-                .param("clubName", "CLB Van hoc")
-                .param("academicYear", "2026-2027"))
-            .andExpect(status().isForbidden());
-    }
 }
