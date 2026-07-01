@@ -9,6 +9,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/forms_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/tuition_payment_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_bottom_sheet.dart';
 
 
 class HomeStudent extends StatefulWidget {
@@ -35,101 +36,71 @@ class _HomeStudentState extends State<HomeStudent> {
         : <ParentNotification>[];
     final hasTuitionNotifs = tuitionNotifs.isNotEmpty;
 
-    showModalBottomSheet<void>(
+    showAppBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateSheet) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Thông tin & Cảnh báo học phí',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isPaid ? AppColors.successSoft : AppColors.dangerSoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isPaid ? 'ĐÃ HOÀN THÀNH HỌC PHÍ' : 'CÒN KHOẢN HỌC PHÍ CHƯA ĐÓNG',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: isPaid ? AppColors.success : AppColors.danger,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  isPaid
+                      ? 'Học sinh ${_student.name} đã hoàn thành đầy đủ nghĩa vụ học phí. Cảm ơn bạn!'
+                      : 'Bạn còn chưa thanh toán học phí kì Fall 2026.\nTổng số tiền còn thiếu: ${unpaidSum.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]}.")} đ.\nHạn nộp: 30/06/2026.',
+                  style: const TextStyle(fontSize: 13, color: AppColors.ink, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          if (!isPaid && hasTuitionNotifs) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => TuitionPaymentScreen(student: _student),
+                    ),
+                  ).then((_) => setState(() {}));
+                },
+                icon: const Icon(Icons.account_balance_wallet_outlined),
+                label: const Text('Đóng học phí', style: TextStyle(fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.fptOrange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.line,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Thông tin & Cảnh báo học phí',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isPaid ? AppColors.successSoft : AppColors.dangerSoft,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isPaid ? 'ĐÃ HOÀN THÀNH HỌC PHÍ' : 'CÒN KHOẢN HỌC PHÍ CHƯA ĐÓNG',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isPaid ? AppColors.success : AppColors.danger,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          isPaid
-                              ? 'Học sinh ${_student.name} đã hoàn thành đầy đủ nghĩa vụ học phí. Cảm ơn bạn!'
-                              : 'Bạn còn chưa thanh toán học phí kì Fall 2026.\nTổng số tiền còn thiếu: ${unpaidSum.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]}.")} đ.\nHạn nộp: 30/06/2026.',
-                          style: const TextStyle(fontSize: 13, color: AppColors.ink, height: 1.4),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!isPaid && hasTuitionNotifs) ...[
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => TuitionPaymentScreen(student: _student),
-                            ),
-                          ).then((_) => setState(() {}));
-                        },
-                        icon: const Icon(Icons.account_balance_wallet_outlined),
-                        label: const Text('Đóng học phí', style: TextStyle(fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.fptOrange,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                ],
-              ),
-            );
-          },
-        );
-      },
+            ),
+          ],
+          const SizedBox(height: 16),
+        ],
+      ),
     );
   }
 
