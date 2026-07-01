@@ -32,7 +32,8 @@ public class AttendanceController {
     @Operation(summary = "DS điểm danh theo ngày")
     public ResponseEntity<ApiResponse<DailyAttendanceDto>> getDailyAttendance(
             @RequestParam Long classId, @RequestParam LocalDate date, @RequestParam Shift shift) {
-        return ResponseEntity.ok(ApiResponse.success(attendanceService.getDailyAttendance(classId, date, shift)));
+        return ResponseEntity.ok(ApiResponse.success(
+            attendanceService.getDailyAttendance(classId, date, shift, SecurityUtil.getCurrentUserId())));
     }
 
     @PostMapping("/submit")
@@ -50,7 +51,8 @@ public class AttendanceController {
     public ResponseEntity<ApiResponse<AttendanceDto>> updateAttendance(
             @PathVariable Long id, @RequestBody Map<String, String> body) {
         AttendanceStatus status = AttendanceStatus.valueOf(body.get("status"));
-        return ResponseEntity.ok(ApiResponse.success(attendanceService.updateAttendance(id, status)));
+        return ResponseEntity.ok(ApiResponse.success(
+            attendanceService.updateAttendance(id, status, SecurityUtil.getCurrentUserId())));
     }
 
     @GetMapping("/student")

@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.myfschool.common.dto.*;
+import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.service.ClassService;
 
 import java.util.List;
@@ -80,6 +81,9 @@ public class ClassController {
     public ResponseEntity<ApiResponse<ClassSubjectDto>> assignSubject(
             @PathVariable Long id,
             @Valid @RequestBody CreateClassSubjectRequest request) {
+        if (!id.equals(request.classId())) {
+            throw new BadRequestException("classId trong đường dẫn và body không khớp");
+        }
         return ResponseEntity.ok(ApiResponse.success("Phân công thành công", classService.assignSubject(request)));
     }
 

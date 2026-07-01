@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.ConversationService;
+import vn.edu.fpt.myfschool.service.MessageService;
 
 import java.util.List;
 
@@ -22,6 +23,7 @@ import java.util.List;
 public class ConversationController {
 
     private final ConversationService conversationService;
+    private final MessageService messageService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
@@ -47,10 +49,8 @@ public class ConversationController {
             @PathVariable Long id,
             @RequestParam(required = false) Long beforeMessageId,
             @RequestParam(defaultValue = "20") int limit) {
-        return ResponseEntity.ok(ApiResponse.success(
-            conversationService.getConversations(SecurityUtil.getCurrentUserId()).stream()
-                .filter(c -> c.id().equals(id)).findFirst()
-                .map(c -> List.<MessageDto>of()).orElse(List.of())));
+        Long userId = SecurityUtil.getCurrentUserId();
+        return ResponseEntity.ok(ApiResponse.success(messageService.getMessages(id, userId, beforeMessageId, limit)));
     }
 
     @PutMapping("/{id}/read")

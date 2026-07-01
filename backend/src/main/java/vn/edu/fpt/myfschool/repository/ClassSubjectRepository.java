@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.myfschool.entity.ClassSubject;
 import vn.edu.fpt.myfschool.entity.Subject;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -18,6 +19,14 @@ public interface ClassSubjectRepository extends JpaRepository<ClassSubject, Long
 
     Optional<ClassSubject> findByClsIdAndSubjectIdAndAcademicYear(
         Long classId, Long subjectId, String academicYear);
+
+    @Query("SELECT DISTINCT cs.cls.id FROM ClassSubject cs WHERE cs.teacher.id = :teacherId")
+    List<Long> findClassIdsByTeacherId(@Param("teacherId") Long teacherId);
+
+    @Query("SELECT CASE WHEN COUNT(cs) > 0 THEN true ELSE false END FROM ClassSubject cs " +
+           "WHERE cs.teacher.id = :teacherId AND cs.cls.id = :classId")
+    boolean existsByTeacherIdAndClassId(@Param("teacherId") Long teacherId,
+                                        @Param("classId") Long classId);
 
     @Query("SELECT DISTINCT cs.subject FROM ClassSubject cs " +
            "WHERE cs.teacher.id = :teacherId AND cs.academicYear = :year")

@@ -47,7 +47,8 @@ public class AnnouncementController {
     @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Chi tiết thông báo")
     public ResponseEntity<ApiResponse<AnnouncementDto>> getAnnouncementDetail(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(announcementService.getAnnouncementDetail(id)));
+        return ResponseEntity.ok(ApiResponse.success(
+            announcementService.getAnnouncementDetail(id, SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole())));
     }
 
     @GetMapping
@@ -63,7 +64,7 @@ public class AnnouncementController {
     @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
     @Operation(summary = "Đánh dấu đã đọc")
     public ResponseEntity<ApiResponse<Void>> markAsRead(@PathVariable Long id) {
-        announcementService.markAsRead(id, SecurityUtil.getCurrentUserId());
+        announcementService.markAsRead(id, SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole());
         return ResponseEntity.ok(ApiResponse.success("Đã đánh dấu đọc", null));
     }
 

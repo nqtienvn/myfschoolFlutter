@@ -55,7 +55,8 @@ public class LeaveRequestController {
     public ResponseEntity<ApiResponse<List<LeaveRequestDto>>> getClassRequests(
             @RequestParam Long classId,
             @RequestParam(required = false) LeaveStatus status) {
-        return ResponseEntity.ok(ApiResponse.success(leaveRequestService.getClassLeaveRequests(classId, status)));
+        return ResponseEntity.ok(ApiResponse.success(
+            leaveRequestService.getClassLeaveRequests(classId, status, SecurityUtil.getCurrentUserId())));
     }
 
     @PutMapping("/{id}/approve")

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.myfschool.common.dto.*;
+import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.GradeService;
 
 import java.util.List;
@@ -59,6 +60,7 @@ public class GradeController {
     @Operation(summary = "Mô phỏng điểm")
     public ResponseEntity<ApiResponse<SimulationResultDto>> simulateGrades(
             @Valid @RequestBody GradeSimulationRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(gradeService.simulateGrades(1L, request)));
+        return ResponseEntity.ok(ApiResponse.success(
+            gradeService.simulateGrades(request, SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole())));
     }
 }
