@@ -39,6 +39,11 @@ public abstract class BaseIntegrationTest {
     @Autowired protected ParentRepository parentRepository;
     @Autowired protected StudentGuardianRepository studentGuardianRepository;
     @Autowired protected ClassSubjectRepository classSubjectRepository;
+    @Autowired protected ConversationRepository conversationRepository;
+    @Autowired protected ConversationParticipantRepository conversationParticipantRepository;
+    @Autowired protected MessageRepository messageRepository;
+    @Autowired protected vn.edu.fpt.myfschool.service.ConversationService conversationService;
+    @Autowired protected vn.edu.fpt.myfschool.service.MessageService messageService;
     @Autowired protected org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     protected SchoolClass testClass;

@@ -147,3 +147,4 @@ GV selects multiple classes (M:N via `announcement_classes`). `target_role` filt
 - 🔲 Backend API: Not yet built (Spring Boot)
 - 🔲 Admin Web: Not yet built (React)
 - 🔲 Real authentication: Not yet implemented (JWT planned)
+- Only Edit, commit and push code on branch master

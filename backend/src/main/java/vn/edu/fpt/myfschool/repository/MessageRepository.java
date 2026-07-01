@@ -34,4 +34,15 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             Long serverSeq,
             Pageable pageable
     );
+
+    boolean existsByIdAndConversationId(Long id, Long conversationId);
+
+    java.util.Optional<Message> findTopByConversationIdOrderByIdDesc(Long conversationId);
+
+    @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.id = :convId " +
+            "AND m.sender.id <> :userId " +
+            "AND (:lastReadMessageId IS NULL OR m.id > :lastReadMessageId)")
+    long countUnreadAfterMessageId(@Param("convId") Long convId,
+                                   @Param("userId") Long userId,
+                                   @Param("lastReadMessageId") Long lastReadMessageId);
 }

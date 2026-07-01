@@ -9,6 +9,8 @@ import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import vn.edu.fpt.myfschool.security.JwtTokenProvider;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Component
@@ -16,9 +18,9 @@ import java.util.Map;
 public class ChatHandshakeInterceptor implements HandshakeInterceptor {
     private final JwtTokenProvider jwtTokenProvider;
 
-
     @Override
-    public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) throws Exception {
+    public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
+                                   WebSocketHandler wsHandler, Map<String, Object> attributes) {
         String token = extractToken(request);
         if (token == null || !jwtTokenProvider.validateToken(token)) {
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
@@ -29,16 +31,17 @@ public class ChatHandshakeInterceptor implements HandshakeInterceptor {
     }
 
     @Override
-    public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Exception exception) {
+    public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response,
+                               WebSocketHandler wsHandler, Exception exception) {
     }
 
     private String extractToken(ServerHttpRequest request) {
         String query = request.getURI().getQuery();
         if (query != null) {
             for (String key : query.split("&")) {
-                String[] parts = key.split("=", 2); //chỉ tách tối đa là 2 phần, tách ở dấu bằng đầu tiên thôi
+                String[] parts = key.split("=", 2);
                 if (parts.length == 2 && "token".equals(parts[0])) {
-                    return parts[1];
+                    return URLDecoder.decode(parts[1], StandardCharsets.UTF_8);
                 }
             }
         }

@@ -6,19 +6,23 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+import vn.edu.fpt.myfschool.service.ChatRealtimeService;
+
+import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
 public class ChatWebSocketHandler extends TextWebSocketHandler {
     private final WebSocketSessionManager sessionManager;
+    private final ChatRealtimeService chatRealtimeService;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        Long userId = (Long) session.getAttributes().get("userId"); // lay trong attribute trong beforehandshake
+        Long userId = (Long) session.getAttributes().get("userId");
         if (userId != null) {
             sessionManager.addSession(userId, session);
+            chatRealtimeService.handleConnected(userId);
         }
-        sessionManager.sendToUser(userId, "upgraded ws");
     }
 
     @Override
@@ -26,13 +30,21 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         Long userId = (Long) session.getAttributes().get("userId");
         if (userId != null) {
             sessionManager.removeSession(userId, session);
+            chatRealtimeService.handleDisconnected(userId);
         }
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        // WebSocket message handling
-        // Types: CHAT, MARK_READ, TYPING
+        Long userId = (Long) session.getAttributes().get("userId");
+        if (userId == null) {
+            try {
+                session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Missing userId"));
+            } catch (IOException ignored) {
+            }
+            return;
+        }
+        chatRealtimeService.handle(userId, session, message.getPayload());
     }
 
     @Override
@@ -40,6 +52,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         Long userId = (Long) session.getAttributes().get("userId");
         if (userId != null) {
             sessionManager.removeSession(userId, session);
+            chatRealtimeService.handleDisconnected(userId);
         }
     }
 }

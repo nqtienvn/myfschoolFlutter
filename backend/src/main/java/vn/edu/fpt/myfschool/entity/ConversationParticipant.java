@@ -26,4 +26,8 @@ public class ConversationParticipant extends BaseEntity {
     private LocalDateTime joinedAt;
 
     private LocalDateTime lastReadAt;
+
+    private Long lastReadMessageId;
+
+    private LocalDateTime lastSeenAt;
 }

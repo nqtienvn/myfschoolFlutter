@@ -14,6 +14,7 @@ import vn.edu.fpt.myfschool.service.ConversationService;
 import vn.edu.fpt.myfschool.service.MessageService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/conversations")
@@ -48,16 +49,21 @@ public class ConversationController {
     public ResponseEntity<ApiResponse<List<MessageDto>>> getMessages(
             @PathVariable Long id,
             @RequestParam(required = false) Long beforeMessageId,
+            @RequestParam(required = false) Long afterSeq,
             @RequestParam(defaultValue = "20") int limit) {
         Long userId = SecurityUtil.getCurrentUserId();
-        return ResponseEntity.ok(ApiResponse.success(messageService.getMessages(id, userId, beforeMessageId, limit)));
+        return ResponseEntity.ok(ApiResponse.success(
+                messageService.getMessages(id, userId, beforeMessageId, afterSeq, limit)));
     }
 
     @PutMapping("/{id}/read")
     @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Đánh dấu đã đọc")
-    public ResponseEntity<ApiResponse<Void>> markAsRead(@PathVariable Long id) {
-        conversationService.markAsRead(id, SecurityUtil.getCurrentUserId());
+    public ResponseEntity<ApiResponse<Void>> markAsRead(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, Long> body) {
+        Long lastReadMessageId = body == null ? null : body.get("lastReadMessageId");
+        conversationService.markAsRead(id, SecurityUtil.getCurrentUserId(), lastReadMessageId);
         return ResponseEntity.ok(ApiResponse.success("Đã đánh dấu đọc", null));
     }
 

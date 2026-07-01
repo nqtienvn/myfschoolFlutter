@@ -11,10 +11,12 @@ public record MessageDto(
         Long conversationId,
         Long senderId,
         String senderName,
+        String senderAvatar,
         MessageType messageType,
         String content,
         Long serverSeq,
         boolean isMine,
+        String status,
         LocalDateTime createdAt,
         List<AttachmentDto> attachments
 ) {

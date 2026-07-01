@@ -20,4 +20,9 @@ public interface ConversationParticipantRepository extends JpaRepository<Convers
 
     @Query("SELECT cp.conversation.id FROM ConversationParticipant cp WHERE cp.user.id = :userId")
     List<Long> findConversationIdsByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT other.user.id FROM ConversationParticipant mine " +
+            "JOIN ConversationParticipant other ON other.conversation.id = mine.conversation.id " +
+            "WHERE mine.user.id = :userId AND other.user.id <> :userId")
+    List<Long> findRelatedUserIds(@Param("userId") Long userId);
 }

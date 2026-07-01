@@ -52,6 +52,7 @@
         </dependency>
 
         <!-- Database -->
+<!--        dòng 2 là jdbc driver-->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>

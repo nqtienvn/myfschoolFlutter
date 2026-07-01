@@ -26,15 +26,16 @@ import java.util.List;
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_message_sender_client",
-                        columnNames = {"sender_id", "client_message_id"} //1 sender id cso 1 client message id
+                        columnNames = {"sender_id", "client_message_id"}
                 ),
                 @UniqueConstraint(
                         name = "uk_message_conversation_seq",
-                        columnNames = {"conversation_id", "server_seq"} //1 conversation với 1 thứ tự
+                        columnNames = {"conversation_id", "server_seq"}
                 )
         },
         indexes = {
-                @Index(name = "idx_message_conversation_created", columnList = "conversation_id, created_at")
+                @Index(name = "idx_message_conversation_created", columnList = "conversation_id, created_at"),
+                @Index(name = "idx_message_conversation_seq", columnList = "conversation_id, server_seq")
         })
 @Getter
 @Setter
@@ -57,13 +58,11 @@ public class Message extends BaseEntity {
     @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Attachment> attachments = new ArrayList<>();
 
-    @Column(name = "client_message_id", nullable = false, length = 80)
-    private String clientMessageId; //để chống gửi trùng tin nhắn
-    //khi fe gửi tin nhắn qua ws nó tạo ra một mã tạm là clientId
-    //khi lưu db thành công nhưng mang lag nên fe chưa nhận được thì fe tưởng fail và retry lại cùng message
-    //nếu Be không kiểm tra db có thể gửi 2 tin nhắn giống nhau
-    //nên cần thêm unique để khi cùng 1 sender cùng 1 cliend mesageid thì chỉ luu db 1 lần
+    @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<MessageReceipt> receipts = new ArrayList<>();
 
+    @Column(name = "client_message_id", nullable = false, length = 80)
+    private String clientMessageId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "message_type", nullable = false, length = 20)
@@ -71,9 +70,4 @@ public class Message extends BaseEntity {
 
     @Column(name = "server_seq", nullable = false)
     private Long serverSeq;
-//serverSeq là số thứ tự tăng dần của message trong từng conversation do be cấp
-//để Fe biết mình đã sync đến message số mấy
-//để sắp xếp cuộc hồi thoại
-    //phản ảnh chính xác thứ tự tin lưu nào be để trả về fe chuẩn xác nhất
 }
-
