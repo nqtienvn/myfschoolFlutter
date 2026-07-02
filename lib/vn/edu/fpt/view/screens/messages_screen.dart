@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/models/models.dart' as domain;
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
@@ -10,14 +11,20 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/login_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_inbox_screen.dart';
 
 class ConversationsScreen extends StatelessWidget {
-  const ConversationsScreen({super.key, this.actor = AppActor.parent});
+  const ConversationsScreen({super.key, this.actor = AppActor.parent, this.chatService});
 
   final AppActor actor;
+  final ChatService? chatService;
 
   @override
   Widget build(BuildContext context) {
     if (actor == AppActor.teacher) {
       return const TeacherInboxScreen();
+    }
+
+    final service = chatService;
+    if (service != null) {
+      return _ServiceConversationsScreen(chatService: service);
     }
 
     final threads = <ChatThread>[
@@ -127,6 +134,138 @@ class ConversationsScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ServiceConversationsScreen extends StatelessWidget {
+  const _ServiceConversationsScreen({required this.chatService});
+
+  final ChatService chatService;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: chatService,
+      builder: (context, _) {
+        final conversations = chatService.conversations;
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: const OrangeTopBar(title: 'Tin nhắn liên lạc'),
+          body: SafeArea(
+            child: RefreshIndicator(
+              onRefresh: chatService.loadConversations,
+              child: ListView(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                children: [
+                  const SectionHeader(title: 'Hộp thoại gần đây'),
+                  if (chatService.isLoadingConversations)
+                    const Padding(
+                      padding: EdgeInsets.all(AppSpacing.lg),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (conversations.isEmpty)
+                    const AppCard(
+                      child: Center(child: Text('Chưa có cuộc hội thoại nào.')),
+                    )
+                  else
+                    for (final conversation in conversations) ...[
+                      _ConversationCard(conversation: conversation, chatService: chatService),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+                  if (chatService.errorMessage != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      chatService.errorMessage!,
+                      style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ConversationCard extends StatelessWidget {
+  const _ConversationCard({required this.conversation, required this.chatService});
+
+  final domain.Conversation conversation;
+  final ChatService chatService;
+
+  @override
+  Widget build(BuildContext context) {
+    final participant = conversation.otherParticipant;
+    final name = participant?.name ?? 'Hội thoại #${conversation.id}';
+    final subtitle = participant?.role ?? 'Tin nhắn';
+    return AppCard(
+      padding: 0,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ChatDetailScreen(conversation: conversation, chatService: chatService),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Row(
+                children: [
+                  Stack(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: AppColors.fptOrange.withValues(alpha: 0.12),
+                        child: const Icon(Icons.person, color: AppColors.fptOrange),
+                      ),
+                      if (conversation.isOnline)
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: AppColors.success,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.surface, width: 2),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.ink)),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(conversation.lastMessage ?? subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
+                      ],
+                    ),
+                  ),
+                  if (conversation.unreadCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: const BoxDecoration(color: AppColors.fptOrange, shape: BoxShape.circle),
+                      child: Text('${conversation.unreadCount}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  const SizedBox(width: AppSpacing.sm),
+                  const Icon(Icons.chevron_right, color: AppColors.quiet, size: 20),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

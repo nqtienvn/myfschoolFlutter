@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/models/models.dart' as domain;
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_radius.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
@@ -54,9 +58,12 @@ class ChatMessage {
 }
 
 class ChatDetailScreen extends StatefulWidget {
-  const ChatDetailScreen({super.key, required this.thread});
+  const ChatDetailScreen({super.key, this.thread, this.conversation, this.chatService})
+      : assert(thread != null || conversation != null);
 
-  final ChatThread thread;
+  final ChatThread? thread;
+  final domain.Conversation? conversation;
+  final ChatService? chatService;
 
   @override
   State<ChatDetailScreen> createState() => _ChatDetailScreenState();
@@ -66,35 +73,68 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late final List<ChatMessage> _messages;
+  Timer? _typingStopTimer;
+  DateTime? _lastTypingStart;
 
   @override
   void initState() {
     super.initState();
-    _messages = widget.thread.initialMessages.isNotEmpty
-        ? List<ChatMessage>.of(widget.thread.initialMessages)
-        : [
-            ChatMessage(
-              text: widget.thread.lastMessage,
-              time: widget.thread.time,
-              isMine: false,
-            ),
-          ];
+    final thread = widget.thread;
+    _messages = thread == null
+        ? <ChatMessage>[]
+        : thread.initialMessages.isNotEmpty
+            ? List<ChatMessage>.of(thread.initialMessages)
+            : [
+                ChatMessage(
+                  text: thread.lastMessage,
+                  time: thread.time,
+                  isMine: false,
+                ),
+              ];
+    final conversation = widget.conversation;
+    if (conversation != null) {
+      widget.chatService?.openConversation(conversation.id);
+    }
   }
 
   @override
   void dispose() {
+    final conversation = widget.conversation;
+    if (conversation != null) {
+      widget.chatService?.sendTypingStop(conversation.id);
+      widget.chatService?.closeConversation(conversation.id);
+    }
+    _typingStopTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _handleTyping(String value) {
+    final conversation = widget.conversation;
+    final service = widget.chatService;
+    if (conversation == null || service == null || value.trim().isEmpty) return;
+    final now = DateTime.now();
+    if (_lastTypingStart == null || now.difference(_lastTypingStart!) > const Duration(seconds: 2)) {
+      _lastTypingStart = now;
+      service.sendTypingStart(conversation.id);
+    }
+    _typingStopTimer?.cancel();
+    _typingStopTimer = Timer(const Duration(seconds: 3), () => service.sendTypingStop(conversation.id));
   }
 
   void _sendMessage() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    setState(() {
-      _messages.add(ChatMessage(text: text, time: 'Vừa xong', isMine: true));
-    });
+    final conversation = widget.conversation;
+    if (conversation != null && widget.chatService != null) {
+      widget.chatService!.sendText(conversation.id, text);
+    } else {
+      setState(() {
+        _messages.add(ChatMessage(text: text, time: 'Vừa xong', isMine: true));
+      });
+    }
     _controller.clear();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -109,13 +149,52 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final conversation = widget.conversation;
+    final service = widget.chatService;
+    if (conversation != null && service != null) {
+      return ListenableBuilder(
+        listenable: service,
+        builder: (context, _) {
+          final messages = service.messagesFor(conversation.id);
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            resizeToAvoidBottomInset: true,
+            appBar: const OrangeTopBar(title: 'Tin nhắn'),
+            body: Column(
+              children: [
+                _DomainContactHeader(conversation: conversation),
+                if (service.typingConversationIds.contains(conversation.id))
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: AppSpacing.xs),
+                    child: Text('Đang nhập...', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                  ),
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.lg),
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) => _DomainMessageBubble(
+                      message: messages[index],
+                      onRetry: () => service.retryMessage(messages[index].clientMessageId),
+                    ),
+                  ),
+                ),
+                _MessageComposer(controller: _controller, onSend: _sendMessage, onChanged: _handleTyping),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    final thread = widget.thread!;
     return Scaffold(
       backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: true,
       appBar: const OrangeTopBar(title: 'Tin nhắn'),
       body: Column(
         children: [
-          _ContactHeader(thread: widget.thread),
+          _ContactHeader(thread: thread),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -129,13 +208,51 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               itemBuilder: (context, index) {
                 return _MessageBubble(
                   message: _messages[index],
-                  accentColor: widget.thread.accentColor,
+                  accentColor: thread.accentColor,
                 );
               },
             ),
           ),
-          _MessageComposer(controller: _controller, onSend: _sendMessage),
+          _MessageComposer(controller: _controller, onSend: _sendMessage, onChanged: (_) {}),
         ],
+      ),
+    );
+  }
+}
+
+class _DomainContactHeader extends StatelessWidget {
+  const _DomainContactHeader({required this.conversation});
+
+  final domain.Conversation conversation;
+
+  @override
+  Widget build(BuildContext context) {
+    final participant = conversation.otherParticipant;
+    final name = participant?.name ?? 'Hội thoại #${conversation.id}';
+    final subtitle = conversation.isOnline ? 'Đang online' : 'Tin nhắn';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
+      child: AppCard(
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: AppColors.fptOrange.withValues(alpha: 0.12),
+              child: const Icon(Icons.person, color: AppColors.fptOrange),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.ink)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -214,6 +331,61 @@ class _ContactHeader extends StatelessWidget {
   }
 }
 
+class _DomainMessageBubble extends StatelessWidget {
+  const _DomainMessageBubble({required this.message, required this.onRetry});
+
+  final domain.ChatMessage message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMine = message.isMine;
+    final bubbleColor = isMine ? AppColors.fptOrange : AppColors.surface;
+    final textColor = isMine ? Colors.white : AppColors.ink;
+    final timeColor = isMine ? Colors.white.withValues(alpha: 0.78) : AppColors.quiet;
+    final status = chatStatusLabel(message.status.name);
+
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.74),
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: bubbleColor,
+          border: isMine ? null : Border.all(color: AppColors.line.withValues(alpha: 0.8)),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(isMine ? 18 : AppRadius.sm),
+            bottomRight: Radius.circular(isMine ? AppRadius.sm : 18),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message.content, style: TextStyle(fontSize: 13.5, color: textColor, height: 1.35)),
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(status, style: TextStyle(fontSize: 10.5, color: timeColor, fontWeight: FontWeight.w600)),
+                if (message.status == domain.ChatMessageStatus.failed) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  GestureDetector(
+                    onTap: onRetry,
+                    child: Icon(Icons.refresh, color: timeColor, size: 14),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({required this.message, required this.accentColor});
 
@@ -279,10 +451,11 @@ class _MessageBubble extends StatelessWidget {
 }
 
 class _MessageComposer extends StatelessWidget {
-  const _MessageComposer({required this.controller, required this.onSend});
+  const _MessageComposer({required this.controller, required this.onSend, required this.onChanged});
 
   final TextEditingController controller;
   final VoidCallback onSend;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -305,6 +478,7 @@ class _MessageComposer extends StatelessWidget {
             Expanded(
               child: TextField(
                 controller: controller,
+                onChanged: onChanged,
                 minLines: 1,
                 maxLines: 4,
                 textInputAction: TextInputAction.newline,

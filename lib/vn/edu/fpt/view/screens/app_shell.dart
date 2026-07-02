@@ -49,7 +49,7 @@ class _AppShellState extends State<AppShell> {
               case 0:
                 return _homeForActor();
               case 1:
-                return ConversationsScreen(actor: widget.actor);
+                return ConversationsScreen(actor: widget.actor, chatService: widget.chatService);
               case 2:
                 return AnnouncementsScreen(actor: widget.actor);
               case 3:
