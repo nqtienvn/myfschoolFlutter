@@ -11,6 +11,7 @@ class ChatSocketService {
 
   final BackendApiClient _backend;
   final StreamController<ChatSocketEventDto> _events = StreamController<ChatSocketEventDto>.broadcast();
+  final StreamController<void> _reconnected = StreamController<void>.broadcast();
   WebSocket? _socket;
   AuthSession? _session;
   Timer? _heartbeatTimer;
@@ -19,6 +20,7 @@ class ChatSocketService {
   int _reconnectAttempt = 0;
 
   Stream<ChatSocketEventDto> get events => _events.stream;
+  Stream<void> get reconnected => _reconnected.stream;
   bool get isConnected => _socket?.readyState == WebSocket.open;
 
   Future<void> connect(AuthSession session) async {
@@ -64,8 +66,10 @@ class ChatSocketService {
   Future<void> _openSocket() async {
     final session = _session;
     if (session == null) return;
+    final wasReconnect = _reconnectAttempt > 0;
     _socket = await WebSocket.connect(_backend.wsUri('/chat', token: session.token).toString());
     _reconnectAttempt = 0;
+    if (wasReconnect) _reconnected.add(null);
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) => _send({'type': 'presence.heartbeat'}));
     _socket!.listen(

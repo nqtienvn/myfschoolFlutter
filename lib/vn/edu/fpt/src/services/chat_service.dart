@@ -21,6 +21,7 @@ class ChatService extends ChangeNotifier {
   final Map<String, Timer> _ackTimers = {};
   final Map<int, Timer> _typingTimers = {};
   late final StreamSubscription<ChatSocketEventDto> _socketSub;
+  late final StreamSubscription<void> _reconnectSub;
 
   AuthSession? _session;
   List<Conversation> _conversations = [];
@@ -39,6 +40,7 @@ class ChatService extends ChangeNotifier {
   Future<void> start(AuthSession session) async {
     _session = session;
     _socketSub = _socketService.events.listen(_handleEvent);
+    _reconnectSub = _socketService.reconnected.listen((_) => syncAfterReconnect());
     await _socketService.connect(session);
     await loadConversations();
   }
@@ -53,6 +55,7 @@ class ChatService extends ChangeNotifier {
     _ackTimers.clear();
     _typingTimers.clear();
     await _socketSub.cancel();
+    await _reconnectSub.cancel();
     await _socketService.disconnect();
   }
 

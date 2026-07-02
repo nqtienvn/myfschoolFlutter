@@ -775,7 +775,10 @@ class AccountProfileScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: InkWell(
-                onTap: () {
+                onTap: () async {
+                  await chatService?.stop();
+                  authService?.logout();
+                  if (!context.mounted) return;
                   Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
                     MaterialPageRoute<void>(
                       builder: (_) => LoginScreen(
