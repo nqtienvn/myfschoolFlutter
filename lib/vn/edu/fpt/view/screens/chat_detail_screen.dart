@@ -5,6 +5,22 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 
+String chatStatusLabel(String status) {
+  switch (status) {
+    case 'sending':
+      return 'Đang gửi';
+    case 'delivered':
+      return 'Đã nhận';
+    case 'read':
+      return 'Đã xem';
+    case 'failed':
+      return 'Gửi lỗi';
+    case 'sent':
+    default:
+      return 'Đã gửi';
+  }
+}
+
 class ChatThread {
   const ChatThread({
     required this.title,
