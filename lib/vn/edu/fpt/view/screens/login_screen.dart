@@ -5,7 +5,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_radius.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/primary_button.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/role_selection_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/app_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.authService, this.chatService});
@@ -33,10 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     final authService = widget.authService;
     final chatService = widget.chatService;
-    if (authService == null || chatService == null) {
-      _openRoleSelection();
-      return;
-    }
+    if (authService == null || chatService == null) return;
 
     setState(() {
       _isLoading = true;
@@ -49,24 +46,22 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       await chatService.start(session);
       if (!mounted) return;
-      _openRoleSelection();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(
+          builder: (_) => AppShell(
+            actor: session.actor,
+            authService: authService,
+            chatService: chatService,
+          ),
+        ),
+        (route) => false,
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _error = 'Không đăng nhập được. Vui lòng kiểm tra tài khoản.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _openRoleSelection() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => RoleSelectionScreen(
-          authService: widget.authService,
-          chatService: widget.chatService,
-        ),
-      ),
-    );
   }
 
   @override

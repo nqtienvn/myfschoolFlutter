@@ -1,4 +1,5 @@
 import '../api/client/chat_api_client.dart';
+import '../api/dto/search_result_dto.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
 
@@ -42,6 +43,10 @@ class ChatRepository {
   }
 
   Future<int> getUnreadCount({required String token}) => _apiClient.getUnreadCount(token: token);
+
+  Future<List<SearchResultDto>> searchUsers({required String token, required String keyword}) {
+    return _apiClient.searchUsers(token: token, keyword: keyword);
+  }
 
   int _compareMessages(ChatMessage a, ChatMessage b) {
     final seqA = a.serverSeq;

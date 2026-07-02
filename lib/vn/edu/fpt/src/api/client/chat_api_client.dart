@@ -1,5 +1,6 @@
 import '../dto/chat_message_dto.dart';
 import '../dto/conversation_dto.dart';
+import '../dto/search_result_dto.dart';
 import '../exception/parse_exception.dart';
 import 'backend_api_client.dart';
 
@@ -56,6 +57,15 @@ class ChatApiClient {
     final data = await _backend.getData('/api/conversations/unread-count', token: token);
     if (data is! int) throw const ParseException('Unread count must be int.');
     return data;
+  }
+
+  Future<List<SearchResultDto>> searchUsers({required String token, required String keyword}) async {
+    final data = await _backend.getData(
+      '/api/conversations/search-users',
+      token: token,
+      query: {'keyword': keyword},
+    );
+    return _asList(data).map((item) => SearchResultDto.fromJson(item)).toList();
   }
 
   List<Map<String, dynamic>> _asList(Object? data) {

@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
+
+import 'package:http/http.dart' as http;
 
 import '../dto/api_response.dart';
 import '../exception/backend_api_exception.dart';
@@ -10,12 +11,12 @@ class BackendApiClient {
           baseUrl ??
               const String.fromEnvironment(
                 'API_BASE_URL',
-                defaultValue: 'http://10.0.2.2:8080',
+                defaultValue: 'http://localhost:8080',
               ),
         );
 
   final Uri baseUri;
-  final HttpClient _client = HttpClient();
+  final http.Client _client = http.Client();
 
   Future<Object?> getData(
     String path, {
@@ -55,29 +56,29 @@ class BackendApiClient {
           if (entry.value != null) entry.key: entry.value!,
       },
     );
-    final request = await _client.openUrl(method, uri);
-    request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-    request.headers.set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
+    final request = http.Request(method, uri);
+    request.headers['accept'] = 'application/json';
+    request.headers['content-type'] = 'application/json; charset=utf-8';
     if (token != null) {
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      request.headers['authorization'] = 'Bearer $token';
     }
     if (body != null) {
-      request.write(jsonEncode(body));
+      request.body = jsonEncode(body);
     }
 
-    final response = await request.close();
-    final text = await utf8.decodeStream(response);
+    final streamed = await _client.send(request);
+    final text = await streamed.stream.bytesToString();
     final decoded = text.isEmpty ? <String, dynamic>{} : jsonDecode(text);
     if (decoded is! Map<String, dynamic>) {
-      throw BackendApiException('Phản hồi máy chủ không hợp lệ', statusCode: response.statusCode);
+      throw BackendApiException('Phản hồi máy chủ không hợp lệ', statusCode: streamed.statusCode);
     }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+    if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
       final message = decoded['message'] is String ? decoded['message'] as String : 'Lỗi máy chủ';
-      throw BackendApiException(message, statusCode: response.statusCode);
+      throw BackendApiException(message, statusCode: streamed.statusCode);
     }
     final apiResponse = ApiResponse<Object?>.fromJson(decoded, (json) => json);
     if (!apiResponse.success) {
-      throw BackendApiException(apiResponse.message, statusCode: response.statusCode);
+      throw BackendApiException(apiResponse.message, statusCode: streamed.statusCode);
     }
     return apiResponse.data;
   }

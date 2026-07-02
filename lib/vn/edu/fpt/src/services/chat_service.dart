@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../api/dto/chat_socket_event_dto.dart';
+import '../api/dto/search_result_dto.dart';
 import '../models/auth_session.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
@@ -20,8 +21,8 @@ class ChatService extends ChangeNotifier {
   final Map<int, List<ChatMessage>> _messagesByConversationId = {};
   final Map<String, Timer> _ackTimers = {};
   final Map<int, Timer> _typingTimers = {};
-  late final StreamSubscription<ChatSocketEventDto> _socketSub;
-  late final StreamSubscription<void> _reconnectSub;
+  AuthSession? get session => _session;
+  ChatRepository get repository => _repository;
 
   AuthSession? _session;
   List<Conversation> _conversations = [];
@@ -29,6 +30,8 @@ class ChatService extends ChangeNotifier {
   bool isLoadingConversations = false;
   String? errorMessage;
   final Set<int> typingConversationIds = {};
+  StreamSubscription<ChatSocketEventDto>? _socketSub;
+  StreamSubscription<void>? _reconnectSub;
 
   List<Conversation> get conversations => List.unmodifiable(_conversations);
   int? get activeConversationId => _activeConversationId;
@@ -41,7 +44,7 @@ class ChatService extends ChangeNotifier {
     _session = session;
     _socketSub = _socketService.events.listen(_handleEvent);
     _reconnectSub = _socketService.reconnected.listen((_) => syncAfterReconnect());
-    await _socketService.connect(session);
+    _socketService.connect(session).catchError((_) {});
     await loadConversations();
   }
 
@@ -54,8 +57,10 @@ class ChatService extends ChangeNotifier {
     }
     _ackTimers.clear();
     _typingTimers.clear();
-    await _socketSub.cancel();
-    await _reconnectSub.cancel();
+    await _socketSub?.cancel();
+    await _reconnectSub?.cancel();
+    _socketSub = null;
+    _reconnectSub = null;
     await _socketService.disconnect();
   }
 
@@ -122,6 +127,12 @@ class ChatService extends ChangeNotifier {
       _messagesByConversationId[conversation.id] = _mergeAll(current, fresh);
     }
     notifyListeners();
+  }
+
+  Future<List<SearchResultDto>> searchUsers(String keyword) async {
+    final session = _session;
+    if (session == null) return [];
+    return _repository.searchUsers(token: session.token, keyword: keyword);
   }
 
   Future<void> openConversation(int conversationId) async {

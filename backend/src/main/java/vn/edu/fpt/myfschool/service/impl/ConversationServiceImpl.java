@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.ConversationDto;
 import vn.edu.fpt.myfschool.common.dto.MessageDto;
 import vn.edu.fpt.myfschool.common.dto.ParticipantDto;
+import vn.edu.fpt.myfschool.common.dto.SearchResultDto;
 import vn.edu.fpt.myfschool.common.dto.SendMessageRequest;
 import vn.edu.fpt.myfschool.common.enums.MessageReceiptStatus;
 import vn.edu.fpt.myfschool.common.enums.MessageType;
@@ -214,6 +215,36 @@ public class ConversationServiceImpl implements ConversationService {
                     .orElse(null);
             return (int) messageRepository.countUnreadAfterMessageId(cId, userId, lastReadMessageId);
         }).sum();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SearchResultDto> searchUsers(Long userId, String keyword) {
+        if (keyword == null || keyword.isBlank()) return List.of();
+        String trimmed = keyword.trim();
+        List<User> byPhone = userRepository.findByPhone(trimmed)
+                .map(List::of).orElse(List.of());
+        List<User> byNameLike = userRepository.searchByKeyword(trimmed);
+        return java.util.stream.Stream.concat(byPhone.stream(), byNameLike.stream())
+                .distinct()
+                .filter(u -> !u.getId().equals(userId))
+                .map(u -> new SearchResultDto(u.getId(), u.getName(), u.getPhone(), u.getAvatar(), u.getRole().name()))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SearchResultDto> searchUsers(Long userId, String keyword) {
+        if (keyword == null || keyword.isBlank()) return List.of();
+        String trimmed = keyword.trim();
+        List<User> byPhone = userRepository.findByPhone(trimmed)
+                .map(List::of).orElse(List.of());
+        List<User> byNameLike = userRepository.searchByKeyword(trimmed);
+        return java.util.stream.Stream.concat(byPhone.stream(), byNameLike.stream())
+                .distinct()
+                .filter(u -> !u.getId().equals(userId))
+                .map(u -> new SearchResultDto(u.getId(), u.getName(), u.getPhone(), u.getAvatar(), u.getRole().name()))
+                .collect(java.util.stream.Collectors.toList());
     }
 
     private MessageType resolveMessageType(SendMessageRequest request) {

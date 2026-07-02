@@ -9,6 +9,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/chat_detail_screen.dart'
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/login_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_inbox_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/user_search_screen.dart';
 
 class ConversationsScreen extends StatelessWidget {
   const ConversationsScreen({super.key, this.actor = AppActor.parent, this.chatService});
@@ -153,7 +154,22 @@ class _ServiceConversationsScreen extends StatelessWidget {
         final conversations = chatService.conversations;
         return Scaffold(
           backgroundColor: AppColors.background,
-          appBar: const OrangeTopBar(title: 'Tin nhắn liên lạc'),
+          appBar: OrangeTopBar(
+            title: 'Tin nhắn liên lạc',
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.person_add_alt_1, color: Colors.white),
+                tooltip: 'Tìm người dùng',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => UserSearchScreen(chatService: chatService),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: chatService.loadConversations,

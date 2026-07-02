@@ -25,4 +25,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
            "u.phone LIKE CONCAT('%', :keyword, '%'))")
     List<User> searchByRoleAndKeyword(@Param("role") UserRole role,
                                        @Param("keyword") String keyword);
+
+    @Query("SELECT u FROM User u WHERE " +
+           "LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "u.phone LIKE CONCAT('%', :keyword, '%')")
+    List<User> searchByKeyword(@Param("keyword") String keyword);
 }

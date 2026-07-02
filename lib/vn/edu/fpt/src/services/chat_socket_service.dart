@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../api/client/backend_api_client.dart';
 import '../api/dto/chat_socket_event_dto.dart';
@@ -12,7 +13,8 @@ class ChatSocketService {
   final BackendApiClient _backend;
   final StreamController<ChatSocketEventDto> _events = StreamController<ChatSocketEventDto>.broadcast();
   final StreamController<void> _reconnected = StreamController<void>.broadcast();
-  WebSocket? _socket;
+  WebSocketChannel? _channel;
+  StreamSubscription? _channelSub;
   AuthSession? _session;
   Timer? _heartbeatTimer;
   Timer? _reconnectTimer;
@@ -21,7 +23,7 @@ class ChatSocketService {
 
   Stream<ChatSocketEventDto> get events => _events.stream;
   Stream<void> get reconnected => _reconnected.stream;
-  bool get isConnected => _socket?.readyState == WebSocket.open;
+  bool get isConnected => _channel != null;
 
   Future<void> connect(AuthSession session) async {
     _session = session;
@@ -33,8 +35,9 @@ class ChatSocketService {
     _explicitDisconnect = true;
     _heartbeatTimer?.cancel();
     _reconnectTimer?.cancel();
-    await _socket?.close();
-    _socket = null;
+    await _channelSub?.cancel();
+    await _channel?.sink.close();
+    _channel = null;
   }
 
   void sendMessage({required int conversationId, required String clientMessageId, required String content}) {
@@ -67,12 +70,14 @@ class ChatSocketService {
     final session = _session;
     if (session == null) return;
     final wasReconnect = _reconnectAttempt > 0;
-    _socket = await WebSocket.connect(_backend.wsUri('/chat', token: session.token).toString());
+    final uri = _backend.wsUri('/chat', token: session.token);
+    _channel = WebSocketChannel.connect(uri);
+    await _channel!.ready;
     _reconnectAttempt = 0;
     if (wasReconnect) _reconnected.add(null);
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) => _send({'type': 'presence.heartbeat'}));
-    _socket!.listen(
+    _channelSub = _channel!.stream.listen(
       _handleData,
       onDone: _scheduleReconnect,
       onError: (_) => _scheduleReconnect(),
@@ -90,12 +95,13 @@ class ChatSocketService {
 
   void _send(Map<String, Object?> payload) {
     if (!isConnected) return;
-    _socket!.add(jsonEncode(payload));
+    _channel!.sink.add(jsonEncode(payload));
   }
 
   void _scheduleReconnect() {
     _heartbeatTimer?.cancel();
-    _socket = null;
+    _channelSub = null;
+    _channel = null;
     if (_explicitDisconnect || _session == null) return;
     final delays = [1, 2, 5, 10, 15];
     final seconds = delays[_reconnectAttempt.clamp(0, delays.length - 1)];

@@ -74,4 +74,13 @@ public class ConversationController {
         return ResponseEntity.ok(ApiResponse.success(
             conversationService.getTotalUnreadCount(SecurityUtil.getCurrentUserId())));
     }
+
+    @GetMapping("/search-users")
+    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @Operation(summary = "Tìm kiếm người dùng theo tên hoặc SĐT")
+    public ResponseEntity<ApiResponse<List<SearchResultDto>>> searchUsers(
+            @RequestParam String keyword) {
+        return ResponseEntity.ok(ApiResponse.success(
+            conversationService.searchUsers(SecurityUtil.getCurrentUserId(), keyword)));
+    }
 }
