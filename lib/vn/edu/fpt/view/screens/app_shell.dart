@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/actor_models.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen_giaovien.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen_phuhuynh.dart';
@@ -7,9 +8,11 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen_hocsinh.dart
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/messages_screen.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key, this.actor = AppActor.parent});
+  const AppShell({super.key, this.actor = AppActor.parent, this.authService, this.chatService});
 
   final AppActor actor;
+  final AuthService? authService;
+  final ChatService? chatService;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -50,7 +53,11 @@ class _AppShellState extends State<AppShell> {
               case 2:
                 return AnnouncementsScreen(actor: widget.actor);
               case 3:
-                return AccountProfileScreen(actor: widget.actor);
+                return AccountProfileScreen(
+                  actor: widget.actor,
+                  authService: widget.authService,
+                  chatService: widget.chatService,
+                );
               default:
                 return const Scaffold();
             }

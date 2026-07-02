@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
@@ -7,11 +8,20 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/app_shell.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
-  const RoleSelectionScreen({super.key});
+  const RoleSelectionScreen({super.key, this.authService, this.chatService});
+
+  final AuthService? authService;
+  final ChatService? chatService;
 
   void _openRole(BuildContext context, AppActor actor) {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => AppShell(actor: actor)),
+      MaterialPageRoute<void>(
+        builder: (_) => AppShell(
+          actor: actor,
+          authService: authService,
+          chatService: chatService,
+        ),
+      ),
       (route) => false,
     );
   }

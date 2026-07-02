@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
@@ -294,9 +295,11 @@ class _ContactCard extends StatelessWidget {
 
 
 class AccountProfileScreen extends StatelessWidget {
-  const AccountProfileScreen({super.key, this.actor = AppActor.parent});
+  const AccountProfileScreen({super.key, this.actor = AppActor.parent, this.authService, this.chatService});
 
   final AppActor actor;
+  final AuthService? authService;
+  final ChatService? chatService;
 
   @override
   Widget build(BuildContext context) {
@@ -635,7 +638,12 @@ class AccountProfileScreen extends StatelessWidget {
               child: InkWell(
                 onTap: () {
                   Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                    MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+                    MaterialPageRoute<void>(
+                      builder: (_) => LoginScreen(
+                        authService: authService,
+                        chatService: chatService,
+                      ),
+                    ),
                     (route) => false,
                   );
                   ScaffoldMessenger.of(context).showSnackBar(

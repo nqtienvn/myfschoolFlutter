@@ -1,5 +1,8 @@
 export 'app_notification.dart';
 export 'attendance_stats.dart';
+export 'auth_session.dart';
+export 'chat_message.dart';
+export 'conversation.dart';
 export 'grade.dart';
 export 'grade_analytics.dart';
 export 'student.dart';

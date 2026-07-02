@@ -1,7 +1,16 @@
+export 'dto/api_response.dart';
+export 'dto/auth_session_dto.dart';
+export 'dto/chat_message_dto.dart';
+export 'dto/chat_socket_event_dto.dart';
+export 'dto/conversation_dto.dart';
 export 'dto/grade_dto.dart';
 export 'dto/student_dto.dart';
 export 'dto/user_dto.dart';
+export 'client/auth_api_client.dart';
+export 'client/backend_api_client.dart';
+export 'client/chat_api_client.dart';
 export 'client/fake_api.dart';
+export 'exception/backend_api_exception.dart';
 export 'exception/fake_api_exception.dart';
 export 'exception/parse_exception.dart';
 export 'exception/student_not_found_exception.dart';

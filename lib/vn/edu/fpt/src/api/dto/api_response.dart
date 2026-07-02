@@ -1,32 +1,36 @@
-class ApiResponse<T> {
-  final int code;
-  final String message;
-  final T? result;
+import '../exception/parse_exception.dart';
 
-  const ApiResponse({required this.code, required this.message, this.result});
+class ApiResponse<T> {
+  final bool success;
+  final String message;
+  final T? data;
+  final String? timestamp;
+
+  const ApiResponse({
+    required this.success,
+    required this.message,
+    this.data,
+    this.timestamp,
+  });
 
   factory ApiResponse.fromJson(
     Map<String, dynamic> json,
     T Function(Object? json)? fromJsonT,
   ) {
-    final rawCode = json['code'];
-    final rawMessage = json['message'];
-    final rawResult = json['result'];
+    final success = requireField<bool>(json, 'success');
+    final message = requireField<String>(json, 'message');
+    final rawData = json['data'];
+    final timestamp = json['timestamp'];
 
-    if (rawCode is! int) {
-      throw Exception('Field "code" must be int.');
-    }
-
-    if (rawMessage is! String) {
-      throw Exception('Field "message" must be String.');
+    if (timestamp != null && timestamp is! String) {
+      throw const ParseException('Field "timestamp" must be String.');
     }
 
     return ApiResponse<T>(
-      code: rawCode,
-      message: rawMessage,
-      result: rawResult == null || fromJsonT == null
-          ? null
-          : fromJsonT(rawResult),
+      success: success,
+      message: message,
+      data: rawData == null || fromJsonT == null ? null : fromJsonT(rawData),
+      timestamp: timestamp,
     );
   }
 }

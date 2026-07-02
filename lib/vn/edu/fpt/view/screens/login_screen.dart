@@ -3,11 +3,15 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_radius.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/primary_button.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/role_selection_screen.dart';
 
 class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.authService, this.chatService});
+
+  final AuthService? authService;
+  final ChatService? chatService;
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +65,10 @@ class LoginScreen extends StatelessWidget {
                             onPressed: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => const RoleSelectionScreen(),
+                                  builder: (_) => RoleSelectionScreen(
+                                    authService: authService,
+                                    chatService: chatService,
+                                  ),
                                 ),
                               );
                             },
