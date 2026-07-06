@@ -31,4 +31,6 @@ public interface ConversationService {
     int getTotalUnreadCount(Long userId);
 
     List<SearchResultDto> searchUsers(Long userId, String keyword);
+
+    boolean hasExistingMessage(Long conversationId, Long senderId, String clientMessageId);
 }

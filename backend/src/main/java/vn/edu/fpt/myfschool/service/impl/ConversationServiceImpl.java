@@ -29,6 +29,7 @@ import vn.edu.fpt.myfschool.service.ConversationService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service("conversationService")
 @RequiredArgsConstructor
@@ -225,26 +226,19 @@ public class ConversationServiceImpl implements ConversationService {
         List<User> byPhone = userRepository.findByPhone(trimmed)
                 .map(List::of).orElse(List.of());
         List<User> byNameLike = userRepository.searchByKeyword(trimmed);
-        return java.util.stream.Stream.concat(byPhone.stream(), byNameLike.stream())
+        return Stream.concat(byPhone.stream(), byNameLike.stream())
                 .distinct()
                 .filter(u -> !u.getId().equals(userId))
                 .map(u -> new SearchResultDto(u.getId(), u.getName(), u.getPhone(), u.getAvatar(), u.getRole().name()))
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<SearchResultDto> searchUsers(Long userId, String keyword) {
-        if (keyword == null || keyword.isBlank()) return List.of();
-        String trimmed = keyword.trim();
-        List<User> byPhone = userRepository.findByPhone(trimmed)
-                .map(List::of).orElse(List.of());
-        List<User> byNameLike = userRepository.searchByKeyword(trimmed);
-        return java.util.stream.Stream.concat(byPhone.stream(), byNameLike.stream())
-                .distinct()
-                .filter(u -> !u.getId().equals(userId))
-                .map(u -> new SearchResultDto(u.getId(), u.getName(), u.getPhone(), u.getAvatar(), u.getRole().name()))
-                .collect(java.util.stream.Collectors.toList());
+    public boolean hasExistingMessage(Long conversationId, Long senderId, String clientMessageId) {
+        return messageRepository.findBySenderIdAndClientMessageId(senderId, clientMessageId)
+                .filter(m -> m.getConversation().getId().equals(conversationId))
+                .isPresent();
     }
 
     private MessageType resolveMessageType(SendMessageRequest request) {

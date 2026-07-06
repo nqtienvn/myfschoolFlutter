@@ -9,6 +9,7 @@ import org.springframework.web.socket.WebSocketSession;
 import vn.edu.fpt.myfschool.common.dto.MessageDto;
 import vn.edu.fpt.myfschool.common.dto.SendMessageRequest;
 import vn.edu.fpt.myfschool.common.enums.MessageType;
+import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
 import vn.edu.fpt.myfschool.entity.ConversationParticipant;
 import vn.edu.fpt.myfschool.entity.MessageReceipt;
 import vn.edu.fpt.myfschool.websocket.WebSocketSessionManager;
@@ -59,6 +60,8 @@ public class ChatRealtimeService {
 
     private void handleSend(Long userId, ClientWsMessage event) {
         try {
+            boolean isNew = !conversationService.hasExistingMessage(
+                    event.conversationId(), userId, event.clientMessageId());
             MessageType messageType = event.messageType() == null || event.messageType().isBlank()
                     ? MessageType.TEXT
                     : MessageType.valueOf(event.messageType());
@@ -74,20 +77,39 @@ public class ChatRealtimeService {
             ack.put("message", saved);
             sendToUser(userId, ack);
 
-            List<Long> recipients = conversationService.getOtherParticipantIds(saved.conversationId(), userId);
-            Map<String, Object> conversation = new LinkedHashMap<>();
-            conversation.put("id", saved.conversationId());
-            conversation.put("lastMessage", saved.content());
-            conversation.put("lastMessageAt", saved.createdAt());
-            conversation.put("unreadCount", 1);
+            if (isNew) {
+                List<Long> recipients = conversationService.getOtherParticipantIds(saved.conversationId(), userId);
+                Map<String, Object> conversation = new LinkedHashMap<>();
+                conversation.put("id", saved.conversationId());
+                conversation.put("lastMessage", saved.content());
+                conversation.put("lastMessageAt", saved.createdAt());
+                conversation.put("unreadCount", 1);
 
-            Map<String, Object> messageNew = new LinkedHashMap<>();
-            messageNew.put("type", "message.new");
-            messageNew.put("message", saved);
-            messageNew.put("conversation", conversation);
-            sendToUsers(recipients, messageNew);
+                Map<String, Object> recipientMsg = new LinkedHashMap<>();
+                recipientMsg.put("id", saved.id());
+                recipientMsg.put("clientMessageId", saved.clientMessageId());
+                recipientMsg.put("conversationId", saved.conversationId());
+                recipientMsg.put("senderId", saved.senderId());
+                recipientMsg.put("senderName", saved.senderName());
+                recipientMsg.put("senderAvatar", saved.senderAvatar());
+                recipientMsg.put("messageType", saved.messageType());
+                recipientMsg.put("content", saved.content());
+                recipientMsg.put("serverSeq", saved.serverSeq());
+                recipientMsg.put("isMine", false);
+                recipientMsg.put("status", "delivered");
+                recipientMsg.put("createdAt", saved.createdAt());
+                recipientMsg.put("attachments", saved.attachments());
+
+                Map<String, Object> messageNew = new LinkedHashMap<>();
+                messageNew.put("type", "message.new");
+                messageNew.put("message", recipientMsg);
+                messageNew.put("conversation", conversation);
+                sendToUsers(recipients, messageNew);
+            }
         } catch (IllegalArgumentException ex) {
             sendToUser(userId, error("message.send", event.clientMessageId(), "INVALID_MESSAGE_TYPE", "Loại tin nhắn không hợp lệ"));
+        } catch (ForbiddenException ex) {
+            sendToUser(userId, error("message.send", event.clientMessageId(), "NOT_CONVERSATION_MEMBER", ex.getMessage()));
         } catch (RuntimeException ex) {
             sendToUser(userId, error("message.send", event.clientMessageId(), "MESSAGE_SEND_FAILED", ex.getMessage()));
         }

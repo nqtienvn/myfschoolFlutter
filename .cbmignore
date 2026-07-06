@@ -1,5 +1,28 @@
-﻿backend/target/
+backend/target/
 build/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# IDEs & System
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+Thumbs.db
+
+# Gradle / Android build files
+.gradle/
+android/.gradle/
+android/app/build/
+
+# iOS build files
+ios/Flutter/
+ios/Pods/
+ios/.symlinks/
+
+# Temp / Indexes
+.cbm/
+.codex/
