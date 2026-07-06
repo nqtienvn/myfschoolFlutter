@@ -129,6 +129,20 @@ class ChatService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<Conversation> createConversation({required int otherUserId}) async {
+    final session = _session;
+    if (session == null) throw StateError('No session');
+    final conversation = await _repository.createConversation(
+      token: session.token,
+      otherUserId: otherUserId,
+    );
+    if (!_conversations.any((c) => c.id == conversation.id)) {
+      _conversations = [conversation, ..._conversations];
+      notifyListeners();
+    }
+    return conversation;
+  }
+
   Future<List<SearchResultDto>> searchUsers(String keyword) async {
     final session = _session;
     if (session == null) return [];

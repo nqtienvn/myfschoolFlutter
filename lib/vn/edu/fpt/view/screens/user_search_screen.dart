@@ -57,11 +57,7 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
 
   void _onTapUser(SearchResultDto user) async {
     try {
-      final session = widget.chatService.session;
-      if (session == null) return;
-      final conversation =
-          await widget.chatService.repository.createConversation(
-        token: session.token,
+      final conversation = await widget.chatService.createConversation(
         otherUserId: user.id,
       );
       if (!mounted) return;
