@@ -218,7 +218,6 @@ class _ConversationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final participant = conversation.otherParticipant;
     final name = participant?.name ?? 'Hội thoại #${conversation.id}';
-    final subtitle = participant?.role ?? 'Tin nhắn';
     return AppCard(
       padding: 0,
       child: ClipRRect(
@@ -266,7 +265,7 @@ class _ConversationCard extends StatelessWidget {
                       children: [
                         Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.ink)),
                         const SizedBox(height: AppSpacing.xs),
-                        Text(conversation.lastMessage ?? subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
+                        Text(conversation.lastMessage ?? 'Nhắn tin ngay', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
                       ],
                     ),
                   ),
