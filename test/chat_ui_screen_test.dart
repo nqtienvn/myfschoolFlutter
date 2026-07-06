@@ -51,7 +51,9 @@ void main() {
     expect(auth.loginCalls, 1);
     expect(auth.lastPhone, '0909000002');
     expect(chat.startCalls, 1);
-    expect(find.text('Đăng nhập thành công!'), findsOneWidget);
+    // Screen navigates to AppShell after success — no success toast
+    await tester.pumpAndSettle();
+    expect(find.byType(LoginScreen), findsNothing);
   });
 }
 
