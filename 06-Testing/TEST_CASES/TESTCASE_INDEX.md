@@ -25,7 +25,7 @@ Mỗi khi tạo thêm hoặc sửa đổi file `UCxx_*_TESTCASE.md`, bạn phả
 | Use Case ID | Module | Tên Use Case (Use Case Name) | File tài liệu Test Case | Người thực hiện | Trạng thái | Cập nhật cuối | Ghi chú |
 | :--- | :---: | :--- | :--- | :--- | :---: | :---: | :--- |
 | **UC08** | **CHAT** | **Real-time Chat (Messenger-style)** | **`UC08_RealtimeChat_TESTCASE.md`** | **Antigravity** | **Testing** | **2026-07-07** | **11/13 passed (3 unit, 6 API, 2 Sec). 3 bugs fixed: recipient status sent→delivered, duplicate push, NOT_CONVERSATION_MEMBER error code. 2 remaining (UI-001, E2E-001) are manual.** |
-| **UC09** | **ADMIN** | **Admin Role & Admin Web Configuration** | **`UC09_AdminRole_TESTCASE.md`** | **Claude** | **Draft** | **2026-07-07** | **13 test cases drafted for admin role, admin web, user lock/unlock, academic config permission split, teacher regression.** |
+| **UC09** | **ADMIN** | **Admin Role & Admin Web Configuration** | **`UC09_AdminRole_TESTCASE.md`** | **Claude** | **Ready** | **2026-07-08** | **Backend: ADMIN role added, user management API, permission split. Admin web: React SPA with login, user management, academic config pages. 73 backend tests pass.** |
 
 ---
 

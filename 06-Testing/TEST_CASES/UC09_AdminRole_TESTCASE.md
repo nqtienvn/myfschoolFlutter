@@ -11,7 +11,7 @@
 | **Use Case Name** | Admin Role & Admin Web Configuration |
 | **Module** | `ADMIN` |
 | **Version** | `1.0` |
-| **Status** | `Draft` |
+| **Status** | `Ready` |
 | **Author** | `Claude` |
 | **Reviewer** | `Tech Lead` |
 | **Created Date** | `2026-07-07` |
@@ -94,7 +94,7 @@ Admin có thể đăng nhập vào web app React để quản trị cấu hình 
 
 | Data ID | Type | Value / Setup | Used By | Note |
 | :--- | :--- | :--- | :--- | :--- |
-| `TD-ADMIN-001` | User | phone `0909000099`, email `admin.test@myfschool.local`, password `test1234`, role `ADMIN`, status `ACTIVE` | `TC-ADMIN-*` | Synthetic admin account. |
+| `TD-ADMIN-001` | User | phone `0909000009`, password `test1234`, role `ADMIN`, status `ACTIVE` | `TC-ADMIN-*` | Synthetic admin account. |
 | `TD-ADMIN-002` | User | phone `0909000098`, email `teacher.test@myfschool.local`, password `test1234`, role `TEACHER`, status `ACTIVE` | `TC-ADMIN-SEC-*`, `TC-ADMIN-API-005` | Synthetic teacher account. |
 | `TD-ADMIN-003` | User | phone `0909000097`, email `parent.test@myfschool.local`, password `test1234`, role `PARENT`, status `ACTIVE` | `TC-ADMIN-SEC-001`, `TC-ADMIN-UI-001` | Synthetic parent account. |
 | `TD-ADMIN-004` | User | phone `0909000096`, email `student.test@myfschool.local`, password `test1234`, role `STUDENT`, status `ACTIVE` | `TC-ADMIN-SEC-001`, `TC-ADMIN-UI-001` | Synthetic student account. |
@@ -734,9 +734,9 @@ WHERE id = 2001;
 
 | Date | Runner | Command | Result | Note |
 | :--- | :--- | :--- | :--- | :--- |
-| 2026-07-07 | Claude | `cd backend && mvn test` | Not Run | Run after implementation. |
-| 2026-07-07 | Claude | `cd admin-web && npm run build` | Not Run | Run after admin web implementation. |
-| 2026-07-07 | Claude | Manual admin web smoke | Not Run | Run after backend + admin web implementation. |
+| 2026-07-08 | Claude | `cd backend && mvn test` | Pass | 73 tests, 0 failures |
+| 2026-07-08 | Claude | `cd admin-web && npm run build` | Pass | Vite build succeeds |
+| 2026-07-08 | Claude | Manual admin web smoke | Not Run | Run after backend + admin web implementation |
 
 ---
 
