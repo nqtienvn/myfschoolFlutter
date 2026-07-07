@@ -102,6 +102,9 @@ public class AuthServiceImpl implements AuthService {
                 teacher.setDepartment(request.department());
                 teacherRepository.save(teacher);
             }
+            case ADMIN -> {
+                // ponytail: admin has no profile table, user record is sufficient
+            }
         }
 
         // Create default settings
