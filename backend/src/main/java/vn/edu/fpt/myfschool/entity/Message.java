@@ -64,7 +64,7 @@ public class Message extends BaseEntity {
     @Column(name = "client_message_id", nullable = false, length = 80)
     private String clientMessageId;
 
-    
+
     @Enumerated(EnumType.STRING)
     @Column(name = "message_type", nullable = false, length = 20)
     private MessageType messageType = MessageType.TEXT;
