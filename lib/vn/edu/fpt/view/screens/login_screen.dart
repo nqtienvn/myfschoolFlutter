@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController(text: '0909000002');
   final _passwordController = TextEditingController(text: 'test1234');
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _error;
 
   @override
@@ -102,11 +103,22 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: AppSpacing.md),
                           TextField(
                             controller: _passwordController,
-                            obscureText: true,
+                            obscureText: _obscurePassword,
                             decoration: InputDecoration(
                               labelText: 'Mật khẩu',
                               prefixIcon: const Icon(Icons.lock),
-                              suffixIcon: const Icon(Icons.remove_red_eye),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
