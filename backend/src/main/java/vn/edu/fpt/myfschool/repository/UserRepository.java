@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.myfschool.entity.User;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
+import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,4 +31,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
            "LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "u.phone LIKE CONCAT('%', :keyword, '%')")
     List<User> searchByKeyword(@Param("keyword") String keyword);
+
+    @Query("SELECT u FROM User u WHERE " +
+           "(:role IS NULL OR u.role = :role) AND " +
+           "(:status IS NULL OR u.status = :status) AND " +
+           "(:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "u.phone LIKE CONCAT('%', :keyword, '%'))")
+    List<User> searchAdminUsers(@Param("role") UserRole role,
+                                 @Param("status") UserStatus status,
+                                 @Param("keyword") String keyword);
 }
