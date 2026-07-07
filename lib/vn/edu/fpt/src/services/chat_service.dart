@@ -220,6 +220,7 @@ class ChatService extends ChangeNotifier {
       case 'error':
         if (event.clientMessageId != null) _updateStatus(event.clientMessageId!, ChatMessageStatus.failed);
         errorMessage = event.errorMessage ?? 'Không gửi được tin nhắn';
+        debugPrint('Chat error event from Backend: ${event.errorMessage} (clientMessageId: ${event.clientMessageId})');
         break;
     }
     notifyListeners();

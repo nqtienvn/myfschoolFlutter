@@ -37,6 +37,27 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
+  testWidgets('ConversationsScreen renders conversations with correct title for TEACHER role', (tester) async {
+    final service = _FakeChatService([
+      const Conversation(
+        id: 42,
+        unreadCount: 3,
+        lastMessage: 'Chào cô giáo',
+        otherParticipant: ChatParticipant(userId: 8, name: 'PH Học Sinh', role: 'PARENT'),
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: ConversationsScreen(actor: AppActor.teacher, chatService: service)),
+    );
+    await tester.pump();
+
+    expect(find.text('PH Học Sinh'), findsOneWidget);
+    expect(find.text('Chào cô giáo'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
+    expect(find.text('Tin nhắn phụ huynh'), findsOneWidget);
+  });
+
   testWidgets('LoginScreen authenticates and starts chat service before role selection', (tester) async {
     final auth = _FakeAuthService();
     final chat = _FakeChatService();

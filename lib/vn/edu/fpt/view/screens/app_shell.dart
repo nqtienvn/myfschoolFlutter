@@ -48,7 +48,7 @@ class _AppShellState extends State<AppShell> {
           builder: (context) {
             switch (index) {
               case 0: return _homeForActor();
-              case 1: return ConversationsScreen(actor: widget.actor, chatService: widget.chatService);
+              case 1: return ConversationsScreen(actor: widget.actor, chatService: widget.chatService!);
               case 2: return AnnouncementsScreen(actor: widget.actor);
               case 3: return AccountProfileScreen(
                 actor: widget.actor,
