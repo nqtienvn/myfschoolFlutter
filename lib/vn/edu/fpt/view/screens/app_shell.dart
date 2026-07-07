@@ -40,33 +40,29 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _buildTabNavigator(int index) {
-    return Navigator(
-      key: _navigatorKeys[index],
-      onGenerateRoute: (routeSettings) {
-        return MaterialPageRoute<void>(
+  return Navigator(
+    key: _navigatorKeys[index],
+    onGenerateInitialRoutes: (navigator, initialRoute) {
+      return [
+        MaterialPageRoute<void>(
           builder: (context) {
             switch (index) {
-              case 0:
-                return _homeForActor();
-              case 1:
-                return ConversationsScreen(actor: widget.actor, chatService: widget.chatService);
-              case 2:
-                return AnnouncementsScreen(actor: widget.actor);
-              case 3:
-                return AccountProfileScreen(
-                  actor: widget.actor,
-                  authService: widget.authService,
-                  chatService: widget.chatService,
-                );
-              default:
-                return const Scaffold();
+              case 0: return _homeForActor();
+              case 1: return ConversationsScreen(actor: widget.actor, chatService: widget.chatService);
+              case 2: return AnnouncementsScreen(actor: widget.actor);
+              case 3: return AccountProfileScreen(
+                actor: widget.actor,
+                authService: widget.authService,
+                chatService: widget.chatService,
+              );
+              default: return const Scaffold();
             }
           },
-          settings: routeSettings,
-        );
-      },
-    );
-  }
+        ),
+      ];
+    },
+  );
+}
 
   void _selectTab(int index) {
     if (_selectedIndex == index) {

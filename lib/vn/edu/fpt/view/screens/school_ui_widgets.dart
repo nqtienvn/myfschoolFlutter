@@ -341,7 +341,7 @@ class OrangeTopBar extends StatelessWidget implements PreferredSizeWidget {
           color: AppColors.ink,
         ),
       ),
-      leading: Navigator.canPop(context)
+      leading: Navigator.canPop(context) && !(ModalRoute.of(context)?.isFirst ?? true)
           ? IconButton(
               icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.fptOrange, size: 20),
               onPressed: () => Navigator.pop(context),
