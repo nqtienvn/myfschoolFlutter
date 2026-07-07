@@ -36,7 +36,7 @@ public class AnnouncementController {
     }
 
     @GetMapping("/mine")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Thông báo đã gửi")
     public ResponseEntity<ApiResponse<List<AnnouncementDto>>> getMyAnnouncements() {
         return ResponseEntity.ok(ApiResponse.success(
@@ -44,7 +44,7 @@ public class AnnouncementController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Chi tiết thông báo")
     public ResponseEntity<ApiResponse<AnnouncementDto>> getAnnouncementDetail(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(
@@ -52,7 +52,7 @@ public class AnnouncementController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT')")
     @Operation(summary = "Thông báo cho tôi")
     public ResponseEntity<ApiResponse<List<AnnouncementDto>>> getAnnouncements() {
         UserRole role = SecurityUtil.getCurrentUserRole();
@@ -61,7 +61,7 @@ public class AnnouncementController {
     }
 
     @PutMapping("/{id}/read")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT')")
     @Operation(summary = "Đánh dấu đã đọc")
     public ResponseEntity<ApiResponse<Void>> markAsRead(@PathVariable Long id) {
         announcementService.markAsRead(id, SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole());
@@ -69,7 +69,7 @@ public class AnnouncementController {
     }
 
     @GetMapping("/unread-count")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT')")
     @Operation(summary = "Số chưa đọc")
     public ResponseEntity<ApiResponse<Long>> getUnreadCount() {
         UserRole role = SecurityUtil.getCurrentUserRole();

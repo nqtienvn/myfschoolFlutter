@@ -26,7 +26,7 @@ public class TuitionBillController {
     private final PaymentTransactionService paymentTransactionService;
 
     @PostMapping("/bills")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Tạo khoản HP")
     public ResponseEntity<ApiResponse<TuitionBillDto>> createBill(
             @Valid @RequestBody TuitionBillRequest request) {
@@ -34,7 +34,7 @@ public class TuitionBillController {
     }
 
     @GetMapping("/bills/class")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "HP theo lớp")
     public ResponseEntity<ApiResponse<List<TuitionBillDto>>> getClassBills(
             @RequestParam Long classId, @RequestParam Long semesterId,
@@ -50,7 +50,7 @@ public class TuitionBillController {
     }
 
     @DeleteMapping("/bills/{id}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Xóa khoản HP")
     public ResponseEntity<ApiResponse<Void>> deleteBill(@PathVariable Long id) {
         tuitionBillService.deleteTuitionBill(id);
@@ -58,7 +58,7 @@ public class TuitionBillController {
     }
 
     @PostMapping("/bills/{id}/simulate-pay")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Mô phỏng thanh toán")
     public ResponseEntity<ApiResponse<Object>> simulatePayment(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success("Thanh toán thành công", paymentTransactionService.simulatePayment(id)));

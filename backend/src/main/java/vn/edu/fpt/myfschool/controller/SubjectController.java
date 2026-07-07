@@ -23,7 +23,7 @@ public class SubjectController {
     private final SubjectService subjectService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Danh sách môn học")
     public ResponseEntity<ApiResponse<List<SubjectDto>>> listSubjects(
             @RequestParam(required = false) String keyword) {
@@ -31,14 +31,14 @@ public class SubjectController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Chi tiết môn học")
     public ResponseEntity<ApiResponse<SubjectDto>> getSubject(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(subjectService.getSubject(id)));
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Tạo môn học")
     public ResponseEntity<ApiResponse<SubjectDto>> createSubject(
             @Valid @RequestBody CreateSubjectRequest request) {
@@ -46,7 +46,7 @@ public class SubjectController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Sửa môn học")
     public ResponseEntity<ApiResponse<SubjectDto>> updateSubject(
             @PathVariable Long id,
@@ -55,7 +55,7 @@ public class SubjectController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Xóa môn học")
     public ResponseEntity<ApiResponse<Void>> deleteSubject(@PathVariable Long id) {
         subjectService.deleteSubject(id);

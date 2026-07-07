@@ -30,8 +30,8 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void create_schedule_teacher_only() throws Exception {
-        String token = loginAsTeacher();
+    void create_schedule_admin_only() throws Exception {
+        String token = loginAsAdmin();
 
         mockMvc.perform(post("/api/schedules")
                 .header("Authorization", authHeader(token))
@@ -46,7 +46,7 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void create_schedule_duplicate_class_period_fails() throws Exception {
-        String token = loginAsTeacher();
+        String token = loginAsAdmin();
 
         mockMvc.perform(post("/api/schedules")
                 .header("Authorization", authHeader(token))
@@ -65,7 +65,7 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void delete_schedule() throws Exception {
-        String token = loginAsTeacher();
+        String token = loginAsAdmin();
 
         var createResult = mockMvc.perform(post("/api/schedules")
                 .header("Authorization", authHeader(token))
@@ -86,7 +86,7 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void get_available_periods() throws Exception {
-        String token = loginAsTeacher();
+        String token = loginAsAdmin();
 
         mockMvc.perform(post("/api/schedules")
                 .header("Authorization", authHeader(token))

@@ -23,7 +23,7 @@ public class SemesterController {
     private final SemesterService semesterService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Danh sách học kỳ")
     public ResponseEntity<ApiResponse<List<SemesterDto>>> listSemesters(
             @RequestParam(required = false) String academicYear) {
@@ -31,21 +31,21 @@ public class SemesterController {
     }
 
     @GetMapping("/current")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Học kỳ hiện tại")
     public ResponseEntity<ApiResponse<SemesterDto>> getCurrentSemester() {
         return ResponseEntity.ok(ApiResponse.success(semesterService.getCurrentSemester()));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Chi tiết học kỳ")
     public ResponseEntity<ApiResponse<SemesterDto>> getSemester(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(semesterService.getSemester(id)));
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Tạo học kỳ")
     public ResponseEntity<ApiResponse<SemesterDto>> createSemester(
             @Valid @RequestBody CreateSemesterRequest request) {
@@ -53,7 +53,7 @@ public class SemesterController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Sửa học kỳ")
     public ResponseEntity<ApiResponse<SemesterDto>> updateSemester(
             @PathVariable Long id,
@@ -62,7 +62,7 @@ public class SemesterController {
     }
 
     @PutMapping("/{id}/set-current")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Đặt làm học kỳ hiện tại")
     public ResponseEntity<ApiResponse<Void>> setCurrentSemester(@PathVariable Long id) {
         semesterService.setCurrentSemester(id);

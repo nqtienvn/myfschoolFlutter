@@ -24,7 +24,7 @@ public class ScheduleController {
     private final ScheduleService scheduleService;
 
     @GetMapping("/class")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "TKB lớp")
     public ResponseEntity<ApiResponse<ClassScheduleDto>> getClassSchedule(
             @RequestParam Long classId, @RequestParam Long semesterId) {
@@ -32,7 +32,7 @@ public class ScheduleController {
     }
 
     @GetMapping("/teacher")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "TKB giáo viên")
     public ResponseEntity<ApiResponse<ClassScheduleDto>> getTeacherSchedule(
             @RequestParam Long teacherId, @RequestParam Long semesterId) {
@@ -40,7 +40,7 @@ public class ScheduleController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Tạo tiết TKB")
     public ResponseEntity<ApiResponse<ScheduleDto>> createSchedule(
             @Valid @RequestBody ScheduleRequest request) {
@@ -48,7 +48,7 @@ public class ScheduleController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Xóa tiết TKB")
     public ResponseEntity<ApiResponse<Void>> deleteSchedule(@PathVariable Long id) {
         scheduleService.deleteSchedule(id);
@@ -56,7 +56,7 @@ public class ScheduleController {
     }
 
     @GetMapping("/available-periods")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Tiết trống")
     public ResponseEntity<ApiResponse<List<Integer>>> getAvailablePeriods(
             @RequestParam Long classId, @RequestParam Long semesterId,

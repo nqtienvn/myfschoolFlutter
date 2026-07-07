@@ -14,8 +14,8 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void create_tuition_bill_teacher_only() throws Exception {
-        String token = loginAsTeacher();
+    void create_tuition_bill_admin_only() throws Exception {
+        String token = loginAsAdmin();
 
         mockMvc.perform(post("/api/tuition/bills")
                 .header("Authorization", authHeader(token))
@@ -40,16 +40,17 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void teacher_view_class_bills() throws Exception {
-        String token = loginAsTeacher();
+        String adminToken = loginAsAdmin();
+        String teacherToken = loginAsTeacher();
 
         mockMvc.perform(post("/api/tuition/bills")
-                .header("Authorization", authHeader(token))
+                .header("Authorization", authHeader(adminToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(billJson(testStudent1.getId(), testClass.getId(), testSemester.getId(), "HP List", 10000000)))
             .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/tuition/bills/class")
-                .header("Authorization", authHeader(token))
+                .header("Authorization", authHeader(teacherToken))
                 .param("classId", testClass.getId().toString())
                 .param("semesterId", testSemester.getId().toString()))
             .andExpect(status().isOk())
@@ -71,7 +72,7 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void simulate_payment() throws Exception {
-        String token = loginAsTeacher();
+        String token = loginAsAdmin();
 
         var result = mockMvc.perform(post("/api/tuition/bills")
                 .header("Authorization", authHeader(token))

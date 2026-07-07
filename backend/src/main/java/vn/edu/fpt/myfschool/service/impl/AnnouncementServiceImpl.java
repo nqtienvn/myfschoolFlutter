@@ -136,6 +136,10 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     private List<Long> getVisibleClassIds(Long userId, UserRole role) {
+        if (role == UserRole.ADMIN) {
+            // Admin config via admin web, not announcement inbox
+            return List.of();
+        }
         if (role == UserRole.STUDENT) {
             Student student = studentRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student", "userId", userId));
@@ -155,6 +159,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     private List<TargetRole> targetRolesFor(UserRole role) {
+        if (role == UserRole.ADMIN) return List.of(TargetRole.PARENT, TargetRole.STUDENT, TargetRole.ALL);
         if (role == UserRole.PARENT) return List.of(TargetRole.PARENT, TargetRole.ALL);
         if (role == UserRole.STUDENT) return List.of(TargetRole.STUDENT, TargetRole.ALL);
         return List.of();

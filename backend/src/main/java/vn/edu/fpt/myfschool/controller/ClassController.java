@@ -25,7 +25,7 @@ public class ClassController {
     private final ClassService classService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Danh sách lớp")
     public ResponseEntity<ApiResponse<Page<ClassDto>>> listClasses(
             @RequestParam(required = false) String academicYear,
@@ -37,14 +37,14 @@ public class ClassController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Chi tiết lớp")
     public ResponseEntity<ApiResponse<ClassDetailDto>> getClassDetail(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(classService.getClassDetail(id)));
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Tạo lớp")
     public ResponseEntity<ApiResponse<ClassDto>> createClass(
             @Valid @RequestBody CreateClassRequest request) {
@@ -52,7 +52,7 @@ public class ClassController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Sửa lớp")
     public ResponseEntity<ApiResponse<ClassDto>> updateClass(
             @PathVariable Long id,
@@ -61,7 +61,7 @@ public class ClassController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Xóa lớp")
     public ResponseEntity<ApiResponse<Void>> deleteClass(@PathVariable Long id) {
         classService.deleteClass(id);
@@ -69,14 +69,14 @@ public class ClassController {
     }
 
     @GetMapping("/{id}/students")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Danh sách học sinh trong lớp")
     public ResponseEntity<ApiResponse<List<StudentSummaryDto>>> getStudents(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(classService.getStudentsInClass(id)));
     }
 
     @PostMapping("/{id}/subjects")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Phân công môn học")
     public ResponseEntity<ApiResponse<ClassSubjectDto>> assignSubject(
             @PathVariable Long id,
@@ -88,7 +88,7 @@ public class ClassController {
     }
 
     @DeleteMapping("/subjects/{classSubjectId}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Gỡ phân công môn học")
     public ResponseEntity<ApiResponse<Void>> removeSubject(@PathVariable Long classSubjectId) {
         classService.removeSubject(classSubjectId);
