@@ -54,6 +54,7 @@ public abstract class BaseIntegrationTest {
     protected Student testStudent2;
     protected Student testStudent3;
     protected Parent testParent;
+    protected User testAdminUser;
 
     @BeforeEach
     void setUpTestData() {
@@ -129,6 +130,15 @@ public abstract class BaseIntegrationTest {
         testParent.setUser(parentUser);
         testParent.setAddress("Hà Nội");
         testParent = parentRepository.save(testParent);
+
+        // Admin user
+        User adminUser = new User();
+        adminUser.setPhone("0909000009");
+        adminUser.setPassword(passwordEncoder.encode("test1234"));
+        adminUser.setName("Admin Test");
+        adminUser.setRole(UserRole.ADMIN);
+        adminUser.setStatus(UserStatus.ACTIVE);
+        testAdminUser = userRepository.save(adminUser);
 
         // Student users + students
         for (int i = 1; i <= 3; i++) {
@@ -214,5 +224,9 @@ public abstract class BaseIntegrationTest {
 
     protected String loginAsStudent2() throws Exception {
         return login("0909000012", "test1234");
+    }
+
+    protected String loginAsAdmin() throws Exception {
+        return login("0909000009", "test1234");
     }
 }
