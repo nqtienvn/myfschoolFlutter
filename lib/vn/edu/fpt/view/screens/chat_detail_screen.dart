@@ -75,6 +75,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   late final List<ChatMessage> _messages;
   Timer? _typingStopTimer;
   DateTime? _lastTypingStart;
+  bool _isLoadingOlder = false;
 
   @override
   void initState() {
@@ -94,6 +95,29 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final conversation = widget.conversation;
     if (conversation != null) {
       widget.chatService?.openConversation(conversation.id);
+    }
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_isLoadingOlder) return;
+    final conversation = widget.conversation;
+    final service = widget.chatService;
+    if (conversation == null || service == null) return;
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      _loadOlderMessages(conversation.id, service);
+    }
+  }
+
+  Future<void> _loadOlderMessages(int conversationId, ChatService service) async {
+    setState(() => _isLoadingOlder = true);
+    try {
+      await Future.wait([
+        service.loadOlderMessages(conversationId),
+        Future<void>.delayed(const Duration(seconds: 1)),
+      ]);
+    } finally {
+      if (mounted) setState(() => _isLoadingOlder = false);
     }
   }
 
@@ -140,7 +164,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent + 80,
+        0.0,
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
       );
@@ -171,12 +195,28 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 Expanded(
                   child: ListView.builder(
                     controller: _scrollController,
+                    reverse: true,
                     padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.lg),
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) => _DomainMessageBubble(
-                      message: messages[index],
-                      onRetry: () => service.retryMessage(messages[index].clientMessageId),
-                    ),
+                    itemCount: messages.length + (_isLoadingOlder ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (_isLoadingOlder && index == messages.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.fptOrange),
+                            ),
+                          ),
+                        );
+                      }
+                      final reversedIndex = messages.length - 1 - index;
+                      return _DomainMessageBubble(
+                        message: messages[reversedIndex],
+                        onRetry: () => service.retryMessage(messages[reversedIndex].clientMessageId),
+                      );
+                    },
                   ),
                 ),
                 _MessageComposer(controller: _controller, onSend: _sendMessage, onChanged: _handleTyping),
@@ -198,6 +238,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
+              reverse: true,
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg,
                 AppSpacing.sm,
@@ -206,8 +247,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
+                final reversedIndex = _messages.length - 1 - index;
                 return _MessageBubble(
-                  message: _messages[index],
+                  message: _messages[reversedIndex],
                   accentColor: thread.accentColor,
                 );
               },
