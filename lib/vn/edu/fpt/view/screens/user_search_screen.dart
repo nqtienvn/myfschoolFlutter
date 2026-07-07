@@ -61,8 +61,12 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
         otherUserId: user.id,
       );
       if (!mounted) return;
-      Navigator.of(context).pop();
-      Navigator.of(context).push(
+
+      // Kiểm tra route hiện tại để tránh race condition khi người dùng nhấn back trong lúc đang tải
+      final route = ModalRoute.of(context);
+      if (route == null || !route.isCurrent) return;
+
+      Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
           builder: (_) => ChatDetailScreen(
             chatService: widget.chatService,
