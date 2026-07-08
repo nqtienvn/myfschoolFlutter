@@ -3,7 +3,7 @@ package vn.edu.fpt.myfschool.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
-import vn.edu.fpt.myfschool.controller.entity.AcademicYear;
+import vn.edu.fpt.myfschool.entity.AcademicYear;
 
 import java.util.List;
 import java.util.Optional;

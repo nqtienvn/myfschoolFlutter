@@ -10,7 +10,7 @@ import vn.edu.fpt.myfschool.common.dto.AdminUserDto;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
-import vn.edu.fpt.myfschool.controller.entity.User;
+import vn.edu.fpt.myfschool.entity.User;
 import vn.edu.fpt.myfschool.repository.UserRepository;
 import vn.edu.fpt.myfschool.service.AdminUserService;
 

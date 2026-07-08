@@ -1,12 +1,12 @@
 package vn.edu.fpt.myfschool.service.impl;
 
-import vn.edu.fpt.myfschool.controller.entity.User;
+import vn.edu.fpt.myfschool.entity.User;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.NotificationDto;
-import vn.edu.fpt.myfschool.controller.entity.Notification;
+import vn.edu.fpt.myfschool.entity.Notification;
 import vn.edu.fpt.myfschool.repository.NotificationRepository;
 
 import java.util.List;

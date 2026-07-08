@@ -1,9 +1,9 @@
 package vn.edu.fpt.myfschool.service.impl;
 
-import vn.edu.fpt.myfschool.controller.entity.SchoolClass;
-import vn.edu.fpt.myfschool.controller.entity.Semester;
-import vn.edu.fpt.myfschool.controller.entity.Student;
-import vn.edu.fpt.myfschool.controller.entity.TuitionBill;
+import vn.edu.fpt.myfschool.entity.SchoolClass;
+import vn.edu.fpt.myfschool.entity.Semester;
+import vn.edu.fpt.myfschool.entity.Student;
+import vn.edu.fpt.myfschool.entity.TuitionBill;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,8 +27,6 @@ public class TuitionBillServiceImpl implements TuitionBillService {
     private final StudentRepository studentRepository;
     private final ClassRepository classRepository;
     private final SemesterRepository semesterRepository;
-    private final ParentRepository parentRepository;
-    private final NotificationService notificationService;
 
     @Override
     public TuitionBillDto createTuitionBill(TuitionBillRequest request) {

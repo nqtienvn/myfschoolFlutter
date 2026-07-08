@@ -3,7 +3,7 @@ package vn.edu.fpt.myfschool.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
-import vn.edu.fpt.myfschool.controller.entity.AttendanceDetail;
+import vn.edu.fpt.myfschool.entity.AttendanceDetail;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,4 +12,6 @@ public interface AttendanceDetailRepository extends JpaRepository<AttendanceDeta
     List<AttendanceDetail> findBySessionId(Long sessionId);
     Optional<AttendanceDetail> findBySessionIdAndStudentId(Long sessionId, Long studentId);
     long countBySessionIdAndStatus(Long sessionId, AttendanceStatus status);
+    long countByStudentIdAndStatusAndSessionIdIn(Long studentId, AttendanceStatus status, List<Long> sessionIds);
+    long countByStudentIdAndSessionIdIn(Long studentId, List<Long> sessionIds);
 }

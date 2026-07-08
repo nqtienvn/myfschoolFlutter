@@ -4,28 +4,38 @@ import { apiFetch } from '../api/client';
 interface AcademicYearItem { id: number; name: string; status: string; }
 interface ClassItem { id: number; name: string; gradeLevel: number; academicYearId: number; academicYearName: string; }
 
-export default function ClassesPage() {
+export default function ClassesPage({ selectedYearId }: { selectedYearId?: string }) {
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
-  const [academicYearId, setAcademicYearId] = useState('');
+  const [academicYearId, setAcademicYearId] = useState(selectedYearId || '');
   const [items, setItems] = useState<ClassItem[]>([]);
-  const [activeTab, setActiveTab] = useState<'manual' | 'generator' | 'csv'>('manual');
+  const [activeTab, setActiveTab] = useState<'manual' | 'csv'>('manual');
   const [error, setError] = useState('');
   const [progress, setProgress] = useState({ active: false, current: 0, total: 0, label: '' });
+  
+  // Manual creation states
   const [manualName, setManualName] = useState('');
   const [manualGrade, setManualGrade] = useState(10);
-  const [genPrefix, setGenPrefix] = useState('A');
-  const [genCount, setGenCount] = useState(5);
-  const [genGrade, setGenGrade] = useState(10);
+  const [teacherCode, setTeacherCode] = useState('');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchAcademicYears(); }, []);
+  
+  useEffect(() => {
+    if (selectedYearId) {
+      setAcademicYearId(selectedYearId);
+    }
+  }, [selectedYearId]);
+
   useEffect(() => { if (academicYearId) fetchItems(); }, [academicYearId]);
 
   async function fetchAcademicYears() {
     const data = await apiFetch('/academic-years') as AcademicYearItem[];
     setAcademicYears(data);
-    const active = data.find(y => y.status === 'ACTIVE') || data[0];
-    if (active) setAcademicYearId(String(active.id));
+    if (!selectedYearId) {
+      const active = data.find(y => y.status === 'ACTIVE') || data[0];
+      if (active) setAcademicYearId(String(active.id));
+    }
   }
 
   async function fetchItems() {
@@ -55,38 +65,19 @@ export default function ClassesPage() {
     try {
       await apiFetch('/classes', {
         method: 'POST',
-        body: JSON.stringify({ name: manualName.trim(), gradeLevel: manualGrade, academicYearId: +academicYearId, schoolName: 'FPT Schools' }),
+        body: JSON.stringify({ 
+          name: manualName.trim(), 
+          gradeLevel: manualGrade, 
+          academicYearId: +academicYearId, 
+          schoolName: 'FPT Schools',
+          teacherCode: teacherCode.trim() || undefined
+        }),
       });
       setManualName('');
+      setTeacherCode('');
       fetchItems();
     } catch (err: any) {
       setError(err.message || 'Lỗi lưu thông tin lớp học');
-    }
-  }
-
-  async function handleAutoGenerate() {
-    setError('');
-    if (!requireYear()) return;
-    if (!genPrefix.trim()) return setError('Tiền tố tên lớp không được để trống (Ví dụ: A, B, C).');
-    if (isNaN(genCount) || genCount < 1 || genCount > 30) return setError('Số lượng lớp cần tạo phải từ 1 đến 30.');
-    if (isNaN(genGrade) || genGrade < 1 || genGrade > 12) return setError('Khối lớp phải là số nguyên từ 1 đến 12.');
-
-    setProgress({ active: true, current: 0, total: genCount, label: 'Chuẩn bị tạo...' });
-    try {
-      for (let i = 1; i <= genCount; i++) {
-        const className = `${genGrade}${genPrefix.trim().toUpperCase()}${i}`;
-        setProgress(p => ({ ...p, current: i - 1, label: `Đang tạo lớp ${className} (${i}/${genCount})...` }));
-        await apiFetch('/classes', {
-          method: 'POST',
-          body: JSON.stringify({ name: className, gradeLevel: genGrade, academicYearId: +academicYearId, schoolName: 'FPT Schools' }),
-        });
-      }
-      setProgress(p => ({ ...p, current: genCount, label: 'Đã hoàn thành tạo lớp học!' }));
-      setTimeout(() => setProgress(p => ({ ...p, active: false })), 2000);
-      fetchItems();
-    } catch (err: any) {
-      setError(`Lỗi trong quá trình tạo lớp: ${err.message || 'Lỗi không xác định'}`);
-      setProgress(p => ({ ...p, active: false }));
     }
   }
 
@@ -168,20 +159,17 @@ export default function ClassesPage() {
   return (
     <div>
       <h2>Quản lý lớp học</h2>
-      <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+      <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
         <div className="form-group">
-          <label>Năm học</label>
-          <select value={academicYearId} onChange={e => setAcademicYearId(e.target.value)}>
-            <option value="">Chọn năm học</option>
-            {academicYears.map(y => <option key={y.id} value={y.id}>{y.name} {y.status === 'ACTIVE' ? '(Đang mở)' : ''}</option>)}
-          </select>
-          <span className="input-desc">Năm học áp dụng cho danh sách lớp</span>
+          <label>Năm học đang hoạt động</label>
+          <div style={{ padding: '8px 12px', background: '#f3f4f6', border: '1px solid #d1d5db', fontSize: '13px', fontWeight: 'bold', fontFamily: 'ui-monospace, monospace' }}>
+            NĂM HỌC {academicYears.find(y => String(y.id) === academicYearId)?.name || 'CHƯA CHỌN'}
+          </div>
         </div>
       </div>
 
       <div className="tabs-container">
         <button className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`} onClick={() => { setActiveTab('manual'); setError(''); }}>Tạo thủ công</button>
-        <button className={`tab-btn ${activeTab === 'generator' ? 'active' : ''}`} onClick={() => { setActiveTab('generator'); setError(''); }}>Tự động sinh lớp</button>
         <button className={`tab-btn ${activeTab === 'csv' ? 'active' : ''}`} onClick={() => { setActiveTab('csv'); setError(''); }}>Import từ CSV</button>
       </div>
 
@@ -195,19 +183,46 @@ export default function ClassesPage() {
       )}
 
       {activeTab === 'manual' && !progress.active && (
-        <div className="form-grid">
-          <div className="form-group"><label>Tên lớp</label><input placeholder="VD: 10A1, 12C3..." value={manualName} onChange={e => setManualName(e.target.value)} /><span className="input-desc">Chữ và số viết liền, tối đa 20 ký tự</span></div>
-          <div className="form-group"><label>Khối lớp</label><input type="number" value={manualGrade} onChange={e => setManualGrade(+e.target.value)} /><span className="input-desc">Giá trị số nguyên từ 1 đến 12</span></div>
-          <div className="form-group"><label style={{ visibility: 'hidden' }}>Thao tác</label><button onClick={handleManualCreate} style={{ width: '100%', height: '38px' }}>Tạo lớp</button><span className="input-desc" style={{ visibility: 'hidden' }}>&nbsp;</span></div>
-        </div>
-      )}
+        <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+          <div className="form-group">
+            <label>Tên lớp</label>
+            <input 
+              placeholder="VD: 10A1, 12C3..." 
+              value={manualName} 
+              onChange={e => setManualName(e.target.value)} 
+            />
+          </div>
 
-      {activeTab === 'generator' && !progress.active && (
-        <div className="form-grid">
-          <div className="form-group"><label>Ký tự lớp</label><input placeholder="VD: A, B, C..." value={genPrefix} onChange={e => setGenPrefix(e.target.value)} /><span className="input-desc">Chữ cái đại diện lớp</span></div>
-          <div className="form-group"><label>Số lượng lớp cần tạo</label><input type="number" value={genCount} onChange={e => setGenCount(+e.target.value)} /><span className="input-desc">Giới hạn sinh từ 1 đến 30 lớp</span></div>
-          <div className="form-group"><label>Khối lớp</label><input type="number" value={genGrade} onChange={e => setGenGrade(+e.target.value)} /><span className="input-desc">Tên lớp sẽ bắt đầu bằng số khối này</span></div>
-          <div className="form-group" style={{ gridColumn: 'span 4', display: 'flex', alignItems: 'flex-end' }}><button onClick={handleAutoGenerate} style={{ width: '100%', height: '40px' }}>Bắt đầu sinh lớp hàng loạt</button></div>
+          <div className="form-group">
+            <label>Mã khối</label>
+            <select 
+              value={manualGrade} 
+              onChange={e => setManualGrade(+e.target.value)}
+              style={{ height: '38px', padding: '0 8px', border: '1px solid #d4d4d4' }}
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(g => (
+                <option key={g} value={g}>Khối {g}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Mã giáo viên chủ nhiệm</label>
+            <input 
+              placeholder="VD: GV001..." 
+              value={teacherCode} 
+              onChange={e => setTeacherCode(e.target.value)} 
+            />
+          </div>
+
+          <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
+            <button 
+              onClick={handleManualCreate} 
+              style={{ width: '100%', height: '38px', background: '#000000', color: '#ffffff', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              Tạo lớp
+            </button>
+          </div>
         </div>
       )}
 

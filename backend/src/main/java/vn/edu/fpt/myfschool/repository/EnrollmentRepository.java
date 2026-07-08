@@ -5,8 +5,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
-import vn.edu.fpt.myfschool.controller.entity.Enrollment;
-import vn.edu.fpt.myfschool.controller.entity.Student;
+import vn.edu.fpt.myfschool.entity.Enrollment;
+import vn.edu.fpt.myfschool.entity.Student;
 
 import java.util.List;
 import java.util.Optional;

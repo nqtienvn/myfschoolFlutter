@@ -1,0 +1,21 @@
+CREATE TABLE audit_logs (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    created_at DATETIME(6) NULL,
+    updated_at DATETIME(6) NULL,
+    user_id BIGINT NULL,
+    username VARCHAR(100) NULL,
+    role VARCHAR(50) NULL,
+    http_method VARCHAR(10) NOT NULL,
+    uri VARCHAR(500) NOT NULL,
+    client_ip VARCHAR(45) NULL,
+    request_params LONGTEXT NULL,
+    request_body LONGTEXT NULL,
+    response_body LONGTEXT NULL,
+    status_code INT NULL,
+    error_message VARCHAR(1000) NULL,
+    execution_time_ms BIGINT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_audit_logs_created_at (created_at),
+    INDEX idx_audit_logs_user_id (user_id),
+    INDEX idx_audit_logs_uri (uri)
+);

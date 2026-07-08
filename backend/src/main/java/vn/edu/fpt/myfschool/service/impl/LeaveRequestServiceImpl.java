@@ -1,11 +1,11 @@
 package vn.edu.fpt.myfschool.service.impl;
 
-import vn.edu.fpt.myfschool.controller.entity.Attendance;
-import vn.edu.fpt.myfschool.controller.entity.LeaveRequest;
-import vn.edu.fpt.myfschool.controller.entity.Parent;
-import vn.edu.fpt.myfschool.controller.entity.SchoolClass;
-import vn.edu.fpt.myfschool.controller.entity.Student;
-import vn.edu.fpt.myfschool.controller.entity.Teacher;
+import vn.edu.fpt.myfschool.entity.Attendance;
+import vn.edu.fpt.myfschool.entity.LeaveRequest;
+import vn.edu.fpt.myfschool.entity.Parent;
+import vn.edu.fpt.myfschool.entity.SchoolClass;
+import vn.edu.fpt.myfschool.entity.Student;
+import vn.edu.fpt.myfschool.entity.Teacher;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

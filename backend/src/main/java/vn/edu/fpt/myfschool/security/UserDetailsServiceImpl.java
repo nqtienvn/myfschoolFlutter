@@ -5,7 +5,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-import vn.edu.fpt.myfschool.controller.entity.User;
+import vn.edu.fpt.myfschool.entity.User;
 import vn.edu.fpt.myfschool.repository.UserRepository;
 
 @Service

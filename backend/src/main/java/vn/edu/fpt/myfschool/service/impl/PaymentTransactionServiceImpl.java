@@ -8,8 +8,8 @@ import vn.edu.fpt.myfschool.common.enums.BillStatus;
 import vn.edu.fpt.myfschool.common.enums.PaymentStatus;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
-import vn.edu.fpt.myfschool.controller.entity.PaymentTransaction;
-import vn.edu.fpt.myfschool.controller.entity.TuitionBill;
+import vn.edu.fpt.myfschool.entity.PaymentTransaction;
+import vn.edu.fpt.myfschool.entity.TuitionBill;
 import vn.edu.fpt.myfschool.repository.PaymentTransactionRepository;
 import vn.edu.fpt.myfschool.repository.TuitionBillRepository;
 

@@ -6,7 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
-import vn.edu.fpt.myfschool.controller.entity.FeeCategory;
+import vn.edu.fpt.myfschool.entity.FeeCategory;
 import vn.edu.fpt.myfschool.repository.FeeCategoryRepository;
 import vn.edu.fpt.myfschool.service.FeeCategoryService;
 

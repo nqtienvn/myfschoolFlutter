@@ -9,8 +9,16 @@ import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
-import vn.edu.fpt.myfschool.controller.entity.*;
-import vn.edu.fpt.myfschool.repository.*;
+import vn.edu.fpt.myfschool.entity.AttendanceDetail;
+import vn.edu.fpt.myfschool.entity.AttendanceSession;
+import vn.edu.fpt.myfschool.entity.SchoolClass;
+import vn.edu.fpt.myfschool.entity.Student;
+import vn.edu.fpt.myfschool.entity.Teacher;
+import vn.edu.fpt.myfschool.repository.AttendanceDetailRepository;
+import vn.edu.fpt.myfschool.repository.AttendanceSessionRepository;
+import vn.edu.fpt.myfschool.repository.ClassRepository;
+import vn.edu.fpt.myfschool.repository.EnrollmentRepository;
+import vn.edu.fpt.myfschool.repository.TeacherRepository;
 import vn.edu.fpt.myfschool.service.AttendanceSessionService;
 
 import java.time.LocalDate;

@@ -1,6 +1,6 @@
 package vn.edu.fpt.myfschool.service.impl;
 
-import vn.edu.fpt.myfschool.controller.entity.*;
+import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

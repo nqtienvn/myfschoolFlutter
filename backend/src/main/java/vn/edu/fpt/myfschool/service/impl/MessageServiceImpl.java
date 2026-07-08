@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.MessageDto;
 import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
-import vn.edu.fpt.myfschool.controller.entity.Message;
+import vn.edu.fpt.myfschool.entity.Message;
 import vn.edu.fpt.myfschool.repository.ConversationParticipantRepository;
 import vn.edu.fpt.myfschool.repository.MessageRepository;
 import vn.edu.fpt.myfschool.service.MessageService;

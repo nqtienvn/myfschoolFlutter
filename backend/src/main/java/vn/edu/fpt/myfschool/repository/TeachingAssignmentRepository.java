@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
-import vn.edu.fpt.myfschool.controller.entity.TeachingAssignment;
+import vn.edu.fpt.myfschool.entity.TeachingAssignment;
 import java.time.LocalDate;
 import java.util.List;
 
