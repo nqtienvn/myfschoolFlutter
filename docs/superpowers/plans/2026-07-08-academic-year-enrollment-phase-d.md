@@ -137,8 +137,8 @@ public class AttendanceDetail extends BaseEntity {
 }
 ```
 
-- [ ] **Step 1.1:** Tạo `AttendanceSession.java`
-- [ ] **Step 1.2:** Tạo `AttendanceDetail.java`
+- [x] **Step 1.1:** Tạo `AttendanceSession.java`
+- [x] **Step 1.2:** Tạo `AttendanceDetail.java`
 
 ---
 
@@ -167,8 +167,8 @@ public interface AttendanceDetailRepository extends JpaRepository<AttendanceDeta
 }
 ```
 
-- [ ] **Step 2.1:** Tạo `AttendanceSessionRepository.java`
-- [ ] **Step 2.2:** Tạo `AttendanceDetailRepository.java`
+- [x] **Step 2.1:** Tạo `AttendanceSessionRepository.java`
+- [x] **Step 2.2:** Tạo `AttendanceDetailRepository.java`
 
 ---
 
@@ -218,7 +218,7 @@ public record UpdateAttendanceDetailRequest(
 ) {}
 ```
 
-- [ ] **Step 3.1:** Tạo DTOs
+- [x] **Step 3.1:** Tạo DTOs
 
 ---
 
@@ -350,8 +350,8 @@ public class AttendanceSessionServiceImpl implements AttendanceSessionService {
 }
 ```
 
-- [ ] **Step 4.1:** Tạo `AttendanceSessionService.java`
-- [ ] **Step 4.2:** Tạo `AttendanceSessionServiceImpl.java`
+- [x] **Step 4.1:** Tạo `AttendanceSessionService.java`
+- [x] **Step 4.2:** Tạo `AttendanceSessionServiceImpl.java`
 
 ---
 
@@ -412,7 +412,7 @@ public class AttendanceSessionController {
 }
 ```
 
-- [ ] **Step 5.1:** Tạo `AttendanceSessionController.java`
+- [x] **Step 5.1:** Tạo `AttendanceSessionController.java`
 
 ---
 
@@ -429,8 +429,8 @@ public class AttendanceSessionController {
 // 6. Thống kê: Có mặt / Muộn / Vắng
 ```
 
-- [ ] **Step 6.1:** Tạo `AttendanceSessionPage.tsx`
-- [ ] **Step 6.2:** Build:
+- [x] **Step 6.1:** Tạo `AttendanceSessionPage.tsx`
+- [x] **Step 6.2:** Build:
   ```bash
   npm --prefix admin-web run build
   ```
@@ -447,13 +447,13 @@ public class AttendanceSessionController {
 // Test: close session → không cho update nữa
 ```
 
-- [ ] **Step 7.1:** Tạo test file
-- [ ] **Step 7.2:** Chạy test:
+- [x] **Step 7.1:** Tạo test file
+- [x] **Step 7.2:** Chạy test:
   ```bash
   mvn -f backend/pom.xml test -Dtest=AttendanceSessionIntegrationTest
   mvn -f backend/pom.xml test
   ```
-- [ ] **Step 7.3:** Manual smoke:
+- [x] **Step 7.3:** Manual smoke:
   1. Tạo session: POST `/api/attendance-sessions` → 42 chi tiết auto-generated
   2. Update: PUT `/api/attendance-sessions/{id}/details` → counts thay đổi
   3. Close session → PUT fails
@@ -462,10 +462,10 @@ public class AttendanceSessionController {
 ---
 
 ## Self-review checklist
-- [ ] `AttendanceSession` + `AttendanceDetail` entities OK
-- [ ] Tự động tạo detail khi tạo session
-- [ ] Update counts khi batch update
-- [ ] Close session = immutable
-- [ ] Entity cũ `Attendance` giữ nguyên (deprecated)
-- [ ] Tests pass
-- [ ] Admin-web build pass
+- [x] `AttendanceSession` + `AttendanceDetail` entities OK
+- [x] Tự động tạo detail khi tạo session
+- [x] Update counts khi batch update
+- [x] Close session = immutable
+- [x] Entity cũ `Attendance` giữ nguyên (deprecated)
+- [x] Tests pass
+- [x] Admin-web build pass

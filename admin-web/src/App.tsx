@@ -11,6 +11,7 @@ import TuitionPage from './pages/TuitionPage';
 import FeeCategoriesPage from './pages/FeeCategoriesPage';
 import FeeTemplatesPage from './pages/FeeTemplatesPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
+import AttendanceSessionPage from './pages/AttendanceSessionPage';
 
 const MENU = [
   { key: 'users', label: 'Tài khoản' },
@@ -23,6 +24,7 @@ const MENU = [
   { key: 'fee-templates', label: 'Mẫu phí' },
   { key: 'tuition', label: 'Học phí' },
   { key: 'announcements', label: 'Thông báo' },
+  { key: 'attendance-sessions', label: 'Điểm danh' },
 ];
 
 export default function App() {
@@ -51,6 +53,7 @@ export default function App() {
     'fee-templates': <FeeTemplatesPage />,
     tuition: <TuitionPage />,
     announcements: <AnnouncementsPage />,
+    'attendance-sessions': <AttendanceSessionPage />,
   };
 
   return (

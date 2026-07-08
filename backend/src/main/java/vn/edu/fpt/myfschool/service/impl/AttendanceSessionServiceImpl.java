@@ -42,8 +42,8 @@ public class AttendanceSessionServiceImpl implements AttendanceSessionService {
 
         SchoolClass cls = classRepository.findById(request.classId())
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", request.classId()));
-        Teacher teacher = teacherRepository.findByUserId(userId)
-            .orElseThrow(() -> new ResourceNotFoundException("Teacher by userId", "userId", userId));
+        Teacher teacher = teacherRepository.findById(request.teacherId())
+            .orElseThrow(() -> new ResourceNotFoundException("Teacher", "id", request.teacherId()));
 
         AttendanceSession session = new AttendanceSession();
         session.setCls(cls);
