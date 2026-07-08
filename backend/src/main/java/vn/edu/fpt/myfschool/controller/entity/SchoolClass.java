@@ -29,7 +29,4 @@ public class SchoolClass extends BaseEntity {
 
     @OneToMany(mappedBy = "currentClass", fetch = FetchType.LAZY)
     private List<Student> students = new ArrayList<>();
-
-    @OneToMany(mappedBy = "cls", fetch = FetchType.LAZY)
-    private List<ClassSubject> classSubjects = new ArrayList<>();
 }

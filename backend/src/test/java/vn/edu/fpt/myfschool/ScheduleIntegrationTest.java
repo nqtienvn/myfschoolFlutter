@@ -8,10 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class ScheduleIntegrationTest extends BaseIntegrationTest {
 
-    private String schedJson(Long classId, Long subjectId, Long teacherId, Long semesterId,
-                              int day, int period, String room, String shift) {
-        return "{\"classId\":" + classId + ",\"subjectId\":" + subjectId + ",\"teacherId\":" + teacherId
-            + ",\"semesterId\":" + semesterId + ",\"dayOfWeek\":" + day + ",\"period\":" + period
+    private String schedJson(int day, int period, String room, String shift) {
+        return "{\"assignmentId\":" + testTeachingAssignment.getId()
+            + ",\"dayOfWeek\":" + day + ",\"period\":" + period
             + ",\"room\":\"" + room + "\",\"shift\":\"" + shift + "\"}";
     }
 
@@ -36,8 +35,7 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/schedules")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(schedJson(testClass.getId(), testSubject.getId(), testTeacher.getId(),
-                    testSemester.getId(), 2, 1, "P.101", "MORNING")))
+                .content(schedJson(2, 1, "P.101", "MORNING")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.dayOfWeek").value(2))
@@ -51,15 +49,13 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/schedules")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(schedJson(testClass.getId(), testSubject.getId(), testTeacher.getId(),
-                    testSemester.getId(), 3, 2, "P.102", "MORNING")))
+                .content(schedJson(3, 2, "P.102", "MORNING")))
             .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/schedules")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(schedJson(testClass.getId(), testSubject.getId(), testTeacher.getId(),
-                    testSemester.getId(), 3, 2, "P.103", "MORNING")))
+                .content(schedJson(3, 2, "P.103", "MORNING")))
             .andExpect(status().isConflict());
     }
 
@@ -70,8 +66,7 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
         var createResult = mockMvc.perform(post("/api/schedules")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(schedJson(testClass.getId(), testSubject.getId(), testTeacher.getId(),
-                    testSemester.getId(), 5, 4, "P.106", "AFTERNOON")))
+                .content(schedJson(5, 4, "P.106", "AFTERNOON")))
             .andExpect(status().isOk())
             .andReturn();
 
@@ -91,8 +86,7 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/schedules")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(schedJson(testClass.getId(), testSubject.getId(), testTeacher.getId(),
-                    testSemester.getId(), 6, 1, "P.107", "MORNING")))
+                .content(schedJson(6, 1, "P.107", "MORNING")))
             .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/schedules/available-periods")
@@ -113,8 +107,7 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/schedules")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(schedJson(testClass.getId(), testSubject.getId(), testTeacher.getId(),
-                    testSemester.getId(), 2, 1, "P.101", "MORNING")))
+                .content(schedJson(2, 1, "P.101", "MORNING")))
             .andExpect(status().isForbidden());
     }
 }

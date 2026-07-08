@@ -11,7 +11,8 @@ import java.util.List;
 import vn.edu.fpt.myfschool.common.enums.BillStatus;
 
 @Entity
-@Table(name = "tuition_bills")
+@Table(name = "tuition_bills",
+       uniqueConstraints = @UniqueConstraint(columnNames = {"student_id", "semester_id", "fee_template_id"}))
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class TuitionBill extends BaseEntity {
@@ -30,6 +31,11 @@ public class TuitionBill extends BaseEntity {
     @JoinColumn(name = "semester_id", nullable = false,
                 foreignKey = @ForeignKey(name = "fk_tb_semester"))
     private Semester semester;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "fee_template_id",
+                foreignKey = @ForeignKey(name = "fk_tb_fee_template"))
+    private FeeTemplate feeTemplate;
 
     @Column(nullable = false, length = 200)
     private String name;

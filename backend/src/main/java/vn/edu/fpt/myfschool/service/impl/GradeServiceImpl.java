@@ -34,9 +34,7 @@ public class GradeServiceImpl implements GradeService {
     private final StudentRepository studentRepository;
     private final SubjectRepository subjectRepository;
     private final SemesterRepository semesterRepository;
-    private final ClassSubjectRepository classSubjectRepository;
     private final ClassRepository classRepository;
-    private final AttendanceRepository attendanceRepository;
     private final ParentRepository parentRepository;
     private final StudentGuardianRepository studentGuardianRepository;
     private final EnrollmentRepository enrollmentRepository;

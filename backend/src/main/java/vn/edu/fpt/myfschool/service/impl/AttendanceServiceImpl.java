@@ -36,10 +36,11 @@ public class AttendanceServiceImpl implements AttendanceService {
     private final StudentRepository studentRepository;
     private final ClassRepository classRepository;
     private final TeacherRepository teacherRepository;
-    private final ClassSubjectRepository classSubjectRepository;
+    private final TeachingAssignmentRepository teachingAssignmentRepository;
     private final SemesterRepository semesterRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final SemesterResultService semesterResultService;
+    private final HomeroomAssignmentRepository homeroomAssignmentRepository;
 
     @Transactional(readOnly = true)
     @Override
@@ -151,7 +152,13 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     private void assertTeacherCanAccessClass(Teacher teacher, Long classId) {
-        if (!classSubjectRepository.existsByTeacherIdAndClassId(teacher.getId(), classId)) {
+        SchoolClass cls = classRepository.findById(classId)
+            .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
+        if (!teachingAssignmentRepository.existsByTeacherIdAndClsIdAndStatus(
+                teacher.getId(), classId, vn.edu.fpt.myfschool.common.enums.AssignmentStatus.ACTIVE)
+            && homeroomAssignmentRepository.findByTeacherIdAndAcademicYearId(
+                teacher.getId(), cls.getAcademicYear().getId())
+                .stream().noneMatch(ha -> ha.getCls().getId().equals(classId))) {
             throw new ForbiddenException("Giáo viên không có quyền thao tác với lớp này");
         }
     }

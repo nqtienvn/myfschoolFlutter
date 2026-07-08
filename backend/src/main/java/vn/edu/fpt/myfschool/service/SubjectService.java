@@ -14,8 +14,4 @@ public interface SubjectService {
     SubjectDto updateSubject(Long id, CreateSubjectRequest request);
 
     void deleteSubject(Long id);
-
-    List<ClassSubjectDto> getSubjectsForClass(Long classId, String academicYear);
-
-    List<SubjectDto> getSubjectsForTeacher(Long teacherId, String academicYear);
 }

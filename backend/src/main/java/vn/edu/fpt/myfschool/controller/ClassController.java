@@ -74,24 +74,4 @@ public class ClassController {
     public ResponseEntity<ApiResponse<List<StudentSummaryDto>>> getStudents(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(classService.getStudentsInClass(id)));
     }
-
-    @PostMapping("/{id}/subjects")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Phân công môn học")
-    public ResponseEntity<ApiResponse<ClassSubjectDto>> assignSubject(
-            @PathVariable Long id,
-            @Valid @RequestBody CreateClassSubjectRequest request) {
-        if (!id.equals(request.classId())) {
-            throw new BadRequestException("classId trong đường dẫn và body không khớp");
-        }
-        return ResponseEntity.ok(ApiResponse.success("Phân công thành công", classService.assignSubject(request)));
-    }
-
-    @DeleteMapping("/subjects/{classSubjectId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Gỡ phân công môn học")
-    public ResponseEntity<ApiResponse<Void>> removeSubject(@PathVariable Long classSubjectId) {
-        classService.removeSubject(classSubjectId);
-        return ResponseEntity.ok(ApiResponse.success("Gỡ phân công thành công", null));
-    }
 }

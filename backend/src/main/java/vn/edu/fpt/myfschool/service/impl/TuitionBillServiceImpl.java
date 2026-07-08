@@ -87,7 +87,9 @@ public class TuitionBillServiceImpl implements TuitionBillService {
     private TuitionBillDto toDto(TuitionBill b) {
         return new TuitionBillDto(b.getId(), b.getStudent().getId(), b.getStudent().getUser().getName(),
             b.getStudent().getStudentCode(), b.getCls().getId(), b.getCls().getName(),
-            b.getSemester().getId(), b.getSemester().getName(), b.getName(),
-            b.getAmount(), b.getDueDate(), b.getStatus(), b.getPaidAt(), List.of(), b.getCreatedAt());
+            b.getSemester().getId(), b.getSemester().getName(),
+            b.getFeeTemplate() != null ? b.getFeeTemplate().getId() : null,
+            b.getFeeTemplate() != null ? b.getFeeTemplate().getName() : null,
+            b.getName(), b.getAmount(), b.getDueDate(), b.getStatus(), b.getPaidAt(), List.of(), b.getCreatedAt());
     }
 }

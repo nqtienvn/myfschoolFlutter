@@ -11,7 +11,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.enums.*;
 import vn.edu.fpt.myfschool.controller.entity.AcademicYear;
-import vn.edu.fpt.myfschool.controller.entity.ClassSubject;
 import vn.edu.fpt.myfschool.controller.entity.Enrollment;
 import vn.edu.fpt.myfschool.controller.entity.Parent;
 import vn.edu.fpt.myfschool.controller.entity.SchoolClass;
@@ -20,6 +19,7 @@ import vn.edu.fpt.myfschool.controller.entity.Student;
 import vn.edu.fpt.myfschool.controller.entity.StudentGuardian;
 import vn.edu.fpt.myfschool.controller.entity.Subject;
 import vn.edu.fpt.myfschool.controller.entity.Teacher;
+import vn.edu.fpt.myfschool.controller.entity.TeachingAssignment;
 import vn.edu.fpt.myfschool.controller.entity.User;
 import vn.edu.fpt.myfschool.repository.*;
 
@@ -49,7 +49,7 @@ public abstract class BaseIntegrationTest {
     @Autowired protected ParentRepository parentRepository;
     @Autowired protected StudentGuardianRepository studentGuardianRepository;
     @Autowired protected EnrollmentRepository enrollmentRepository;
-    @Autowired protected ClassSubjectRepository classSubjectRepository;
+    @Autowired protected TeachingAssignmentRepository teachingAssignmentRepository;
     @Autowired protected ConversationRepository conversationRepository;
     @Autowired protected ConversationParticipantRepository conversationParticipantRepository;
     @Autowired protected MessageRepository messageRepository;
@@ -62,6 +62,7 @@ public abstract class BaseIntegrationTest {
     protected Subject testSubject;
     protected Semester testSemester;
     protected Teacher testTeacher;
+    protected TeachingAssignment testTeachingAssignment;
     protected Student testStudent1;
     protected Student testStudent2;
     protected Student testStudent3;
@@ -129,14 +130,14 @@ public abstract class BaseIntegrationTest {
         testTeacher.setDepartment("PRM393");
         testTeacher = teacherRepository.save(testTeacher);
 
-        // ClassSubject
-        ClassSubject cs = new ClassSubject();
-        cs.setCls(testClass);
-        cs.setSubject(testSubject);
-        cs.setTeacher(testTeacher);
-        cs.setIsHomeroom(false);
-        cs.setAcademicYear("2026-2027");
-        classSubjectRepository.save(cs);
+        testTeachingAssignment = new TeachingAssignment();
+        testTeachingAssignment.setCls(testClass);
+        testTeachingAssignment.setSubject(testSubject);
+        testTeachingAssignment.setTeacher(testTeacher);
+        testTeachingAssignment.setSemester(testSemester);
+        testTeachingAssignment.setEffectiveFrom(testSemester.getStartDate());
+        testTeachingAssignment.setStatus(AssignmentStatus.ACTIVE);
+        testTeachingAssignment = teachingAssignmentRepository.save(testTeachingAssignment);
 
         // Parent user + parent
         User parentUser = new User();

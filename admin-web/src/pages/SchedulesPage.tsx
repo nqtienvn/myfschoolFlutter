@@ -4,36 +4,38 @@ import { apiFetch } from '../api/client';
 interface AcademicYearItem { id: number; name: string; status: string; }
 interface ClassItem { id: number; name: string; academicYearId: number; academicYearName: string; }
 interface SemesterItem { id: number; name: string; academicYearId: number; academicYearName: string; isCurrent: boolean; order: number; }
-interface AssignedTeacherSubject { id: number; subject: { id: number; name: string; code: string; }; teacher: { id: number; name: string; employeeCode: string; } }
+interface TeachingAssignmentItem { id: number; subjectName: string; subjectCode: string; teacherName: string; teacherCode: string; }
 
 export default function SchedulesPage() {
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
   const [academicYearId, setAcademicYearId] = useState('');
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
-  const [assignedTeachers, setAssignedTeachers] = useState<AssignedTeacherSubject[]>([]);
+  const [assignments, setAssignments] = useState<TeachingAssignmentItem[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [loadingTkb, setLoadingTkb] = useState(false);
   const [classId, setClassId] = useState('');
   const [semesterId, setSemesterId] = useState('');
-  const [assignedId, setAssignedId] = useState('');
+  const [assignmentId, setAssignmentId] = useState('');
   const [dayOfWeek, setDayOfWeek] = useState(2);
   const [period, setPeriod] = useState(1);
   const [room, setRoom] = useState('');
   const [shift, setShift] = useState('MORNING');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const periodOptions = shift === 'MORNING' ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10];
 
   useEffect(() => { fetchAcademicYears(); }, []);
   useEffect(() => {
     if (!academicYearId) return;
     setClassId('');
     setSemesterId('');
+    setAssignments([]);
     apiFetch(`/classes?academicYearId=${academicYearId}&page=0&size=100`).then((d: any) => setClasses(d.content || [])).catch(() => {});
     apiFetch(`/semesters?academicYearId=${academicYearId}`).then((d: any) => {
       const list = d || [];
       setSemesters(list);
-      const current = list.find((s: SemesterItem) => s.isCurrent);
+      const current = list.find((s: SemesterItem) => s.isCurrent) || list[0];
       if (current) setSemesterId(String(current.id));
     }).catch(() => {});
   }, [academicYearId]);
@@ -41,11 +43,11 @@ export default function SchedulesPage() {
   useEffect(() => {
     if (!classId || !semesterId) {
       setItems([]);
-      setAssignedTeachers([]);
+      setAssignments([]);
       return;
     }
     fetchItems();
-    fetchAssignedTeachers();
+    fetchAssignments();
   }, [classId, semesterId]);
 
   async function fetchAcademicYears() {
@@ -61,8 +63,8 @@ export default function SchedulesPage() {
       const data = await apiFetch(`/schedules/class?classId=${classId}&semesterId=${semesterId}`) as any;
       const allDays = data.days || [];
       const slots = allDays.flatMap((d: any) => [
-        ...(d.morningSlots || []).map((s: any) => ({ ...s, shift: 'Sáng', dayName: d.dayOfWeekName })),
-        ...(d.afternoonSlots || []).map((s: any) => ({ ...s, shift: 'Chiều', dayName: d.dayOfWeekName }))
+        ...(d.morningSlots || []).map((s: any) => ({ ...s, shiftLabel: 'Sáng', dayName: d.dayOfWeekName })),
+        ...(d.afternoonSlots || []).map((s: any) => ({ ...s, shiftLabel: 'Chiều', dayName: d.dayOfWeekName }))
       ]);
       slots.sort((a: any, b: any) => a.dayOfWeek !== b.dayOfWeek ? a.dayOfWeek - b.dayOfWeek : a.period - b.period);
       setItems(slots);
@@ -73,10 +75,10 @@ export default function SchedulesPage() {
     }
   }
 
-  async function fetchAssignedTeachers() {
+  async function fetchAssignments() {
     try {
-      const data = await apiFetch(`/classes/${classId}`) as any;
-      setAssignedTeachers(data.subjects || []);
+      const data = await apiFetch(`/teaching-assignments?classId=${classId}&semesterId=${semesterId}`) as TeachingAssignmentItem[];
+      setAssignments(data || []);
     } catch (err: any) {
       console.error('Không tải được DS giáo viên phân công: ', err.message);
     }
@@ -86,19 +88,17 @@ export default function SchedulesPage() {
     setError('');
     setSuccessMsg('');
     if (!classId || !semesterId) return setError('Vui lòng chọn Lớp học và Học kỳ.');
-    if (!assignedId) return setError('Vui lòng chọn Môn học & Giáo viên giảng dạy.');
+    if (!assignmentId) return setError('Vui lòng chọn phân công giảng dạy.');
     if (!room.trim()) return setError('Vui lòng nhập Phòng học.');
-    const selectedAssignment = assignedTeachers.find(t => t.id === +assignedId);
-    if (!selectedAssignment) return setError('Thông tin phân công không hợp lệ.');
 
     try {
       await apiFetch('/schedules', {
         method: 'POST',
-        body: JSON.stringify({ classId: +classId, subjectId: selectedAssignment.subject.id, teacherId: selectedAssignment.teacher.id, semesterId: +semesterId, dayOfWeek, period, room: room.trim(), shift }),
+        body: JSON.stringify({ assignmentId: +assignmentId, dayOfWeek, period, room: room.trim(), shift }),
       });
       setSuccessMsg('Đã thêm lịch học vào thời khóa biểu thành công!');
       setRoom('');
-      setAssignedId('');
+      setAssignmentId('');
       fetchItems();
     } catch (err: any) {
       setError(err.message || 'Lỗi thêm lịch thời khóa biểu');
@@ -140,10 +140,10 @@ export default function SchedulesPage() {
       {classId && semesterId && (
         <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginTop: '16px', background: '#fbfbfb' }}>
           <div style={{ gridColumn: 'span 4', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>[ THÊM LỊCH HỌC MỚI CHO LỚP ]</div>
-          <div className="form-group"><label>Môn & Giáo viên</label><select value={assignedId} onChange={e => setAssignedId(e.target.value)}><option value="">Chọn phân công giảng dạy</option>{assignedTeachers.map(t => <option key={t.id} value={t.id}>{t.subject.name} - {t.teacher.name} ({t.teacher.employeeCode})</option>)}</select><span className="input-desc">Chỉ hiển thị giáo viên đã gán dạy lớp</span></div>
+          <div className="form-group"><label>Môn & Giáo viên</label><select value={assignmentId} onChange={e => setAssignmentId(e.target.value)}><option value="">Chọn phân công giảng dạy</option>{assignments.map(t => <option key={t.id} value={t.id}>{t.subjectName} - {t.teacherName} ({t.teacherCode})</option>)}</select><span className="input-desc">Chỉ hiển thị giáo viên đã gán dạy lớp</span></div>
           <div className="form-group"><label>Thứ</label><select value={dayOfWeek} onChange={e => setDayOfWeek(+e.target.value)}><option value="2">Thứ Hai</option><option value="3">Thứ Ba</option><option value="4">Thứ Tư</option><option value="5">Thứ Năm</option><option value="6">Thứ Sáu</option><option value="7">Thứ Bảy</option></select><span className="input-desc">Ngày diễn ra tiết học</span></div>
-          <div className="form-group"><label>Ca học</label><select value={shift} onChange={e => setShift(e.target.value)}><option value="MORNING">Buổi Sáng</option><option value="AFTERNOON">Buổi Chiều</option></select><span className="input-desc">Ca sáng hoặc ca chiều</span></div>
-          <div className="form-group"><label>Tiết học</label><select value={period} onChange={e => setPeriod(+e.target.value)}>{[1, 2, 3, 4, 5].map(p => <option key={p} value={p}>Tiết {p}</option>)}</select><span className="input-desc">Số tiết trong buổi (1 - 5)</span></div>
+          <div className="form-group"><label>Ca học</label><select value={shift} onChange={e => { const next = e.target.value; setShift(next); setPeriod(next === 'MORNING' ? 1 : 6); }}><option value="MORNING">Buổi Sáng</option><option value="AFTERNOON">Buổi Chiều</option></select><span className="input-desc">Ca sáng hoặc ca chiều</span></div>
+          <div className="form-group"><label>Tiết học</label><select value={period} onChange={e => setPeriod(+e.target.value)}>{periodOptions.map(p => <option key={p} value={p}>Tiết {p}</option>)}</select><span className="input-desc">Số tiết trong buổi</span></div>
           <div className="form-group"><label>Phòng học</label><input placeholder="VD: 101, A2-402..." value={room} onChange={e => setRoom(e.target.value)} /><span className="input-desc">Vị trí phòng học diễn ra</span></div>
           <div className="form-group" style={{ justifyContent: 'center' }}><label style={{ visibility: 'hidden' }}>Thao tác</label><button onClick={createItem} style={{ height: '38px', width: '100%' }}>Thêm lịch</button><span className="input-desc" style={{ visibility: 'hidden' }}>&nbsp;</span></div>
         </div>
@@ -153,7 +153,7 @@ export default function SchedulesPage() {
         <div style={{ marginTop: '32px' }}>
           <h3 style={{ fontSize: '15px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '16px', borderBottom: '1px dashed #000000', paddingBottom: '8px' }}>Thời khóa biểu lớp: {classes.find(c => c.id === +classId)?.name}</h3>
           {loadingTkb ? <p style={{ fontSize: '13px', fontFamily: 'ui-monospace, monospace' }}>Đang tải dữ liệu thời khóa biểu...</p> : items.length === 0 ? <p style={{ fontSize: '13px', color: '#a3a3a3', fontStyle: 'italic' }}>Lớp học này chưa được xếp lịch học cho học kỳ đã chọn.</p> : (
-            <table><thead><tr><th>Thứ</th><th>Buổi</th><th>Tiết</th><th>Môn học</th><th>Giáo viên</th><th>Phòng học</th><th>Thao tác</th></tr></thead><tbody>{items.map((s: any) => <tr key={s.id}><td style={{ fontWeight: 700 }}>{s.dayOfWeekName || `Thứ ${s.dayOfWeek}`}</td><td>{s.shift}</td><td style={{ fontFamily: 'ui-monospace, monospace' }}>Tiết {s.period}</td><td style={{ fontWeight: 600 }}>{s.subjectName}</td><td>{s.teacherName}</td><td>{s.room}</td><td><button className="danger" onClick={() => deleteItem(s.id)}>Xóa</button></td></tr>)}</tbody></table>
+            <table><thead><tr><th>Thứ</th><th>Buổi</th><th>Tiết</th><th>Môn học</th><th>Giáo viên</th><th>Phòng học</th><th>Thao tác</th></tr></thead><tbody>{items.map((s: any) => <tr key={s.id}><td style={{ fontWeight: 700 }}>{s.dayOfWeekName || `Thứ ${s.dayOfWeek}`}</td><td>{s.shiftLabel || s.shift}</td><td style={{ fontFamily: 'ui-monospace, monospace' }}>Tiết {s.period}</td><td style={{ fontWeight: 600 }}>{s.subjectName}</td><td>{s.teacherName}</td><td>{s.room}</td><td><button className="danger" onClick={() => deleteItem(s.id)}>Xóa</button></td></tr>)}</tbody></table>
           )}
         </div>
       )}

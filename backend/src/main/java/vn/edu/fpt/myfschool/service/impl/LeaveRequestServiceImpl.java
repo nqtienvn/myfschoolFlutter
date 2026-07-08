@@ -30,7 +30,7 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
     private final StudentRepository studentRepository;
     private final ParentRepository parentRepository;
     private final TeacherRepository teacherRepository;
-    private final ClassSubjectRepository classSubjectRepository;
+    private final TeachingAssignmentRepository teachingAssignmentRepository;
     private final StudentGuardianRepository studentGuardianRepository;
     private final AttendanceRepository attendanceRepository;
 
@@ -220,11 +220,12 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
     }
 
     private List<Long> getTeacherClassIds(Teacher teacher) {
-        return classSubjectRepository.findClassIdsByTeacherId(teacher.getId());
+        return teachingAssignmentRepository.findActiveClassIdsByTeacherId(teacher.getId());
     }
 
     private void assertTeacherCanAccessClass(Teacher teacher, Long classId) {
-        if (!classSubjectRepository.existsByTeacherIdAndClassId(teacher.getId(), classId)) {
+        if (!teachingAssignmentRepository.existsByTeacherIdAndClsIdAndStatus(
+                teacher.getId(), classId, vn.edu.fpt.myfschool.common.enums.AssignmentStatus.ACTIVE)) {
             throw new ForbiddenException("Giáo viên không có quyền thao tác với lớp này");
         }
     }

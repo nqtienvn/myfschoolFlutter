@@ -17,8 +17,4 @@ public interface ClassService {
     void deleteClass(Long classId);
 
     List<StudentSummaryDto> getStudentsInClass(Long classId);
-
-    ClassSubjectDto assignSubject(CreateClassSubjectRequest request);
-
-    void removeSubject(Long classSubjectId);
 }

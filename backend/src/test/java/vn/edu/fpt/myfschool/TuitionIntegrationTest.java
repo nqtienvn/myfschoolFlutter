@@ -13,6 +13,36 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
             + ",\"name\":\"" + name + "\",\"amount\":" + amount + ",\"dueDate\":\"2026-12-31\"}";
     }
 
+    private String feeCategoryJson(String name) {
+        return "{\"name\":\"" + name + "\",\"description\":\"Khoan thu bat buoc\"}";
+    }
+
+    private String feeTemplateJson(Long feeCategoryId, String name) {
+        return "{\"feeCategoryId\":" + feeCategoryId + ",\"classId\":" + testClass.getId()
+            + ",\"semesterId\":" + testSemester.getId() + ",\"name\":\"" + name
+            + "\",\"amount\":15000000,\"dueDate\":\"2026-12-31\"}";
+    }
+
+    private Long createFeeCategory(String token, String name) throws Exception {
+        var result = mockMvc.perform(post("/api/fee-categories")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(feeCategoryJson(name)))
+            .andExpect(status().isOk())
+            .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asLong();
+    }
+
+    private Long createFeeTemplate(String token, Long feeCategoryId, String name) throws Exception {
+        var result = mockMvc.perform(post("/api/fee-templates")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(feeTemplateJson(feeCategoryId, name)))
+            .andExpect(status().isOk())
+            .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asLong();
+    }
+
     @Test
     void create_tuition_bill_admin_only() throws Exception {
         String token = loginAsAdmin();
@@ -68,6 +98,78 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data").isArray());
+    }
+
+    @Test
+    void create_fee_category_admin_only() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(post("/api/fee-categories")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(feeCategoryJson("Hoc phi")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.name").value("Hoc phi"));
+    }
+
+    @Test
+    void create_fee_template_counts_seeded_students() throws Exception {
+        String token = loginAsAdmin();
+        Long categoryId = createFeeCategory(token, "Hoc phi");
+
+        mockMvc.perform(post("/api/fee-templates")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(feeTemplateJson(categoryId, "Hoc phi HK1")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.classId").value(testClass.getId().intValue()))
+            .andExpect(jsonPath("$.data.semesterId").value(testSemester.getId().intValue()))
+            .andExpect(jsonPath("$.data.studentCount").value(3));
+    }
+
+    @Test
+    void generate_bills_creates_once_then_skips_duplicates() throws Exception {
+        String token = loginAsAdmin();
+        Long categoryId = createFeeCategory(token, "Hoc phi");
+        Long templateId = createFeeTemplate(token, categoryId, "Hoc phi HK1");
+
+        mockMvc.perform(post("/api/fee-templates/" + templateId + "/generate")
+                .header("Authorization", authHeader(token)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.totalStudents").value(3))
+            .andExpect(jsonPath("$.data.created").value(3))
+            .andExpect(jsonPath("$.data.skipped").value(0));
+
+        mockMvc.perform(post("/api/fee-templates/" + templateId + "/generate")
+                .header("Authorization", authHeader(token)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.totalStudents").value(3))
+            .andExpect(jsonPath("$.data.created").value(0))
+            .andExpect(jsonPath("$.data.skipped").value(3));
+
+        mockMvc.perform(get("/api/tuition/bills/class")
+                .header("Authorization", authHeader(token))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(3))
+            .andExpect(jsonPath("$.data[0].feeTemplateId").value(templateId.intValue()));
+    }
+
+    @Test
+    void duplicate_fee_template_fails() throws Exception {
+        String token = loginAsAdmin();
+        Long categoryId = createFeeCategory(token, "Hoc phi");
+        createFeeTemplate(token, categoryId, "Hoc phi HK1");
+
+        mockMvc.perform(post("/api/fee-templates")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(feeTemplateJson(categoryId, "Hoc phi HK1 duplicate")))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test

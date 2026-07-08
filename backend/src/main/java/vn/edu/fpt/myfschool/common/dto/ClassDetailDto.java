@@ -10,5 +10,6 @@ public record ClassDetailDto(
     String academicYearName,
     String schoolName,
     List<StudentSummaryDto> students,
-    List<ClassSubjectDto> subjects
+    List<TeachingAssignmentDto> assignments,
+    HomeroomAssignmentDto homeroomTeacher
 ) {}

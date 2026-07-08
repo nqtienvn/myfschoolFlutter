@@ -21,9 +21,4 @@ public interface ClassRepository extends JpaRepository<SchoolClass, Long> {
            "(LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')))" )
     List<SchoolClass> searchByYearAndKeyword(@Param("academicYearId") Long academicYearId,
                                               @Param("keyword") String keyword);
-
-    @Query("SELECT DISTINCT cs.cls FROM ClassSubject cs " +
-           "WHERE cs.teacher.id = :teacherId AND cs.academicYear = :year")
-    List<SchoolClass> findClassesByTeacher(@Param("teacherId") Long teacherId,
-                                            @Param("year") String year);
 }

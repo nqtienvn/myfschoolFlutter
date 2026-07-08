@@ -5,7 +5,21 @@ interface AcademicYearItem { id: number; name: string; status: string; }
 interface ClassItem { id: number; name: string; academicYearId: number; academicYearName: string; }
 interface SubjectItem { id: number; name: string; code: string; }
 interface SemesterItem { id: number; name: string; academicYearId: number; academicYearName: string; isCurrent: boolean; order: number; }
-interface TeacherItem { id: number; name: string; phone: string; teacherProfile?: { id: number; employeeCode: string; } }
+interface TeacherItem { id: number; name: string; phone?: string; teacherProfile?: { id: number; employeeCode: string; } }
+interface TeachingAssignmentItem {
+  id: number;
+  subjectName: string;
+  subjectCode: string;
+  teacherName: string;
+  teacherCode: string;
+  semesterName: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  status: string;
+}
+interface HomeroomAssignmentItem { id: number; teacherName: string; effectiveFrom: string; effectiveTo: string | null; }
+
+const today = () => new Date().toISOString().slice(0, 10);
 
 export default function AssignmentsPage() {
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
@@ -14,12 +28,14 @@ export default function AssignmentsPage() {
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
-  const [assignedSubjects, setAssignedSubjects] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<TeachingAssignmentItem[]>([]);
+  const [homeroomTeacher, setHomeroomTeacher] = useState<HomeroomAssignmentItem | null>(null);
   const [loadingList, setLoadingList] = useState(false);
   const [classId, setClassId] = useState('');
   const [subjectId, setSubjectId] = useState('');
   const [teacherId, setTeacherId] = useState('');
   const [semesterId, setSemesterId] = useState('');
+  const [effectiveFrom, setEffectiveFrom] = useState(today());
   const [isHomeroom, setIsHomeroom] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -36,6 +52,8 @@ export default function AssignmentsPage() {
     if (!academicYearId) return;
     setClassId('');
     setSemesterId('');
+    setAssignments([]);
+    setHomeroomTeacher(null);
     apiFetch(`/classes?academicYearId=${academicYearId}&page=0&size=100`)
       .then((d: any) => setClasses(d.content || []))
       .catch(() => {});
@@ -43,19 +61,20 @@ export default function AssignmentsPage() {
       .then((d: any) => {
         const list = d || [];
         setSemesters(list);
-        const current = list.find((s: SemesterItem) => s.isCurrent);
+        const current = list.find((s: SemesterItem) => s.isCurrent) || list[0];
         if (current) setSemesterId(String(current.id));
       })
       .catch(() => {});
   }, [academicYearId]);
 
   useEffect(() => {
-    if (!classId) {
-      setAssignedSubjects([]);
+    if (!classId || !semesterId || !academicYearId) {
+      setAssignments([]);
+      setHomeroomTeacher(null);
       return;
     }
-    loadAssignedSubjects();
-  }, [classId]);
+    loadAssignments();
+  }, [classId, semesterId, academicYearId]);
 
   async function fetchAcademicYears() {
     const data = await apiFetch('/academic-years') as AcademicYearItem[];
@@ -64,13 +83,17 @@ export default function AssignmentsPage() {
     if (active) setAcademicYearId(String(active.id));
   }
 
-  async function loadAssignedSubjects() {
+  async function loadAssignments() {
     setLoadingList(true);
     try {
-      const data = await apiFetch(`/classes/${classId}`) as any;
-      setAssignedSubjects(data.subjects || []);
+      const [teaching, homeroom] = await Promise.all([
+        apiFetch(`/teaching-assignments?classId=${classId}&semesterId=${semesterId}`) as Promise<TeachingAssignmentItem[]>,
+        apiFetch(`/homeroom-assignments/current?classId=${classId}&academicYearId=${academicYearId}`).catch(() => null) as Promise<HomeroomAssignmentItem | null>,
+      ]);
+      setAssignments(teaching || []);
+      setHomeroomTeacher(homeroom || null);
     } catch (err: any) {
-      console.error('Không tải được danh sách phân công: ', err.message);
+      setError(err.message || 'Không tải được danh sách phân công');
     } finally {
       setLoadingList(false);
     }
@@ -79,49 +102,56 @@ export default function AssignmentsPage() {
   async function assign() {
     setError('');
     setSuccessMsg('');
-    if (!classId || !subjectId || !teacherId || !semesterId) {
-      setError('Vui lòng chọn đủ Năm học, Lớp, Học kỳ, Môn học và Giáo viên.');
-      return;
-    }
-    const selectedClass = classes.find(c => c.id === +classId);
-    const selectedSemester = semesters.find(s => s.id === +semesterId);
-    if (!selectedClass || !selectedSemester) {
-      setError('Dữ liệu lớp học hoặc học kỳ không đồng bộ.');
+    if (!classId || !subjectId || !teacherId || !semesterId || !effectiveFrom) {
+      setError('Vui lòng chọn đủ Năm học, Lớp, Học kỳ, Môn học, Giáo viên và ngày hiệu lực.');
       return;
     }
 
     try {
-      await apiFetch(`/classes/${classId}/subjects`, {
+      await apiFetch('/teaching-assignments', {
         method: 'POST',
-        body: JSON.stringify({
-          classId: +classId,
-          subjectId: +subjectId,
-          teacherId: +teacherId,
-          isHomeroom,
-          academicYear: selectedClass.academicYearName,
-          semesterId: selectedSemester.id,
-        }),
+        body: JSON.stringify({ classId: +classId, subjectId: +subjectId, teacherId: +teacherId, semesterId: +semesterId, effectiveFrom }),
       });
-      setSuccessMsg('Đã hoàn tất phân công giáo viên thành công!');
+      if (isHomeroom) {
+        const body = JSON.stringify({ classId: +classId, teacherId: +teacherId, academicYearId: +academicYearId, effectiveFrom });
+        await apiFetch(homeroomTeacher ? `/homeroom-assignments/${homeroomTeacher.id}` : '/homeroom-assignments', {
+          method: homeroomTeacher ? 'PUT' : 'POST',
+          body,
+        });
+      }
+      setSuccessMsg(isHomeroom ? 'Đã lưu phân công dạy và GVCN!' : 'Đã lưu phân công dạy!');
       setSubjectId('');
       setTeacherId('');
       setIsHomeroom(false);
-      loadAssignedSubjects();
+      loadAssignments();
     } catch (err: any) {
       setError(err.message || 'Lỗi phân công giảng dạy');
     }
   }
 
-  async function handleRemove(classSubjectId: number) {
-    if (!confirm('Bạn có chắc chắn muốn gỡ phân công môn học này của giáo viên?')) return;
+  async function handleRemove(id: number) {
+    if (!confirm('Bạn có chắc chắn muốn kết thúc phân công này?')) return;
     setError('');
     setSuccessMsg('');
     try {
-      await apiFetch(`/classes/subjects/${classSubjectId}`, { method: 'DELETE' });
-      setSuccessMsg('Đã gỡ phân công thành công.');
-      loadAssignedSubjects();
+      await apiFetch(`/teaching-assignments/${id}`, { method: 'DELETE' });
+      setSuccessMsg('Đã kết thúc phân công.');
+      loadAssignments();
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi gỡ phân công');
+      setError(err.message || 'Lỗi khi kết thúc phân công');
+    }
+  }
+
+  async function handleRemoveHomeroom() {
+    if (!homeroomTeacher || !confirm('Bạn có chắc chắn muốn gỡ GVCN hiện tại?')) return;
+    setError('');
+    setSuccessMsg('');
+    try {
+      await apiFetch(`/homeroom-assignments/${homeroomTeacher.id}`, { method: 'DELETE' });
+      setSuccessMsg('Đã gỡ GVCN.');
+      loadAssignments();
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi gỡ GVCN');
     }
   }
 
@@ -179,42 +209,57 @@ export default function AssignmentsPage() {
           <span className="input-desc">Chọn giáo viên trong danh sách trường</span>
         </div>
 
+        <div className="form-group">
+          <label>Hiệu lực từ</label>
+          <input type="date" value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)} />
+          <span className="input-desc">Ngày bắt đầu phân công</span>
+        </div>
+
         <div className="form-group" style={{ justifyContent: 'center' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px' }}>
             <input type="checkbox" checked={isHomeroom} onChange={e => setIsHomeroom(e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-            Là Giáo viên chủ nhiệm (GVCN)
+            Đồng thời đặt làm Giáo viên chủ nhiệm
           </label>
-          <span className="input-desc">Tạm giữ ở ClassSubject, Phase B sẽ tách riêng</span>
+          <span className="input-desc">GVCN lưu riêng ở HomeroomAssignment</span>
         </div>
 
         <div className="form-group">
           <label style={{ visibility: 'hidden' }}>Thao tác</label>
-          <button onClick={assign} style={{ height: '38px', width: '100%' }}>Phân công dạy</button>
+          <button onClick={assign} style={{ height: '38px', width: '100%' }}>Lưu phân công</button>
           <span className="input-desc" style={{ visibility: 'hidden' }}>&nbsp;</span>
         </div>
       </div>
+
+      {classId && (
+        <div style={{ marginTop: '24px', padding: '12px 16px', background: '#fafafa', borderLeft: '3px solid #000000', fontSize: '13px' }}>
+          <strong>GVCN hiện tại:</strong> {homeroomTeacher ? `${homeroomTeacher.teacherName} (từ ${homeroomTeacher.effectiveFrom})` : 'Chưa có'}
+          {homeroomTeacher && <button className="danger" onClick={handleRemoveHomeroom} style={{ marginLeft: '12px' }}>Gỡ GVCN</button>}
+        </div>
+      )}
 
       {classId && (
         <div style={{ marginTop: '32px' }}>
           <h3 style={{ fontSize: '15px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '16px', borderBottom: '1px dashed #000000', paddingBottom: '8px' }}>
             Danh sách Phân công của Lớp: {classes.find(c => c.id === +classId)?.name}
           </h3>
-          {loadingList ? <p style={{ fontSize: '13px', fontFamily: 'ui-monospace, monospace' }}>Đang tải danh sách phân công...</p> : assignedSubjects.length === 0 ? (
+          {loadingList ? <p style={{ fontSize: '13px', fontFamily: 'ui-monospace, monospace' }}>Đang tải danh sách phân công...</p> : assignments.length === 0 ? (
             <p style={{ fontSize: '13px', color: '#a3a3a3', fontStyle: 'italic' }}>Chưa có giáo viên nào được phân công giảng dạy cho lớp này.</p>
           ) : (
             <table>
               <thead>
-                <tr><th>ID</th><th>Môn học</th><th>Mã môn</th><th>Giáo viên dạy</th><th>Vai trò giảng dạy</th><th>Thao tác</th></tr>
+                <tr><th>ID</th><th>Môn học</th><th>Mã môn</th><th>Giáo viên dạy</th><th>Học kỳ</th><th>Hiệu lực</th><th>Trạng thái</th><th>Thao tác</th></tr>
               </thead>
               <tbody>
-                {assignedSubjects.map((item: any) => (
+                {assignments.map(item => (
                   <tr key={item.id}>
                     <td>{item.id}</td>
-                    <td style={{ fontWeight: 600 }}>{item.subject?.name}</td>
-                    <td>{item.subject?.code}</td>
-                    <td>{item.teacher?.name} ({item.teacher?.employeeCode})</td>
-                    <td>{item.isHomeroom ? <span style={{ background: '#000000', color: '#ffffff', padding: '2px 8px', fontSize: '11px', fontWeight: 700 }}>GV CHỦ NHIỆM (GVCN)</span> : <span style={{ color: '#737373' }}>Giáo viên Bộ môn</span>}</td>
-                    <td><button className="danger" onClick={() => handleRemove(item.id)}>Gỡ dạy</button></td>
+                    <td style={{ fontWeight: 600 }}>{item.subjectName}</td>
+                    <td>{item.subjectCode}</td>
+                    <td>{item.teacherName} ({item.teacherCode})</td>
+                    <td>{item.semesterName}</td>
+                    <td>{item.effectiveFrom}{item.effectiveTo ? ` → ${item.effectiveTo}` : ''}</td>
+                    <td>{item.status === 'ACTIVE' ? <span style={{ background: '#000000', color: '#ffffff', padding: '2px 8px', fontSize: '11px', fontWeight: 700 }}>ĐANG DẠY</span> : <span style={{ color: '#737373' }}>Ngừng</span>}</td>
+                    <td><button className="danger" onClick={() => handleRemove(item.id)}>Ngừng dạy</button></td>
                   </tr>
                 ))}
               </tbody>

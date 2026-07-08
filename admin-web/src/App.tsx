@@ -8,6 +8,8 @@ import SemestersPage from './pages/SemestersPage';
 import AssignmentsPage from './pages/AssignmentsPage';
 import SchedulesPage from './pages/SchedulesPage';
 import TuitionPage from './pages/TuitionPage';
+import FeeCategoriesPage from './pages/FeeCategoriesPage';
+import FeeTemplatesPage from './pages/FeeTemplatesPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 
 const MENU = [
@@ -17,6 +19,8 @@ const MENU = [
   { key: 'semesters', label: 'Học kỳ' },
   { key: 'assignments', label: 'Phân công GV' },
   { key: 'schedules', label: 'Thời khóa biểu' },
+  { key: 'fee-categories', label: 'Danh mục phí' },
+  { key: 'fee-templates', label: 'Mẫu phí' },
   { key: 'tuition', label: 'Học phí' },
   { key: 'announcements', label: 'Thông báo' },
 ];
@@ -43,6 +47,8 @@ export default function App() {
     semesters: <SemestersPage />,
     assignments: <AssignmentsPage />,
     schedules: <SchedulesPage />,
+    'fee-categories': <FeeCategoriesPage />,
+    'fee-templates': <FeeTemplatesPage />,
     tuition: <TuitionPage />,
     announcements: <AnnouncementsPage />,
   };

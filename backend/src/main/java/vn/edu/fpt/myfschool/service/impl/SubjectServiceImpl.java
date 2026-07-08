@@ -9,7 +9,6 @@ import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.controller.entity.Subject;
 import vn.edu.fpt.myfschool.mapper.SubjectMapper;
-import vn.edu.fpt.myfschool.repository.ClassSubjectRepository;
 import vn.edu.fpt.myfschool.repository.SubjectRepository;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,7 +19,6 @@ import java.util.stream.Collectors;
 public class SubjectServiceImpl implements SubjectService {
 
     private final SubjectRepository subjectRepository;
-    private final ClassSubjectRepository classSubjectRepository;
     private final SubjectMapper subjectMapper;
 
     @Transactional(readOnly = true)
@@ -70,23 +68,4 @@ public class SubjectServiceImpl implements SubjectService {
         subjectRepository.delete(subject);
     }
 
-    @Transactional(readOnly = true)
-    @Override
-    public List<ClassSubjectDto> getSubjectsForClass(Long classId, String academicYear) {
-        return classSubjectRepository.findByClsIdAndAcademicYear(classId, academicYear)
-            .stream().map(cs -> new ClassSubjectDto(
-                cs.getId(),
-                new SubjectDto(cs.getSubject().getId(), cs.getSubject().getName(), cs.getSubject().getCode()),
-                new TeacherSummaryDto(cs.getTeacher().getId(), cs.getTeacher().getUser().getName(),
-                    cs.getTeacher().getEmployeeCode(), cs.getTeacher().getDepartment(), cs.getTeacher().getUser().getAvatar()),
-                cs.getIsHomeroom()))
-            .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    @Override
-    public List<SubjectDto> getSubjectsForTeacher(Long teacherId, String academicYear) {
-        return classSubjectRepository.findSubjectsByTeacher(teacherId, academicYear)
-            .stream().map(subjectMapper::toDto).collect(Collectors.toList());
-    }
 }

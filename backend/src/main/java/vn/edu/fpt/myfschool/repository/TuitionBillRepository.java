@@ -21,6 +21,10 @@ public interface TuitionBillRepository extends JpaRepository<TuitionBill, Long> 
 
     boolean existsByStudentIdAndSemesterIdAndName(Long studentId, Long semesterId, String name);
 
+    boolean existsByStudentIdAndSemesterIdAndFeeTemplateId(Long studentId, Long semesterId, Long feeTemplateId);
+
+    boolean existsByFeeTemplateId(Long feeTemplateId);
+
     @Query("SELECT COALESCE(SUM(tb.amount), 0) FROM TuitionBill tb WHERE tb.student.id = :studentId AND tb.status = 'UNPAID'")
     BigDecimal totalUnpaidByStudent(@Param("studentId") Long studentId);
 }

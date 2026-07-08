@@ -8,15 +8,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
+import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.controller.entity.AcademicYear;
-import vn.edu.fpt.myfschool.controller.entity.ClassSubject;
 import vn.edu.fpt.myfschool.controller.entity.SchoolClass;
 import vn.edu.fpt.myfschool.controller.entity.Student;
-import vn.edu.fpt.myfschool.controller.entity.Subject;
-import vn.edu.fpt.myfschool.controller.entity.Teacher;
+import vn.edu.fpt.myfschool.controller.entity.TeachingAssignment;
+import vn.edu.fpt.myfschool.controller.entity.HomeroomAssignment;
 import vn.edu.fpt.myfschool.mapper.ClassMapper;
 import vn.edu.fpt.myfschool.repository.*;
 import vn.edu.fpt.myfschool.service.AcademicYearService;
@@ -31,11 +31,9 @@ import java.util.stream.Collectors;
 public class ClassServiceImpl implements ClassService {
 
     private final ClassRepository classRepository;
-    private final ClassSubjectRepository classSubjectRepository;
     private final EnrollmentRepository enrollmentRepository;
-    private final TeacherRepository teacherRepository;
-    private final SubjectRepository subjectRepository;
-    private final SemesterRepository semesterRepository;
+    private final TeachingAssignmentRepository teachingAssignmentRepository;
+    private final HomeroomAssignmentRepository homeroomAssignmentRepository;
     private final AcademicYearRepository academicYearRepository;
     private final AcademicYearService academicYearService;
     private final ClassMapper classMapper;
@@ -64,21 +62,46 @@ public class ClassServiceImpl implements ClassService {
     public ClassDetailDto getClassDetail(Long classId) {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
-        List<StudentSummaryDto> students = enrollmentRepository.findActiveStudentsByClassAndYear(classId, cls.getAcademicYear().getId())
+        
+        Long yearId = cls.getAcademicYear().getId();
+
+        // Students via Enrollment
+        List<StudentSummaryDto> students = enrollmentRepository
+            .findActiveStudentsByClassAndYear(classId, yearId)
             .stream().map(s -> new StudentSummaryDto(
                 s.getId(), s.getUser().getName(), s.getStudentCode(),
                 cls.getName(), s.getUser().getAvatar()))
             .collect(Collectors.toList());
-        List<ClassSubjectDto> subjects = classSubjectRepository.findByClsIdAndAcademicYear(classId, cls.getAcademicYear().getName())
-            .stream().map(cs -> new ClassSubjectDto(
-                cs.getId(),
-                new SubjectDto(cs.getSubject().getId(), cs.getSubject().getName(), cs.getSubject().getCode()),
-                new TeacherSummaryDto(cs.getTeacher().getId(), cs.getTeacher().getUser().getName(),
-                    cs.getTeacher().getEmployeeCode(), cs.getTeacher().getDepartment(), cs.getTeacher().getUser().getAvatar()),
-                cs.getIsHomeroom()))
+
+        // Teaching assignments
+        List<TeachingAssignmentDto> assignments = teachingAssignmentRepository
+            .findByClsIdAndSemesterIdAndStatus(classId, null, AssignmentStatus.ACTIVE)
+            .stream().map(ta -> new TeachingAssignmentDto(
+                ta.getId(),
+                ta.getCls().getId(), ta.getCls().getName(), ta.getCls().getGradeLevel(),
+                ta.getSubject().getId(), ta.getSubject().getName(), ta.getSubject().getCode(),
+                ta.getTeacher().getId(), ta.getTeacher().getUser().getName(), ta.getTeacher().getEmployeeCode(),
+                ta.getSemester().getId(), ta.getSemester().getName(),
+                ta.getEffectiveFrom(), ta.getEffectiveTo(),
+                ta.getStatus()))
             .collect(Collectors.toList());
+
+        // Homeroom teacher
+        HomeroomAssignmentDto homeroomDto = null;
+        HomeroomAssignment ha = homeroomAssignmentRepository
+            .findActiveByClassAndYear(classId, yearId).orElse(null);
+        if (ha != null) {
+            homeroomDto = new HomeroomAssignmentDto(
+                ha.getId(),
+                ha.getCls().getId(), ha.getCls().getName(),
+                ha.getTeacher().getId(), ha.getTeacher().getUser().getName(),
+                ha.getAcademicYear().getId(), ha.getAcademicYear().getName(),
+                ha.getEffectiveFrom(), ha.getEffectiveTo());
+        }
+
         return new ClassDetailDto(cls.getId(), cls.getName(), cls.getGradeLevel(),
-            cls.getAcademicYear().getId(), cls.getAcademicYear().getName(), cls.getSchoolName(), students, subjects);
+            cls.getAcademicYear().getId(), cls.getAcademicYear().getName(),
+            cls.getSchoolName(), students, assignments, homeroomDto);
     }
 
     @Override
@@ -130,45 +153,6 @@ public class ClassServiceImpl implements ClassService {
                 s.getId(), s.getUser().getName(), s.getStudentCode(),
                 cls.getName(), s.getUser().getAvatar()))
             .collect(Collectors.toList());
-    }
-
-    @Override
-    public ClassSubjectDto assignSubject(CreateClassSubjectRequest request) {
-        SchoolClass cls = classRepository.findById(request.classId())
-            .orElseThrow(() -> new ResourceNotFoundException("Class", "id", request.classId()));
-        Subject subject = subjectRepository.findById(request.subjectId())
-            .orElseThrow(() -> new ResourceNotFoundException("Subject", "id", request.subjectId()));
-        Teacher teacher = teacherRepository.findById(request.teacherId())
-            .orElseThrow(() -> new ResourceNotFoundException("Teacher", "id", request.teacherId()));
-
-        if (classSubjectRepository.findByClsIdAndSubjectIdAndAcademicYear(
-                request.classId(), request.subjectId(), request.academicYear()).isPresent()) {
-            throw new ConflictException("Môn học đã được phân công cho lớp này");
-        }
-
-        ClassSubject cs = new ClassSubject();
-        cs.setCls(cls);
-        cs.setSubject(subject);
-        cs.setTeacher(teacher);
-        cs.setIsHomeroom(request.isHomeroom() != null ? request.isHomeroom() : false);
-        cs.setAcademicYear(request.academicYear());
-        if (request.semesterId() != null) {
-            cs.setSemester(semesterRepository.findById(request.semesterId()).orElse(null));
-        }
-        cs = classSubjectRepository.save(cs);
-
-        return new ClassSubjectDto(cs.getId(),
-            new SubjectDto(subject.getId(), subject.getName(), subject.getCode()),
-            new TeacherSummaryDto(teacher.getId(), teacher.getUser().getName(),
-                teacher.getEmployeeCode(), teacher.getDepartment(), teacher.getUser().getAvatar()),
-            cs.getIsHomeroom());
-    }
-
-    @Override
-    public void removeSubject(Long classSubjectId) {
-        ClassSubject cs = classSubjectRepository.findById(classSubjectId)
-            .orElseThrow(() -> new ResourceNotFoundException("ClassSubject", "id", classSubjectId));
-        classSubjectRepository.delete(cs);
     }
 
     private Long resolveAcademicYearId(Long academicYearId) {
