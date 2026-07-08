@@ -12,6 +12,7 @@ import FeeCategoriesPage from './pages/FeeCategoriesPage';
 import FeeTemplatesPage from './pages/FeeTemplatesPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import AttendanceSessionPage from './pages/AttendanceSessionPage';
+import GradeBookPage from './pages/GradeBookPage';
 
 const MENU = [
   { key: 'users', label: 'Tài khoản' },
@@ -25,6 +26,7 @@ const MENU = [
   { key: 'tuition', label: 'Học phí' },
   { key: 'announcements', label: 'Thông báo' },
   { key: 'attendance-sessions', label: 'Điểm danh' },
+  { key: 'grade-books', label: 'Bảng điểm' },
 ];
 
 export default function App() {
@@ -54,6 +56,7 @@ export default function App() {
     tuition: <TuitionPage />,
     announcements: <AnnouncementsPage />,
     'attendance-sessions': <AttendanceSessionPage />,
+    'grade-books': <GradeBookPage />,
   };
 
   return (

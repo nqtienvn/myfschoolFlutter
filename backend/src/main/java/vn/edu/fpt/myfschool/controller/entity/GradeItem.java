@@ -26,6 +26,6 @@ public class GradeItem extends BaseEntity {
     @Column(nullable = false)
     private Integer maxScore = 10;
 
-    @Column(nullable = false)
+    @Column(name = "display_order", nullable = false)
     private Integer order = 0;
 }

@@ -447,13 +447,3 @@ public class GradeBookController {
 ```
 
 ---
-
-## Self-review checklist
-- [ ] `GradeBook` unique (class_id, subject_id, semester_id)
-- [ ] `GradeItem` unique (grade_book_id, name)
-- [ ] `StudentScore` unique (grade_item_id, student_id) — upsert
-- [ ] Tính TBM: SUM(score * weight) / SUM(weight)
-- [ ] Finalize lock = immutable
-- [ ] Legacy `Grade` entity giữ nguyên, đánh dấu @Deprecated
-- [ ] Tests pass
-- [ ] Admin-web build pass

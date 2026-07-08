@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
+import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.controller.entity.*;
 import vn.edu.fpt.myfschool.repository.*;
@@ -52,6 +53,7 @@ public class GradeBookServiceImpl implements GradeBookService {
                 gb.setSubject(subject);
                 gb.setSemester(semester);
                 gb = gradeBookRepository.save(gb);
+                createDefaultItems(gb);
                 return toDto(gb);
             });
     }
@@ -60,6 +62,9 @@ public class GradeBookServiceImpl implements GradeBookService {
     public GradeItemDto addItem(Long gradeBookId, String name, Integer weight, Integer order) {
         GradeBook gb = gradeBookRepository.findById(gradeBookId)
             .orElseThrow(() -> new ResourceNotFoundException("GradeBook", "id", gradeBookId));
+        if (gb.getIsFinalized()) {
+            throw new BadRequestException("Bảng điểm đã khóa, không thể thêm cột điểm");
+        }
         GradeItem item = new GradeItem();
         item.setGradeBook(gb);
         item.setName(name);
@@ -73,6 +78,9 @@ public class GradeBookServiceImpl implements GradeBookService {
     public List<StudentScoreDto> updateScores(UpdateStudentScoreRequest request) {
         GradeItem item = gradeItemRepository.findById(request.gradeItemId())
             .orElseThrow(() -> new ResourceNotFoundException("GradeItem", "id", request.gradeItemId()));
+        if (item.getGradeBook().getIsFinalized()) {
+            throw new BadRequestException("Bảng điểm đã khóa, không thể sửa điểm");
+        }
 
         List<StudentScoreDto> results = new ArrayList<>();
         for (UpdateScoreEntry entry : request.entries()) {
@@ -125,21 +133,36 @@ public class GradeBookServiceImpl implements GradeBookService {
     @Override
     @Transactional(readOnly = true)
     public List<StudentScoreDto> getStudentScores(Long gradeBookId) {
+        GradeBook gb = gradeBookRepository.findById(gradeBookId)
+            .orElseThrow(() -> new ResourceNotFoundException("GradeBook", "id", gradeBookId));
         List<GradeItem> items = gradeItemRepository.findByGradeBookIdOrderByOrderAsc(gradeBookId);
         List<Student> students = enrollmentRepository.findActiveStudentsByClassAndYear(
-            gradeBookRepository.findById(gradeBookId).orElseThrow().getCls().getId(),
-            gradeBookRepository.findById(gradeBookId).orElseThrow().getCls().getAcademicYear().getId());
+            gb.getCls().getId(), gb.getCls().getAcademicYear().getId());
         List<StudentScoreDto> results = new ArrayList<>();
-        for (Student s : students) {
+        for (Student student : students) {
             for (GradeItem item : items) {
                 StudentScore score = studentScoreRepository
-                    .findByGradeItemIdAndStudentId(item.getId(), s.getId()).orElse(null);
-                if (score != null) {
-                    results.add(toScoreDto(score));
-                }
+                    .findByGradeItemIdAndStudentId(item.getId(), student.getId()).orElse(null);
+                results.add(score != null ? toScoreDto(score) : emptyScoreDto(student, item));
             }
         }
         return results;
+    }
+
+    private void createDefaultItems(GradeBook gb) {
+        addDefaultItem(gb, "Miệng", 1, 1);
+        addDefaultItem(gb, "15 phút", 2, 2);
+        addDefaultItem(gb, "1 tiết", 3, 3);
+        addDefaultItem(gb, "Học kỳ", 4, 4);
+    }
+
+    private void addDefaultItem(GradeBook gb, String name, int weight, int order) {
+        GradeItem item = new GradeItem();
+        item.setGradeBook(gb);
+        item.setName(name);
+        item.setWeight(weight);
+        item.setOrder(order);
+        gradeItemRepository.save(item);
     }
 
     private GradeBookDto toDto(GradeBook gb) {
@@ -161,5 +184,12 @@ public class GradeBookServiceImpl implements GradeBookService {
             s.getScore(), s.getIsGraded(), s.getNote(),
             s.getIsCommentBased(), s.getComment(),
             calculateAverage(s.getStudent().getId(), s.getGradeItem().getGradeBook().getId()));
+    }
+
+    private StudentScoreDto emptyScoreDto(Student student, GradeItem item) {
+        return new StudentScoreDto(null,
+            student.getId(), student.getUser().getName(), student.getStudentCode(),
+            item.getId(), null, false, null, false, null,
+            calculateAverage(student.getId(), item.getGradeBook().getId()));
     }
 }

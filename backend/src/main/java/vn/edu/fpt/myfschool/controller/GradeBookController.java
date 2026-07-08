@@ -45,7 +45,7 @@ public class GradeBookController {
     }
 
     @PutMapping("/scores")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Cap nhat diem hang loat")
     public ResponseEntity<ApiResponse<List<StudentScoreDto>>> updateScores(
             @Valid @RequestBody UpdateStudentScoreRequest request) {

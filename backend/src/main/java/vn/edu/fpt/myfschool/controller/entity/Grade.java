@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import java.math.BigDecimal;
 
+@Deprecated
 @Entity
 @Table(name = "grades",
        uniqueConstraints = @UniqueConstraint(
