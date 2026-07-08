@@ -9,7 +9,10 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "semesters",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"name", "academic_year"}))
+       uniqueConstraints = {
+           @UniqueConstraint(columnNames = {"name", "academic_year_id"}),
+           @UniqueConstraint(columnNames = {"academic_year_id", "semester_order"})
+       })
 @SQLDelete(sql = "UPDATE semesters SET deleted = true WHERE id = ?")
 @Where(clause = "deleted = false")
 @Data
@@ -22,8 +25,13 @@ public class Semester extends BaseEntity {
     @Column(nullable = false, length = 50)
     private String name;
 
-    @Column(nullable = false, length = 9)
-    private String academicYear;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "academic_year_id", nullable = false,
+                foreignKey = @ForeignKey(name = "fk_semesters_academic_year"))
+    private AcademicYear academicYear;
+
+    @Column(name = "semester_order", nullable = false)
+    private Integer order;
 
     @Column(nullable = false)
     private LocalDate startDate;

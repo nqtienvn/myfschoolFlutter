@@ -13,9 +13,9 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
     List<Grade> findByStudentIdAndSemesterId(Long studentId, Long semesterId);
     List<Grade> findBySubjectIdAndSemesterId(Long subjectId, Long semesterId);
 
-    @Query("SELECT g FROM Grade g JOIN g.student s " +
+    @Query("SELECT g FROM Grade g JOIN Enrollment e ON e.student = g.student " +
            "WHERE g.subject.id = :subjectId AND g.semester.id = :semesterId " +
-           "AND s.currentClass.id = :classId")
+           "AND e.cls.id = :classId AND e.academicYear.id = g.semester.academicYear.id AND e.status = 'ACTIVE'")
     List<Grade> findBySubjectSemesterClass(@Param("subjectId") Long subjectId,
                                             @Param("semesterId") Long semesterId,
                                             @Param("classId") Long classId);

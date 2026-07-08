@@ -10,7 +10,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.enums.*;
+import vn.edu.fpt.myfschool.controller.entity.AcademicYear;
 import vn.edu.fpt.myfschool.controller.entity.ClassSubject;
+import vn.edu.fpt.myfschool.controller.entity.Enrollment;
 import vn.edu.fpt.myfschool.controller.entity.Parent;
 import vn.edu.fpt.myfschool.controller.entity.SchoolClass;
 import vn.edu.fpt.myfschool.controller.entity.Semester;
@@ -37,6 +39,7 @@ public abstract class BaseIntegrationTest {
 
     @Autowired protected MockMvc mockMvc;
     @Autowired protected ObjectMapper objectMapper;
+    @Autowired protected AcademicYearRepository academicYearRepository;
     @Autowired protected ClassRepository classRepository;
     @Autowired protected SubjectRepository subjectRepository;
     @Autowired protected SemesterRepository semesterRepository;
@@ -45,6 +48,7 @@ public abstract class BaseIntegrationTest {
     @Autowired protected StudentRepository studentRepository;
     @Autowired protected ParentRepository parentRepository;
     @Autowired protected StudentGuardianRepository studentGuardianRepository;
+    @Autowired protected EnrollmentRepository enrollmentRepository;
     @Autowired protected ClassSubjectRepository classSubjectRepository;
     @Autowired protected ConversationRepository conversationRepository;
     @Autowired protected ConversationParticipantRepository conversationParticipantRepository;
@@ -53,6 +57,7 @@ public abstract class BaseIntegrationTest {
     @Autowired protected vn.edu.fpt.myfschool.service.MessageService messageService;
     @Autowired protected org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
+    protected AcademicYear testAcademicYear;
     protected SchoolClass testClass;
     protected Subject testSubject;
     protected Semester testSemester;
@@ -65,18 +70,26 @@ public abstract class BaseIntegrationTest {
 
     @BeforeEach
     void setUpTestData() {
+        // Academic year
+        testAcademicYear = new AcademicYear();
+        testAcademicYear.setName("2026-2027");
+        testAcademicYear.setStartDate(LocalDate.of(2026, 8, 1));
+        testAcademicYear.setEndDate(LocalDate.of(2027, 5, 31));
+        testAcademicYear.setStatus(AcademicYearStatus.ACTIVE);
+        testAcademicYear = academicYearRepository.save(testAcademicYear);
+
         // Class
         testClass = new SchoolClass();
         testClass.setName("12A");
         testClass.setGradeLevel(12);
-        testClass.setAcademicYear("2026-2027");
+        testClass.setAcademicYear(testAcademicYear);
         testClass.setSchoolName("FPT Schools");
         testClass = classRepository.save(testClass);
 
         SchoolClass class3 = new SchoolClass();
         class3.setName("SE1913");
         class3.setGradeLevel(12);
-        class3.setAcademicYear("2026-2027");
+        class3.setAcademicYear(testAcademicYear);
         class3.setSchoolName("FPT Schools");
         classRepository.save(class3);
 
@@ -94,7 +107,8 @@ public abstract class BaseIntegrationTest {
         // Semester
         testSemester = new Semester();
         testSemester.setName("HK I");
-        testSemester.setAcademicYear("2026-2027");
+        testSemester.setAcademicYear(testAcademicYear);
+        testSemester.setOrder(1);
         testSemester.setStartDate(LocalDate.of(2026, 9, 1));
         testSemester.setEndDate(LocalDate.of(2027, 1, 15));
         testSemester.setIsCurrent(true);
@@ -163,6 +177,14 @@ public abstract class BaseIntegrationTest {
             s.setCurrentClass(testClass);
             s.setDateOfBirth(LocalDate.of(2008, 1, i * 5));
             s = studentRepository.save(s);
+
+            Enrollment enrollment = new Enrollment();
+            enrollment.setStudent(s);
+            enrollment.setCls(testClass);
+            enrollment.setAcademicYear(testAcademicYear);
+            enrollment.setJoinDate(LocalDate.of(2026, 8, 1));
+            enrollment.setStatus(EnrollmentStatus.ACTIVE);
+            enrollmentRepository.save(enrollment);
 
             if (i == 1) testStudent1 = s;
             else if (i == 2) testStudent2 = s;

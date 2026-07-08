@@ -28,12 +28,12 @@ public class ClassController {
     @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Danh sách lớp")
     public ResponseEntity<ApiResponse<Page<ClassDto>>> listClasses(
-            @RequestParam(required = false) String academicYear,
+            @RequestParam(required = false) Long academicYearId,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-            classService.listClasses(academicYear, keyword, page, size)));
+            classService.listClasses(academicYearId, keyword, page, size)));
     }
 
     @GetMapping("/{id}")

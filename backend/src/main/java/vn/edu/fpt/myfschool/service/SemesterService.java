@@ -5,7 +5,7 @@ import vn.edu.fpt.myfschool.common.dto.*;
 import java.util.List;
 
 public interface SemesterService {
-    List<SemesterDto> listSemesters(String academicYear);
+    List<SemesterDto> listSemesters(Long academicYearId);
 
     SemesterDto getCurrentSemester();
 

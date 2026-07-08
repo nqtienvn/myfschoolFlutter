@@ -26,8 +26,8 @@ public class SemesterController {
     @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Danh sách học kỳ")
     public ResponseEntity<ApiResponse<List<SemesterDto>>> listSemesters(
-            @RequestParam(required = false) String academicYear) {
-        return ResponseEntity.ok(ApiResponse.success(semesterService.listSemesters(academicYear)));
+            @RequestParam(required = false) Long academicYearId) {
+        return ResponseEntity.ok(ApiResponse.success(semesterService.listSemesters(academicYearId)));
     }
 
     @GetMapping("/current")

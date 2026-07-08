@@ -6,7 +6,8 @@ public record ClassDetailDto(
     Long id,
     String name,
     Integer gradeLevel,
-    String academicYear,
+    Long academicYearId,
+    String academicYearName,
     String schoolName,
     List<StudentSummaryDto> students,
     List<ClassSubjectDto> subjects

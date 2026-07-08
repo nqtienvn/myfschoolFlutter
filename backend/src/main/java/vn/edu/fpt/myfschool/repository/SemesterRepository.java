@@ -9,9 +9,11 @@ import java.util.Optional;
 @Repository
 public interface SemesterRepository extends JpaRepository<Semester, Long> {
 
-    List<Semester> findByAcademicYear(String academicYear);
+    List<Semester> findByAcademicYearId(Long academicYearId);
+
+    List<Semester> findByAcademicYearIdOrderByOrderAsc(Long academicYearId);
 
     Optional<Semester> findByIsCurrentTrue();
 
-    Optional<Semester> findByNameAndAcademicYear(String name, String academicYear);
+    Optional<Semester> findByNameAndAcademicYearId(String name, Long academicYearId);
 }

@@ -3,13 +3,13 @@ package vn.edu.fpt.myfschool.common.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
+
 import java.time.LocalDate;
 
-public record CreateSemesterRequest(
-    @NotBlank @Size(max = 50) String name,
-    @NotNull Long academicYearId,
-    @NotNull Integer order,
+public record CreateAcademicYearRequest(
+    @NotBlank @Size(max = 20) String name,
     @NotNull LocalDate startDate,
     @NotNull LocalDate endDate,
-    Boolean isCurrent
+    AcademicYearStatus status
 ) {}

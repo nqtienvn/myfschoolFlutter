@@ -11,15 +11,15 @@ import java.util.Optional;
 @Repository
 public interface ClassRepository extends JpaRepository<SchoolClass, Long> {
 
-    List<SchoolClass> findByAcademicYear(String academicYear);
+    List<SchoolClass> findByAcademicYearId(Long academicYearId);
 
-    Optional<SchoolClass> findByNameAndAcademicYear(String name, String academicYear);
+    Optional<SchoolClass> findByNameAndAcademicYearId(String name, Long academicYearId);
 
-    boolean existsByNameAndAcademicYear(String name, String academicYear);
+    boolean existsByNameAndAcademicYearId(String name, Long academicYearId);
 
-    @Query("SELECT c FROM SchoolClass c WHERE c.academicYear = :year AND " +
-           "(LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')))")
-    List<SchoolClass> searchByYearAndKeyword(@Param("year") String year,
+    @Query("SELECT c FROM SchoolClass c WHERE c.academicYear.id = :academicYearId AND " +
+           "(LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')))" )
+    List<SchoolClass> searchByYearAndKeyword(@Param("academicYearId") Long academicYearId,
                                               @Param("keyword") String keyword);
 
     @Query("SELECT DISTINCT cs.cls FROM ClassSubject cs " +

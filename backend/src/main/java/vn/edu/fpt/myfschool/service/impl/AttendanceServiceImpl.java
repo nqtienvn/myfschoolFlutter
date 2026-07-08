@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
+import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
 import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
@@ -37,6 +38,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     private final TeacherRepository teacherRepository;
     private final ClassSubjectRepository classSubjectRepository;
     private final SemesterRepository semesterRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final SemesterResultService semesterResultService;
 
     @Transactional(readOnly = true)
@@ -48,7 +50,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
 
-        List<Student> students = studentRepository.findByCurrentClassId(classId);
+        List<Student> students = enrollmentRepository.findActiveStudentsByClassAndYear(classId, cls.getAcademicYear().getId());
         List<Attendance> existing = attendanceRepository.findByClsIdAndDateAndShift(classId, date, shift);
 
         List<AttendanceEntryDto> entries = students.stream().map(s -> {
@@ -71,7 +73,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         for (AttendanceEntry entry : request.entries()) {
             Student student = studentRepository.findById(entry.studentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Student", "id", entry.studentId()));
-            assertStudentBelongsToClass(student, request.classId());
+            assertStudentBelongsToClass(student, cls);
             studentsById.put(entry.studentId(), student);
         }
 
@@ -154,8 +156,11 @@ public class AttendanceServiceImpl implements AttendanceService {
         }
     }
 
-    private void assertStudentBelongsToClass(Student student, Long classId) {
-        if (student.getCurrentClass() == null || !student.getCurrentClass().getId().equals(classId)) {
+    private void assertStudentBelongsToClass(Student student, SchoolClass cls) {
+        if (enrollmentRepository.findByStudentIdAndAcademicYearIdAndStatus(
+                student.getId(), cls.getAcademicYear().getId(), EnrollmentStatus.ACTIVE)
+                .filter(e -> e.getCls().getId().equals(cls.getId()))
+                .isEmpty()) {
             throw new BadRequestException("Học sinh không thuộc lớp được điểm danh");
         }
     }

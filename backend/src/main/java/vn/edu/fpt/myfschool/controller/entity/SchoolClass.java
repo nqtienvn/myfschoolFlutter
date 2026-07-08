@@ -8,7 +8,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "classes",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"name", "academic_year"}))
+       uniqueConstraints = @UniqueConstraint(columnNames = {"name", "academic_year_id"}))
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class SchoolClass extends BaseEntity {
@@ -19,8 +19,10 @@ public class SchoolClass extends BaseEntity {
     @Column(nullable = false)
     private Integer gradeLevel;
 
-    @Column(nullable = false, length = 9)
-    private String academicYear;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "academic_year_id", nullable = false,
+                foreignKey = @ForeignKey(name = "fk_classes_academic_year"))
+    private AcademicYear academicYear;
 
     @Column(nullable = false, length = 200)
     private String schoolName = "FPT Schools";

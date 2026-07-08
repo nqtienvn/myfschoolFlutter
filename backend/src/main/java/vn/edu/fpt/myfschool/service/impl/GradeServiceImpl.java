@@ -39,6 +39,7 @@ public class GradeServiceImpl implements GradeService {
     private final AttendanceRepository attendanceRepository;
     private final ParentRepository parentRepository;
     private final StudentGuardianRepository studentGuardianRepository;
+    private final EnrollmentRepository enrollmentRepository;
 
     @Transactional(readOnly = true)
     @Override
@@ -56,7 +57,7 @@ public class GradeServiceImpl implements GradeService {
 
         return new StudentSemesterGradesDto(
             studentId, student.getUser().getName(), student.getStudentCode(),
-            semesterId, semester.getName(), semester.getAcademicYear(),
+            semesterId, semester.getName(), semester.getAcademicYear().getName(),
             gradeDtos, summary);
     }
 
@@ -70,7 +71,7 @@ public class GradeServiceImpl implements GradeService {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
 
-        List<Student> students = studentRepository.findByCurrentClassId(classId);
+        List<Student> students = enrollmentRepository.findActiveStudentsByClassAndYear(classId, semester.getAcademicYear().getId());
         List<Grade> grades = gradeRepository.findBySubjectSemesterClass(subjectId, semesterId, classId);
 
         List<StudentGradeRowDto> rows = students.stream().map(s -> {

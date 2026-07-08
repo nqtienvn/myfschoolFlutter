@@ -6,7 +6,8 @@ public record ClassDto(
     Long id,
     String name,
     Integer gradeLevel,
-    String academicYear,
+    Long academicYearId,
+    String academicYearName,
     String schoolName,
     Integer studentCount,
     LocalDateTime createdAt

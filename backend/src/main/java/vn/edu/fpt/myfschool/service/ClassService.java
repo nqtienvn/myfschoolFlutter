@@ -6,7 +6,7 @@ import vn.edu.fpt.myfschool.common.dto.*;
 import java.util.List;
 
 public interface ClassService {
-    Page<ClassDto> listClasses(String academicYear, String keyword, int page, int size);
+    Page<ClassDto> listClasses(Long academicYearId, String keyword, int page, int size);
 
     ClassDetailDto getClassDetail(Long classId);
 

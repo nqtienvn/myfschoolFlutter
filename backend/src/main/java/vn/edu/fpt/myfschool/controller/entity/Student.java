@@ -21,6 +21,7 @@ public class Student extends BaseEntity {
     @Column(nullable = false, unique = true, length = 20)
     private String studentCode;
 
+    // ponytail: denormalized shortcut kept for old dashboard paths; remove after all class membership queries use Enrollment.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "class_id",
                 foreignKey = @ForeignKey(name = "fk_students_class"))
@@ -33,5 +34,5 @@ public class Student extends BaseEntity {
     private List<StudentGuardian> studentGuardians = new ArrayList<>();
 
     @OneToMany(mappedBy = "student", fetch = FetchType.LAZY)
-    private List<StudentClass> studentClasses = new ArrayList<>();
+    private List<Enrollment> enrollments = new ArrayList<>();
 }

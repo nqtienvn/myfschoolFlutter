@@ -1,10 +1,5 @@
 package vn.edu.fpt.myfschool.service.impl;
 
-import vn.edu.fpt.myfschool.controller.entity.ClassSubject;
-import vn.edu.fpt.myfschool.controller.entity.SchoolClass;
-import vn.edu.fpt.myfschool.controller.entity.Subject;
-import vn.edu.fpt.myfschool.controller.entity.Teacher;
-import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -12,11 +7,20 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
+import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
+import vn.edu.fpt.myfschool.controller.entity.AcademicYear;
+import vn.edu.fpt.myfschool.controller.entity.ClassSubject;
+import vn.edu.fpt.myfschool.controller.entity.SchoolClass;
+import vn.edu.fpt.myfschool.controller.entity.Student;
+import vn.edu.fpt.myfschool.controller.entity.Subject;
+import vn.edu.fpt.myfschool.controller.entity.Teacher;
 import vn.edu.fpt.myfschool.mapper.ClassMapper;
 import vn.edu.fpt.myfschool.repository.*;
+import vn.edu.fpt.myfschool.service.AcademicYearService;
+import vn.edu.fpt.myfschool.service.ClassService;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,27 +32,31 @@ public class ClassServiceImpl implements ClassService {
 
     private final ClassRepository classRepository;
     private final ClassSubjectRepository classSubjectRepository;
-    private final StudentRepository studentRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final TeacherRepository teacherRepository;
     private final SubjectRepository subjectRepository;
     private final SemesterRepository semesterRepository;
+    private final AcademicYearRepository academicYearRepository;
+    private final AcademicYearService academicYearService;
     private final ClassMapper classMapper;
 
     @Transactional(readOnly = true)
     @Override
-    public Page<ClassDto> listClasses(String academicYear, String keyword, int page, int size) {
-        String year = academicYear != null ? academicYear : "2026-2027";
+    public Page<ClassDto> listClasses(Long academicYearId, String keyword, int page, int size) {
+        Long yearId = resolveAcademicYearId(academicYearId);
         List<SchoolClass> classes;
         if (keyword != null && !keyword.isBlank()) {
-            classes = classRepository.searchByYearAndKeyword(year, keyword);
+            classes = classRepository.searchByYearAndKeyword(yearId, keyword.trim());
         } else {
-            classes = classRepository.findByAcademicYear(year);
+            classes = classRepository.findByAcademicYearId(yearId);
         }
-        int start = Math.min(page * size, classes.size());
-        int end = Math.min(start + size, classes.size());
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(1, size);
+        int start = Math.min(safePage * safeSize, classes.size());
+        int end = Math.min(start + safeSize, classes.size());
         List<ClassDto> dtos = classes.subList(start, end).stream()
             .map(classMapper::toDto).collect(Collectors.toList());
-        return new PageImpl<>(dtos, PageRequest.of(page, size), classes.size());
+        return new PageImpl<>(dtos, PageRequest.of(safePage, safeSize), classes.size());
     }
 
     @Transactional(readOnly = true)
@@ -56,12 +64,12 @@ public class ClassServiceImpl implements ClassService {
     public ClassDetailDto getClassDetail(Long classId) {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
-        List<StudentSummaryDto> students = studentRepository.findByCurrentClassId(classId)
+        List<StudentSummaryDto> students = enrollmentRepository.findActiveStudentsByClassAndYear(classId, cls.getAcademicYear().getId())
             .stream().map(s -> new StudentSummaryDto(
                 s.getId(), s.getUser().getName(), s.getStudentCode(),
                 cls.getName(), s.getUser().getAvatar()))
             .collect(Collectors.toList());
-        List<ClassSubjectDto> subjects = classSubjectRepository.findByClsIdAndAcademicYear(classId, cls.getAcademicYear())
+        List<ClassSubjectDto> subjects = classSubjectRepository.findByClsIdAndAcademicYear(classId, cls.getAcademicYear().getName())
             .stream().map(cs -> new ClassSubjectDto(
                 cs.getId(),
                 new SubjectDto(cs.getSubject().getId(), cs.getSubject().getName(), cs.getSubject().getCode()),
@@ -70,18 +78,19 @@ public class ClassServiceImpl implements ClassService {
                 cs.getIsHomeroom()))
             .collect(Collectors.toList());
         return new ClassDetailDto(cls.getId(), cls.getName(), cls.getGradeLevel(),
-            cls.getAcademicYear(), cls.getSchoolName(), students, subjects);
+            cls.getAcademicYear().getId(), cls.getAcademicYear().getName(), cls.getSchoolName(), students, subjects);
     }
 
     @Override
     public ClassDto createClass(CreateClassRequest request) {
-        if (classRepository.existsByNameAndAcademicYear(request.name(), request.academicYear())) {
+        AcademicYear year = academicYearService.findEntity(request.academicYearId());
+        if (classRepository.existsByNameAndAcademicYearId(request.name(), year.getId())) {
             throw new ConflictException("Lớp đã tồn tại trong năm học này");
         }
         SchoolClass cls = new SchoolClass();
         cls.setName(request.name());
         cls.setGradeLevel(request.gradeLevel());
-        cls.setAcademicYear(request.academicYear());
+        cls.setAcademicYear(year);
         cls.setSchoolName(request.schoolName() != null ? request.schoolName() : "FPT Schools");
         return classMapper.toDto(classRepository.save(cls));
     }
@@ -90,9 +99,13 @@ public class ClassServiceImpl implements ClassService {
     public ClassDto updateClass(Long classId, CreateClassRequest request) {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
-        if (request.name() != null) cls.setName(request.name());
-        if (request.gradeLevel() != null) cls.setGradeLevel(request.gradeLevel());
-        if (request.academicYear() != null) cls.setAcademicYear(request.academicYear());
+        AcademicYear year = academicYearService.findEntity(request.academicYearId());
+        classRepository.findByNameAndAcademicYearId(request.name(), year.getId())
+            .filter(existing -> !existing.getId().equals(classId))
+            .ifPresent(existing -> { throw new ConflictException("Lớp đã tồn tại trong năm học này"); });
+        cls.setName(request.name());
+        cls.setGradeLevel(request.gradeLevel());
+        cls.setAcademicYear(year);
         if (request.schoolName() != null) cls.setSchoolName(request.schoolName());
         return classMapper.toDto(classRepository.save(cls));
     }
@@ -101,7 +114,7 @@ public class ClassServiceImpl implements ClassService {
     public void deleteClass(Long classId) {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
-        if (!studentRepository.findByCurrentClassId(classId).isEmpty()) {
+        if (!enrollmentRepository.findActiveStudentsByClassAndYear(classId, cls.getAcademicYear().getId()).isEmpty()) {
             throw new BadRequestException("Không thể xóa lớp có học sinh");
         }
         classRepository.delete(cls);
@@ -112,7 +125,7 @@ public class ClassServiceImpl implements ClassService {
     public List<StudentSummaryDto> getStudentsInClass(Long classId) {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
-        return studentRepository.findByCurrentClassId(classId)
+        return enrollmentRepository.findActiveStudentsByClassAndYear(classId, cls.getAcademicYear().getId())
             .stream().map(s -> new StudentSummaryDto(
                 s.getId(), s.getUser().getName(), s.getStudentCode(),
                 cls.getName(), s.getUser().getAvatar()))
@@ -156,5 +169,13 @@ public class ClassServiceImpl implements ClassService {
         ClassSubject cs = classSubjectRepository.findById(classSubjectId)
             .orElseThrow(() -> new ResourceNotFoundException("ClassSubject", "id", classSubjectId));
         classSubjectRepository.delete(cs);
+    }
+
+    private Long resolveAcademicYearId(Long academicYearId) {
+        if (academicYearId != null) return academicYearId;
+        return academicYearRepository.findByStatus(AcademicYearStatus.ACTIVE).stream()
+            .findFirst()
+            .orElseThrow(() -> new ResourceNotFoundException("AcademicYear", "status", AcademicYearStatus.ACTIVE))
+            .getId();
     }
 }
