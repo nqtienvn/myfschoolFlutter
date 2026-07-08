@@ -31,6 +31,7 @@ public class SemesterResult extends BaseEntity {
     @Column(precision = 3, scale = 2)
     private BigDecimal gpa;
 
+    @Column(name = "class_rank")
     private Integer rank;
 
     @Column(length = 50)

@@ -34,12 +34,12 @@ import java.time.LocalDateTime;
 public class MessageReceipt extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "message_id", nullable = false, columnDefinition = "BIGINT UNSIGNED",
+    @JoinColumn(name = "message_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_receipt_message"))
     private Message message;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, columnDefinition = "BIGINT UNSIGNED",
+    @JoinColumn(name = "user_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_receipt_user"))
     private User user;
 
