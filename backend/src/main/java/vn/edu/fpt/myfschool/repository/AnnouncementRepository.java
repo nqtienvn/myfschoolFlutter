@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.myfschool.common.enums.TargetRole;
-import vn.edu.fpt.myfschool.entity.Announcement;
+import vn.edu.fpt.myfschool.controller.entity.Announcement;
 
 import java.util.List;
 

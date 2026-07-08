@@ -1,5 +1,14 @@
 package vn.edu.fpt.myfschool.service.impl;
 
+import vn.edu.fpt.myfschool.controller.entity.Announcement;
+import vn.edu.fpt.myfschool.controller.entity.AnnouncementClass;
+import vn.edu.fpt.myfschool.controller.entity.AnnouncementRead;
+import vn.edu.fpt.myfschool.controller.entity.Parent;
+import vn.edu.fpt.myfschool.controller.entity.SchoolClass;
+import vn.edu.fpt.myfschool.controller.entity.Student;
+import vn.edu.fpt.myfschool.controller.entity.StudentGuardian;
+import vn.edu.fpt.myfschool.controller.entity.Teacher;
+import vn.edu.fpt.myfschool.controller.entity.User;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -9,7 +18,6 @@ import vn.edu.fpt.myfschool.common.enums.TargetRole;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
-import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.repository.*;
 
 import java.time.LocalDateTime;

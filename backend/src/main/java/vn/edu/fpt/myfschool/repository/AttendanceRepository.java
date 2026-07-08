@@ -6,7 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
 import vn.edu.fpt.myfschool.common.enums.Shift;
-import vn.edu.fpt.myfschool.entity.Attendance;
+import vn.edu.fpt.myfschool.controller.entity.Attendance;
 
 import java.time.LocalDate;
 import java.util.List;

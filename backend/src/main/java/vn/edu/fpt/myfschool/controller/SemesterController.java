@@ -68,4 +68,12 @@ public class SemesterController {
         semesterService.setCurrentSemester(id);
         return ResponseEntity.ok(ApiResponse.success("Đặt học kỳ hiện tại thành công", null));
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Xóa mềm học kỳ")
+    public ResponseEntity<ApiResponse<Void>> deleteSemester(@PathVariable Long id) {
+        semesterService.deleteSemester(id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa học kỳ thành công", null));
+    }
 }

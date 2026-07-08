@@ -1,5 +1,11 @@
 package vn.edu.fpt.myfschool.service.impl;
 
+import vn.edu.fpt.myfschool.controller.entity.Parent;
+import vn.edu.fpt.myfschool.controller.entity.Student;
+import vn.edu.fpt.myfschool.controller.entity.StudentGuardian;
+import vn.edu.fpt.myfschool.controller.entity.Teacher;
+import vn.edu.fpt.myfschool.controller.entity.User;
+import vn.edu.fpt.myfschool.controller.entity.UserSetting;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -11,11 +17,9 @@ import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
-import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.repository.*;
 import vn.edu.fpt.myfschool.security.JwtTokenProvider;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 

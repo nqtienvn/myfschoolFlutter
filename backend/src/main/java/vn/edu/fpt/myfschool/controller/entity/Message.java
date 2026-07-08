@@ -1,4 +1,4 @@
-package vn.edu.fpt.myfschool.entity;
+package vn.edu.fpt.myfschool.controller.entity;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;

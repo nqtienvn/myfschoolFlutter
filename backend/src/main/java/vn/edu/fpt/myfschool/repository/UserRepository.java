@@ -1,10 +1,12 @@
 package vn.edu.fpt.myfschool.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import vn.edu.fpt.myfschool.entity.User;
+import vn.edu.fpt.myfschool.controller.entity.User;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import java.util.List;
@@ -37,7 +39,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
            "(:status IS NULL OR u.status = :status) AND " +
            "(:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "u.phone LIKE CONCAT('%', :keyword, '%'))")
-    List<User> searchAdminUsers(@Param("role") UserRole role,
-                                 @Param("status") UserStatus status,
-                                 @Param("keyword") String keyword);
+    Page<User> searchAdminUsers(@Param("role") UserRole role,
+                                @Param("status") UserStatus status,
+                                @Param("keyword") String keyword,
+                                Pageable pageable);
 }

@@ -1,18 +1,20 @@
 package vn.edu.fpt.myfschool.service.impl;
 
+import vn.edu.fpt.myfschool.controller.entity.ClassSubject;
+import vn.edu.fpt.myfschool.controller.entity.SchoolClass;
+import vn.edu.fpt.myfschool.controller.entity.Subject;
+import vn.edu.fpt.myfschool.controller.entity.Teacher;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
-import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.mapper.ClassMapper;
 import vn.edu.fpt.myfschool.repository.*;
 

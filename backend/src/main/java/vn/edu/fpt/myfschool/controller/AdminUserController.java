@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -14,7 +15,6 @@ import vn.edu.fpt.myfschool.common.dto.UpdateUserStatusRequest;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import vn.edu.fpt.myfschool.service.AdminUserService;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/users")
@@ -28,12 +28,14 @@ public class AdminUserController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Danh sách tài khoản")
-    public ResponseEntity<ApiResponse<List<AdminUserDto>>> listUsers(
+    public ResponseEntity<ApiResponse<Page<AdminUserDto>>> listUsers(
             @RequestParam(required = false) UserRole role,
             @RequestParam(required = false) UserStatus status,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-            adminUserService.listUsers(role, status, keyword)));
+            adminUserService.listUsers(role, status, keyword, page, size)));
     }
 
     @PutMapping("/{id}/status")

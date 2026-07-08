@@ -7,7 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
-import vn.edu.fpt.myfschool.entity.Semester;
+import vn.edu.fpt.myfschool.controller.entity.Semester;
 import vn.edu.fpt.myfschool.mapper.SemesterMapper;
 import vn.edu.fpt.myfschool.repository.SemesterRepository;
 import java.util.List;
@@ -84,5 +84,15 @@ public class SemesterServiceImpl implements SemesterService {
             .forEach(s -> { s.setIsCurrent(false); semesterRepository.save(s); });
         semester.setIsCurrent(true);
         semesterRepository.save(semester);
+    }
+
+    @Override
+    public void deleteSemester(Long id) {
+        Semester semester = semesterRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", id));
+        if (semester.getIsCurrent()) {
+            throw new ConflictException("Không thể xóa học kỳ hiện tại đang hoạt động");
+        }
+        semesterRepository.delete(semester);
     }
 }

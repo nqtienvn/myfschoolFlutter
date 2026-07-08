@@ -25,11 +25,17 @@ class AdminRoleIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(get("/api/admin/users")
                 .header("Authorization", authHeader(token))
-                .param("role", "STUDENT"))
+                .param("role", "STUDENT")
+                .param("page", "0")
+                .param("size", "2"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data").isArray())
-            .andExpect(jsonPath("$.data[0].role").value("STUDENT"));
+            .andExpect(jsonPath("$.data.content").isArray())
+            .andExpect(jsonPath("$.data.content.length()").value(2))
+            .andExpect(jsonPath("$.data.content[0].role").value("STUDENT"))
+            .andExpect(jsonPath("$.data.totalElements").value(3))
+            .andExpect(jsonPath("$.data.size").value(2))
+            .andExpect(jsonPath("$.data.number").value(0));
     }
 
     @Test

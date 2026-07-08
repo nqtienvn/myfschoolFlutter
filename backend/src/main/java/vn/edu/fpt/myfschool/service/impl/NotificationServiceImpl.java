@@ -1,11 +1,12 @@
 package vn.edu.fpt.myfschool.service.impl;
 
+import vn.edu.fpt.myfschool.controller.entity.User;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.NotificationDto;
-import vn.edu.fpt.myfschool.entity.Notification;
+import vn.edu.fpt.myfschool.controller.entity.Notification;
 import vn.edu.fpt.myfschool.repository.NotificationRepository;
 
 import java.util.List;
@@ -49,7 +50,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public void createNotification(Long userId, String title, String body, String tag) {
         Notification n = new Notification();
-        vn.edu.fpt.myfschool.entity.User user = new vn.edu.fpt.myfschool.entity.User();
+        User user = new User();
         user.setId(userId);
         n.setUser(user);
         n.setTitle(title);

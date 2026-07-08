@@ -1,17 +1,18 @@
 package vn.edu.fpt.myfschool.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.AdminUserDto;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
-import vn.edu.fpt.myfschool.entity.User;
+import vn.edu.fpt.myfschool.controller.entity.User;
 import vn.edu.fpt.myfschool.repository.UserRepository;
 import vn.edu.fpt.myfschool.service.AdminUserService;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service("adminUserService")
 @RequiredArgsConstructor
@@ -22,11 +23,16 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<AdminUserDto> listUsers(UserRole role, UserStatus status, String keyword) {
-        return userRepository.searchAdminUsers(role, status, keyword)
-            .stream()
-            .map(this::toDto)
-            .collect(Collectors.toList());
+    public Page<AdminUserDto> listUsers(UserRole role, UserStatus status, String keyword, int page, int size) {
+        String query = keyword == null || keyword.isBlank() ? null : keyword.trim();
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        PageRequest pageable = PageRequest.of(
+            safePage,
+            safeSize,
+            Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+        return userRepository.searchAdminUsers(role, status, query, pageable).map(this::toDto);
     }
 
     @Override

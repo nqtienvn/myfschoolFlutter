@@ -1,5 +1,10 @@
 package vn.edu.fpt.myfschool.service.impl;
 
+import vn.edu.fpt.myfschool.controller.entity.Attendance;
+import vn.edu.fpt.myfschool.controller.entity.SchoolClass;
+import vn.edu.fpt.myfschool.controller.entity.Semester;
+import vn.edu.fpt.myfschool.controller.entity.Student;
+import vn.edu.fpt.myfschool.controller.entity.Teacher;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -10,7 +15,6 @@ import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
-import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.repository.*;
 
 import java.math.BigDecimal;

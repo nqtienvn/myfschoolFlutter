@@ -1,10 +1,8 @@
 package vn.edu.fpt.myfschool;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.JoinColumn;
 import org.junit.jupiter.api.Test;
-import vn.edu.fpt.myfschool.entity.BaseEntity;
-import vn.edu.fpt.myfschool.entity.MessageReceipt;
+import vn.edu.fpt.myfschool.controller.entity.MessageReceipt;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

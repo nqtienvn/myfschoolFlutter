@@ -2,7 +2,7 @@ package vn.edu.fpt.myfschool.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import vn.edu.fpt.myfschool.entity.AnnouncementRead;
+import vn.edu.fpt.myfschool.controller.entity.AnnouncementRead;
 import java.util.Optional;
 
 @Repository

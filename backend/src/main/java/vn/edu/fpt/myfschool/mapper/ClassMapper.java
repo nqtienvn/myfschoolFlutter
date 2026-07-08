@@ -1,7 +1,7 @@
 package vn.edu.fpt.myfschool.mapper;
 
 import org.mapstruct.*;
-import vn.edu.fpt.myfschool.entity.SchoolClass;
+import vn.edu.fpt.myfschool.controller.entity.SchoolClass;
 import vn.edu.fpt.myfschool.common.dto.ClassDto;
 import java.util.List;
 

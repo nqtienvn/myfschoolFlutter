@@ -10,13 +10,20 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.enums.*;
-import vn.edu.fpt.myfschool.entity.*;
+import vn.edu.fpt.myfschool.controller.entity.ClassSubject;
+import vn.edu.fpt.myfschool.controller.entity.Parent;
+import vn.edu.fpt.myfschool.controller.entity.SchoolClass;
+import vn.edu.fpt.myfschool.controller.entity.Semester;
+import vn.edu.fpt.myfschool.controller.entity.Student;
+import vn.edu.fpt.myfschool.controller.entity.StudentGuardian;
+import vn.edu.fpt.myfschool.controller.entity.Subject;
+import vn.edu.fpt.myfschool.controller.entity.Teacher;
+import vn.edu.fpt.myfschool.controller.entity.User;
 import vn.edu.fpt.myfschool.repository.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;

@@ -10,8 +10,8 @@ import vn.edu.fpt.myfschool.common.dto.MessageDto;
 import vn.edu.fpt.myfschool.common.dto.SendMessageRequest;
 import vn.edu.fpt.myfschool.common.enums.MessageType;
 import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
-import vn.edu.fpt.myfschool.entity.ConversationParticipant;
-import vn.edu.fpt.myfschool.entity.MessageReceipt;
+import vn.edu.fpt.myfschool.controller.entity.ConversationParticipant;
+import vn.edu.fpt.myfschool.controller.entity.MessageReceipt;
 import vn.edu.fpt.myfschool.websocket.WebSocketSessionManager;
 import vn.edu.fpt.myfschool.websocket.dto.ClientWsMessage;
 

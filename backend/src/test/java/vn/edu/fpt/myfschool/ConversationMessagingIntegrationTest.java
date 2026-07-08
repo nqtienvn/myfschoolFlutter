@@ -5,12 +5,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
-import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import vn.edu.fpt.myfschool.common.dto.SendMessageRequest;
 import vn.edu.fpt.myfschool.common.enums.MessageType;
-import vn.edu.fpt.myfschool.entity.Conversation;
-import vn.edu.fpt.myfschool.entity.ConversationParticipant;
+import vn.edu.fpt.myfschool.controller.entity.Conversation;
+import vn.edu.fpt.myfschool.controller.entity.ConversationParticipant;
 import vn.edu.fpt.myfschool.service.ChatRealtimeService;
 import vn.edu.fpt.myfschool.websocket.WebSocketSessionManager;
 

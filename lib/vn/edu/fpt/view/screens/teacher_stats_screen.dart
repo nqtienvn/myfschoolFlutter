@@ -28,26 +28,6 @@ class TeacherStatsScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            const SectionHeader(title: 'Cảnh báo tự động từ AI'),
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _WarningItem(
-                    title: 'Chuyên cần có chiều hướng giảm',
-                    detail: '3 học sinh vắng quá 2 buổi trong tuần này không có lý do chính đáng.',
-                    color: AppColors.danger,
-                  ),
-                  const Divider(height: AppSpacing.lg),
-                  _WarningItem(
-                    title: 'Nhắc nhở học tập',
-                    detail: 'Điểm trung bình môn Tiếng Anh có xu hướng giảm nhẹ 0.4 điểm so với tuần trước.',
-                    color: AppColors.warning,
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),

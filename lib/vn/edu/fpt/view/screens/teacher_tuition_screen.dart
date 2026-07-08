@@ -59,239 +59,38 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
 
 
 
-  void _createTuitionRequest(StudentSnapshot student) {
-    final formKey = GlobalKey<FormState>();
-    String requestType = 'Đơn xin gia hạn đóng học phí';
-    String reason = '';
-    String additionalInfo = '';
-
-    showDialog<void>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: Text(
-                'Lập đơn học phí hộ HS',
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-              ),
-              content: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Học sinh: ${student.name}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Request Type
-                      const Text(
-                        'Loại đơn từ học phí',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.ink),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.background,
-                          border: Border.all(color: AppColors.line),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: DropdownButton<String>(
-                          value: requestType,
-                          isExpanded: true,
-                          underline: const SizedBox(),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'Đơn xin gia hạn đóng học phí',
-                              child: Text('Xin gia hạn đóng học phí', style: TextStyle(fontSize: 13)),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Đơn xin miễn giảm học phí',
-                              child: Text('Xin miễn giảm học phí', style: TextStyle(fontSize: 13)),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Đơn báo cáo lỗi thanh toán',
-                              child: Text('Báo cáo lỗi thanh toán', style: TextStyle(fontSize: 13)),
-                            ),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              setStateDialog(() {
-                                requestType = val;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Dynamic Fields based on Request Type
-                      if (requestType == 'Đơn xin gia hạn đóng học phí') ...[
-                        const Text(
-                          'Thời gian xin gia hạn',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.ink),
-                        ),
-                        const SizedBox(height: 6),
-                        TextFormField(
-                          initialValue: '15 ngày',
-                          decoration: const InputDecoration(
-                            hintText: 'Nhập số ngày hoặc ngày cụ thể...',
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          ),
-                          validator: (value) => value == null || value.isEmpty ? 'Vui lòng điền thông tin' : null,
-                          onSaved: (value) => additionalInfo = value ?? '',
-                        ),
-                      ] else if (requestType == 'Đơn xin miễn giảm học phí') ...[
-                        const Text(
-                          'Tỷ lệ miễn giảm đề xuất (%)',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.ink),
-                        ),
-                        const SizedBox(height: 6),
-                        TextFormField(
-                          initialValue: '30%',
-                          decoration: const InputDecoration(
-                            hintText: 'Nhập tỷ lệ phần trăm (ví dụ: 50%)...',
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          ),
-                          validator: (value) => value == null || value.isEmpty ? 'Vui lòng điền thông tin' : null,
-                          onSaved: (value) => additionalInfo = value ?? '',
-                        ),
-                      ] else ...[
-                        const Text(
-                          'Mã giao dịch / Ngày chuyển',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.ink),
-                        ),
-                        const SizedBox(height: 6),
-                        TextFormField(
-                          decoration: const InputDecoration(
-                            hintText: 'Ví dụ: FT260624001, Techcombank...',
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          ),
-                          validator: (value) => value == null || value.isEmpty ? 'Vui lòng điền thông tin' : null,
-                          onSaved: (value) => additionalInfo = value ?? '',
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-
-                      // Reason Field
-                      const Text(
-                        'Lý do lập đơn',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.ink),
-                      ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          hintText: 'Nhập lý do chi tiết trình Ban giám hiệu...',
-                          contentPadding: EdgeInsets.all(12),
-                        ),
-                        validator: (value) => value == null || value.isEmpty ? 'Vui lòng nhập lý do' : null,
-                        onSaved: (value) => reason = value ?? '',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Hủy'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (formKey.currentState?.validate() ?? false) {
-                      formKey.currentState?.save();
-                      Navigator.pop(context);
-
-                      // Simulate adding the request to the student's leaveRequests list
-                      setState(() {
-                        student.leaveRequests.insert(
-                          0,
-                          LeaveRequest(
-                            title: requestType,
-                            date: 'Gửi hôm nay (Hộ)',
-                            reason: '$reason ($additionalInfo)',
-                            status: 'Pending',
-                            statusColor: AppColors.warning,
-                            statusBackground: AppColors.warningSoft,
-                            note: 'Giáo viên lập hộ, đang trình duyệt.',
-                          ),
-                        );
-                      });
-
-                      showDialog<void>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Đã gửi đơn', style: TextStyle(fontWeight: FontWeight.bold)),
-                          content: Text('Đơn từ liên quan đến học phí của học sinh ${student.name} đã được tạo và gửi trình duyệt thành công!'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Đóng'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.fptOrange,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Gửi duyệt'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const OrangeTopBar(title: 'Quản lý Học phí lớp'),
+      appBar: const OrangeTopBar(title: 'Học phí lớp chủ nhiệm'),
       body: SafeArea(
         child: Column(
           children: [
-            // Stats Row
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+            // Mini Header Stats (Gọn gàng, ít chữ)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              color: Colors.white,
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: CardTile(
-                      label: 'Đã hoàn thành',
-                      value: '$paidCount / $totalStudents',
-                      icon: Icons.check_circle_outline,
-                      color: AppColors.success,
-                      bgColor: AppColors.successSoft,
-                    ),
+                  const Text(
+                    'Trạng thái đóng phí lớp',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.ink),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: CardTile(
-                      label: 'Chưa hoàn thành',
-                      value: '$unpaidCount / $totalStudents',
-                      icon: Icons.error_outline,
-                      color: AppColors.danger,
-                      bgColor: AppColors.dangerSoft,
-                    ),
+                  Text(
+                    'Đã đóng: $paidCount / $totalStudents',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.muted),
                   ),
                 ],
               ),
             ),
+            const Divider(height: 1, color: AppColors.line),
 
-            // Filters
+            // Filters (Tabs tối giản)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
               child: Row(
                 children: [
                   for (final filter in ['Tất cả', 'Đã đóng', 'Chưa đóng']) ...[
@@ -299,10 +98,10 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
                       onTap: () => setState(() => _selectedFilter = filter),
                       child: Container(
                         margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
                           color: _selectedFilter == filter ? AppColors.primarySoft : AppColors.surface,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: _selectedFilter == filter
                                 ? AppColors.fptOrange
@@ -312,7 +111,7 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
                         child: Text(
                           filter,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
                             color: _selectedFilter == filter ? AppColors.fptOrange : AppColors.ink,
                           ),
@@ -324,10 +123,10 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
               ),
             ),
 
-            // Student list
+            // Student list dạng Single Line phẳng
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 itemCount: filteredStudents.length,
                 itemBuilder: (context, index) {
                   final student = filteredStudents[index];
@@ -336,105 +135,77 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
                       .fold(0, (sum, bill) => sum + bill.amount);
                   final isPaid = unpaid == 0;
 
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: AppCard(
-                      child: Column(
+                  return Semantics(
+                    label: 'Học sinh: ${student.name}. Trạng thái học phí: ${isPaid ? 'Đã đóng đủ' : 'Chưa đóng'}.',
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.line.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 18,
-                                backgroundColor: student.avatarColor.withValues(alpha: 0.12),
-                                child: Text(
-                                  student.shortName,
-                                  style: TextStyle(
-                                    color: student.avatarColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                          // Avatar nhỏ gọn
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: student.avatarColor.withValues(alpha: 0.12),
+                            child: Text(
+                              student.shortName,
+                              style: TextStyle(
+                                color: student.avatarColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      student.name,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.ink,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Mã HS: ${student.studentCode}',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.muted,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    isPaid
-                                        ? 'Đã đóng đủ'
-                                        : '${unpaid.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')} đ',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w900,
-                                      color: isPaid ? AppColors.success : AppColors.danger,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  StatusPill(
-                                    label: isPaid ? 'Đã đóng' : 'Chưa đóng',
-                                    foreground: isPaid ? AppColors.success : AppColors.danger,
-                                    background: isPaid ? AppColors.successSoft : AppColors.dangerSoft,
-                                    compact: true,
-                                  ),
-                                ],
-                              ),
-                            ],
+                            ),
                           ),
+                          const SizedBox(width: 12),
+
+                          // Tên học sinh
+                          Expanded(
+                            child: Text(
+                              student.name,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                          ),
+
+                          // Trạng thái (Đã đóng / Chưa đóng)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isPaid ? AppColors.successSoft : AppColors.dangerSoft,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              isPaid ? 'Đã đóng' : 'Chưa đóng',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isPaid ? AppColors.success : AppColors.danger,
+                              ),
+                            ),
+                          ),
+
+                          // Nút nhắc nhở dạng Icon quả chuông tối giản nhưng dễ chạm bấm (A11y friendly)
                           if (!isPaid) ...[
-                            const Divider(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                OutlinedButton.icon(
-                                  onPressed: () => _createTuitionRequest(student),
-                                  icon: const Icon(Icons.note_add_outlined, size: 16),
-                                  label: const Text('Tạo đơn', style: TextStyle(fontSize: 11)),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                ElevatedButton.icon(
-                                  onPressed: () => _sendReminder(student),
-                                  icon: const Icon(Icons.notifications_active_outlined, size: 16),
-                                  label: const Text('Nhắc nhở', style: TextStyle(fontSize: 11)),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.fptOrange,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(width: 12),
+                            Semantics(
+                              label: 'Nhấn để gửi nhắc nhở nộp tiền học phí cho phụ huynh học sinh ${student.name}',
+                              button: true,
+                              child: IconButton(
+                                onPressed: () => _sendReminder(student),
+                                icon: const Icon(Icons.notifications_active),
+                                color: AppColors.fptOrange,
+                                iconSize: 20,
+                                padding: const EdgeInsets.all(10),
+                                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                                tooltip: 'Nhắc đóng học phí',
+                              ),
                             ),
                           ],
                         ],

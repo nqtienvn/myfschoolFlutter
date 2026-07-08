@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.AttachmentDto;
-import vn.edu.fpt.myfschool.entity.Attachment;
+import vn.edu.fpt.myfschool.controller.entity.Attachment;
 import vn.edu.fpt.myfschool.repository.AttachmentRepository;
 
 import java.util.List;

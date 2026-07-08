@@ -7,7 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
-import vn.edu.fpt.myfschool.entity.Subject;
+import vn.edu.fpt.myfschool.controller.entity.Subject;
 import vn.edu.fpt.myfschool.mapper.SubjectMapper;
 import vn.edu.fpt.myfschool.repository.ClassSubjectRepository;
 import vn.edu.fpt.myfschool.repository.SubjectRepository;

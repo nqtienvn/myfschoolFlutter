@@ -1,4 +1,4 @@
-package vn.edu.fpt.myfschool.entity;
+package vn.edu.fpt.myfschool.controller.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
