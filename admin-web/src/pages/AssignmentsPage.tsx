@@ -3,7 +3,8 @@ import { getAcademicYears } from '../api/academicYear';
 import { getSemesters } from '../api/semester';
 import { getClasses } from '../api/class';
 import { getSubjects } from '../api/subject';
-import { getUsers } from '../api/user';
+import { getTeachers } from '../api/user';
+import type { TeacherItem } from '../api/user';
 import { 
   getTeachingAssignments, 
   createTeachingAssignment, 
@@ -15,7 +16,6 @@ interface AcademicYearItem { id: number; name: string; status: string; }
 interface ClassItem { id: number; name: string; gradeLevel: number; academicYearId: number; academicYearName: string; }
 interface SubjectItem { id: number; name: string; code: string; }
 interface SemesterItem { id: number; name: string; academicYearId: number; academicYearName: string; isCurrent: boolean; order: number; }
-interface TeacherItem { id: number; name: string; phone?: string; teacherProfile?: { id: number; employeeCode: string; department?: string; } }
 interface TeachingAssignmentItem {
   id: number;
   classId: number;
@@ -61,9 +61,7 @@ export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: 
   useEffect(() => {
     fetchAcademicYears();
     getSubjects().then((d: any) => setSubjects(d || [])).catch(() => {});
-    getUsers({ role: 'TEACHER', page: 0, size: 100 })
-      .then((d: any) => setTeachers(d.content || d || []))
-      .catch(() => {});
+    fetchTeachers();
   }, []);
 
   useEffect(() => {
@@ -77,6 +75,22 @@ export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: 
       setSemesterId(selectedSemesterId);
     }
   }, [selectedSemesterId]);
+
+  function fetchTeachers(subjectIdParam?: string) {
+    getTeachers({
+      status: 'ACTIVE',
+      subjectId: subjectIdParam ? Number(subjectIdParam) : undefined,
+      page: 0,
+      size: 100
+    }).then((d: any) => setTeachers(d.content || d || []))
+      .catch(() => {});
+  }
+
+  useEffect(() => {
+    if (subjectId) {
+      fetchTeachers(subjectId);
+    }
+  }, [subjectId]);
 
   // Academic year load
   useEffect(() => {
@@ -145,9 +159,7 @@ export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: 
   const getTeacherLoadMap = () => {
     const loadMap: Record<number, number> = {};
     teachers.forEach(t => {
-      if (t.teacherProfile?.id) {
-        loadMap[t.teacherProfile.id] = 0;
-      }
+      loadMap[t.id] = 0;
     });
     Object.values(classAssignmentsMap).forEach(list => {
       list.forEach(a => {
@@ -267,7 +279,7 @@ export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: 
       return;
     }
 
-    const availableTeachers = teachers.filter(t => t.teacherProfile?.id);
+    const availableTeachers = teachers;
     if (availableTeachers.length === 0) {
       setError('Không tìm thấy giáo viên khả dụng để tự động phân công.');
       return;
@@ -282,7 +294,7 @@ export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: 
           await createTeachingAssignment({
             classId: classItem.id,
             subjectId: Number(subjectId),
-            teacherId: teacher.teacherProfile!.id,
+            teacherId: teacher.id,
             semesterId: Number(semesterId),
             effectiveFrom: today()
           });
@@ -357,8 +369,8 @@ export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: 
           continue;
         }
 
-        const matchedTeacher = teachers.find(t => t.teacherProfile?.employeeCode?.toUpperCase() === teacherCodeInput);
-        if (!matchedTeacher || !matchedTeacher.teacherProfile) {
+        const matchedTeacher = teachers.find(t => t.employeeCode?.toUpperCase() === teacherCodeInput);
+        if (!matchedTeacher) {
           importErrors.push(`Dòng ${i + 1}: Không tìm thấy giáo viên mã '${teacherCodeInput}'.`);
           continue;
         }
@@ -368,8 +380,8 @@ export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: 
           className: matchedClass.name,
           subjectId: matchedSubject.id,
           subjectCode: matchedSubject.code,
-          teacherId: matchedTeacher.teacherProfile.id,
-          teacherCode: matchedTeacher.teacherProfile.employeeCode
+          teacherId: matchedTeacher.id,
+          teacherCode: matchedTeacher.employeeCode
         });
       }
 
@@ -441,7 +453,7 @@ export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: 
   }
 
   // Filter teachers having profiles
-  const teachersWithProfiles = teachers.filter(t => t.teacherProfile?.id);
+  const teachersWithProfiles = teachers;
 
   return (
     <div>
@@ -544,15 +556,15 @@ export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: 
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
             {teachersWithProfiles.map(t => {
-              const count = loadMap[t.teacherProfile!.id] || 0;
-              const overloaded = isOverloaded(t.teacherProfile!.id);
+              const count = loadMap[t.id] || 0;
+              const overloaded = isOverloaded(t.id);
               
               return (
                 <div 
                   key={t.id}
                   draggable
                   onDragStart={e => {
-                    e.dataTransfer.setData("text/plain", String(t.teacherProfile!.id));
+                    e.dataTransfer.setData("text/plain", String(t.id));
                   }}
                   style={{ 
                     padding: '8px 12px', 
@@ -662,10 +674,10 @@ export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: 
                             >
                               <option value="">[Chọn giáo viên]</option>
                               {teachersWithProfiles.map(t => {
-                                const count = loadMap[t.teacherProfile!.id] || 0;
+                                const count = loadMap[t.id] || 0;
                                 return (
-                                  <option key={t.id} value={t.teacherProfile!.id}>
-                                    {t.name} ({t.teacherProfile!.employeeCode}) - Dạy: {count} lớp
+                                  <option key={t.id} value={t.id}>
+                                    {t.name} ({t.employeeCode}) - Dạy: {count} lớp
                                   </option>
                                 );
                               })}

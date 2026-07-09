@@ -1,30 +1,36 @@
 import { useState, useEffect, useRef } from 'react';
-import { AdminUser } from '../api/auth';
-import { getUsers, updateUserStatus, importTeachers, createTeacherAccount } from '../api/user';
+import { updateUserStatus, importTeachers, createTeacherAccount, getTeachers, updateTeacherSubjects } from '../api/user';
+import type { TeacherItem } from '../api/user';
+import { getSubjects } from '../api/subject';
 
-interface UsersPageData {
-  content: AdminUser[];
+interface TeacherPageData {
+  content: TeacherItem[];
   number: number;
   size: number;
   totalElements: number;
   totalPages: number;
-  first: boolean;
-  last: boolean;
 }
+
+interface SubjectItem { id: number; name: string; code: string; }
 
 const PAGE_SIZE = 20;
 const DEFAULT_TEACHER_PASSWORD = '12345678';
 const EMPTY_TEACHER_FORM = { employeeCode: '', name: '', phone: '', email: '', department: '' };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [teachers, setTeachers] = useState<TeacherItem[]>([]);
+  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [status, setStatus] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('');
   const [keyword, setKeyword] = useState('');
   const [appliedKeyword, setAppliedKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [editingTeacherId, setEditingTeacherId] = useState<number | null>(null);
+  const [editSubjectIds, setEditSubjectIds] = useState<number[]>([]);
+  const [editSaving, setEditSaving] = useState(false);
 
   // Excel Import states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -38,19 +44,24 @@ export default function UsersPage() {
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
   const [teacherForm, setTeacherForm] = useState(EMPTY_TEACHER_FORM);
+  const [teacherSubjectIds, setTeacherSubjectIds] = useState<number[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function fetchUsers() {
+  useEffect(() => {
+    getSubjects().then((d: any) => setSubjects(d || [])).catch(() => {});
+  }, []);
+
+  async function fetchTeachers() {
     setLoading(true);
     try {
-      const data: UsersPageData = await getUsers({
-        role: 'TEACHER',
+      const data: TeacherPageData = await getTeachers({
         status: status || undefined,
         keyword: appliedKeyword || undefined,
+        subjectId: subjectFilter ? Number(subjectFilter) : undefined,
         page,
         size: PAGE_SIZE
       });
-      setUsers(data.content || []);
+      setTeachers(data.content || []);
       setTotalPages(data.totalPages || 0);
       setTotalElements(data.totalElements || 0);
     } catch (err: any) {
@@ -61,8 +72,8 @@ export default function UsersPage() {
   }
 
   useEffect(() => {
-    fetchUsers();
-  }, [status, appliedKeyword, page]);
+    fetchTeachers();
+  }, [status, subjectFilter, appliedKeyword, page]);
 
   function changeStatus(value: string) {
     setStatus(value);
@@ -74,12 +85,12 @@ export default function UsersPage() {
     setPage(0);
   }
 
-  async function toggleStatus(user: AdminUser) {
-    const newStatus = user.status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE';
-    if (!confirm(`${newStatus === 'LOCKED' ? 'Khóa' : 'Mở'} giáo viên ${user.name}?`)) return;
+  async function toggleStatus(teacher: TeacherItem) {
+    const newStatus = teacher.status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE';
+    if (!confirm(`${newStatus === 'LOCKED' ? 'Khóa' : 'Mở'} giáo viên ${teacher.name}?`)) return;
     try {
-      await updateUserStatus(user.id, newStatus);
-      fetchUsers();
+      await updateUserStatus(teacher.userId, newStatus);
+      fetchTeachers();
     } catch (err: any) {
       alert(err.message);
     }
@@ -120,7 +131,7 @@ export default function UsersPage() {
       setImportSuccess('Đã nhập danh sách giáo viên thành công!');
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      fetchUsers(); // Refresh users list
+      fetchTeachers();
     } catch (err: any) {
       setImportError(err.message || 'Gửi tệp thất bại');
     } finally {
@@ -139,6 +150,7 @@ export default function UsersPage() {
       phone: teacherForm.phone.trim(),
       email: teacherForm.email.trim() || undefined,
       department: teacherForm.department.trim() || undefined,
+      subjectIds: teacherSubjectIds,
     };
 
     if (!payload.employeeCode || !payload.name || !payload.phone) {
@@ -149,18 +161,36 @@ export default function UsersPage() {
       setCreateError('Số điện thoại phải từ 10 đến 15 ký tự.');
       return;
     }
+    if (payload.subjectIds.length === 0) {
+      setCreateError('Vui lòng chọn ít nhất một môn học.');
+      return;
+    }
 
     setCreateLoading(true);
     try {
       await createTeacherAccount(payload);
       setTeacherForm(EMPTY_TEACHER_FORM);
+      setTeacherSubjectIds([]);
       setCreateSuccess(`Tạo giáo viên thành công. Mật khẩu mặc định: ${DEFAULT_TEACHER_PASSWORD}`);
       setPage(0);
-      await fetchUsers();
+      await fetchTeachers();
     } catch (err: any) {
       setCreateError(err.message || 'Không thể tạo giáo viên');
     } finally {
       setCreateLoading(false);
+    }
+  }
+
+  async function handleSaveSubject(teacherId: number) {
+    setEditSaving(true);
+    try {
+      await updateTeacherSubjects(teacherId, editSubjectIds);
+      setEditingTeacherId(null);
+      await fetchTeachers();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -223,8 +253,22 @@ export default function UsersPage() {
               <input type="email" value={teacherForm.email} onChange={e => setTeacherForm({ ...teacherForm, email: e.target.value })} placeholder="giaovien@school.edu.vn" />
             </div>
             <div className="form-group">
-              <label>Bộ môn</label>
-              <input value={teacherForm.department} onChange={e => setTeacherForm({ ...teacherForm, department: e.target.value })} placeholder="Toán - Tin" />
+              <label>Tổ chuyên môn</label>
+              <input value={teacherForm.department} onChange={e => setTeacherForm({ ...teacherForm, department: e.target.value })} placeholder="Tổ Toán - Tin" />
+            </div>
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label>Môn học phụ trách <span style={{ color: '#ef4444' }}>*</span></label>
+              <select
+                multiple
+                value={teacherSubjectIds.map(String)}
+                onChange={e => setTeacherSubjectIds(Array.from(e.target.selectedOptions, o => Number(o.value)))}
+                style={{ minHeight: 80, width: '100%', padding: 8, border: '1px solid #d4d4d4', fontSize: 13 }}
+              >
+                {subjects.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                ))}
+              </select>
+              <span className="input-desc">Giữ Ctrl/Cmd để chọn nhiều môn</span>
             </div>
           </div>
 
@@ -306,6 +350,12 @@ export default function UsersPage() {
           <option value="ACTIVE">Hoạt động</option>
           <option value="LOCKED">Khóa</option>
         </select>
+        <select value={subjectFilter} onChange={e => { setSubjectFilter(e.target.value); setPage(0); }}>
+          <option value="">Tất cả môn học</option>
+          {subjects.map(s => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
         <input
           type="text"
           placeholder="Tìm theo tên hoặc SĐT..."
@@ -319,26 +369,58 @@ export default function UsersPage() {
         <table>
           <thead>
             <tr>
-              <th>ID</th><th>Tên giáo viên</th><th>SĐT</th><th>Trạng thái</th><th>Thao tác</th>
+              <th>Mã GV</th><th>Tên giáo viên</th><th>SĐT</th><th>Môn học</th><th>Trạng thái</th><th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            {users.map(u => (
-              <tr key={u.id}>
-                <td>{u.id}</td>
-                <td>{u.name}</td>
-                <td>{u.phone}</td>
-                <td>{u.status}</td>
+            {teachers.map(t => (
+              <tr key={t.id}>
+                <td>{t.employeeCode}</td>
+                <td>{t.name}</td>
+                <td>{t.phone}</td>
                 <td>
-                  <button onClick={() => toggleStatus(u)}>
-                    {u.status === 'ACTIVE' ? 'Khóa' : 'Mở'}
+                  {editingTeacherId === t.id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <select
+                        multiple
+                        value={editSubjectIds.map(String)}
+                        onChange={e => setEditSubjectIds(Array.from(e.target.selectedOptions, o => Number(o.value)))}
+                        style={{ minHeight: 60, fontSize: 11, padding: 4, border: '1px solid #d4d4d4' }}
+                      >
+                        {subjects.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button onClick={() => handleSaveSubject(t.id)} disabled={editSaving} style={{ fontSize: 11, padding: '2px 8px' }}>
+                          {editSaving ? '...' : 'Lưu'}
+                        </button>
+                        <button onClick={() => setEditingTeacherId(null)} className="danger" style={{ fontSize: 11, padding: '2px 8px' }}>
+                          Hủy
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <span
+                      style={{ cursor: 'pointer', textDecoration: 'underline dotted', color: '#666' }}
+                      title="Bấm để chỉnh sửa"
+                      onClick={() => { setEditingTeacherId(t.id); setEditSubjectIds(t.subjects.map(s => s.id)); }}
+                    >
+                      {t.subjects.length > 0 ? t.subjects.map(s => s.code).join(', ') : <em style={{ color: '#aaa' }}>Chưa có môn</em>}
+                    </span>
+                  )}
+                </td>
+                <td>{t.status}</td>
+                <td>
+                  <button onClick={() => toggleStatus(t)}>
+                    {t.status === 'ACTIVE' ? 'Khóa' : 'Mở'}
                   </button>
                 </td>
               </tr>
             ))}
-            {users.length === 0 && !loading && (
+            {teachers.length === 0 && !loading && (
               <tr>
-                <td colSpan={5}>Không có giáo viên phù hợp</td>
+                <td colSpan={6}>Không có giáo viên phù hợp</td>
               </tr>
             )}
           </tbody>

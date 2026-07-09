@@ -79,11 +79,12 @@ class AdminRoleIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/admin/users/teachers")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"phone\":\"0909000099\",\"name\":\"GV Manual\",\"employeeCode\":\"GV999\",\"department\":\"Toán\"}"))
+                .content("{\"phone\":\"0909000099\",\"name\":\"GV Manual\",\"employeeCode\":\"GV999\",\"department\":\"Toán\",\"subjectIds\":[" + testSubject.getId() + "]}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.role").value("TEACHER"))
-            .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+            .andExpect(jsonPath("$.data.employeeCode").value("GV999"))
+            .andExpect(jsonPath("$.data.status").value("ACTIVE"))
+            .andExpect(jsonPath("$.data.subjects[0].name").value("Toán"));
 
         login("0909000099", "12345678");
     }
@@ -95,7 +96,7 @@ class AdminRoleIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/admin/users/teachers")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"phone\":\"0909000098\",\"name\":\"GV Fail\",\"employeeCode\":\"GV998\"}"))
+                .content("{\"phone\":\"0909000098\",\"name\":\"GV Fail\",\"employeeCode\":\"GV998\",\"subjectIds\":[" + testSubject.getId() + "]}"))
             .andExpect(status().isForbidden());
     }
 

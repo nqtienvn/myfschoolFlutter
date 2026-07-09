@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.myfschool.common.dto.AdminUserDto;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
 import vn.edu.fpt.myfschool.common.dto.CreateTeacherAccountRequest;
+import vn.edu.fpt.myfschool.common.dto.TeacherSummaryDto;
+import vn.edu.fpt.myfschool.common.dto.UpdateTeacherSubjectsRequest;
 import vn.edu.fpt.myfschool.common.dto.UpdateUserStatusRequest;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.enums.UserStatus;
@@ -44,6 +46,19 @@ public class AdminUserController {
                 adminUserService.listUsers(role, status, keyword, page, size)));
     }
 
+    @GetMapping("/teachers")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Danh sách giáo viên")
+    public ResponseEntity<ApiResponse<Page<TeacherSummaryDto>>> listTeachers(
+            @RequestParam(required = false) UserStatus status,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.success(
+                adminUserService.listTeachers(status, keyword, subjectId, page, size)));
+    }
+
     @PutMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Khóa/mở tài khoản")
@@ -58,10 +73,21 @@ public class AdminUserController {
     @PostMapping("/teachers")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Tạo tài khoản giáo viên")
-    public ResponseEntity<ApiResponse<AdminUserDto>> createTeacherAccount(
+    public ResponseEntity<ApiResponse<TeacherSummaryDto>> createTeacherAccount(
             @Valid @RequestBody CreateTeacherAccountRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Tạo tài khoản giáo viên thành công",
                 adminUserService.createTeacherAccount(request)));
+    }
+
+    @PutMapping("/teachers/{teacherId}/subjects")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Cập nhật môn phụ trách của giáo viên")
+    public ResponseEntity<ApiResponse<TeacherSummaryDto>> updateTeacherSubjects(
+            @PathVariable Long teacherId,
+            @Valid @RequestBody UpdateTeacherSubjectsRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Cập nhật môn phụ trách thành công",
+                adminUserService.updateTeacherSubjects(teacherId, request)));
     }
 }

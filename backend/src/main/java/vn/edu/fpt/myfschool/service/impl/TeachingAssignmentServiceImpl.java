@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
+import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.entity.*;
@@ -67,6 +68,10 @@ public class TeachingAssignmentServiceImpl implements TeachingAssignmentService 
         Semester semester = semesterRepository.findById(request.semesterId())
             .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", request.semesterId()));
 
+        if (!teacher.getSubjects().contains(subject)) {
+            throw new BadRequestException("Giáo viên không phụ trách môn học này");
+        }
+
         if (teachingAssignmentRepository.existsByClsIdAndSubjectIdAndSemesterIdAndEffectiveFrom(
                 request.classId(), request.subjectId(), request.semesterId(), request.effectiveFrom())) {
             throw new ConflictException("Da co phan cong cho mon nay trong khoang thoi gian nay");
@@ -95,6 +100,10 @@ public class TeachingAssignmentServiceImpl implements TeachingAssignmentService 
             .orElseThrow(() -> new ResourceNotFoundException("Teacher", "id", request.teacherId()));
         Semester semester = semesterRepository.findById(request.semesterId())
             .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", request.semesterId()));
+
+        if (!teacher.getSubjects().contains(subject)) {
+            throw new BadRequestException("Giáo viên không phụ trách môn học này");
+        }
 
         ta.setCls(cls);
         ta.setSubject(subject);
