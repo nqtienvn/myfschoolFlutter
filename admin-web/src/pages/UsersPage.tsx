@@ -18,7 +18,6 @@ const EMPTY_TEACHER_FORM = { employeeCode: '', name: '', phone: '', email: '', d
 
 export default function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [role, setRole] = useState('');
   const [status, setStatus] = useState('');
   const [keyword, setKeyword] = useState('');
   const [appliedKeyword, setAppliedKeyword] = useState('');
@@ -45,7 +44,7 @@ export default function UsersPage() {
     setLoading(true);
     try {
       const data: UsersPageData = await getUsers({
-        role: role || undefined,
+        role: 'TEACHER',
         status: status || undefined,
         keyword: appliedKeyword || undefined,
         page,
@@ -63,12 +62,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
-  }, [role, status, appliedKeyword, page]);
-
-  function changeRole(value: string) {
-    setRole(value);
-    setPage(0);
-  }
+  }, [status, appliedKeyword, page]);
 
   function changeStatus(value: string) {
     setStatus(value);
@@ -82,7 +76,7 @@ export default function UsersPage() {
 
   async function toggleStatus(user: AdminUser) {
     const newStatus = user.status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE';
-    if (!confirm(`${newStatus === 'LOCKED' ? 'Khóa' : 'Mở'} tài khoản ${user.name}?`)) return;
+    if (!confirm(`${newStatus === 'LOCKED' ? 'Khóa' : 'Mở'} giáo viên ${user.name}?`)) return;
     try {
       await updateUserStatus(user.id, newStatus);
       fetchUsers();
@@ -160,12 +154,11 @@ export default function UsersPage() {
     try {
       await createTeacherAccount(payload);
       setTeacherForm(EMPTY_TEACHER_FORM);
-      setCreateSuccess(`Tạo tài khoản giáo viên thành công. Mật khẩu mặc định: ${DEFAULT_TEACHER_PASSWORD}`);
-      setRole('TEACHER');
+      setCreateSuccess(`Tạo giáo viên thành công. Mật khẩu mặc định: ${DEFAULT_TEACHER_PASSWORD}`);
       setPage(0);
       await fetchUsers();
     } catch (err: any) {
-      setCreateError(err.message || 'Không thể tạo tài khoản giáo viên');
+      setCreateError(err.message || 'Không thể tạo giáo viên');
     } finally {
       setCreateLoading(false);
     }
@@ -186,13 +179,13 @@ export default function UsersPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px', borderBottom: '2px solid #000000', paddingBottom: '12px' }}>
-        <h2 style={{ margin: 0, border: 'none', padding: 0 }}>Quản lý Giáo viên & Tài khoản</h2>
+        <h2 style={{ margin: 0, border: 'none', padding: 0 }}>Quản lý Giáo viên</h2>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
             onClick={() => setShowCreate(!showCreate)}
             style={{ height: '34px', padding: '0 16px', background: '#000000', color: '#ffffff', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
           >
-            {showCreate ? 'Ẩn form thêm giáo viên' : 'Thêm tài khoản giáo viên'}
+            {showCreate ? 'Ẩn form thêm giáo viên' : 'Thêm giáo viên'}
           </button>
           <button
             onClick={() => setShowImport(!showImport)}
@@ -206,7 +199,7 @@ export default function UsersPage() {
       {showCreate && (
         <form onSubmit={handleCreateTeacher} style={{ background: '#ffffff', border: '1px solid #000000', padding: '20px', marginBottom: '24px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em', borderBottom: '1px solid #e5e5e5', paddingBottom: '8px' }}>
-            Thêm tài khoản giáo viên thủ công
+            Thêm giáo viên thủ công
           </h3>
 
           {createError && <div className="error" style={{ marginBottom: 16 }}>{createError}</div>}
@@ -238,7 +231,7 @@ export default function UsersPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: '#737373', fontFamily: 'ui-monospace, monospace' }}>Mật khẩu mặc định: {DEFAULT_TEACHER_PASSWORD}</span>
             <button type="submit" disabled={createLoading} style={{ height: 38, padding: '0 20px', background: '#000000', color: '#ffffff', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>
-              {createLoading ? 'Đang tạo...' : 'Tạo tài khoản'}
+              {createLoading ? 'Đang tạo...' : 'Tạo giáo viên'}
             </button>
           </div>
         </form>
@@ -308,12 +301,6 @@ export default function UsersPage() {
       )}
 
       <div className="filters">
-        <select value={role} onChange={e => changeRole(e.target.value)}>
-          <option value="">Tất cả vai trò</option>
-          <option value="PARENT">Phụ huynh</option>
-          <option value="STUDENT">Học sinh</option>
-          <option value="TEACHER">Giáo viên</option>
-        </select>
         <select value={status} onChange={e => changeStatus(e.target.value)}>
           <option value="">Tất cả trạng thái</option>
           <option value="ACTIVE">Hoạt động</option>
@@ -332,7 +319,7 @@ export default function UsersPage() {
         <table>
           <thead>
             <tr>
-              <th>ID</th><th>Tên</th><th>SĐT</th><th>Vai trò</th><th>Trạng thái</th><th>Thao tác</th>
+              <th>ID</th><th>Tên giáo viên</th><th>SĐT</th><th>Trạng thái</th><th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -341,7 +328,6 @@ export default function UsersPage() {
                 <td>{u.id}</td>
                 <td>{u.name}</td>
                 <td>{u.phone}</td>
-                <td>{u.role}</td>
                 <td>{u.status}</td>
                 <td>
                   <button onClick={() => toggleStatus(u)}>
@@ -352,7 +338,7 @@ export default function UsersPage() {
             ))}
             {users.length === 0 && !loading && (
               <tr>
-                <td colSpan={6}>Không có tài khoản phù hợp</td>
+                <td colSpan={5}>Không có giáo viên phù hợp</td>
               </tr>
             )}
           </tbody>
@@ -364,7 +350,7 @@ export default function UsersPage() {
           Trước
         </button>
         <span>
-          Trang {totalPages === 0 ? 0 : page + 1}/{totalPages} - {totalElements} tài khoản
+          Trang {totalPages === 0 ? 0 : page + 1}/{totalPages} - {totalElements} giáo viên
         </span>
         <button onClick={() => setPage(p => p + 1)} disabled={loading || page + 1 >= totalPages}>
           Sau
