@@ -8,6 +8,14 @@ export interface GetUsersParams {
   size?: number;
 }
 
+export interface CreateTeacherAccountRequest {
+  phone: string;
+  name: string;
+  email?: string;
+  employeeCode: string;
+  department?: string;
+}
+
 export async function getUsers(params: GetUsersParams = {}) {
   const queryParams = new URLSearchParams();
   if (params.role) queryParams.append('role', params.role);
@@ -24,6 +32,13 @@ export async function updateUserStatus(userId: number, status: string) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status })
+  });
+}
+
+export async function createTeacherAccount(data: CreateTeacherAccountRequest) {
+  return apiFetch('/admin/users/teachers', {
+    method: 'POST',
+    body: JSON.stringify(data)
   });
 }
 

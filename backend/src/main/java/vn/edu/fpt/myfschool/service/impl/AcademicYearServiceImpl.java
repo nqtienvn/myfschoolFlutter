@@ -233,10 +233,10 @@ public class AcademicYearServiceImpl implements AcademicYearService {
                         "SELECT COUNT(ss) FROM StudentScore ss WHERE ss.gradeItem.gradeBook.semester.academicYear.id = :yearId", Long.class)
                 .setParameter("yearId", id).getSingleResult();
 
-        Double tuitionSum = entityManager.createQuery(
-                        "SELECT SUM(tb.amount) FROM TuitionBill tb WHERE tb.semester.academicYear.id = :yearId AND tb.status = 'PAID'", Double.class)
+        java.math.BigDecimal tuitionSum = entityManager.createQuery(
+                        "SELECT SUM(tb.amount) FROM TuitionBill tb WHERE tb.semester.academicYear.id = :yearId AND tb.status = 'PAID'", java.math.BigDecimal.class)
                 .setParameter("yearId", id).getSingleResult();
-        java.math.BigDecimal tuitionCollected = tuitionSum != null ? java.math.BigDecimal.valueOf(tuitionSum) : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal tuitionCollected = tuitionSum != null ? tuitionSum : java.math.BigDecimal.ZERO;
 
         return new AcademicYearArchiveStatsDto(
                 classesCount,

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.myfschool.common.dto.AdminUserDto;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
+import vn.edu.fpt.myfschool.common.dto.CreateTeacherAccountRequest;
 import vn.edu.fpt.myfschool.common.dto.UpdateUserStatusRequest;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.enums.UserStatus;
@@ -51,5 +53,15 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Cập nhật trạng thái thành công",
                 adminUserService.updateUserStatus(id, request.status())));
+    }
+
+    @PostMapping("/teachers")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Tạo tài khoản giáo viên")
+    public ResponseEntity<ApiResponse<AdminUserDto>> createTeacherAccount(
+            @Valid @RequestBody CreateTeacherAccountRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Tạo tài khoản giáo viên thành công",
+                adminUserService.createTeacherAccount(request)));
     }
 }

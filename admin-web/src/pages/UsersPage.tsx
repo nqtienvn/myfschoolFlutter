@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { AdminUser } from '../api/auth';
-import { getUsers, updateUserStatus, importTeachers } from '../api/user';
+import { getUsers, updateUserStatus, importTeachers, createTeacherAccount } from '../api/user';
 
 interface UsersPageData {
   content: AdminUser[];
@@ -13,6 +13,8 @@ interface UsersPageData {
 }
 
 const PAGE_SIZE = 20;
+const DEFAULT_TEACHER_PASSWORD = '12345678';
+const EMPTY_TEACHER_FORM = { employeeCode: '', name: '', phone: '', email: '', department: '' };
 
 export default function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -32,6 +34,11 @@ export default function UsersPage() {
   const [importSuccess, setImportSuccess] = useState('');
   const [importResult, setImportResult] = useState<any>(null);
   const [showImport, setShowImport] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createSuccess, setCreateSuccess] = useState('');
+  const [teacherForm, setTeacherForm] = useState(EMPTY_TEACHER_FORM);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function fetchUsers() {
@@ -127,6 +134,43 @@ export default function UsersPage() {
     }
   }
 
+  async function handleCreateTeacher(e: { preventDefault(): void }) {
+    e.preventDefault();
+    setCreateError('');
+    setCreateSuccess('');
+
+    const payload = {
+      employeeCode: teacherForm.employeeCode.trim(),
+      name: teacherForm.name.trim(),
+      phone: teacherForm.phone.trim(),
+      email: teacherForm.email.trim() || undefined,
+      department: teacherForm.department.trim() || undefined,
+    };
+
+    if (!payload.employeeCode || !payload.name || !payload.phone) {
+      setCreateError('Vui lòng nhập mã giáo viên, họ tên và số điện thoại.');
+      return;
+    }
+    if (payload.phone.length < 10 || payload.phone.length > 15) {
+      setCreateError('Số điện thoại phải từ 10 đến 15 ký tự.');
+      return;
+    }
+
+    setCreateLoading(true);
+    try {
+      await createTeacherAccount(payload);
+      setTeacherForm(EMPTY_TEACHER_FORM);
+      setCreateSuccess(`Tạo tài khoản giáo viên thành công. Mật khẩu mặc định: ${DEFAULT_TEACHER_PASSWORD}`);
+      setRole('TEACHER');
+      setPage(0);
+      await fetchUsers();
+    } catch (err: any) {
+      setCreateError(err.message || 'Không thể tạo tài khoản giáo viên');
+    } finally {
+      setCreateLoading(false);
+    }
+  }
+
   function downloadTemplate() {
     const csvContent = 'employeeCode,name,phone,email,department\nGV001,Nguyễn Văn Tiến,0987654321,tiennv@school.edu.vn,Toán - Tin\nGV002,Lê Thị Mai,0912345678,mailt@school.edu.vn,Ngữ Văn\nGV003,Trần Văn Bình,0909090909,binhtv@school.edu.vn,Anh Văn\n';
     const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8' });
@@ -143,13 +187,62 @@ export default function UsersPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px', borderBottom: '2px solid #000000', paddingBottom: '12px' }}>
         <h2 style={{ margin: 0, border: 'none', padding: 0 }}>Quản lý Giáo viên & Tài khoản</h2>
-        <button 
-          onClick={() => setShowImport(!showImport)}
-          style={{ height: '34px', padding: '0 16px', background: '#000000', color: '#ffffff', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
-        >
-          {showImport ? 'Ẩn bảng nhập Excel' : 'Nhập Giáo viên từ Excel'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setShowCreate(!showCreate)}
+            style={{ height: '34px', padding: '0 16px', background: '#000000', color: '#ffffff', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
+          >
+            {showCreate ? 'Ẩn form thêm giáo viên' : 'Thêm tài khoản giáo viên'}
+          </button>
+          <button
+            onClick={() => setShowImport(!showImport)}
+            style={{ height: '34px', padding: '0 16px', background: '#ffffff', color: '#000000', border: '1px solid #000000', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
+          >
+            {showImport ? 'Ẩn bảng nhập Excel' : 'Nhập Giáo viên từ Excel'}
+          </button>
+        </div>
       </div>
+
+      {showCreate && (
+        <form onSubmit={handleCreateTeacher} style={{ background: '#ffffff', border: '1px solid #000000', padding: '20px', marginBottom: '24px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em', borderBottom: '1px solid #e5e5e5', paddingBottom: '8px' }}>
+            Thêm tài khoản giáo viên thủ công
+          </h3>
+
+          {createError && <div className="error" style={{ marginBottom: 16 }}>{createError}</div>}
+          {createSuccess && <div style={{ color: '#16a34a', fontFamily: 'ui-monospace, monospace', fontSize: '13px', marginBottom: '16px' }}>[SUCCESS] {createSuccess}</div>}
+
+          <div className="form-grid" style={{ marginBottom: 12, padding: 0, border: 'none' }}>
+            <div className="form-group">
+              <label>Mã giáo viên</label>
+              <input value={teacherForm.employeeCode} onChange={e => setTeacherForm({ ...teacherForm, employeeCode: e.target.value })} placeholder="GV001" />
+            </div>
+            <div className="form-group">
+              <label>Họ tên</label>
+              <input value={teacherForm.name} onChange={e => setTeacherForm({ ...teacherForm, name: e.target.value })} placeholder="Nguyễn Văn A" />
+            </div>
+            <div className="form-group">
+              <label>Số điện thoại</label>
+              <input value={teacherForm.phone} onChange={e => setTeacherForm({ ...teacherForm, phone: e.target.value })} placeholder="0987654321" />
+            </div>
+            <div className="form-group">
+              <label>Email</label>
+              <input type="email" value={teacherForm.email} onChange={e => setTeacherForm({ ...teacherForm, email: e.target.value })} placeholder="giaovien@school.edu.vn" />
+            </div>
+            <div className="form-group">
+              <label>Bộ môn</label>
+              <input value={teacherForm.department} onChange={e => setTeacherForm({ ...teacherForm, department: e.target.value })} placeholder="Toán - Tin" />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: '#737373', fontFamily: 'ui-monospace, monospace' }}>Mật khẩu mặc định: {DEFAULT_TEACHER_PASSWORD}</span>
+            <button type="submit" disabled={createLoading} style={{ height: 38, padding: '0 20px', background: '#000000', color: '#ffffff', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>
+              {createLoading ? 'Đang tạo...' : 'Tạo tài khoản'}
+            </button>
+          </div>
+        </form>
+      )}
 
       {showImport && (
         <div style={{ background: '#ffffff', border: '1px solid #000000', padding: '20px', marginBottom: '24px' }}>

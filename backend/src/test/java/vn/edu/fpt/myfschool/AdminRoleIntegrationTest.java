@@ -73,6 +73,33 @@ class AdminRoleIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void createTeacherAccount_adminRole_createsTeacherWithDefaultPassword() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(post("/api/admin/users/teachers")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"phone\":\"0909000099\",\"name\":\"GV Manual\",\"employeeCode\":\"GV999\",\"department\":\"Toán\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.role").value("TEACHER"))
+            .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+
+        login("0909000099", "12345678");
+    }
+
+    @Test
+    void createTeacherAccount_teacherRole_returns403() throws Exception {
+        String token = loginAsTeacher();
+
+        mockMvc.perform(post("/api/admin/users/teachers")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"phone\":\"0909000098\",\"name\":\"GV Fail\",\"employeeCode\":\"GV998\"}"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
     void listUsers_teacherRole_returns403() throws Exception {
         String token = loginAsTeacher();
 
