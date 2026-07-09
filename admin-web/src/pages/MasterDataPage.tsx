@@ -51,6 +51,7 @@ interface SemesterItem {
   startDate: string;
   endDate: string;
   isCurrent: boolean;
+  status: string;
 }
 
 type TabKey = 'grade-levels' | 'shifts' | 'periods' | 'subjects' | 'academic-years';

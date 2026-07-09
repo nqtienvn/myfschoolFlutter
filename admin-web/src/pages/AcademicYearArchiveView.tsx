@@ -238,11 +238,11 @@ export default function AcademicYearArchiveView({ yearId, onBack }: { yearId: st
   // Load grades when Class, Subject or Semester changes (Tab: Grades)
   useEffect(() => {
     if (activeTab === 'grades' && selectedClassId && selectedSubjectId && selectedSemesterId) {
-      getGradeBook({
-        classId: Number(selectedClassId),
-        subjectId: Number(selectedSubjectId),
-        semesterId: Number(selectedSemesterId)
-      }).then(async (gb: any) => {
+      getGradeBook(
+        Number(selectedClassId),
+        Number(selectedSubjectId),
+        Number(selectedSemesterId)
+      ).then(async (gb: any) => {
         if (gb && gb.id) {
           const scores = await getGradeBookStudents(gb.id);
           setGradebookScores(scores || []);
@@ -258,7 +258,11 @@ export default function AcademicYearArchiveView({ yearId, onBack }: { yearId: st
   // Load attendance sessions (Tab: Attendance)
   useEffect(() => {
     if (activeTab === 'attendance' && selectedClassId && attendanceDate) {
-      getAttendanceSessions(Number(selectedClassId), attendanceDate, attendanceShift)
+      getAttendanceSessions({
+        classId: Number(selectedClassId),
+        date: attendanceDate,
+        shift: attendanceShift
+      })
         .then((res: any) => {
           setAttendanceSessions(res || []);
         })
