@@ -53,23 +53,19 @@ export default function App() {
     }
   }, [loggedIn]);
 
-  // Load semesters when globalYearId changes
+  // Load active semester for active academic year
   useEffect(() => {
-    if (!globalYearId) return;
+    if (!globalYearId) {
+      setSemesters([]);
+      setGlobalSemesterId('');
+      return;
+    }
     getSemesters(globalYearId)
       .then((sems: any) => {
         const list = sems || [];
         setSemesters(list);
-
-        // Find active semester
         const activeSem = list.find((s: any) => s.status === 'ACTIVE');
-        if (activeSem) {
-          setGlobalSemesterId(String(activeSem.id));
-        } else if (list.length > 0) {
-          setGlobalSemesterId(String(list[0].id));
-        } else {
-          setGlobalSemesterId('');
-        }
+        setGlobalSemesterId(activeSem ? String(activeSem.id) : '');
       })
       .catch(err => {
         console.error('Error fetching semesters for global year:', err);
@@ -79,13 +75,22 @@ export default function App() {
   async function fetchYears() {
     try {
       const data = await getAcademicYears() as AcademicYearItem[];
-      setAcademicYears(data || []);
-      const active = data.find(y => y.status === 'ACTIVE');
-      if (active) {
-        setGlobalYearId(String(active.id));
-      } else if (data.length > 0) {
-        setGlobalYearId(String(data[0].id));
+      const years = data || [];
+      setAcademicYears(years);
+      const active = years.find(y => y.status === 'ACTIVE');
+      if (!active) {
+        setGlobalYearId('');
+        setSemesters([]);
+        setGlobalSemesterId('');
+        return;
       }
+
+      setGlobalYearId(String(active.id));
+      const sems = await getSemesters(String(active.id)) as SemesterItem[];
+      const semesterList = sems || [];
+      setSemesters(semesterList);
+      const activeSem = semesterList.find(s => s.status === 'ACTIVE');
+      setGlobalSemesterId(activeSem ? String(activeSem.id) : '');
     } catch (err) {
       console.error('Error fetching academic years:', err);
     }
@@ -119,6 +124,8 @@ export default function App() {
     announcements: <AnnouncementsPage />,
     assignments: <AssignmentsPage selectedYearId={globalYearId} selectedSemesterId={globalSemesterId} />,
   };
+  const activeYear = academicYears.find(y => String(y.id) === globalYearId);
+  const activeSemester = semesters.find(s => String(s.id) === globalSemesterId);
 
   return (
     <div className="app">
@@ -160,60 +167,15 @@ export default function App() {
 
       <div className="app-content">
         <header className="top-header">
-          <div className="top-header-search">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input type="text" placeholder="Tìm kiếm hoặc nhập lệnh... ⌘K" />
-          </div>
-
-          <div className="top-header-controls">
-            <label className="academic-selector">
-              <span>Năm học</span>
-              <select value={globalYearId} onChange={e => setGlobalYearId(e.target.value)}>
-                {academicYears.map(y => (
-                  <option key={y.id} value={y.id}>
-                    Năm học {y.name} {y.status === 'ACTIVE' ? ' [Đang hoạt động]' : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="academic-selector">
-              <span>Học kỳ</span>
-              <select value={globalSemesterId} onChange={e => setGlobalSemesterId(e.target.value)}>
-                {semesters.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} {s.status === 'ACTIVE' ? ' [Đang hoạt động]' : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {(() => {
-              const activeYear = academicYears.find(y => String(y.id) === globalYearId);
-              const activeSem = semesters.find(s => String(s.id) === globalSemesterId);
-              const isActive = (activeYear?.status === 'ACTIVE') && (activeSem?.status === 'ACTIVE');
-              return <span className={`status-badge ${isActive ? 'active' : ''}`}>{isActive ? 'Đang hoạt động' : 'Không hoạt động'}</span>;
-            })()}
-
-            <div className="notification-wrap">
-              <button className="top-icon-button" aria-label="Thông báo">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-              </button>
-              <span className="notification-dot"></span>
+          <div className="top-header-controls active-term-strip">
+            <div className="term-chip">
+              <span>Năm học đang hoạt động</span>
+              <strong>{activeYear ? activeYear.name : 'Chưa có'}</strong>
             </div>
 
-            <div className="admin-profile">
-              <div>
-                <div className="admin-name">MyFschool</div>
-                <div className="admin-role">Quản trị viên</div>
-              </div>
-              <div className="admin-avatar">FS</div>
+            <div className="term-chip">
+              <span>Học kỳ đang hoạt động</span>
+              <strong>{activeSemester ? activeSemester.name : 'Chưa có'}</strong>
             </div>
           </div>
         </header>
