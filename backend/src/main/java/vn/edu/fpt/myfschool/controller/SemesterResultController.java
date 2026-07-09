@@ -1,20 +1,23 @@
 package vn.edu.fpt.myfschool.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import vn.edu.fpt.myfschool.common.dto.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import vn.edu.fpt.myfschool.common.dto.ApiResponse;
+import vn.edu.fpt.myfschool.common.dto.ClassRankingDto;
+import vn.edu.fpt.myfschool.common.dto.SemesterResultDto;
 import vn.edu.fpt.myfschool.service.SemesterResultService;
 
 @RestController
 @RequestMapping("/api/semester-results")
 @RequiredArgsConstructor
 @Tag(name = "Semester Results", description = "Tổng kết học kỳ")
-@SecurityRequirement(name = "Bearer Authentication")
 public class SemesterResultController {
 
     private final SemesterResultService semesterResultService;

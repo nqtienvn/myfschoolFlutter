@@ -88,8 +88,8 @@ export default function DashboardPage({ selectedYearId, selectedSemesterId }: { 
         {/* Card 1: Students */}
         <div className="db-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: '#eff2f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3c50e0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: 'var(--stamp-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--stamp)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                 <circle cx="9" cy="7" r="4"></circle>
                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -114,8 +114,8 @@ export default function DashboardPage({ selectedYearId, selectedSemesterId }: { 
         {/* Card 2: Teachers */}
         <div className="db-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: '#eff2f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3c50e0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: 'var(--stamp-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--stamp)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
               </svg>
@@ -138,8 +138,8 @@ export default function DashboardPage({ selectedYearId, selectedSemesterId }: { 
         {/* Card 3: Classes */}
         <div className="db-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: '#eff2f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3c50e0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: 'var(--stamp-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--stamp)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
               </svg>
@@ -177,11 +177,11 @@ export default function DashboardPage({ selectedYearId, selectedSemesterId }: { 
 
             {weeklyAttendance.map((item, idx) => (
               <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60px', zIndex: 2 }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#3c50e0', marginBottom: '8px' }}>{item.rate}%</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--stamp)', marginBottom: '8px' }}>{item.rate}%</div>
                 <div style={{ 
                   width: '28px', 
                   height: `${item.height}px`, 
-                  background: 'linear-gradient(180deg, #3c50e0 0%, rgba(60, 80, 224, 0.4) 100%)', 
+                  background: 'linear-gradient(180deg, var(--stamp) 0%, rgba(60, 80, 224, 0.4) 100%)', 
                   borderRadius: '6px 6px 0 0',
                   transition: 'height 0.3s ease-in-out',
                 }} className="bar-hover"></div>
@@ -217,7 +217,7 @@ export default function DashboardPage({ selectedYearId, selectedSemesterId }: { 
               {/* Foreground circle */}
               <circle 
                 cx="50" cy="50" r="40" 
-                stroke="#3c50e0" strokeWidth="8" fill="transparent" 
+                stroke="var(--stamp)" strokeWidth="8" fill="transparent" 
                 strokeDasharray="251.2"
                 strokeDashoffset={251.2 - (251.2 * 95.5) / 100}
                 strokeLinecap="round"
@@ -269,7 +269,7 @@ export default function DashboardPage({ selectedYearId, selectedSemesterId }: { 
                   style={{
                     border: 'none',
                     background: activeTab === tab ? '#ffffff' : 'transparent',
-                    color: activeTab === tab ? '#3c50e0' : '#64748b',
+                    color: activeTab === tab ? 'var(--stamp)' : '#64748b',
                     fontSize: '12px',
                     fontWeight: 600,
                     padding: '6px 16px',
@@ -283,7 +283,7 @@ export default function DashboardPage({ selectedYearId, selectedSemesterId }: { 
               ))}
             </div>
             
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#3c50e0', padding: '6px 12px', background: '#eff2f7', borderRadius: '6px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--stamp)', padding: '6px 12px', background: 'var(--stamp-soft)', borderRadius: '6px' }}>
               Niên khóa 2026-2027
             </div>
           </div>
@@ -294,8 +294,8 @@ export default function DashboardPage({ selectedYearId, selectedSemesterId }: { 
           <svg viewBox="0 0 900 280" width="100%" height="280" style={{ minWidth: '800px' }}>
             <defs>
               <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3c50e0" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#3c50e0" stopOpacity="0.0" />
+                <stop offset="0%" stopColor="var(--stamp)" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="var(--stamp)" stopOpacity="0.0" />
               </linearGradient>
             </defs>
 
@@ -319,7 +319,7 @@ export default function DashboardPage({ selectedYearId, selectedSemesterId }: { 
             {/* Stroke Line */}
             <polyline 
               fill="none" 
-              stroke="#3c50e0" 
+              stroke="var(--stamp)" 
               strokeWidth="3.5" 
               points={pointsString}
               strokeLinecap="round"
@@ -334,14 +334,14 @@ export default function DashboardPage({ selectedYearId, selectedSemesterId }: { 
                 <g key={i}>
                   <circle 
                     cx={x} cy={y} r="5" 
-                    fill="#ffffff" stroke="#3c50e0" strokeWidth="3"
+                    fill="#ffffff" stroke="var(--stamp)" strokeWidth="3"
                   />
                   {/* Monthly X Axis Label */}
                   <text x={x} y="272" fill="#64748b" fontSize="11" fontWeight="600" textAnchor="middle">
                     {p.month}
                   </text>
                   {/* Hover GPA Value */}
-                  <text x={x} y={y - 12} fill="#3c50e0" fontSize="11" fontWeight="700" textAnchor="middle">
+                  <text x={x} y={y - 12} fill="var(--stamp)" fontSize="11" fontWeight="700" textAnchor="middle">
                     {p.gpa}
                   </text>
                 </g>

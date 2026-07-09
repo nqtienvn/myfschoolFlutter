@@ -8,8 +8,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 
@@ -17,8 +19,10 @@ import java.math.BigDecimal;
 @Table(name = "semester_results",
        uniqueConstraints = @UniqueConstraint(
            columnNames = {"student_id", "semester_id"}))
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class SemesterResult extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -29,7 +33,7 @@ public class SemesterResult extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "semester_id", nullable = false,
                 foreignKey = @ForeignKey(name = "fk_sr_semester"))
-    private Semester semester;
+    private Semester semester; //kì học
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "class_id", nullable = false,

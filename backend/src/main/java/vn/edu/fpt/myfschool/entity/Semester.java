@@ -10,10 +10,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import vn.edu.fpt.myfschool.common.enums.SemesterStatus;
 
 import java.time.LocalDate;
@@ -24,10 +24,10 @@ import java.time.LocalDate;
            @UniqueConstraint(columnNames = {"name", "academic_year_id"}),
            @UniqueConstraint(columnNames = {"academic_year_id", "semester_order"})
        })
-@SQLDelete(sql = "UPDATE semesters SET deleted = true WHERE id = ?")
-@Where(clause = "deleted = false")
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class Semester extends BaseEntity {
 
     @Column(nullable = false)
@@ -35,11 +35,6 @@ public class Semester extends BaseEntity {
 
     @Column(nullable = false, length = 50)
     private String name;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "academic_year_id", nullable = false,
-                foreignKey = @ForeignKey(name = "fk_semesters_academic_year"))
-    private AcademicYear academicYear;
 
     @Column(name = "semester_order", nullable = false)
     private Integer order;
@@ -56,4 +51,10 @@ public class Semester extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private SemesterStatus status = SemesterStatus.NOT_STARTED;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "academic_year_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_semesters_academic_year"))
+    private AcademicYear academicYear;
+
 }

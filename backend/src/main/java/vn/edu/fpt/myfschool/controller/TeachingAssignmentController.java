@@ -1,14 +1,24 @@
 package vn.edu.fpt.myfschool.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import vn.edu.fpt.myfschool.common.dto.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import vn.edu.fpt.myfschool.common.dto.ApiResponse;
+import vn.edu.fpt.myfschool.common.dto.CreateTeachingAssignmentRequest;
+import vn.edu.fpt.myfschool.common.dto.TeachingAssignmentDetailDto;
+import vn.edu.fpt.myfschool.common.dto.TeachingAssignmentDto;
 import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
 import vn.edu.fpt.myfschool.service.TeachingAssignmentService;
 
@@ -18,7 +28,6 @@ import java.util.List;
 @RequestMapping("/api/teaching-assignments")
 @RequiredArgsConstructor
 @Tag(name = "Teaching Assignments", description = "Phân công giáo viên bộ môn")
-@SecurityRequirement(name = "Bearer Authentication")
 public class TeachingAssignmentController {
 
     private final TeachingAssignmentService teachingAssignmentService;
@@ -33,10 +42,10 @@ public class TeachingAssignmentController {
             @RequestParam(defaultValue = "ACTIVE") AssignmentStatus status) {
         if (classId != null) {
             return ResponseEntity.ok(ApiResponse.success(
-                teachingAssignmentService.listByClass(classId, semesterId, status)));
+                    teachingAssignmentService.listByClass(classId, semesterId, status)));
         } else if (teacherId != null) {
             return ResponseEntity.ok(ApiResponse.success(
-                teachingAssignmentService.listByTeacher(teacherId, semesterId, status)));
+                    teachingAssignmentService.listByTeacher(teacherId, semesterId, status)));
         }
         throw new vn.edu.fpt.myfschool.common.exception.BadRequestException("Phai cung cap classId hoac teacherId");
     }
@@ -61,7 +70,7 @@ public class TeachingAssignmentController {
     public ResponseEntity<ApiResponse<TeachingAssignmentDto>> create(
             @Valid @RequestBody CreateTeachingAssignmentRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
-            "Phân công thành công", teachingAssignmentService.create(request)));
+                "Phân công thành công", teachingAssignmentService.create(request)));
     }
 
     @PutMapping("/{id}")
@@ -70,7 +79,7 @@ public class TeachingAssignmentController {
     public ResponseEntity<ApiResponse<TeachingAssignmentDto>> update(
             @PathVariable Long id, @Valid @RequestBody CreateTeachingAssignmentRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
-            "Cập nhật thành công", teachingAssignmentService.update(id, request)));
+                "Cập nhật thành công", teachingAssignmentService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
@@ -85,6 +94,6 @@ public class TeachingAssignmentController {
     @Operation(summary = "Khôi phục phân công")
     public ResponseEntity<ApiResponse<TeachingAssignmentDto>> reactivate(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(
-            "Khôi phục thành công", teachingAssignmentService.reactivate(id)));
+                "Khôi phục thành công", teachingAssignmentService.reactivate(id)));
     }
 }

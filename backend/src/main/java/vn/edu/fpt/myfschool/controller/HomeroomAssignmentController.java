@@ -1,14 +1,23 @@
 package vn.edu.fpt.myfschool.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import vn.edu.fpt.myfschool.common.dto.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import vn.edu.fpt.myfschool.common.dto.ApiResponse;
+import vn.edu.fpt.myfschool.common.dto.CreateHomeroomAssignmentRequest;
+import vn.edu.fpt.myfschool.common.dto.HomeroomAssignmentDto;
 import vn.edu.fpt.myfschool.service.HomeroomAssignmentService;
 
 import java.util.List;
@@ -17,7 +26,6 @@ import java.util.List;
 @RequestMapping("/api/homeroom-assignments")
 @RequiredArgsConstructor
 @Tag(name = "Homeroom Assignments", description = "Phân công GVCN")
-@SecurityRequirement(name = "Bearer Authentication")
 public class HomeroomAssignmentController {
 
     private final HomeroomAssignmentService homeroomAssignmentService;
@@ -29,7 +37,7 @@ public class HomeroomAssignmentController {
             @RequestParam(required = false) Long classId,
             @RequestParam(required = false) Long academicYearId) {
         return ResponseEntity.ok(ApiResponse.success(
-            homeroomAssignmentService.listByClass(classId, academicYearId)));
+                homeroomAssignmentService.listByClass(classId, academicYearId)));
     }
 
     @GetMapping("/{id}")
@@ -45,7 +53,7 @@ public class HomeroomAssignmentController {
     public ResponseEntity<ApiResponse<HomeroomAssignmentDto>> getCurrent(
             @RequestParam Long classId, @RequestParam Long academicYearId) {
         return ResponseEntity.ok(ApiResponse.success(
-            homeroomAssignmentService.getByClassAndYear(classId, academicYearId)));
+                homeroomAssignmentService.getByClassAndYear(classId, academicYearId)));
     }
 
     @PostMapping
@@ -54,7 +62,7 @@ public class HomeroomAssignmentController {
     public ResponseEntity<ApiResponse<HomeroomAssignmentDto>> create(
             @Valid @RequestBody CreateHomeroomAssignmentRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
-            "Gán GVCN thành công", homeroomAssignmentService.create(request)));
+                "Gán GVCN thành công", homeroomAssignmentService.create(request)));
     }
 
     @PutMapping("/{id}")
@@ -63,7 +71,7 @@ public class HomeroomAssignmentController {
     public ResponseEntity<ApiResponse<HomeroomAssignmentDto>> update(
             @PathVariable Long id, @Valid @RequestBody CreateHomeroomAssignmentRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
-            "Cập nhật thành công", homeroomAssignmentService.update(id, request)));
+                "Cập nhật thành công", homeroomAssignmentService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")

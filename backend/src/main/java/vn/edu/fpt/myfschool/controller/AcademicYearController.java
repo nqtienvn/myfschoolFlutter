@@ -1,14 +1,24 @@
 package vn.edu.fpt.myfschool.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import vn.edu.fpt.myfschool.common.dto.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import vn.edu.fpt.myfschool.common.dto.AcademicYearArchiveStatsDto;
+import vn.edu.fpt.myfschool.common.dto.AcademicYearDto;
+import vn.edu.fpt.myfschool.common.dto.ApiResponse;
+import vn.edu.fpt.myfschool.common.dto.CreateAcademicYearRequest;
+import vn.edu.fpt.myfschool.common.dto.UpdateAcademicYearRequest;
+import vn.edu.fpt.myfschool.common.dto.UpdateAcademicYearStatusRequest;
 import vn.edu.fpt.myfschool.service.AcademicYearService;
 
 import java.util.List;
@@ -17,7 +27,6 @@ import java.util.List;
 @RequestMapping("/api/academic-years")
 @RequiredArgsConstructor
 @Tag(name = "Academic Years", description = "Quản lý năm học")
-@SecurityRequirement(name = "Bearer Authentication")
 public class AcademicYearController {
 
     private final AcademicYearService academicYearService;
@@ -37,12 +46,13 @@ public class AcademicYearController {
         return ResponseEntity.ok(ApiResponse.success("Tạo năm học thành công", academicYearService.createAcademicYear(request)));
     }
 
-    @PostMapping("/generate-10-years")
+    @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Tạo 10 năm học liên tiếp kèm học kỳ")
-    public ResponseEntity<ApiResponse<Void>> generate10Years() {
-        academicYearService.generate10YearsWithSemesters();
-        return ResponseEntity.ok(ApiResponse.success("Tạo 10 năm học liên tiếp kèm học kỳ thành công", null));
+    @Operation(summary = "Sửa năm học")
+    public ResponseEntity<ApiResponse<AcademicYearDto>> updateAcademicYear(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateAcademicYearRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật năm học thành công", academicYearService.updateAcademicYear(id, request)));
     }
 
     @PostMapping("/{id}/open")
@@ -74,15 +84,6 @@ public class AcademicYearController {
     @Operation(summary = "Xem thống kê hồ sơ năm học đã kết thúc")
     public ResponseEntity<ApiResponse<AcademicYearArchiveStatsDto>> getArchiveStats(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(academicYearService.getArchiveStats(id)));
-    }
-
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Sửa năm học")
-    public ResponseEntity<ApiResponse<AcademicYearDto>> updateAcademicYear(
-            @PathVariable Long id,
-            @Valid @RequestBody CreateAcademicYearRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Cập nhật năm học thành công", academicYearService.updateAcademicYear(id, request)));
     }
 
     @PutMapping("/{id}/status")

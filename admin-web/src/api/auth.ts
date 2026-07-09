@@ -16,17 +16,18 @@ export interface LoginResponse {
 }
 
 export async function login(phone: string, password: string): Promise<AdminUser> {
-  const mockUser: AdminUser = {
-    id: 1,
-    phone: phone || '0900000000',
-    name: 'Quản trị viên',
-    email: 'admin@school.edu.vn',
-    role: 'ADMIN',
-    status: 'ACTIVE',
-    createdAt: new Date().toISOString()
-  };
-  setToken("mock-token-for-dev");
-  return mockUser;
+  const data = await apiFetch('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, password })
+  });
+
+  if (data.user.role !== 'ADMIN') {
+    throw new Error('Tài khoản không có quyền truy cập trang quản trị');
+  }
+
+  setToken(data.token);
+  return data.user;
 }
 
 export function isAdminLoggedIn(): boolean {

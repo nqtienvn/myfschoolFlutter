@@ -1,12 +1,14 @@
 package vn.edu.fpt.myfschool.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
 import vn.edu.fpt.myfschool.common.dto.ImportResultDto;
@@ -17,7 +19,6 @@ import vn.edu.fpt.myfschool.service.ScheduleImportService;
 @RequestMapping("/api/import")
 @RequiredArgsConstructor
 @Tag(name = "Import Bulk", description = "Nhập dữ liệu hàng loạt từ Excel")
-@SecurityRequirement(name = "Bearer Authentication")
 public class ImportController {
 
     private final EnrollmentImportService enrollmentImportService;

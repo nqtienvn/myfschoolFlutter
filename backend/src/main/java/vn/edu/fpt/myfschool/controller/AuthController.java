@@ -5,8 +5,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import vn.edu.fpt.myfschool.common.dto.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import vn.edu.fpt.myfschool.common.dto.ApiResponse;
+import vn.edu.fpt.myfschool.common.dto.LoginRequest;
+import vn.edu.fpt.myfschool.common.dto.LoginResponse;
+import vn.edu.fpt.myfschool.common.dto.RegisterRequest;
 import vn.edu.fpt.myfschool.service.AuthService;
 
 @RestController

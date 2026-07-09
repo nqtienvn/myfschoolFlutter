@@ -1,14 +1,22 @@
 package vn.edu.fpt.myfschool.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import vn.edu.fpt.myfschool.common.dto.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import vn.edu.fpt.myfschool.common.dto.ApiResponse;
+import vn.edu.fpt.myfschool.common.dto.ChangePasswordRequest;
+import vn.edu.fpt.myfschool.common.dto.UpdateProfileRequest;
+import vn.edu.fpt.myfschool.common.dto.UpdateSettingsRequest;
+import vn.edu.fpt.myfschool.common.dto.UserDto;
+import vn.edu.fpt.myfschool.common.dto.UserSettingDto;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.AuthService;
 
@@ -16,7 +24,6 @@ import vn.edu.fpt.myfschool.service.AuthService;
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
 @Tag(name = "User", description = "Quản lý hồ sơ cá nhân")
-@SecurityRequirement(name = "Bearer Authentication")
 public class UserController {
 
     private final AuthService authService;

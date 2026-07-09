@@ -1,14 +1,24 @@
 package vn.edu.fpt.myfschool.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import vn.edu.fpt.myfschool.common.dto.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import vn.edu.fpt.myfschool.common.dto.ApiResponse;
+import vn.edu.fpt.myfschool.common.dto.AttendanceDto;
+import vn.edu.fpt.myfschool.common.dto.AttendanceLogDto;
+import vn.edu.fpt.myfschool.common.dto.DailyAttendanceDto;
+import vn.edu.fpt.myfschool.common.dto.SubmitAttendanceRequest;
 import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
 import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
@@ -22,7 +32,6 @@ import java.util.Map;
 @RequestMapping("/api/attendance")
 @RequiredArgsConstructor
 @Tag(name = "Attendance", description = "Chuyên cần / Điểm danh")
-@SecurityRequirement(name = "Bearer Authentication")
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
@@ -33,7 +42,7 @@ public class AttendanceController {
     public ResponseEntity<ApiResponse<DailyAttendanceDto>> getDailyAttendance(
             @RequestParam Long classId, @RequestParam LocalDate date, @RequestParam Shift shift) {
         return ResponseEntity.ok(ApiResponse.success(
-            attendanceService.getDailyAttendance(classId, date, shift, SecurityUtil.getCurrentUserId())));
+                attendanceService.getDailyAttendance(classId, date, shift, SecurityUtil.getCurrentUserId())));
     }
 
     @PostMapping("/submit")
@@ -42,7 +51,7 @@ public class AttendanceController {
     public ResponseEntity<ApiResponse<List<AttendanceDto>>> submitAttendance(
             @Valid @RequestBody SubmitAttendanceRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Điểm danh thành công",
-            attendanceService.submitAttendance(request, SecurityUtil.getCurrentUserId())));
+                attendanceService.submitAttendance(request, SecurityUtil.getCurrentUserId())));
     }
 
     @PutMapping("/{id}")
@@ -52,7 +61,7 @@ public class AttendanceController {
             @PathVariable Long id, @RequestBody Map<String, String> body) {
         AttendanceStatus status = AttendanceStatus.valueOf(body.get("status"));
         return ResponseEntity.ok(ApiResponse.success(
-            attendanceService.updateAttendance(id, status, SecurityUtil.getCurrentUserId())));
+                attendanceService.updateAttendance(id, status, SecurityUtil.getCurrentUserId())));
     }
 
     @GetMapping("/student")

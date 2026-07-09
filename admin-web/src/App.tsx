@@ -60,7 +60,7 @@ export default function App() {
       .then((sems: any) => {
         const list = sems || [];
         setSemesters(list);
-        
+
         // Find active semester
         const activeSem = list.find((s: any) => s.status === 'ACTIVE');
         if (activeSem) {
@@ -124,13 +124,13 @@ export default function App() {
     <div className="app">
       <nav className="sidebar" style={{ overflowY: 'auto' }}>
         <h2 style={{ padding: '0 8px', marginBottom: '24px' }}>MyFschool Admin</h2>
-        
+
         <div className="sidebar-section-title">Tổng quan</div>
         <button className={page === 'dashboard' ? 'active' : ''} onClick={() => setPage('dashboard')}>Trang tổng quan</button>
         <button className={page === 'wizard' ? 'active' : ''} onClick={() => setPage('wizard')}>Hướng dẫn cấu hình</button>
 
         <div className="sidebar-section-title">Danh mục tĩnh</div>
-        <button className={page === 'master-data' ? 'active' : ''} onClick={() => setPage('master-data')}>Khối lớp, Ca học & Môn học</button>
+        <button className={page === 'master-data' ? 'active' : ''} onClick={() => setPage('master-data')}>Danh Mục Chung</button>
 
         <div className="sidebar-section-title">Nhân sự</div>
         <button className={page === 'users' ? 'active' : ''} onClick={() => setPage('users')}>Quản lý Giáo viên</button>
@@ -158,108 +158,67 @@ export default function App() {
         <button className="logout" onClick={handleLogout} style={{ marginTop: 24 }}>Đăng xuất</button>
       </nav>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <header className="top-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 30px', background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
-          {/* Left: Search input */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '200px', position: 'relative' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" style={{ position: 'absolute', left: '12px', top: '12px' }}>
+      <div className="app-content">
+        <header className="top-header">
+          <div className="top-header-search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm hoặc nhập lệnh... ⌘K" 
-              style={{ width: '100%', padding: '9px 12px 9px 36px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '13px', outline: 'none' }}
-            />
+            <input type="text" placeholder="Tìm kiếm hoặc nhập lệnh... ⌘K" />
           </div>
 
-          {/* Center/Right: Academic Context */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            {/* Year Selector */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Năm học:</span>
-              <select 
-                value={globalYearId} 
-                onChange={e => setGlobalYearId(e.target.value)}
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '13px', fontWeight: 600, color: '#1c2434', background: '#ffffff' }}
-              >
+          <div className="top-header-controls">
+            <label className="academic-selector">
+              <span>Năm học</span>
+              <select value={globalYearId} onChange={e => setGlobalYearId(e.target.value)}>
                 {academicYears.map(y => (
                   <option key={y.id} value={y.id}>
                     Năm học {y.name} {y.status === 'ACTIVE' ? ' [Đang hoạt động]' : ''}
                   </option>
                 ))}
               </select>
-            </div>
+            </label>
 
-            {/* Semester Selector */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Học kỳ:</span>
-              <select 
-                value={globalSemesterId} 
-                onChange={e => setGlobalSemesterId(e.target.value)}
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '13px', fontWeight: 600, color: '#1c2434', background: '#ffffff' }}
-              >
+            <label className="academic-selector">
+              <span>Học kỳ</span>
+              <select value={globalSemesterId} onChange={e => setGlobalSemesterId(e.target.value)}>
                 {semesters.map(s => (
                   <option key={s.id} value={s.id}>
                     {s.name} {s.status === 'ACTIVE' ? ' [Đang hoạt động]' : ''}
                   </option>
                 ))}
               </select>
-            </div>
+            </label>
 
-            {/* Active badge */}
             {(() => {
               const activeYear = academicYears.find(y => String(y.id) === globalYearId);
               const activeSem = semesters.find(s => String(s.id) === globalSemesterId);
               const isActive = (activeYear?.status === 'ACTIVE') && (activeSem?.status === 'ACTIVE');
-              return (
-                <span style={{ 
-                  fontSize: '11px', 
-                  fontWeight: 700, 
-                  textTransform: 'uppercase', 
-                  padding: '4px 8px', 
-                  borderRadius: '4px',
-                  background: isActive ? '#e1fbf2' : '#f1f5f9',
-                  color: isActive ? '#10b981' : '#64748b',
-                  border: `1px solid ${isActive ? '#a7f3d0' : '#cbd5e1'}`
-                }}>
-                  {isActive ? 'Đang hoạt động' : 'Không hoạt động'}
-                </span>
-              );
+              return <span className={`status-badge ${isActive ? 'active' : ''}`}>{isActive ? 'Đang hoạt động' : 'Không hoạt động'}</span>;
             })()}
 
-            {/* Dark mode mock toggle */}
-            <button style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '50%' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1c2434" strokeWidth="2">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-              </svg>
-            </button>
-
-            {/* Notification bell */}
-            <div style={{ position: 'relative' }}>
-              <button style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '50%' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1c2434" strokeWidth="2">
+            <div className="notification-wrap">
+              <button className="top-icon-button" aria-label="Thông báo">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                   <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                 </svg>
               </button>
-              <span style={{ position: 'absolute', top: '4px', right: '4px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', border: '1px solid #ffffff' }}></span>
+              <span className="notification-dot"></span>
             </div>
 
-            {/* Avatar profile */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderLeft: '1px solid #e2e8f0', paddingLeft: '16px' }}>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1c2434', lineHeight: '1.2' }}>Musharof</div>
-                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 500 }}>Quản trị viên</div>
+            <div className="admin-profile">
+              <div>
+                <div className="admin-name">MyFschool</div>
+                <div className="admin-role">Quản trị viên</div>
               </div>
-              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#3c50e0', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px' }}>
-                M
-              </div>
+              <div className="admin-avatar">FS</div>
             </div>
           </div>
         </header>
 
-        <main style={{ flex: 1, overflow: 'auto', padding: '30px', background: '#f1f5f9' }}>
+        <main>
           {pages[page] || <DashboardPage selectedYearId={globalYearId} selectedSemesterId={globalSemesterId} />}
         </main>
       </div>

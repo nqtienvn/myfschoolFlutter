@@ -1,14 +1,21 @@
 package vn.edu.fpt.myfschool.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import vn.edu.fpt.myfschool.common.dto.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import vn.edu.fpt.myfschool.common.dto.AnnouncementDto;
+import vn.edu.fpt.myfschool.common.dto.ApiResponse;
+import vn.edu.fpt.myfschool.common.dto.CreateAnnouncementRequest;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.AnnouncementService;
@@ -19,7 +26,6 @@ import java.util.List;
 @RequestMapping("/api/announcements")
 @RequiredArgsConstructor
 @Tag(name = "Announcements", description = "Thông báo lớp học")
-@SecurityRequirement(name = "Bearer Authentication")
 public class AnnouncementController {
 
     private final AnnouncementService announcementService;
@@ -30,9 +36,9 @@ public class AnnouncementController {
     public ResponseEntity<ApiResponse<AnnouncementDto>> createAnnouncement(
             @Valid @RequestBody CreateAnnouncementRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Tạo thông báo thành công",
-            announcementService.createAnnouncement(request.title(), request.body(),
-                request.targetRole(), request.requiresReply() != null ? request.requiresReply() : false,
-                request.classIds(), SecurityUtil.getCurrentUserId())));
+                announcementService.createAnnouncement(request.title(), request.body(),
+                        request.targetRole(), request.requiresReply() != null ? request.requiresReply() : false,
+                        request.classIds(), SecurityUtil.getCurrentUserId())));
     }
 
     @GetMapping("/mine")
@@ -40,7 +46,7 @@ public class AnnouncementController {
     @Operation(summary = "Thông báo đã gửi")
     public ResponseEntity<ApiResponse<List<AnnouncementDto>>> getMyAnnouncements() {
         return ResponseEntity.ok(ApiResponse.success(
-            announcementService.getMyAnnouncements(SecurityUtil.getCurrentUserId())));
+                announcementService.getMyAnnouncements(SecurityUtil.getCurrentUserId())));
     }
 
     @GetMapping("/{id}")
@@ -48,7 +54,7 @@ public class AnnouncementController {
     @Operation(summary = "Chi tiết thông báo")
     public ResponseEntity<ApiResponse<AnnouncementDto>> getAnnouncementDetail(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(
-            announcementService.getAnnouncementDetail(id, SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole())));
+                announcementService.getAnnouncementDetail(id, SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole())));
     }
 
     @GetMapping
@@ -57,7 +63,7 @@ public class AnnouncementController {
     public ResponseEntity<ApiResponse<List<AnnouncementDto>>> getAnnouncements() {
         UserRole role = SecurityUtil.getCurrentUserRole();
         return ResponseEntity.ok(ApiResponse.success(
-            announcementService.getAnnouncements(SecurityUtil.getCurrentUserId(), role)));
+                announcementService.getAnnouncements(SecurityUtil.getCurrentUserId(), role)));
     }
 
     @PutMapping("/{id}/read")
@@ -74,6 +80,6 @@ public class AnnouncementController {
     public ResponseEntity<ApiResponse<Long>> getUnreadCount() {
         UserRole role = SecurityUtil.getCurrentUserRole();
         return ResponseEntity.ok(ApiResponse.success(
-            announcementService.getUnreadCount(SecurityUtil.getCurrentUserId(), role)));
+                announcementService.getUnreadCount(SecurityUtil.getCurrentUserId(), role)));
     }
 }

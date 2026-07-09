@@ -1,14 +1,24 @@
 package vn.edu.fpt.myfschool.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import vn.edu.fpt.myfschool.common.dto.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import vn.edu.fpt.myfschool.common.dto.ApiResponse;
+import vn.edu.fpt.myfschool.common.dto.CreateLeaveRequestRequest;
+import vn.edu.fpt.myfschool.common.dto.LeaveRequestDto;
+import vn.edu.fpt.myfschool.common.dto.ReviewLeaveRequestRequest;
 import vn.edu.fpt.myfschool.common.enums.LeaveStatus;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.LeaveRequestService;
@@ -19,7 +29,6 @@ import java.util.List;
 @RequestMapping("/api/leave-requests")
 @RequiredArgsConstructor
 @Tag(name = "Leave Requests", description = "Đơn xin nghỉ học")
-@SecurityRequirement(name = "Bearer Authentication")
 public class LeaveRequestController {
 
     private final LeaveRequestService leaveRequestService;
@@ -30,7 +39,7 @@ public class LeaveRequestController {
     public ResponseEntity<ApiResponse<LeaveRequestDto>> createLeaveRequest(
             @Valid @RequestBody CreateLeaveRequestRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Tạo đơn thành công",
-            leaveRequestService.createLeaveRequest(request, SecurityUtil.getCurrentUserId())));
+                leaveRequestService.createLeaveRequest(request, SecurityUtil.getCurrentUserId())));
     }
 
     @GetMapping("/my")
@@ -38,7 +47,7 @@ public class LeaveRequestController {
     @Operation(summary = "Đơn của tôi")
     public ResponseEntity<ApiResponse<List<LeaveRequestDto>>> getMyLeaveRequests() {
         return ResponseEntity.ok(ApiResponse.success(
-            leaveRequestService.getParentLeaveRequests(SecurityUtil.getCurrentUserId())));
+                leaveRequestService.getParentLeaveRequests(SecurityUtil.getCurrentUserId())));
     }
 
     @GetMapping("/pending")
@@ -46,7 +55,7 @@ public class LeaveRequestController {
     @Operation(summary = "Đơn chờ duyệt")
     public ResponseEntity<ApiResponse<List<LeaveRequestDto>>> getPendingRequests() {
         return ResponseEntity.ok(ApiResponse.success(
-            leaveRequestService.getPendingLeaveRequests(SecurityUtil.getCurrentUserId())));
+                leaveRequestService.getPendingLeaveRequests(SecurityUtil.getCurrentUserId())));
     }
 
     @GetMapping("/class")
@@ -56,7 +65,7 @@ public class LeaveRequestController {
             @RequestParam Long classId,
             @RequestParam(required = false) LeaveStatus status) {
         return ResponseEntity.ok(ApiResponse.success(
-            leaveRequestService.getClassLeaveRequests(classId, status, SecurityUtil.getCurrentUserId())));
+                leaveRequestService.getClassLeaveRequests(classId, status, SecurityUtil.getCurrentUserId())));
     }
 
     @PutMapping("/{id}/approve")
@@ -64,7 +73,7 @@ public class LeaveRequestController {
     @Operation(summary = "Duyệt đơn")
     public ResponseEntity<ApiResponse<LeaveRequestDto>> approveRequest(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success("Duyệt đơn thành công",
-            leaveRequestService.approveLeaveRequest(id, null, SecurityUtil.getCurrentUserId())));
+                leaveRequestService.approveLeaveRequest(id, null, SecurityUtil.getCurrentUserId())));
     }
 
     @PutMapping("/{id}/reject")
@@ -74,7 +83,7 @@ public class LeaveRequestController {
             @PathVariable Long id,
             @RequestBody ReviewLeaveRequestRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Từ chối đơn thành công",
-            leaveRequestService.rejectLeaveRequest(id, request.response(), SecurityUtil.getCurrentUserId())));
+                leaveRequestService.rejectLeaveRequest(id, request.response(), SecurityUtil.getCurrentUserId())));
     }
 
     @DeleteMapping("/{id}")
@@ -90,6 +99,6 @@ public class LeaveRequestController {
     @Operation(summary = "Đếm đơn chờ")
     public ResponseEntity<ApiResponse<Long>> getPendingCount() {
         return ResponseEntity.ok(ApiResponse.success(
-            leaveRequestService.getPendingCount(SecurityUtil.getCurrentUserId())));
+                leaveRequestService.getPendingCount(SecurityUtil.getCurrentUserId())));
     }
 }

@@ -1,7 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 export function getToken(): string | null {
-  return localStorage.getItem('admin_token') || 'mock-token-for-dev';
+  return localStorage.getItem('admin_token');
 }
 
 export function setToken(token: string) {
@@ -26,7 +26,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
 
   if (res.status === 401 || res.status === 403) {
     clearToken();
-    window.location.hash = '#/login';
+    window.location.reload();
     throw new Error('Unauthorized');
   }
 

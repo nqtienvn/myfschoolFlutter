@@ -4,7 +4,13 @@ export async function getAcademicYears() {
   return apiFetch('/academic-years');
 }
 
-export async function createAcademicYear(data: { name: string; startDate: string; endDate: string; status: string }) {
+export async function createAcademicYear(
+  data:
+    {
+      startDate: string;
+      endDate: string;
+    }) {
+
   return apiFetch('/academic-years', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -54,4 +60,12 @@ export async function completeAcademicYear(id: number) {
 
 export async function getAcademicYearArchiveStats(id: number) {
   return apiFetch(`/academic-years/${id}/archive-stats`);
+}
+
+export async function updateAcademicYear(id: number, data: { startDate: string; endDate: string }) {
+  return apiFetch(`/academic-years/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
 }

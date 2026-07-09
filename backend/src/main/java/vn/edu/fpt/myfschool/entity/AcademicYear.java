@@ -6,16 +6,19 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
-
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "academic_years", uniqueConstraints = @UniqueConstraint(columnNames = "name"))
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class AcademicYear extends BaseEntity {
 
     @Column(nullable = false, unique = true, length = 20)

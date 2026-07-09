@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getGradeLevels, getShifts, getPeriods } from '../api/masterData';
 import { getSubjects, createSubject, deleteSubject } from '../api/subject';
-import { getAcademicYears, createAcademicYear, generate10Years, openAcademicYear, openSemester2, completeAcademicYear } from '../api/academicYear';
+import { getAcademicYears, createAcademicYear, openAcademicYear, openSemester2, completeAcademicYear, updateAcademicYear } from '../api/academicYear';
 import { getSemesters, createSemester, setCurrentSemester, deleteSemester } from '../api/semester';
 import AcademicYearArchiveView from './AcademicYearArchiveView';
 
@@ -67,19 +67,98 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
   const [shifts, setShifts] = useState<SchoolShift[]>([]);
   const [periods, setPeriods] = useState<Period[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  
   // State for Academic Years and Semesters
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
   const [creating, setCreating] = useState(false);
   const [archiveYearId, setArchiveYearId] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [editingYearId, setEditingYearId] = useState<number | null>(null);
 
   const [subjectName, setSubjectName] = useState('');
   const [subjectCode, setSubjectCode] = useState('');
-  
+
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [initializing, setInitializing] = useState(false);
+
+  async function refreshData() {
+    const yearsData = await getAcademicYears() as AcademicYearItem[];
+    setAcademicYears(yearsData || []);
+    const semsData = await getSemesters() as SemesterItem[];
+    setSemesters(semsData || []);
+    if (onYearCreated) {
+      onYearCreated();
+    }
+  }
+
+  async function handleOpenYear(yearId: number) {
+    setError('');
+    setSuccessMsg('');
+    try {
+      await openAcademicYear(yearId);
+      setSuccessMsg('Mở năm học thành công!');
+      await refreshData();
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi mở năm học');
+    }
+  }
+
+  async function handleOpenSemester2(yearId: number) {
+    setError('');
+    setSuccessMsg('');
+    try {
+      await openSemester2(yearId);
+      setSuccessMsg('Mở học kỳ 2 thành công!');
+      await refreshData();
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi mở học kỳ 2');
+    }
+  }
+
+  async function handleCompleteYear(yearId: number) {
+    setError('');
+    setSuccessMsg('');
+    try {
+      await completeAcademicYear(yearId);
+      setSuccessMsg('Kết thúc năm học thành công!');
+      await refreshData();
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi kết thúc năm học');
+    }
+  }
+
+  async function handleCreateAcademicYear() {
+    setError('');
+    setSuccessMsg('');
+
+    if (!startDate || !endDate) {
+      setError('Vui lòng nhập đầy đủ ngày bắt đầu và ngày kết thúc');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      if (editingYearId) {
+        await updateAcademicYear(editingYearId, { startDate, endDate });
+        setSuccessMsg('Cập nhật năm học thành công!');
+        setEditingYearId(null);
+      } else {
+        await createAcademicYear({
+          startDate: startDate,
+          endDate: endDate
+        });
+        setSuccessMsg('Tạo năm học mới thành công!');
+      }
+      setStartDate('');
+      setEndDate('');
+      await refreshData();
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi lưu thông tin năm học');
+    } finally {
+      setCreating(false);
+    }
+  }
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -148,109 +227,7 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
     }
   }
 
-  // Academic Years logic
-  function getCalculatedDates(year: number) {
-    const name = `${year}-${year + 1}`;
-    const yearStart = `${year}-09-05`;
-    const yearEnd = `${year + 1}-05-30`;
-    const endHK1 = `${year}-12-31`;
-    const startHK2 = `${year + 1}-01-01`;
-    const endHK2 = `${year + 1}-05-30`;
-    return {
-      name,
-      yearStart,
-      yearEnd,
-      hk1: { start: yearStart, end: endHK1 },
-      hk2: { start: startHK2, end: endHK2 }
-    };
-  }
-
-  async function handleAdd10Years() {
-    setError('');
-    setSuccessMsg('');
-    setCreating(true);
-
-    try {
-      await generate10Years();
-
-      setSuccessMsg('Khởi tạo thành công 10 niên khóa tiếp theo kèm 2 học kỳ!');
-
-      // Làm mới dữ liệu
-      const updatedYearsData = await getAcademicYears() as AcademicYearItem[];
-      setAcademicYears(updatedYearsData || []);
-      const semsData = await getSemesters() as SemesterItem[];
-      setSemesters(semsData || []);
-
-      if (onYearCreated) {
-        onYearCreated();
-      }
-    } catch (err: any) {
-      setError(err.message || 'Lỗi trong quá trình tạo 10 năm học');
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  async function refreshData() {
-    const yearsData = await getAcademicYears() as AcademicYearItem[];
-    setAcademicYears(yearsData || []);
-    const semsData = await getSemesters() as SemesterItem[];
-    setSemesters(semsData || []);
-    if (onYearCreated) {
-      onYearCreated();
-    }
-  }
-
-  async function handleOpenYear(yearId: number) {
-    setError('');
-    setSuccessMsg('');
-    try {
-      await openAcademicYear(yearId);
-      setSuccessMsg('Mở năm học thành công!');
-      await refreshData();
-    } catch (err: any) {
-      setError(err.message || 'Lỗi khi mở năm học');
-    }
-  }
-
-  async function handleOpenSemester2(yearId: number) {
-    setError('');
-    setSuccessMsg('');
-    try {
-      await openSemester2(yearId);
-      setSuccessMsg('Mở học kỳ 2 thành công!');
-      await refreshData();
-    } catch (err: any) {
-      setError(err.message || 'Lỗi khi mở học kỳ 2');
-    }
-  }
-
-  async function handleCompleteYear(yearId: number) {
-    setError('');
-    setSuccessMsg('');
-    try {
-      await completeAcademicYear(yearId);
-      setSuccessMsg('Kết thúc năm học thành công!');
-      await refreshData();
-    } catch (err: any) {
-      setError(err.message || 'Lỗi khi kết thúc năm học');
-    }
-  }
-
-  async function handleLoadData() {
-    setError('');
-    setSuccessMsg('');
-    setInitializing(true);
-    try {
-      const timerPromise = new Promise(resolve => setTimeout(resolve, 2000));
-      await Promise.all([fetchMasterData(), timerPromise]);
-      setSuccessMsg('Tải dữ liệu danh mục thành công!');
-    } catch (err: any) {
-      setError(err.message || 'Lỗi khi tải dữ liệu');
-    } finally {
-      setInitializing(false);
-    }
-  }
+  const hasActiveYear = academicYears.some(y => y.status === 'ACTIVE');
 
   if (archiveYearId) {
     return <AcademicYearArchiveView yearId={archiveYearId} onBack={() => setArchiveYearId(null)} />;
@@ -258,15 +235,8 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px', borderBottom: '2px solid #000000', paddingBottom: '12px' }}>
+      <div style={{ marginBottom: '24px', borderBottom: '2px solid #000000', paddingBottom: '12px' }}>
         <h2 style={{ margin: 0, border: 'none', padding: 0 }}>Quản lý danh mục chung (Master Data)</h2>
-        <button 
-          onClick={handleLoadData} 
-          disabled={initializing}
-          style={{ height: '34px', padding: '0 16px', background: '#000000', color: '#ffffff', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
-        >
-          Tải dữ liệu
-        </button>
       </div>
 
       <div className="tabs-container">
@@ -280,9 +250,246 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
       {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
       {successMsg && <div style={{ color: '#16a34a', fontFamily: 'ui-monospace, monospace', fontSize: '13px', marginBottom: '16px' }}>[SUCCESS] {successMsg}</div>}
 
-      {/* Tab: Grade Levels Read-only */}
+      {activeTab === 'academic-years' && (
+        <div className="master-data-layout">
+          {/* Left: List of academic years and semesters (7 parts / 70% width) */}
+          <div className="master-data-main">
+            <div className="table-responsive">
+              <table>
+              <thead>
+                <tr>
+                  <th>Năm học</th>
+                  <th>Học kỳ</th>
+                  <th>Ngày bắt đầu</th>
+                  <th>Ngày kết thúc</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...academicYears].sort((a, b) => b.id - a.id).map(year => {
+                  const yearSemesters = semesters.filter(sem => sem.academicYearId === year.id);
+                  if (yearSemesters.length === 0) {
+                    return (
+                      <tr key={`year-${year.id}`}>
+                        <td style={{ fontWeight: 600 }}>{year.name}</td>
+                        <td colSpan={5} style={{ color: '#737373', fontStyle: 'italic', padding: '12px 16px' }}>
+                          Chưa có học kỳ nào
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return yearSemesters.map((sem, index) => (
+                    <tr key={sem.id}>
+                      {index === 0 ? (
+                        <td rowSpan={yearSemesters.length} style={{ fontWeight: 600, verticalAlign: 'middle', borderRight: '1px solid #e5e5e5' }}>
+                          {year.name}
+                          <div className="year-sub-info">
+                            ({year.startDate} - {year.endDate})
+                          </div>
+                          <div className="year-status-container">
+                            <span className={`badge-status ${year.status === 'ACTIVE' ? 'active' : year.status === 'COMPLETED' ? 'completed' : 'preparing'}`}>
+                              {year.status === 'DRAFT' ? 'CHƯA BẮT ĐẦU' : year.status === 'ACTIVE' ? 'ĐANG HOẠT ĐỘNG' : 'HOÀN THÀNH'}
+                            </span>
+                          </div>
+                        </td>
+                      ) : null}
+                      <td style={{ fontWeight: 600 }}>{sem.name}</td>
+                      <td>{sem.startDate}</td>
+                      <td>{sem.endDate}</td>
+                      <td>
+                        <span className={`badge-status ${sem.status === 'ACTIVE' ? 'active' : sem.status === 'COMPLETED' ? 'completed' : 'preparing'}`}>
+                          {sem.status === 'NOT_STARTED' ? 'CHƯA BẮT ĐẦU' : sem.status === 'ACTIVE' ? 'ĐANG HOẠT ĐỘNG' : 'HOÀN THÀNH'}
+                        </span>
+                      </td>
+                      {index === 0 ? (
+                        <td rowSpan={yearSemesters.length} style={{ verticalAlign: 'middle', borderLeft: '1px solid #e5e5e5', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                            {year.status === 'DRAFT' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingYearId(year.id);
+                                  setStartDate(year.startDate);
+                                  setEndDate(year.endDate);
+                                  setError('');
+                                  setSuccessMsg('');
+                                }}
+                                className="btn-edit-year"
+                                style={{ margin: 0, width: '100px' }}
+                              >
+                                Sửa
+                              </button>
+                            )}
+
+                            {year.status === 'DRAFT' && !hasActiveYear && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenYear(year.id)}
+                                style={{
+                                  background: '#000000',
+                                  color: '#ffffff',
+                                  border: '1px solid #000000',
+                                  padding: '2px 8px',
+                                  fontSize: '10px',
+                                  fontWeight: 'bold',
+                                  cursor: 'pointer',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em',
+                                  width: '100px'
+                                }}
+                              >
+                                Mở năm học
+                              </button>
+                            )}
+
+                            {year.status === 'ACTIVE' && (() => {
+                              const sem2 = yearSemesters.find(sem => sem.order === 2);
+                              if (sem2 && sem2.status === 'NOT_STARTED') {
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenSemester2(year.id)}
+                                    style={{
+                                      background: '#000000',
+                                      color: '#ffffff',
+                                      border: '1px solid #000000',
+                                      padding: '2px 8px',
+                                      fontSize: '10px',
+                                      fontWeight: 'bold',
+                                      cursor: 'pointer',
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.05em',
+                                      width: '100px'
+                                    }}
+                                  >
+                                    Mở HK2
+                                  </button>
+                                );
+                              }
+                              if (sem2 && sem2.status === 'ACTIVE') {
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCompleteYear(year.id)}
+                                    style={{
+                                      background: '#ef4444',
+                                      color: '#ffffff',
+                                      border: '1px solid #ef4444',
+                                      padding: '2px 8px',
+                                      fontSize: '10px',
+                                      fontWeight: 'bold',
+                                      cursor: 'pointer',
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.05em',
+                                      width: '100px'
+                                    }}
+                                  >
+                                    Kết thúc năm
+                                  </button>
+                                );
+                              }
+                              return null;
+                            })()}
+
+                            {year.status === 'COMPLETED' && (
+                              <button
+                                type="button"
+                                onClick={() => setArchiveYearId(String(year.id))}
+                                style={{
+                                  background: '#ffffff',
+                                  color: '#000000',
+                                  border: '1px solid #000000',
+                                  padding: '2px 8px',
+                                  fontSize: '10px',
+                                  fontWeight: 'bold',
+                                  cursor: 'pointer',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em',
+                                  width: '100px'
+                                }}
+                              >
+                                Thống kê
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      ) : null}
+                    </tr>
+                  ));
+                })}
+                {academicYears.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', color: '#737373', padding: '20px' }}>
+                      Chưa có dữ liệu năm học nào.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+          {/* Right: Form to add new academic year (3 parts / 30% width) */}
+          <div className="master-data-side">
+            <div className="master-data-form-card">
+              <h3>
+                {editingYearId ? 'Cập nhật năm học' : 'Thêm năm học mới'}
+              </h3>
+
+              <div className="form-group">
+                <label>Nhập ngày bắt đầu, ngày kết thúc</label>
+                <div className="date-input-row">
+                  <input
+                    type="date"
+                    placeholder="Ngày bắt đầu"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                    className="date-input-field"
+                  />
+                  <input
+                    type="date"
+                    placeholder="Ngày kết thúc"
+                    value={endDate}
+                    onChange={e => setEndDate(e.target.value)}
+                    className="date-input-field"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCreateAcademicYear}
+                disabled={creating}
+                className="btn-primary-block"
+              >
+                {creating ? 'Đang lưu...' : (editingYearId ? 'Cập nhật' : 'Tạo năm học')}
+              </button>
+
+              {editingYearId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingYearId(null);
+                    setStartDate('');
+                    setEndDate('');
+                    setError('');
+                    setSuccessMsg('');
+                  }}
+                  className="btn-edit-year"
+                  style={{ margin: '8px 0 0 0', width: '100%', height: '38px' }}
+                >
+                  Hủy
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'grade-levels' && (
-        <table>
+        <div className="table-responsive">
+          <table>
           <thead>
             <tr>
               <th>Thứ tự</th>
@@ -309,11 +516,12 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
             )}
           </tbody>
         </table>
+        </div>
       )}
 
-      {/* Tab: Shifts Read-only */}
       {activeTab === 'shifts' && (
-        <table>
+        <div className="table-responsive">
+          <table>
           <thead>
             <tr>
               <th>Thứ tự</th>
@@ -338,11 +546,12 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
             )}
           </tbody>
         </table>
+        </div>
       )}
 
-      {/* Tab: Periods Read-only */}
       {activeTab === 'periods' && (
-        <table>
+        <div className="table-responsive">
+          <table>
           <thead>
             <tr>
               <th>Thứ tự tiết</th>
@@ -367,27 +576,27 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
             )}
           </tbody>
         </table>
+        </div>
       )}
-      
-      {/* Tab: Subjects CRUD */}
+
       {activeTab === 'subjects' && (
         <div>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-            <input 
-              type="text" 
-              placeholder="Tên môn học (Ví dụ: Toán học)" 
-              value={subjectName} 
-              onChange={e => setSubjectName(e.target.value)} 
+            <input
+              type="text"
+              placeholder="Tên môn học (Ví dụ: Toán học)"
+              value={subjectName}
+              onChange={e => setSubjectName(e.target.value)}
               style={{ flex: 1, minWidth: '180px', height: '38px', padding: '8px', border: '1px solid #d4d4d4' }}
             />
-            <input 
-              type="text" 
-              placeholder="Mã môn học (Ví dụ: TOAN)" 
-              value={subjectCode} 
-              onChange={e => setSubjectCode(e.target.value)} 
+            <input
+              type="text"
+              placeholder="Mã môn học (Ví dụ: TOAN)"
+              value={subjectCode}
+              onChange={e => setSubjectCode(e.target.value)}
               style={{ width: '150px', height: '38px', padding: '8px', border: '1px solid #d4d4d4' }}
             />
-            <button 
+            <button
               onClick={createSubjectItem}
               style={{ height: '38px', padding: '0 16px', background: '#000000', color: '#ffffff', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
             >
@@ -395,7 +604,8 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
             </button>
           </div>
 
-          <table>
+          <div className="table-responsive">
+            <table>
             <thead>
               <tr>
                 <th>ID</th>
@@ -411,7 +621,7 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
                   <td style={{ fontWeight: 600 }}>{s.name}</td>
                   <td>{s.code}</td>
                   <td style={{ textAlign: 'center' }}>
-                    <button 
+                    <button
                       onClick={() => deleteSubjectItem(s.id)}
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', padding: '4px 10px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
                     >
@@ -430,178 +640,10 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
             </tbody>
           </table>
         </div>
-      )}
+      </div>
+    )}
 
-      {/* Tab: Academic Years & Semesters CRUD */}
-      {activeTab === 'academic-years' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', alignItems: 'start' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Niên khóa</th>
-                  <th>Ngày bắt đầu</th>
-                  <th>Ngày kết thúc</th>
-                  <th>Trạng thái</th>
-                  <th style={{ minWidth: '240px' }}>Học kỳ trực thuộc</th>
-                  <th style={{ width: '120px', textAlign: 'center' }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {academicYears.map(year => {
-                  const yearSemesters = semesters.filter(s => s.academicYearId === year.id);
-                  return (
-                    <tr key={year.id}>
-                      <td style={{ fontWeight: 'bold', fontSize: '14px' }}>
-                        Năm học {year.name}
-                      </td>
-                      <td>{year.startDate}</td>
-                      <td>{year.endDate}</td>
-                      <td>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 'bold',
-                          background: year.status === 'ACTIVE' ? '#dcfce7' : year.status === 'COMPLETED' ? '#f5f5f5' : '#fef9c3',
-                          color: year.status === 'ACTIVE' ? '#16a34a' : year.status === 'COMPLETED' ? '#737373' : '#ca8a04',
-                          border: year.status === 'ACTIVE' ? '1px solid #16a34a' : year.status === 'COMPLETED' ? '1px solid #737373' : '1px solid #ca8a04'
-                        }}>
-                          {year.status === 'ACTIVE' ? 'Đang hoạt động' : year.status === 'COMPLETED' ? 'Đã hoàn thành' : 'Bản nháp'}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          {yearSemesters.map(s => (
-                            <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', background: '#fafafa', border: '1px solid #e5e5e5', borderRadius: '4px', padding: '6px 10px', borderLeft: s.status === 'ACTIVE' ? '4px solid #16a34a' : '1px solid #e5e5e5' }}>
-                              <span style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontWeight: 600, color: s.status === 'ACTIVE' ? '#16a34a' : '#171717' }}>
-                                  {s.name}
-                                </span>
-                                <span style={{ fontSize: '11px', color: '#737373', marginTop: '2px' }}>
-                                  {s.startDate} → {s.endDate}
-                                </span>
-                              </span>
-                              <div>
-                                <span style={{
-                                  display: 'inline-block',
-                                  padding: '2px 6px',
-                                  borderRadius: '3px',
-                                  fontSize: '10px',
-                                  fontWeight: 'bold',
-                                  background: s.status === 'ACTIVE' ? '#dcfce7' : s.status === 'COMPLETED' ? '#f5f5f5' : '#f1f5f9',
-                                  color: s.status === 'ACTIVE' ? '#16a34a' : s.status === 'COMPLETED' ? '#737373' : '#64748b'
-                                }}>
-                                  {s.status === 'ACTIVE' ? 'Đang hoạt động' : s.status === 'COMPLETED' ? 'Đã hoàn thành' : 'Chưa bắt đầu'}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                          {yearSemesters.length === 0 && <span style={{ color: '#a3a3a3', fontStyle: 'italic', fontSize: '12px' }}>Không có học kỳ</span>}
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'stretch' }}>
-                          {year.status === 'DRAFT' && (
-                            <button
-                              onClick={() => handleOpenYear(year.id)}
-                              style={{ background: '#16a34a', color: '#ffffff', border: 'none', padding: '6px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
-                            >
-                              Mở năm học
-                            </button>
-                          )}
-                          {year.status === 'ACTIVE' && (() => {
-                            const sem1 = yearSemesters.find(s => s.order === 1);
-                            const sem2 = yearSemesters.find(s => s.order === 2);
-                            if (sem1?.status === 'ACTIVE' && sem2?.status === 'NOT_STARTED') {
-                              return (
-                                <button
-                                  onClick={() => handleOpenSemester2(year.id)}
-                                  style={{ background: '#3c50e0', color: '#ffffff', border: 'none', padding: '6px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
-                                >
-                                  Mở học kỳ 2
-                                </button>
-                              );
-                            }
-                            if (sem2?.status === 'ACTIVE') {
-                              return (
-                                <button
-                                  onClick={() => handleCompleteYear(year.id)}
-                                  style={{ background: '#ef4444', color: '#ffffff', border: 'none', padding: '6px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
-                                >
-                                  Kết thúc năm học
-                                </button>
-                              );
-                            }
-                            return <span style={{ fontSize: '11px', color: '#737373' }}>-</span>;
-                          })()}
-                          {year.status === 'COMPLETED' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                              <span style={{ fontSize: '11px', color: '#737373', fontStyle: 'italic' }}>Đã kết thúc</span>
-                              <button
-                                onClick={() => setArchiveYearId(String(year.id))}
-                                style={{ background: '#000000', color: '#ffffff', border: 'none', padding: '4px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px' }}
-                              >
-                                📁 Hồ sơ năm học
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {academicYears.length === 0 && (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', color: '#737373', padding: '20px' }}>
-                      Chưa có dữ liệu năm học nào.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
 
-          <div style={{ background: '#ffffff', border: '1px solid #000000', padding: '20px' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '12px', paddingBottom: '6px', borderBottom: '1px solid #e5e5e5' }}>
-              Quản lý niên khóa
-            </h3>
-            <p style={{ fontSize: '12px', color: '#666', marginBottom: '16px', lineHeight: '1.4' }}>
-              Khởi tạo hàng loạt 10 niên khóa tiếp theo kèm 2 học kỳ (Học kỳ 1 & Học kỳ 2) tính từ niên khóa cuối cùng trong hệ thống.
-            </p>
-            <button
-              onClick={handleAdd10Years}
-              disabled={creating}
-              style={{ width: '100%', height: '38px', background: '#000000', color: '#ffffff', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
-            >
-              {creating ? 'Đang khởi tạo...' : 'Thêm 10 niên khóa tiếp theo'}
-            </button>
-          </div>
-        </div>
-      )}
-      {initializing && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(255, 255, 255, 0.75)',
-          backdropFilter: 'blur(5px)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 9999,
-          gap: '16px'
-        }}>
-          <div className="spinner" />
-          <span style={{ fontSize: '14px', fontWeight: 700, color: '#000000', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            Đang tải dữ liệu...
-          </span>
-        </div>
-      )}
     </div>
   );
 }
