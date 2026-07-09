@@ -2,6 +2,8 @@ package vn.edu.fpt.myfschool.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.JoinColumn;
@@ -12,6 +14,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
+import vn.edu.fpt.myfschool.common.enums.SemesterStatus;
 
 import java.time.LocalDate;
 
@@ -49,4 +52,8 @@ public class Semester extends BaseEntity {
 
     @Column(nullable = false)
     private Boolean isCurrent = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SemesterStatus status = SemesterStatus.NOT_STARTED;
 }

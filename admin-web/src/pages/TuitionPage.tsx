@@ -1,37 +1,56 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../api/client';
+import { getAcademicYears } from '../api/academicYear';
+import { getSemesters } from '../api/semester';
+import { getClasses } from '../api/class';
+import { getClassTuitionBills, deleteTuitionBill } from '../api/tuitionBill';
 
 interface AcademicYearItem { id: number; name: string; status: string; }
 interface ClassItem { id: number; name: string; academicYearId: number; academicYearName: string; }
 interface SemesterItem { id: number; name: string; academicYearId: number; academicYearName: string; isCurrent: boolean; order: number; }
 interface TuitionBill { id: number; studentName: string; studentCode: string; name: string; amount: number; dueDate: string; status: string; feeTemplateId: number | null; feeTemplateName: string | null; }
 
-export default function TuitionPage() {
+export default function TuitionPage({ selectedYearId, selectedSemesterId }: { selectedYearId?: string; selectedSemesterId?: string }) {
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
-  const [academicYearId, setAcademicYearId] = useState('');
+  const [academicYearId, setAcademicYearId] = useState(selectedYearId || '');
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
   const [items, setItems] = useState<TuitionBill[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [classId, setClassId] = useState('');
-  const [semesterId, setSemesterId] = useState('');
+  const [semesterId, setSemesterId] = useState(selectedSemesterId || '');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => { fetchAcademicYears(); }, []);
 
   useEffect(() => {
+    if (selectedYearId) {
+      setAcademicYearId(selectedYearId);
+    }
+  }, [selectedYearId]);
+
+  useEffect(() => {
+    if (selectedSemesterId) {
+      setSemesterId(selectedSemesterId);
+    }
+  }, [selectedSemesterId]);
+
+  useEffect(() => {
     if (!academicYearId) return;
     setClassId('');
-    setSemesterId('');
-    apiFetch(`/classes?academicYearId=${academicYearId}&page=0&size=100`).then((d: any) => setClasses(d.content || [])).catch(() => {});
-    apiFetch(`/semesters?academicYearId=${academicYearId}`).then((d: any) => {
+    if (!selectedSemesterId) {
+      setSemesterId('');
+    }
+    getClasses({ academicYearId, page: 0, size: 100 }).then((d: any) => setClasses(d.content || [])).catch(() => {});
+    getSemesters(academicYearId).then((d: any) => {
       const list = d || [];
       setSemesters(list);
-      const current = list.find((s: SemesterItem) => s.isCurrent) || list[0];
-      if (current) setSemesterId(String(current.id));
+      if (!selectedSemesterId) {
+        const current = list.find((s: SemesterItem) => s.isCurrent) || list[0];
+        if (current) setSemesterId(String(current.id));
+      }
     }).catch(() => {});
-  }, [academicYearId]);
+  }, [academicYearId, selectedSemesterId]);
 
   useEffect(() => {
     if (!classId || !semesterId) {
@@ -42,7 +61,7 @@ export default function TuitionPage() {
   }, [classId, semesterId]);
 
   async function fetchAcademicYears() {
-    const data = await apiFetch('/academic-years') as AcademicYearItem[];
+    const data = await getAcademicYears() as AcademicYearItem[];
     setAcademicYears(data);
     const active = data.find(y => y.status === 'ACTIVE') || data[0];
     if (active) setAcademicYearId(String(active.id));
@@ -51,7 +70,7 @@ export default function TuitionPage() {
   async function fetchItems() {
     setLoadingList(true);
     try {
-      const data = await apiFetch(`/tuition/bills/class?classId=${classId}&semesterId=${semesterId}`) as TuitionBill[];
+      const data = await getClassTuitionBills(classId, semesterId) as TuitionBill[];
       setItems(data || []);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách hóa đơn học phí');
@@ -65,7 +84,7 @@ export default function TuitionPage() {
     setError('');
     setSuccessMsg('');
     try {
-      await apiFetch(`/tuition/bills/${id}`, { method: 'DELETE' });
+      await deleteTuitionBill(id);
       setSuccessMsg('Đã xóa hóa đơn học phí.');
       fetchItems();
     } catch (err: any) {

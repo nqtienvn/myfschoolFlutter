@@ -13,4 +13,8 @@ public interface AcademicYearService {
     AcademicYearDto updateAcademicYear(Long id, CreateAcademicYearRequest request);
     AcademicYearDto updateStatus(Long id, AcademicYearStatus status);
     AcademicYear findEntity(Long id);
+    void generate10YearsWithSemesters();
+    void openAcademicYear(Long id);
+    void openSemester2(Long id);
+    void completeAcademicYear(Long id);
 }

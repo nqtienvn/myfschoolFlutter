@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { apiFetch } from '../api/client';
+import { getAcademicYears } from '../api/academicYear';
+import { getSemesters } from '../api/semester';
+import { importSchedules } from '../api/schedule';
 
 interface AcademicYearItem {
   id: number;
@@ -22,11 +24,11 @@ interface ImportResult {
   errors: string[];
 }
 
-export default function ScheduleImportPage() {
+export default function ScheduleImportPage({ selectedYearId, selectedSemesterId }: { selectedYearId?: string; selectedSemesterId?: string }) {
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
-  const [academicYearId, setAcademicYearId] = useState('');
+  const [academicYearId, setAcademicYearId] = useState(selectedYearId || '');
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
-  const [semesterId, setSemesterId] = useState('');
+  const [semesterId, setSemesterId] = useState(selectedSemesterId || '');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -39,17 +41,29 @@ export default function ScheduleImportPage() {
   }, []);
 
   useEffect(() => {
+    if (selectedYearId) {
+      setAcademicYearId(selectedYearId);
+    }
+  }, [selectedYearId]);
+
+  useEffect(() => {
+    if (selectedSemesterId) {
+      setSemesterId(selectedSemesterId);
+    }
+  }, [selectedSemesterId]);
+
+  useEffect(() => {
     if (academicYearId) {
       fetchSemesters();
     } else {
       setSemesters([]);
-      setSemesterId('');
+      if (!selectedSemesterId) setSemesterId('');
     }
-  }, [academicYearId]);
+  }, [academicYearId, selectedSemesterId]);
 
   async function fetchAcademicYears() {
     try {
-      const data = await apiFetch('/academic-years') as AcademicYearItem[];
+      const data = await getAcademicYears() as AcademicYearItem[];
       setAcademicYears(data || []);
       const active = data.find(y => y.status === 'ACTIVE') || data[0];
       if (active) setAcademicYearId(String(active.id));
@@ -60,10 +74,12 @@ export default function ScheduleImportPage() {
 
   async function fetchSemesters() {
     try {
-      const data = await apiFetch(`/semesters?academicYearId=${academicYearId}`) as SemesterItem[];
+      const data = await getSemesters(academicYearId) as SemesterItem[];
       setSemesters(data || []);
-      const current = data.find(s => s.isCurrent) || data[0];
-      if (current) setSemesterId(String(current.id));
+      if (!selectedSemesterId) {
+        const current = data.find(s => s.isCurrent) || data[0];
+        if (current) setSemesterId(String(current.id));
+      }
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách học kỳ');
     }
@@ -98,29 +114,14 @@ export default function ScheduleImportPage() {
       return;
     }
 
-    const token = localStorage.getItem('admin_token');
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('semesterId', semesterId);
 
     setLoading(true);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_BASE}/import/schedules`, {
-        method: 'POST',
-        headers,
-        body: formData
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || 'Lỗi tải tệp lên');
-      }
-
-      setResult(json.data);
+      const data = await importSchedules(formData);
+      setResult(data);
       setSuccessMsg('Đã nhập thời khóa biểu thành công!');
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';

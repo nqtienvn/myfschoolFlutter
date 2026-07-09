@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { apiFetch } from '../api/client';
+import { getAcademicYears } from '../api/academicYear';
+import { importEnrollments } from '../api/enrollment';
 
 interface AcademicYearItem {
   id: number;
@@ -36,7 +37,7 @@ export default function EnrollmentImportPage({ selectedYearId }: { selectedYearI
 
   async function fetchAcademicYears() {
     try {
-      const data = await apiFetch('/academic-years') as AcademicYearItem[];
+      const data = await getAcademicYears() as AcademicYearItem[];
       setAcademicYears(data || []);
       if (!selectedYearId) {
         const active = data.find(y => y.status === 'ACTIVE') || data[0];
@@ -76,31 +77,14 @@ export default function EnrollmentImportPage({ selectedYearId }: { selectedYearI
       return;
     }
 
-    const token = localStorage.getItem('admin_token');
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('academicYearId', academicYearId);
 
     setLoading(true);
     try {
-      // In production, this maps to the updated student bulk import endpoint.
-      // For now, it calls our endpoint /import/enrollments
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_BASE}/import/enrollments`, {
-        method: 'POST',
-        headers,
-        body: formData
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || 'Lỗi tải tệp lên');
-      }
-
-      setResult(json.data);
+      const data = await importEnrollments(formData);
+      setResult(data);
       setSuccessMsg('Đã nhập danh sách học sinh và xếp lớp thành công!');
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -130,13 +114,12 @@ export default function EnrollmentImportPage({ selectedYearId }: { selectedYearI
       {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
       {successMsg && <div style={{ color: '#16a34a', fontFamily: 'ui-monospace, monospace', fontSize: '13px', marginBottom: '16px' }}>[SUCCESS] {successMsg}</div>}
 
-      <div className="form-grid" style={{ gridTemplateColumns: '2fr 1fr' }}>
+      <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
         <div className="form-group">
           <label>Năm học xếp lớp (Chọn ở Header trên cùng)</label>
           <div style={{ padding: '8px 12px', background: '#f3f4f6', border: '1px solid #d1d5db', fontSize: '13px', fontWeight: 'bold', fontFamily: 'ui-monospace, monospace' }}>
             NĂM HỌC {academicYears.find(y => String(y.id) === academicYearId)?.name || 'CHƯA CHỌN'}
           </div>
-          <span className="input-desc">Học sinh sẽ được xếp vào lớp thuộc năm học hoạt động hiện tại.</span>
         </div>
 
         <div className="form-group" style={{ display: 'flex', justifyContent: 'flex-end', height: '100%' }}>
@@ -156,15 +139,14 @@ export default function EnrollmentImportPage({ selectedYearId }: { selectedYearI
       />
 
       <div className="file-upload-zone" onClick={() => fileInputRef.current?.click()}>
-        <p>{selectedFile ? `Đã chọn: ${selectedFile.name}` : 'Bấm vào đây để chọn tệp Excel (.xlsx, .xls) chứa danh sách học sinh xếp lớp & phụ huynh'}</p>
-        <span>Tệp Excel phải chứa các cột: Mã học sinh, Họ và tên, Ngày sinh, Giới tính, Mã lớp, Tên phụ huynh, Số điện thoại phụ huynh</span>
+        <p>{selectedFile ? `Đã chọn: ${selectedFile.name}` : 'Bấm vào đây để tải lên tệp Excel (.xlsx, .xls) học sinh & phụ huynh'}</p>
         <div className="csv-template-link" onClick={e => { e.stopPropagation(); downloadTemplate(); }}>Tải mẫu file CSV tại đây (.csv)</div>
       </div>
 
       {result && (
         <div style={{ background: '#ffffff', padding: 24, border: '1px solid #e5e5e5', marginTop: 24 }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, borderBottom: '1px solid #000', paddingBottom: 6 }}>KẾT QUẢ ĐỒNG BỘ DỮ LIỆU</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 24 }}>
             <div style={{ border: '1px solid #d4d4d4', padding: 16, textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 800 }}>{result.total}</div>
               <div style={{ fontSize: 11, color: '#666666', textTransform: 'uppercase', marginTop: 4 }}>Tổng bản ghi trong Excel</div>

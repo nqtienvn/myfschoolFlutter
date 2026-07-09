@@ -37,6 +37,38 @@ public class AcademicYearController {
         return ResponseEntity.ok(ApiResponse.success("Tạo năm học thành công", academicYearService.createAcademicYear(request)));
     }
 
+    @PostMapping("/generate-10-years")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Tạo 10 năm học liên tiếp kèm học kỳ")
+    public ResponseEntity<ApiResponse<Void>> generate10Years() {
+        academicYearService.generate10YearsWithSemesters();
+        return ResponseEntity.ok(ApiResponse.success("Tạo 10 năm học liên tiếp kèm học kỳ thành công", null));
+    }
+
+    @PostMapping("/{id}/open")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Mở năm học")
+    public ResponseEntity<ApiResponse<Void>> openAcademicYear(@PathVariable Long id) {
+        academicYearService.openAcademicYear(id);
+        return ResponseEntity.ok(ApiResponse.success("Mở năm học thành công", null));
+    }
+
+    @PostMapping("/{id}/open-hk2")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Mở học kỳ 2")
+    public ResponseEntity<ApiResponse<Void>> openSemester2(@PathVariable Long id) {
+        academicYearService.openSemester2(id);
+        return ResponseEntity.ok(ApiResponse.success("Mở học kỳ 2 thành công", null));
+    }
+
+    @PostMapping("/{id}/complete")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Kết thúc năm học")
+    public ResponseEntity<ApiResponse<Void>> completeAcademicYear(@PathVariable Long id) {
+        academicYearService.completeAcademicYear(id);
+        return ResponseEntity.ok(ApiResponse.success("Kết thúc năm học thành công", null));
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Sửa năm học")

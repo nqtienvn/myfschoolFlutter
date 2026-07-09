@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { apiFetch } from '../api/client';
+import { getAcademicYears } from '../api/academicYear';
+import { getClasses } from '../api/class';
+import { getSemesters } from '../api/semester';
+import { getFeeCategories } from '../api/feeCategory';
+import { getFeeTemplates, createFeeTemplate, generateTuitionFromTemplate, deleteFeeTemplate } from '../api/feeTemplate';
 
 interface AcademicYearItem { id: number; name: string; status: string; }
 interface ClassItem { id: number; name: string; academicYearId: number; academicYearName: string; }
@@ -13,15 +17,15 @@ const monthEnd = () => {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
 };
 
-export default function FeeTemplatesPage() {
+export default function FeeTemplatesPage({ selectedYearId, selectedSemesterId }: { selectedYearId?: string; selectedSemesterId?: string }) {
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
-  const [academicYearId, setAcademicYearId] = useState('');
+  const [academicYearId, setAcademicYearId] = useState(selectedYearId || '');
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
   const [categories, setCategories] = useState<FeeCategory[]>([]);
   const [items, setItems] = useState<FeeTemplate[]>([]);
   const [classId, setClassId] = useState('');
-  const [semesterId, setSemesterId] = useState('');
+  const [semesterId, setSemesterId] = useState(selectedSemesterId || '');
   const [feeCategoryId, setFeeCategoryId] = useState('');
   const [name, setName] = useState('Học phí học kỳ');
   const [amount, setAmount] = useState(3000000);
@@ -31,25 +35,41 @@ export default function FeeTemplatesPage() {
 
   useEffect(() => {
     fetchAcademicYears();
-    apiFetch('/fee-categories').then((d: FeeCategory[]) => {
+    getFeeCategories().then((d: FeeCategory[]) => {
       setCategories(d || []);
       if (d?.[0]) setFeeCategoryId(String(d[0].id));
     }).catch(() => {});
   }, []);
 
   useEffect(() => {
+    if (selectedYearId) {
+      setAcademicYearId(selectedYearId);
+    }
+  }, [selectedYearId]);
+
+  useEffect(() => {
+    if (selectedSemesterId) {
+      setSemesterId(selectedSemesterId);
+    }
+  }, [selectedSemesterId]);
+
+  useEffect(() => {
     if (!academicYearId) return;
     setClassId('');
-    setSemesterId('');
+    if (!selectedSemesterId) {
+      setSemesterId('');
+    }
     setItems([]);
-    apiFetch(`/classes?academicYearId=${academicYearId}&page=0&size=100`).then((d: any) => setClasses(d.content || [])).catch(() => {});
-    apiFetch(`/semesters?academicYearId=${academicYearId}`).then((d: SemesterItem[]) => {
+    getClasses({ academicYearId, page: 0, size: 100 }).then((d: any) => setClasses(d.content || [])).catch(() => {});
+    getSemesters(academicYearId).then((d: SemesterItem[]) => {
       const list = d || [];
       setSemesters(list);
-      const current = list.find(s => s.isCurrent) || list[0];
-      if (current) setSemesterId(String(current.id));
+      if (!selectedSemesterId) {
+        const current = list.find(s => s.isCurrent) || list[0];
+        if (current) setSemesterId(String(current.id));
+      }
     }).catch(() => {});
-  }, [academicYearId]);
+  }, [academicYearId, selectedSemesterId]);
 
   useEffect(() => {
     if (!classId || !semesterId) {
@@ -60,7 +80,7 @@ export default function FeeTemplatesPage() {
   }, [classId, semesterId]);
 
   async function fetchAcademicYears() {
-    const data = await apiFetch('/academic-years') as AcademicYearItem[];
+    const data = await getAcademicYears() as AcademicYearItem[];
     setAcademicYears(data);
     const active = data.find(y => y.status === 'ACTIVE') || data[0];
     if (active) setAcademicYearId(String(active.id));
@@ -68,7 +88,7 @@ export default function FeeTemplatesPage() {
 
   async function fetchItems() {
     try {
-      setItems(await apiFetch(`/fee-templates?classId=${classId}&semesterId=${semesterId}`));
+      setItems(await getFeeTemplates(classId, semesterId));
     } catch (err: any) {
       setError(err.message || 'Không thể tải mẫu phí');
     }
@@ -82,7 +102,7 @@ export default function FeeTemplatesPage() {
     if (isNaN(amount) || amount <= 0) return setError('Số tiền phải lớn hơn 0.');
     if (!dueDate) return setError('Vui lòng chọn hạn thanh toán.');
     try {
-      await apiFetch('/fee-templates', { method: 'POST', body: JSON.stringify({ feeCategoryId: +feeCategoryId, classId: +classId, semesterId: +semesterId, name: name.trim(), amount, dueDate }) });
+      await createFeeTemplate({ feeCategoryId: +feeCategoryId, classId: +classId, semesterId: +semesterId, name: name.trim(), amount, dueDate });
       setSuccessMsg('Đã tạo mẫu phí.');
       fetchItems();
     } catch (err: any) {
@@ -95,7 +115,7 @@ export default function FeeTemplatesPage() {
     setError('');
     setSuccessMsg('');
     try {
-      const result = await apiFetch(`/fee-templates/${id}/generate`, { method: 'POST' }) as GenerateResult;
+      const result = await generateTuitionFromTemplate(id) as GenerateResult;
       setSuccessMsg(`Đã sinh hóa đơn: ${result.created} tạo mới, ${result.skipped} bỏ qua, ${result.totalStudents} học sinh.`);
     } catch (err: any) {
       setError(err.message || 'Lỗi sinh hóa đơn');
@@ -107,7 +127,7 @@ export default function FeeTemplatesPage() {
     setError('');
     setSuccessMsg('');
     try {
-      await apiFetch(`/fee-templates/${id}`, { method: 'DELETE' });
+      await deleteFeeTemplate(id);
       setSuccessMsg('Đã xóa mẫu phí.');
       fetchItems();
     } catch (err: any) {

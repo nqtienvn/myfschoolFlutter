@@ -1,5 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { apiFetch } from '../api/client';
+import { getAcademicYears } from '../api/academicYear';
+import { getSemesters } from '../api/semester';
+import { getClasses } from '../api/class';
+import { getSubjects } from '../api/subject';
+import { getUsers } from '../api/user';
+import { 
+  getTeachingAssignments, 
+  createTeachingAssignment, 
+  updateTeachingAssignment, 
+  deleteTeachingAssignment 
+} from '../api/teachingAssignment';
 
 interface AcademicYearItem { id: number; name: string; status: string; }
 interface ClassItem { id: number; name: string; gradeLevel: number; academicYearId: number; academicYearName: string; }
@@ -19,13 +29,14 @@ interface TeachingAssignmentItem {
   semesterId: number;
   semesterName: string;
   status: string;
+  effectiveFrom: string;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function AssignmentsPage() {
+export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: { selectedYearId?: string; selectedSemesterId?: string }) {
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
-  const [academicYearId, setAcademicYearId] = useState('');
+  const [academicYearId, setAcademicYearId] = useState(selectedYearId || '');
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
@@ -34,7 +45,7 @@ export default function AssignmentsPage() {
   // Matrix specific states
   const [gradeFilter, setGradeFilter] = useState('10');
   const [subjectId, setSubjectId] = useState('');
-  const [semesterId, setSemesterId] = useState('');
+  const [semesterId, setSemesterId] = useState(selectedSemesterId || '');
   
   // Assignments map: classId -> list of assignments
   const [classAssignmentsMap, setClassAssignmentsMap] = useState<Record<number, TeachingAssignmentItem[]>>({});
@@ -49,11 +60,23 @@ export default function AssignmentsPage() {
   // Initial load
   useEffect(() => {
     fetchAcademicYears();
-    apiFetch('/subjects').then((d: any) => setSubjects(d || [])).catch(() => {});
-    apiFetch('/admin/users?role=TEACHER&page=0&size=100')
+    getSubjects().then((d: any) => setSubjects(d || [])).catch(() => {});
+    getUsers({ role: 'TEACHER', page: 0, size: 100 })
       .then((d: any) => setTeachers(d.content || d || []))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (selectedYearId) {
+      setAcademicYearId(selectedYearId);
+    }
+  }, [selectedYearId]);
+
+  useEffect(() => {
+    if (selectedSemesterId) {
+      setSemesterId(selectedSemesterId);
+    }
+  }, [selectedSemesterId]);
 
   // Academic year load
   useEffect(() => {
@@ -61,19 +84,21 @@ export default function AssignmentsPage() {
     setSubjectId('');
     setClassAssignmentsMap({});
     
-    apiFetch(`/classes?academicYearId=${academicYearId}&page=0&size=100`)
+    getClasses({ academicYearId, page: 0, size: 100 })
       .then((d: any) => setClasses(d.content || []))
       .catch(() => {});
       
-    apiFetch(`/semesters?academicYearId=${academicYearId}`)
+    getSemesters(academicYearId)
       .then((d: any) => {
         const list = d || [];
         setSemesters(list);
-        const current = list.find((s: SemesterItem) => s.isCurrent) || list[0];
-        if (current) setSemesterId(String(current.id));
+        if (!selectedSemesterId) {
+          const current = list.find((s: SemesterItem) => s.isCurrent) || list[0];
+          if (current) setSemesterId(String(current.id));
+        }
       })
       .catch(() => {});
-  }, [academicYearId]);
+  }, [academicYearId, selectedSemesterId]);
 
   // Load assignments when filter class lists or semester changes
   const filteredClasses = classes.filter(c => String(c.gradeLevel) === gradeFilter);
@@ -87,17 +112,19 @@ export default function AssignmentsPage() {
   }, [gradeFilter, semesterId, classes]);
 
   async function fetchAcademicYears() {
-    const data = await apiFetch('/academic-years') as AcademicYearItem[];
+    const data = await getAcademicYears() as AcademicYearItem[];
     setAcademicYears(data);
-    const active = data.find(y => y.status === 'ACTIVE') || data[0];
-    if (active) setAcademicYearId(String(active.id));
+    if (!selectedYearId) {
+      const active = data.find(y => y.status === 'ACTIVE') || data[0];
+      if (active) setAcademicYearId(String(active.id));
+    }
   }
 
   async function reloadAssignmentsForGrade(classesList: ClassItem[], semId: string) {
     setLoadingList(true);
     try {
       const promises = classesList.map(c => 
-        apiFetch(`/teaching-assignments?classId=${c.id}&semesterId=${semId}`)
+        getTeachingAssignments({ classId: c.id, semesterId: semId })
           .then((arr: any) => ({ classId: c.id, assignments: arr || [] }))
           .catch(() => ({ classId: c.id, assignments: [] }))
       );
@@ -149,32 +176,26 @@ export default function AssignmentsPage() {
     try {
       if (targetTeacherId === null) {
         if (existing) {
-          await apiFetch(`/teaching-assignments/${existing.id}`, { method: 'DELETE' });
+          await deleteTeachingAssignment(existing.id);
           setSuccessMsg(`Đã hủy phân công giáo viên lớp ${classItem.name}`);
         }
       } else {
         if (existing) {
-          await apiFetch(`/teaching-assignments/${existing.id}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-              classId: classItem.id,
-              subjectId: Number(subjectId),
-              teacherId: targetTeacherId,
-              semesterId: Number(semesterId),
-              effectiveFrom: today()
-            })
+          await updateTeachingAssignment(existing.id, {
+            classId: classItem.id,
+            subjectId: Number(subjectId),
+            teacherId: targetTeacherId,
+            semesterId: Number(semesterId),
+            effectiveFrom: today()
           });
           setSuccessMsg(`Đã cập nhật giáo viên giảng dạy lớp ${classItem.name}`);
         } else {
-          await apiFetch('/teaching-assignments', {
-            method: 'POST',
-            body: JSON.stringify({
-              classId: classItem.id,
-              subjectId: Number(subjectId),
-              teacherId: targetTeacherId,
-              semesterId: Number(semesterId),
-              effectiveFrom: today()
-            })
+          await createTeachingAssignment({
+            classId: classItem.id,
+            subjectId: Number(subjectId),
+            teacherId: targetTeacherId,
+            semesterId: Number(semesterId),
+            effectiveFrom: today()
           });
           setSuccessMsg(`Đã phân công giáo viên giảng dạy lớp ${classItem.name}`);
         }
@@ -208,27 +229,21 @@ export default function AssignmentsPage() {
         const existing = classAssignmentsMap[classItem.id]?.find(a => a.subjectId === Number(subjectId) && a.status === 'ACTIVE');
         if (existing) {
           if (existing.teacherId !== targetTeacherId) {
-            await apiFetch(`/teaching-assignments/${existing.id}`, {
-              method: 'PUT',
-              body: JSON.stringify({
-                classId: classItem.id,
-                subjectId: Number(subjectId),
-                teacherId: targetTeacherId,
-                semesterId: Number(semesterId),
-                effectiveFrom: today()
-              })
-            });
-          }
-        } else {
-          await apiFetch('/teaching-assignments', {
-            method: 'POST',
-            body: JSON.stringify({
+            await updateTeachingAssignment(existing.id, {
               classId: classItem.id,
               subjectId: Number(subjectId),
               teacherId: targetTeacherId,
               semesterId: Number(semesterId),
               effectiveFrom: today()
-            })
+            });
+          }
+        } else {
+          await createTeachingAssignment({
+            classId: classItem.id,
+            subjectId: Number(subjectId),
+            teacherId: targetTeacherId,
+            semesterId: Number(semesterId),
+            effectiveFrom: today()
           });
         }
       });
@@ -264,15 +279,12 @@ export default function AssignmentsPage() {
         const existing = classAssignmentsMap[classItem.id]?.find(a => a.subjectId === Number(subjectId) && a.status === 'ACTIVE');
         if (!existing) {
           const teacher = availableTeachers[idx % availableTeachers.length];
-          await apiFetch('/teaching-assignments', {
-            method: 'POST',
-            body: JSON.stringify({
-              classId: classItem.id,
-              subjectId: Number(subjectId),
-              teacherId: teacher.teacherProfile!.id,
-              semesterId: Number(semesterId),
-              effectiveFrom: today()
-            })
+          await createTeachingAssignment({
+            classId: classItem.id,
+            subjectId: Number(subjectId),
+            teacherId: teacher.teacherProfile!.id,
+            semesterId: Number(semesterId),
+            effectiveFrom: today()
           });
         }
       });
@@ -377,32 +389,26 @@ export default function AssignmentsPage() {
           const item = parsedAssignments[idx];
           setProgress(p => ({ ...p, current: idx, label: `Đang phân công: Lớp ${item.className} - Môn ${item.subjectCode} (${idx + 1}/${parsedAssignments.length})...` }));
           
-          const classAssignments = await apiFetch(`/teaching-assignments?classId=${item.classId}&semesterId=${semesterId}`).catch(() => []) as any[];
+          const classAssignments = await getTeachingAssignments({ classId: item.classId, semesterId: semesterId }).catch(() => []) as any[];
           const existing = classAssignments.find(a => a.subjectId === item.subjectId && a.status === 'ACTIVE');
 
           if (existing) {
             if (existing.teacherId !== item.teacherId) {
-              await apiFetch(`/teaching-assignments/${existing.id}`, {
-                method: 'PUT',
-                body: JSON.stringify({
-                  classId: item.classId,
-                  subjectId: item.subjectId,
-                  teacherId: item.teacherId,
-                  semesterId: Number(semesterId),
-                  effectiveFrom: today()
-                })
-              });
-            }
-          } else {
-            await apiFetch('/teaching-assignments', {
-              method: 'POST',
-              body: JSON.stringify({
+              await updateTeachingAssignment(existing.id, {
                 classId: item.classId,
                 subjectId: item.subjectId,
                 teacherId: item.teacherId,
                 semesterId: Number(semesterId),
                 effectiveFrom: today()
-              })
+              });
+            }
+          } else {
+            await createTeachingAssignment({
+              classId: item.classId,
+              subjectId: item.subjectId,
+              teacherId: item.teacherId,
+              semesterId: Number(semesterId),
+              effectiveFrom: today()
             });
           }
         }
@@ -462,7 +468,7 @@ export default function AssignmentsPage() {
           </select>
         </div>
         
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button 
             onClick={handleAutoAssign}
             disabled={loadingList || !subjectId}
@@ -474,7 +480,7 @@ export default function AssignmentsPage() {
             onClick={() => fileInputRef.current?.click()}
             style={{ height: '32px', padding: '0 12px', background: '#ffffff', color: '#000000', border: '1px solid #000000', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            Import Excel (CSV)
+            Import CSV
           </button>
           <button 
             onClick={downloadCsvTemplate}
@@ -505,7 +511,7 @@ export default function AssignmentsPage() {
       )}
 
       {/* Main Container Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', alignItems: 'start' }}>
         
         {/* LEFT COLUMN: Filters & Teachers */}
         <div style={{ background: '#ffffff', border: '1px solid #000000', padding: '16px' }}>
@@ -532,12 +538,9 @@ export default function AssignmentsPage() {
             </div>
           </div>
 
-          <h4 style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', color: '#666' }}>
+          <h4 style={{ margin: '0 0 12px 0', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', color: '#666', borderBottom: '1px dashed #e5e5e5', paddingBottom: '6px' }}>
             Danh sách Giáo viên bộ môn
           </h4>
-          <span style={{ fontSize: '11px', color: '#737373', display: 'block', marginBottom: '12px' }}>
-            * Kéo thả tên giáo viên vào cột "Giáo viên phụ trách" ở bên phải.
-          </span>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
             {teachersWithProfiles.map(t => {
@@ -694,16 +697,6 @@ export default function AssignmentsPage() {
                   })}
                 </tbody>
               </table>
-
-              <div style={{ marginTop: '16px', fontSize: '11px', color: '#737373', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>* Ô phân công tự động lưu dữ liệu sau mỗi thao tác (Auto-save).</span>
-                {subjectId && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#fef08a', border: '1px solid #eab308' }} />
-                    Cảnh báo giáo viên đang dạy từ 4 lớp trở lên
-                  </span>
-                )}
-              </div>
             </div>
           )}
         </div>

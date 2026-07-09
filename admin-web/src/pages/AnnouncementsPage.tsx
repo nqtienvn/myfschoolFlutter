@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { apiFetch } from '../api/client';
+import { createAnnouncement } from '../api/announcement';
 
 export default function AnnouncementsPage() {
   const [title, setTitle] = useState('');
@@ -7,15 +7,14 @@ export default function AnnouncementsPage() {
   const [targetRole, setTargetRole] = useState('ALL');
   const [classIds, setClassIds] = useState('');
 
-  async function createAnnouncement() {
+  async function handleCreateAnnouncement() {
     try {
-      await apiFetch('/announcements', {
-        method: 'POST',
-        body: JSON.stringify({
-          title, body, targetRole,
-          requiresReply: false,
-          classIds: classIds.split(',').map(Number).filter(Boolean),
-        }),
+      await createAnnouncement({
+        title,
+        body,
+        targetRole,
+        requiresReply: false,
+        classIds: classIds.split(',').map(Number).filter(Boolean),
       });
       alert('Tạo thông báo thành công');
       setTitle(''); setBody('');
@@ -35,7 +34,7 @@ export default function AnnouncementsPage() {
             <option value="STUDENT">Học sinh</option>
           </select>
           <input placeholder="Class IDs (phẩy)" value={classIds} onChange={e => setClassIds(e.target.value)} />
-          <button onClick={createAnnouncement}>Gửi thông báo</button>
+          <button onClick={handleCreateAnnouncement}>Gửi thông báo</button>
         </div>
       </div>
     </div>

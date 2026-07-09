@@ -1,5 +1,6 @@
 package vn.edu.fpt.myfschool.common.dto;
 
+import vn.edu.fpt.myfschool.common.enums.SemesterStatus;
 import java.time.LocalDate;
 
 public record SemesterDto(
@@ -10,5 +11,6 @@ public record SemesterDto(
     Integer order,
     LocalDate startDate,
     LocalDate endDate,
-    Boolean isCurrent
+    Boolean isCurrent,
+    SemesterStatus status
 ) {}

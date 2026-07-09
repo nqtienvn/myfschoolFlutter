@@ -6,12 +6,16 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.AcademicYearDto;
 import vn.edu.fpt.myfschool.common.dto.CreateAcademicYearRequest;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
+import vn.edu.fpt.myfschool.common.enums.SemesterStatus;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.entity.AcademicYear;
+import vn.edu.fpt.myfschool.entity.Semester;
 import vn.edu.fpt.myfschool.repository.AcademicYearRepository;
+import vn.edu.fpt.myfschool.repository.SemesterRepository;
 import vn.edu.fpt.myfschool.service.AcademicYearService;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service("academicYearService")
@@ -20,6 +24,7 @@ import java.util.List;
 public class AcademicYearServiceImpl implements AcademicYearService {
 
     private final AcademicYearRepository academicYearRepository;
+    private final SemesterRepository semesterRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -38,7 +43,9 @@ public class AcademicYearServiceImpl implements AcademicYearService {
         year.setEndDate(request.endDate());
         year.setStatus(request.status() != null ? request.status() : AcademicYearStatus.DRAFT);
         if (year.getStatus() == AcademicYearStatus.ACTIVE) deactivateActiveYears();
-        return toDto(academicYearRepository.save(year));
+        AcademicYear saved = academicYearRepository.save(year);
+        createDefaultSemesters(saved);
+        return toDto(saved);
     }
 
     @Override
@@ -71,16 +78,181 @@ public class AcademicYearServiceImpl implements AcademicYearService {
 
     private void deactivateActiveYears() {
         academicYearRepository.findByStatus(AcademicYearStatus.ACTIVE)
-            .forEach(year -> year.setStatus(AcademicYearStatus.CLOSED));
+            .forEach(year -> year.setStatus(AcademicYearStatus.COMPLETED));
     }
 
     private void deactivateOtherActiveYears(Long activeId) {
         academicYearRepository.findByStatus(AcademicYearStatus.ACTIVE).stream()
             .filter(year -> !year.getId().equals(activeId))
-            .forEach(year -> year.setStatus(AcademicYearStatus.CLOSED));
+            .forEach(year -> year.setStatus(AcademicYearStatus.COMPLETED));
     }
 
     private AcademicYearDto toDto(AcademicYear year) {
         return new AcademicYearDto(year.getId(), year.getName(), year.getStartDate(), year.getEndDate(), year.getStatus());
+    }
+
+    @Override
+    @Transactional
+    public void generate10YearsWithSemesters() {
+        List<AcademicYear> allYears = academicYearRepository.findAll();
+        
+        int nextStartYear = LocalDate.now().getYear();
+        if (!allYears.isEmpty()) {
+            int maxYear = allYears.stream()
+                .map(y -> {
+                    try {
+                        String[] parts = y.getName().split("-");
+                        return Integer.parseInt(parts[0]);
+                    } catch (Exception e) {
+                        return LocalDate.now().getYear();
+                    }
+                })
+                .max(Integer::compareTo)
+                .orElse(LocalDate.now().getYear());
+            nextStartYear = maxYear + 1;
+        }
+
+        boolean hasActive = academicYearRepository.findByStatus(AcademicYearStatus.ACTIVE).size() > 0;
+
+        for (int i = 0; i < 10; i++) {
+            int start = nextStartYear + i;
+            int end = start + 1;
+            String name = start + "-" + end;
+
+            // 1. Create Academic Year
+            AcademicYear ay = new AcademicYear();
+            ay.setName(name);
+            ay.setStartDate(LocalDate.of(start, 9, 5));
+            ay.setEndDate(LocalDate.of(end, 5, 30));
+            ay.setStatus((i == 0 && !hasActive) ? AcademicYearStatus.ACTIVE : AcademicYearStatus.DRAFT);
+            AcademicYear savedYear = academicYearRepository.save(ay);
+
+            boolean isYearActive = savedYear.getStatus() == AcademicYearStatus.ACTIVE;
+
+            // 2. Create Semester 1
+            Semester s1 = new Semester();
+            s1.setName("Học kỳ 1");
+            s1.setAcademicYear(savedYear);
+            s1.setOrder(1);
+            s1.setStartDate(LocalDate.of(start, 9, 5));
+            s1.setEndDate(LocalDate.of(start, 12, 31));
+            s1.setIsCurrent(isYearActive);
+            s1.setStatus(isYearActive ? SemesterStatus.ACTIVE : SemesterStatus.NOT_STARTED);
+            semesterRepository.save(s1);
+
+            // 3. Create Semester 2
+            Semester s2 = new Semester();
+            s2.setName("Học kỳ 2");
+            s2.setAcademicYear(savedYear);
+            s2.setOrder(2);
+            s2.setStartDate(LocalDate.of(end, 1, 1));
+            s2.setEndDate(LocalDate.of(end, 5, 30));
+            s2.setIsCurrent(false);
+            s2.setStatus(SemesterStatus.NOT_STARTED);
+            semesterRepository.save(s2);
+        }
+    }
+
+    private void createDefaultSemesters(AcademicYear year) {
+        int startYear = year.getStartDate().getYear();
+        int endYear = year.getEndDate().getYear();
+
+        boolean isYearActive = year.getStatus() == AcademicYearStatus.ACTIVE;
+
+        // 1. Create Semester 1 (HK1)
+        Semester s1 = new Semester();
+        s1.setName("Học kỳ 1");
+        s1.setAcademicYear(year);
+        s1.setOrder(1);
+        s1.setStartDate(year.getStartDate());
+        s1.setEndDate(LocalDate.of(startYear, 12, 31));
+        s1.setIsCurrent(isYearActive);
+        s1.setStatus(isYearActive ? SemesterStatus.ACTIVE : SemesterStatus.NOT_STARTED);
+        semesterRepository.save(s1);
+
+        // 2. Create Semester 2 (HK2)
+        Semester s2 = new Semester();
+        s2.setName("Học kỳ 2");
+        s2.setAcademicYear(year);
+        s2.setOrder(2);
+        s2.setStartDate(LocalDate.of(endYear, 1, 1));
+        s2.setEndDate(year.getEndDate());
+        s2.setIsCurrent(false);
+        s2.setStatus(SemesterStatus.NOT_STARTED);
+        semesterRepository.save(s2);
+    }
+
+    @Override
+    @Transactional
+    public void openAcademicYear(Long id) {
+        // 1. Close any currently active year (set status to COMPLETED)
+        List<AcademicYear> activeYears = academicYearRepository.findByStatus(AcademicYearStatus.ACTIVE);
+        for (AcademicYear activeYear : activeYears) {
+            activeYear.setStatus(AcademicYearStatus.COMPLETED);
+            academicYearRepository.save(activeYear);
+            
+            // Close active semester of that old year
+            List<Semester> semesters = semesterRepository.findByAcademicYearId(activeYear.getId());
+            for (Semester s : semesters) {
+                if (s.getStatus() == SemesterStatus.ACTIVE) {
+                    s.setStatus(SemesterStatus.COMPLETED);
+                    s.setIsCurrent(false);
+                    semesterRepository.save(s);
+                }
+            }
+        }
+
+        // 2. Open the selected year (set status to ACTIVE)
+        AcademicYear targetYear = findEntity(id);
+        targetYear.setStatus(AcademicYearStatus.ACTIVE);
+        academicYearRepository.save(targetYear);
+
+        // 3. Auto open Semester 1 of target year
+        List<Semester> targetSemesters = semesterRepository.findByAcademicYearId(targetYear.getId());
+        for (Semester s : targetSemesters) {
+            if (s.getOrder() == 1) {
+                s.setStatus(SemesterStatus.ACTIVE);
+                s.setIsCurrent(true);
+            } else {
+                s.setStatus(SemesterStatus.NOT_STARTED);
+                s.setIsCurrent(false);
+            }
+            semesterRepository.save(s);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void openSemester2(Long id) {
+        List<Semester> semesters = semesterRepository.findByAcademicYearId(id);
+        for (Semester s : semesters) {
+            if (s.getOrder() == 1) {
+                if (s.getStatus() == SemesterStatus.ACTIVE) {
+                    s.setStatus(SemesterStatus.COMPLETED);
+                }
+                s.setIsCurrent(false);
+                semesterRepository.save(s);
+            } else if (s.getOrder() == 2) {
+                s.setStatus(SemesterStatus.ACTIVE);
+                s.setIsCurrent(true);
+                semesterRepository.save(s);
+            }
+        }
+    }
+
+    @Override
+    @Transactional
+    public void completeAcademicYear(Long id) {
+        AcademicYear year = findEntity(id);
+        List<Semester> semesters = semesterRepository.findByAcademicYearId(id);
+        for (Semester s : semesters) {
+            if (s.getOrder() == 2) {
+                s.setStatus(SemesterStatus.COMPLETED);
+                s.setIsCurrent(false);
+                semesterRepository.save(s);
+            }
+        }
+        year.setStatus(AcademicYearStatus.COMPLETED);
+        academicYearRepository.save(year);
     }
 }

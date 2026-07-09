@@ -1,21 +1,25 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../api/client';
+import { getAcademicYears } from '../api/academicYear';
+import { getSemesters } from '../api/semester';
+import { getClasses } from '../api/class';
+import { getTeachingAssignments } from '../api/teachingAssignment';
+import { getClassSchedules, createSchedule, deleteSchedule } from '../api/schedule';
 
 interface AcademicYearItem { id: number; name: string; status: string; }
 interface ClassItem { id: number; name: string; academicYearId: number; academicYearName: string; }
 interface SemesterItem { id: number; name: string; academicYearId: number; academicYearName: string; isCurrent: boolean; order: number; }
 interface TeachingAssignmentItem { id: number; subjectName: string; subjectCode: string; teacherName: string; teacherCode: string; }
 
-export default function SchedulesPage() {
+export default function SchedulesPage({ selectedYearId, selectedSemesterId }: { selectedYearId?: string; selectedSemesterId?: string }) {
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
-  const [academicYearId, setAcademicYearId] = useState('');
+  const [academicYearId, setAcademicYearId] = useState(selectedYearId || '');
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
   const [assignments, setAssignments] = useState<TeachingAssignmentItem[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [loadingTkb, setLoadingTkb] = useState(false);
   const [classId, setClassId] = useState('');
-  const [semesterId, setSemesterId] = useState('');
+  const [semesterId, setSemesterId] = useState(selectedSemesterId || '');
   const [assignmentId, setAssignmentId] = useState('');
   const [dayOfWeek, setDayOfWeek] = useState(2);
   const [period, setPeriod] = useState(1);
@@ -26,19 +30,36 @@ export default function SchedulesPage() {
   const periodOptions = shift === 'MORNING' ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10];
 
   useEffect(() => { fetchAcademicYears(); }, []);
+  
+  useEffect(() => {
+    if (selectedYearId) {
+      setAcademicYearId(selectedYearId);
+    }
+  }, [selectedYearId]);
+
+  useEffect(() => {
+    if (selectedSemesterId) {
+      setSemesterId(selectedSemesterId);
+    }
+  }, [selectedSemesterId]);
+
   useEffect(() => {
     if (!academicYearId) return;
     setClassId('');
-    setSemesterId('');
+    if (!selectedSemesterId) {
+      setSemesterId('');
+    }
     setAssignments([]);
-    apiFetch(`/classes?academicYearId=${academicYearId}&page=0&size=100`).then((d: any) => setClasses(d.content || [])).catch(() => {});
-    apiFetch(`/semesters?academicYearId=${academicYearId}`).then((d: any) => {
+    getClasses({ academicYearId, page: 0, size: 100 }).then((d: any) => setClasses(d.content || [])).catch(() => {});
+    getSemesters(academicYearId).then((d: any) => {
       const list = d || [];
       setSemesters(list);
-      const current = list.find((s: SemesterItem) => s.isCurrent) || list[0];
-      if (current) setSemesterId(String(current.id));
+      if (!selectedSemesterId) {
+        const current = list.find((s: SemesterItem) => s.isCurrent) || list[0];
+        if (current) setSemesterId(String(current.id));
+      }
     }).catch(() => {});
-  }, [academicYearId]);
+  }, [academicYearId, selectedSemesterId]);
 
   useEffect(() => {
     if (!classId || !semesterId) {
@@ -51,7 +72,7 @@ export default function SchedulesPage() {
   }, [classId, semesterId]);
 
   async function fetchAcademicYears() {
-    const data = await apiFetch('/academic-years') as AcademicYearItem[];
+    const data = await getAcademicYears() as AcademicYearItem[];
     setAcademicYears(data);
     const active = data.find(y => y.status === 'ACTIVE') || data[0];
     if (active) setAcademicYearId(String(active.id));
@@ -60,7 +81,7 @@ export default function SchedulesPage() {
   async function fetchItems() {
     setLoadingTkb(true);
     try {
-      const data = await apiFetch(`/schedules/class?classId=${classId}&semesterId=${semesterId}`) as any;
+      const data = await getClassSchedules(classId, semesterId) as any;
       const allDays = data.days || [];
       const slots = allDays.flatMap((d: any) => [
         ...(d.morningSlots || []).map((s: any) => ({ ...s, shiftLabel: 'Sáng', dayName: d.dayOfWeekName })),
@@ -77,7 +98,7 @@ export default function SchedulesPage() {
 
   async function fetchAssignments() {
     try {
-      const data = await apiFetch(`/teaching-assignments?classId=${classId}&semesterId=${semesterId}`) as TeachingAssignmentItem[];
+      const data = await getTeachingAssignments({ classId, semesterId }) as TeachingAssignmentItem[];
       setAssignments(data || []);
     } catch (err: any) {
       console.error('Không tải được DS giáo viên phân công: ', err.message);
@@ -92,10 +113,7 @@ export default function SchedulesPage() {
     if (!room.trim()) return setError('Vui lòng nhập Phòng học.');
 
     try {
-      await apiFetch('/schedules', {
-        method: 'POST',
-        body: JSON.stringify({ assignmentId: +assignmentId, dayOfWeek, period, room: room.trim(), shift }),
-      });
+      await createSchedule({ assignmentId: +assignmentId, dayOfWeek, period, room: room.trim(), shift });
       setSuccessMsg('Đã thêm lịch học vào thời khóa biểu thành công!');
       setRoom('');
       setAssignmentId('');
@@ -110,7 +128,7 @@ export default function SchedulesPage() {
     setError('');
     setSuccessMsg('');
     try {
-      await apiFetch(`/schedules/${id}`, { method: 'DELETE' });
+      await deleteSchedule(id);
       setSuccessMsg('Đã xóa tiết học.');
       fetchItems();
     } catch (err: any) {

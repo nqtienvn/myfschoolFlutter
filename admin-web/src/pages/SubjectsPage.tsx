@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../api/client';
+import { getSubjects, createSubject, deleteSubject } from '../api/subject';
 
 interface Subject { id: number; name: string; code: string; }
 
@@ -9,20 +9,20 @@ export default function SubjectsPage() {
   const [code, setCode] = useState('');
 
   async function fetchItems() {
-    try { setItems(await apiFetch('/subjects')); } catch (err: any) { alert(err.message); }
+    try { setItems(await getSubjects()); } catch (err: any) { alert(err.message); }
   }
   useEffect(() => { fetchItems(); }, []);
 
   async function createItem() {
     try {
-      await apiFetch('/subjects', { method: 'POST', body: JSON.stringify({ name, code }) });
+      await createSubject({ name, code });
       setName(''); setCode(''); fetchItems();
     } catch (err: any) { alert(err.message); }
   }
 
   async function deleteItem(id: number) {
     if (!confirm('Xóa môn học?')) return;
-    try { await apiFetch(`/subjects/${id}`, { method: 'DELETE' }); fetchItems(); } catch (err: any) { alert(err.message); }
+    try { await deleteSubject(id); fetchItems(); } catch (err: any) { alert(err.message); }
   }
 
   return (

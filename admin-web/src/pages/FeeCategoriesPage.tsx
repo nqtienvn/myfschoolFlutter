@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiFetch } from '../api/client';
+import { getFeeCategories, createFeeCategory, deleteFeeCategory } from '../api/feeCategory';
 
 interface FeeCategory { id: number; name: string; description: string; }
 
@@ -14,7 +14,7 @@ export default function FeeCategoriesPage() {
 
   async function fetchItems() {
     try {
-      setItems(await apiFetch('/fee-categories'));
+      setItems(await getFeeCategories());
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh mục phí');
     }
@@ -26,7 +26,7 @@ export default function FeeCategoriesPage() {
     if (!name.trim()) return setError('Tên danh mục không được để trống.');
     if (!description.trim()) return setError('Mô tả không được để trống.');
     try {
-      await apiFetch('/fee-categories', { method: 'POST', body: JSON.stringify({ name: name.trim(), description: description.trim() }) });
+      await createFeeCategory({ name: name.trim(), description: description.trim() });
       setName('');
       setDescription('');
       setSuccessMsg('Đã tạo danh mục phí.');
@@ -41,7 +41,7 @@ export default function FeeCategoriesPage() {
     setError('');
     setSuccessMsg('');
     try {
-      await apiFetch(`/fee-categories/${id}`, { method: 'DELETE' });
+      await deleteFeeCategory(id);
       setSuccessMsg('Đã xóa danh mục phí.');
       fetchItems();
     } catch (err: any) {

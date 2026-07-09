@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiFetch } from '../api/client';
+import { getAcademicYears } from '../api/academicYear';
+import { getSemesters } from '../api/semester';
+import { getClasses } from '../api/class';
+import { getSubjects } from '../api/subject';
+import { 
+  getGradeBook, 
+  getGradeBookStudents, 
+  saveScores as apiSaveScores, 
+  finalizeGradeBook 
+} from '../api/gradeBook';
 
 interface AcademicYearItem { id: number; name: string; status: string; }
 interface ClassItem { id: number; name: string; academicYearId: number; academicYearName: string; }
@@ -9,15 +18,15 @@ interface GradeItem { id: number; name: string; weight: number; maxScore: number
 interface GradeBook { id: number; classId: number; className: string; subjectId: number; subjectName: string; semesterId: number; semesterName: string; isFinalized: boolean; items: GradeItem[]; }
 interface StudentScore { id: number | null; studentId: number; studentName: string; studentCode: string; gradeItemId: number; score: number | null; isGraded: boolean; note: string | null; isCommentBased: boolean; comment: string | null; average: number | null; }
 
-export default function GradeBookPage() {
+export default function GradeBookPage({ selectedYearId, selectedSemesterId }: { selectedYearId?: string; selectedSemesterId?: string }) {
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
-  const [academicYearId, setAcademicYearId] = useState('');
+  const [academicYearId, setAcademicYearId] = useState(selectedYearId || '');
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
   const [classId, setClassId] = useState('');
   const [subjectId, setSubjectId] = useState('');
-  const [semesterId, setSemesterId] = useState('');
+  const [semesterId, setSemesterId] = useState(selectedSemesterId || '');
   const [book, setBook] = useState<GradeBook | null>(null);
   const [scores, setScores] = useState<StudentScore[]>([]);
   const [error, setError] = useState('');
@@ -26,23 +35,37 @@ export default function GradeBookPage() {
 
   useEffect(() => {
     fetchAcademicYears();
-    apiFetch('/subjects').then((d: SubjectItem[]) => setSubjects(d || [])).catch(() => {});
+    getSubjects().then((d: SubjectItem[]) => setSubjects(d || [])).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (selectedYearId) {
+      setAcademicYearId(selectedYearId);
+    }
+  }, [selectedYearId]);
+
+  useEffect(() => {
+    if (selectedSemesterId) {
+      setSemesterId(selectedSemesterId);
+    }
+  }, [selectedSemesterId]);
 
   useEffect(() => {
     if (!academicYearId) return;
     setClassId('');
-    setSemesterId('');
+    setSubjectId('');
     setBook(null);
     setScores([]);
-    apiFetch(`/classes?academicYearId=${academicYearId}&page=0&size=100`).then((d: any) => setClasses(d.content || [])).catch(() => {});
-    apiFetch(`/semesters?academicYearId=${academicYearId}`).then((d: SemesterItem[]) => {
+    getClasses({ academicYearId, page: 0, size: 100 }).then((d: any) => setClasses(d.content || [])).catch(() => {});
+    getSemesters(academicYearId).then((d: SemesterItem[]) => {
       const list = d || [];
       setSemesters(list);
-      const current = list.find(s => s.isCurrent) || list[0];
-      if (current) setSemesterId(String(current.id));
+      if (!selectedSemesterId) {
+        const current = list.find(s => s.isCurrent) || list[0];
+        if (current) setSemesterId(String(current.id));
+      }
     }).catch(() => {});
-  }, [academicYearId]);
+  }, [academicYearId, selectedSemesterId]);
 
   const rows = useMemo(() => {
     const map = new Map<number, { studentId: number; studentName: string; studentCode: string; average: number | null; byItem: Record<number, StudentScore> }>();
@@ -56,7 +79,7 @@ export default function GradeBookPage() {
   }, [scores]);
 
   async function fetchAcademicYears() {
-    const data = await apiFetch('/academic-years') as AcademicYearItem[];
+    const data = await getAcademicYears() as AcademicYearItem[];
     setAcademicYears(data);
     const active = data.find(y => y.status === 'ACTIVE') || data[0];
     if (active) setAcademicYearId(String(active.id));
@@ -68,9 +91,9 @@ export default function GradeBookPage() {
     setSuccessMsg('');
     setLoading(true);
     try {
-      const gb = await apiFetch(`/grade-books?classId=${classId}&subjectId=${subjectId}&semesterId=${semesterId}`) as GradeBook;
+      const gb = await getGradeBook(classId, subjectId, semesterId) as GradeBook;
       setBook(gb);
-      setScores(await apiFetch(`/grade-books/${gb.id}/students`) as StudentScore[]);
+      setScores(await getGradeBookStudents(gb.id) as StudentScore[]);
     } catch (err: any) {
       setError(err.message || 'Không tải được bảng điểm');
     } finally {
@@ -91,13 +114,14 @@ export default function GradeBookPage() {
     setLoading(true);
     try {
       for (const item of book.items) {
-        await apiFetch('/grade-books/scores', {
-          method: 'PUT',
-          body: JSON.stringify({
-            gradeItemId: item.id,
-            entries: scores.filter(s => s.gradeItemId === item.id).map(s => ({ studentId: s.studentId, score: s.score, isGraded: s.isGraded, note: s.note, isCommentBased: s.isCommentBased, comment: s.comment })),
-          }),
-        });
+        await apiSaveScores(item.id, scores.filter(s => s.gradeItemId === item.id).map(s => ({
+          studentId: s.studentId,
+          score: s.score !== null ? s.score : undefined,
+          isGraded: s.isGraded,
+          note: s.note !== null ? s.note : undefined,
+          isCommentBased: s.isCommentBased,
+          comment: s.comment !== null ? s.comment : undefined
+        })));
       }
       setSuccessMsg('Đã lưu điểm.');
       loadBook();
@@ -114,7 +138,7 @@ export default function GradeBookPage() {
     setSuccessMsg('');
     setLoading(true);
     try {
-      await apiFetch(`/grade-books/${book.id}/finalize`, { method: 'POST' });
+      await finalizeGradeBook(book.id);
       setSuccessMsg('Đã khóa bảng điểm.');
       loadBook();
     } catch (err: any) {

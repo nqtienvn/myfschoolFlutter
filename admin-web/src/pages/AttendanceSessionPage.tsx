@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../api/client';
+import { getAcademicYears } from '../api/academicYear';
+import { getUsers } from '../api/user';
+import { getClasses } from '../api/class';
+import { getAttendanceSessions, createAttendanceSession, saveAttendanceDetails, closeAttendanceSession } from '../api/attendance';
 
 interface AcademicYearItem { id: number; name: string; status: string; }
 interface ClassItem { id: number; name: string; academicYearId: number; academicYearName: string; }
@@ -30,9 +33,9 @@ const STATUS_OPTIONS = [
   { value: 'ABSENT_WITHOUT_LEAVE', label: 'Vắng (không phép)' },
 ];
 
-export default function AttendanceSessionPage() {
+export default function AttendanceSessionPage({ selectedYearId, selectedSemesterId }: { selectedYearId?: string; selectedSemesterId?: string }) {
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
-  const [academicYearId, setAcademicYearId] = useState('');
+  const [academicYearId, setAcademicYearId] = useState(selectedYearId || '');
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
 
@@ -49,23 +52,29 @@ export default function AttendanceSessionPage() {
 
   useEffect(() => {
     fetchAcademicYears();
-    apiFetch('/admin/users?role=TEACHER&page=0&size=100')
+    getUsers({ role: 'TEACHER', page: 0, size: 100 })
       .then((d: any) => setTeachers(d.content || d || []))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (selectedYearId) {
+      setAcademicYearId(selectedYearId);
+    }
+  }, [selectedYearId]);
 
   useEffect(() => {
     if (!academicYearId) return;
     setClassId('');
     setSession(null);
     setDetails([]);
-    apiFetch(`/classes?academicYearId=${academicYearId}&page=0&size=100`)
+    getClasses({ academicYearId, page: 0, size: 100 })
       .then((d: any) => setClasses(d.content || []))
       .catch(() => {});
   }, [academicYearId]);
 
   async function fetchAcademicYears() {
-    const data = await apiFetch('/academic-years') as AcademicYearItem[];
+    const data = await getAcademicYears() as AcademicYearItem[];
     setAcademicYears(data);
     const active = data.find(y => y.status === 'ACTIVE') || data[0];
     if (active) setAcademicYearId(String(active.id));
@@ -80,7 +89,7 @@ export default function AttendanceSessionPage() {
     setSuccessMsg('');
     setLoading(true);
     try {
-      const data = await apiFetch(`/attendance-sessions?classId=${classId}&date=${date}&shift=${shift}`) as AttendanceSessionItem[];
+      const data = await getAttendanceSessions({ classId, date, shift }) as AttendanceSessionItem[];
       if (data.length > 0) {
         const s = data[0];
         setSession(s);
@@ -105,10 +114,7 @@ export default function AttendanceSessionPage() {
     setSuccessMsg('');
     setLoading(true);
     try {
-      const newSession = await apiFetch('/attendance-sessions', {
-        method: 'POST',
-        body: JSON.stringify({ classId: +classId, teacherId: +teacherId, date, shift }),
-      }) as AttendanceSessionItem;
+      const newSession = await createAttendanceSession({ classId: +classId, teacherId: +teacherId, date, shift }) as AttendanceSessionItem;
       setSession(newSession);
       setDetails(newSession.details || []);
       setSuccessMsg(`Đã tạo buổi điểm danh cho ${newSession.className}`);
@@ -134,10 +140,7 @@ export default function AttendanceSessionPage() {
         status: d.status,
         note: d.note || '',
       }));
-      const updated = await apiFetch(`/attendance-sessions/${session.id}/details`, {
-        method: 'PUT',
-        body: JSON.stringify({ sessionId: session.id, entries }),
-      }) as AttendanceDetailItem[];
+      const updated = await saveAttendanceDetails(session.id, entries) as AttendanceDetailItem[];
       setDetails(updated);
       // Reload session to get updated counts
       loadSession();
@@ -156,9 +159,7 @@ export default function AttendanceSessionPage() {
     setSuccessMsg('');
     setLoading(true);
     try {
-      const closed = await apiFetch(`/attendance-sessions/${session.id}/close`, {
-        method: 'POST',
-      }) as AttendanceSessionItem;
+      const closed = await closeAttendanceSession(session.id) as AttendanceSessionItem;
       setSession(closed);
       setSuccessMsg('Đã kết thúc buổi điểm danh.');
     } catch (err: any) {

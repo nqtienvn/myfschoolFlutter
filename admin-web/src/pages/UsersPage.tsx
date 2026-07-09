@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { apiFetch } from '../api/client';
 import { AdminUser } from '../api/auth';
+import { getUsers, updateUserStatus, importTeachers } from '../api/user';
 
 interface UsersPageData {
   content: AdminUser[];
@@ -37,11 +37,13 @@ export default function UsersPage() {
   async function fetchUsers() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), size: String(PAGE_SIZE) });
-      if (role) params.set('role', role);
-      if (status) params.set('status', status);
-      if (appliedKeyword) params.set('keyword', appliedKeyword);
-      const data: UsersPageData = await apiFetch(`/admin/users?${params.toString()}`);
+      const data: UsersPageData = await getUsers({
+        role: role || undefined,
+        status: status || undefined,
+        keyword: appliedKeyword || undefined,
+        page,
+        size: PAGE_SIZE
+      });
       setUsers(data.content || []);
       setTotalPages(data.totalPages || 0);
       setTotalElements(data.totalElements || 0);
@@ -75,10 +77,7 @@ export default function UsersPage() {
     const newStatus = user.status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE';
     if (!confirm(`${newStatus === 'LOCKED' ? 'Khóa' : 'Mở'} tài khoản ${user.name}?`)) return;
     try {
-      await apiFetch(`/admin/users/${user.id}/status`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: newStatus }),
-      });
+      await updateUserStatus(user.id, newStatus);
       fetchUsers();
     } catch (err: any) {
       alert(err.message);
@@ -110,28 +109,13 @@ export default function UsersPage() {
       return;
     }
 
-    const token = localStorage.getItem('admin_token');
     const formData = new FormData();
     formData.append('file', selectedFile);
 
     setImportLoading(true);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_BASE}/import/teachers`, {
-        method: 'POST',
-        headers,
-        body: formData
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || 'Lỗi tải tệp lên');
-      }
-
-      setImportResult(json.data);
+      const data = await importTeachers(formData);
+      setImportResult(data);
       setImportSuccess('Đã nhập danh sách giáo viên thành công!');
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -185,8 +169,7 @@ export default function UsersPage() {
           />
 
           <div className="file-upload-zone" onClick={() => fileInputRef.current?.click()} style={{ marginBottom: '16px' }}>
-            <p>{selectedFile ? `Đã chọn: ${selectedFile.name}` : 'Bấm vào đây để chọn tệp Excel (.xlsx, .xls) chứa danh sách giáo viên'}</p>
-            <span>Tệp Excel phải chứa các cột: employeeCode, name, phone, email, department</span>
+            <p>{selectedFile ? `Đã chọn: ${selectedFile.name}` : 'Bấm vào đây để tải lên tệp Excel (.xlsx, .xls) giáo viên'}</p>
             <div className="csv-template-link" onClick={e => { e.stopPropagation(); downloadTemplate(); }}>Tải mẫu file CSV tại đây (.csv)</div>
           </div>
 
@@ -203,7 +186,7 @@ export default function UsersPage() {
           {importResult && (
             <div style={{ background: '#fafafa', padding: 16, border: '1px solid #d4d4d4', marginTop: 16 }}>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12 }}>KẾT QUẢ ĐỒNG BỘ DỮ LIỆU</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 16 }}>
                 <div style={{ border: '1px solid #d4d4d4', padding: 12, textAlign: 'center', background: '#fff' }}>
                   <div style={{ fontSize: 20, fontWeight: 800 }}>{importResult.total}</div>
                   <div style={{ fontSize: 10, color: '#666', textTransform: 'uppercase', marginTop: 4 }}>Tổng dòng Excel</div>
@@ -252,34 +235,36 @@ export default function UsersPage() {
         <button onClick={searchUsers} disabled={loading}>Tìm</button>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th><th>Tên</th><th>SĐT</th><th>Vai trò</th><th>Trạng thái</th><th>Thao tác</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map(u => (
-            <tr key={u.id}>
-              <td>{u.id}</td>
-              <td>{u.name}</td>
-              <td>{u.phone}</td>
-              <td>{u.role}</td>
-              <td>{u.status}</td>
-              <td>
-                <button onClick={() => toggleStatus(u)}>
-                  {u.status === 'ACTIVE' ? 'Khóa' : 'Mở'}
-                </button>
-              </td>
-            </tr>
-          ))}
-          {users.length === 0 && !loading && (
+      <div style={{ overflowX: 'auto' }}>
+        <table>
+          <thead>
             <tr>
-              <td colSpan={6}>Không có tài khoản phù hợp</td>
+              <th>ID</th><th>Tên</th><th>SĐT</th><th>Vai trò</th><th>Trạng thái</th><th>Thao tác</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {users.map(u => (
+              <tr key={u.id}>
+                <td>{u.id}</td>
+                <td>{u.name}</td>
+                <td>{u.phone}</td>
+                <td>{u.role}</td>
+                <td>{u.status}</td>
+                <td>
+                  <button onClick={() => toggleStatus(u)}>
+                    {u.status === 'ACTIVE' ? 'Khóa' : 'Mở'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {users.length === 0 && !loading && (
+              <tr>
+                <td colSpan={6}>Không có tài khoản phù hợp</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       <div className="filters">
         <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={loading || page === 0}>

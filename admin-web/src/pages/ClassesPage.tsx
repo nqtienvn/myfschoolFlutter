@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { apiFetch } from '../api/client';
+import { getAcademicYears } from '../api/academicYear';
+import { getClasses, createClass, deleteClass } from '../api/class';
 
 interface AcademicYearItem { id: number; name: string; status: string; }
 interface ClassItem { id: number; name: string; gradeLevel: number; academicYearId: number; academicYearName: string; }
 
-export default function ClassesPage({ selectedYearId }: { selectedYearId?: string }) {
+export default function ClassesPage({ selectedYearId, selectedSemesterId }: { selectedYearId?: string; selectedSemesterId?: string }) {
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
   const [academicYearId, setAcademicYearId] = useState(selectedYearId || '');
   const [items, setItems] = useState<ClassItem[]>([]);
@@ -30,7 +31,7 @@ export default function ClassesPage({ selectedYearId }: { selectedYearId?: strin
   useEffect(() => { if (academicYearId) fetchItems(); }, [academicYearId]);
 
   async function fetchAcademicYears() {
-    const data = await apiFetch('/academic-years') as AcademicYearItem[];
+    const data = await getAcademicYears() as AcademicYearItem[];
     setAcademicYears(data);
     if (!selectedYearId) {
       const active = data.find(y => y.status === 'ACTIVE') || data[0];
@@ -40,7 +41,7 @@ export default function ClassesPage({ selectedYearId }: { selectedYearId?: strin
 
   async function fetchItems() {
     try {
-      const data = await apiFetch(`/classes?academicYearId=${academicYearId}&page=0&size=100`);
+      const data = await getClasses({ academicYearId, page: 0, size: 100 });
       setItems(data.content || []);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách lớp học');
@@ -63,15 +64,12 @@ export default function ClassesPage({ selectedYearId }: { selectedYearId?: strin
     if (isNaN(manualGrade) || manualGrade < 1 || manualGrade > 12) return setError('Khối lớp phải là số nguyên từ 1 đến 12.');
 
     try {
-      await apiFetch('/classes', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          name: manualName.trim(), 
-          gradeLevel: manualGrade, 
-          academicYearId: +academicYearId, 
-          schoolName: 'FPT Schools',
-          teacherCode: teacherCode.trim() || undefined
-        }),
+      await createClass({ 
+        name: manualName.trim(), 
+        gradeLevel: manualGrade, 
+        academicYearId: +academicYearId, 
+        schoolName: 'FPT Schools',
+        teacherCode: teacherCode.trim() || undefined
       });
       setManualName('');
       setTeacherCode('');
@@ -119,10 +117,7 @@ export default function ClassesPage({ selectedYearId }: { selectedYearId?: strin
         for (let idx = 0; idx < parsedClasses.length; idx++) {
           const c = parsedClasses[idx];
           setProgress(p => ({ ...p, current: idx, label: `Đang import: ${c.name} (${idx + 1}/${parsedClasses.length})...` }));
-          await apiFetch('/classes', {
-            method: 'POST',
-            body: JSON.stringify({ name: c.name, gradeLevel: c.gradeLevel, academicYearId: +academicYearId, schoolName: 'FPT Schools' })
-          });
+          await createClass({ name: c.name, gradeLevel: c.gradeLevel, academicYearId: +academicYearId, schoolName: 'FPT Schools' });
         }
         setProgress(p => ({ ...p, current: parsedClasses.length, label: 'Đã nhập thành công toàn bộ lớp học!' }));
         setTimeout(() => setProgress(p => ({ ...p, active: false })), 2000);
@@ -149,7 +144,7 @@ export default function ClassesPage({ selectedYearId }: { selectedYearId?: strin
   async function deleteItem(id: number) {
     if (!confirm('Xóa lớp này?')) return;
     try {
-      await apiFetch(`/classes/${id}`, { method: 'DELETE' });
+      await deleteClass(id);
       fetchItems();
     } catch (err: any) {
       alert(err.message);
@@ -230,8 +225,7 @@ export default function ClassesPage({ selectedYearId }: { selectedYearId?: strin
         <div>
           <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".csv" onChange={handleCsvFileSelect} />
           <div className="file-upload-zone" onClick={() => fileInputRef.current?.click()}>
-            <p>Bấm vào đây để chọn tệp CSV danh sách lớp học của trường</p>
-            <span>Định dạng: .csv (Tên lớp, Khối). Năm học lấy từ dropdown.</span>
+            <p>Bấm vào đây để tải lên tệp CSV danh sách lớp học</p>
             <div className="csv-template-link" onClick={(e) => { e.stopPropagation(); downloadCsvTemplate(); }}>Tải tệp mẫu tại đây (.csv)</div>
           </div>
         </div>

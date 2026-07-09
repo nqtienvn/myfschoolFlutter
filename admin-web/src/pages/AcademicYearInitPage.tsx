@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../api/client';
+import { getAcademicYears, initializeAcademicYear } from '../api/academicYear';
 
 interface AcademicYearItem {
   id: number;
@@ -29,7 +29,7 @@ export default function AcademicYearInitPage() {
 
   async function fetchAcademicYears() {
     try {
-      const data = await apiFetch('/academic-years') as AcademicYearItem[];
+      const data = await getAcademicYears() as AcademicYearItem[];
       setAcademicYears(data || []);
       // Set default target year to active or first year
       const active = data.find(y => y.status === 'ACTIVE') || data[0];
@@ -61,10 +61,7 @@ export default function AcademicYearInitPage() {
 
     setLoading(true);
     try {
-      const data = await apiFetch(`/academic-years/${targetYearId}/initialize`, {
-        method: 'POST',
-        body: JSON.stringify({ fromAcademicYearId: +sourceYearId }),
-      }) as InitResult;
+      const data = await initializeAcademicYear(Number(targetYearId), { fromAcademicYearId: Number(sourceYearId) }) as InitResult;
 
       setResult(data);
       setSuccessMsg('Khởi tạo cấu trúc năm học thành công!');
