@@ -15,3 +15,7 @@ export async function createAnnouncement(data: CreateAnnouncementData) {
     body: JSON.stringify(data)
   });
 }
+
+export async function getAnnouncements() {
+  return apiFetch('/announcements');
+}

@@ -69,6 +69,13 @@ public class AcademicYearController {
         return ResponseEntity.ok(ApiResponse.success("Kết thúc năm học thành công", null));
     }
 
+    @GetMapping("/{id}/archive-stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Xem thống kê hồ sơ năm học đã kết thúc")
+    public ResponseEntity<ApiResponse<AcademicYearArchiveStatsDto>> getArchiveStats(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(academicYearService.getArchiveStats(id)));
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Sửa năm học")

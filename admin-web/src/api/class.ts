@@ -34,3 +34,7 @@ export async function deleteClass(id: number) {
     method: 'DELETE'
   });
 }
+
+export async function getClassDetail(id: number) {
+  return apiFetch(`/classes/${id}`);
+}

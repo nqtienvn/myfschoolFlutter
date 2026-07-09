@@ -3,6 +3,8 @@ package vn.edu.fpt.myfschool.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
+import vn.edu.fpt.myfschool.common.dto.AcademicYearArchiveStatsDto;
 import vn.edu.fpt.myfschool.common.dto.AcademicYearDto;
 import vn.edu.fpt.myfschool.common.dto.CreateAcademicYearRequest;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
@@ -25,6 +27,7 @@ public class AcademicYearServiceImpl implements AcademicYearService {
 
     private final AcademicYearRepository academicYearRepository;
     private final SemesterRepository semesterRepository;
+    private final EntityManager entityManager;
 
     @Override
     @Transactional(readOnly = true)
@@ -254,5 +257,63 @@ public class AcademicYearServiceImpl implements AcademicYearService {
         }
         year.setStatus(AcademicYearStatus.COMPLETED);
         academicYearRepository.save(year);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AcademicYearArchiveStatsDto getArchiveStats(Long id) {
+        long classesCount = entityManager.createQuery(
+            "SELECT COUNT(c) FROM SchoolClass c WHERE c.academicYear.id = :yearId", Long.class)
+            .setParameter("yearId", id).getSingleResult();
+
+        long studentsCount = entityManager.createQuery(
+            "SELECT COUNT(DISTINCT e.student.id) FROM Enrollment e WHERE e.academicYear.id = :yearId", Long.class)
+            .setParameter("yearId", id).getSingleResult();
+
+        long teachersCount = entityManager.createQuery(
+            "SELECT COUNT(DISTINCT ta.teacher.id) FROM TeachingAssignment ta WHERE ta.cls.academicYear.id = :yearId", Long.class)
+            .setParameter("yearId", id).getSingleResult();
+
+        long parentsCount = entityManager.createQuery(
+            "SELECT COUNT(DISTINCT sg.guardian.id) FROM StudentGuardian sg JOIN Enrollment e ON e.student.id = sg.student.id WHERE e.academicYear.id = :yearId", Long.class)
+            .setParameter("yearId", id).getSingleResult();
+
+        long subjectsCount = entityManager.createQuery(
+            "SELECT COUNT(DISTINCT ta.subject.id) FROM TeachingAssignment ta WHERE ta.cls.academicYear.id = :yearId", Long.class)
+            .setParameter("yearId", id).getSingleResult();
+
+        long announcementsCount = entityManager.createQuery(
+            "SELECT COUNT(DISTINCT ac.announcement.id) FROM AnnouncementClass ac WHERE ac.cls.academicYear.id = :yearId", Long.class)
+            .setParameter("yearId", id).getSingleResult();
+
+        long chatsCount = entityManager.createQuery("SELECT COUNT(c) FROM Conversation c", Long.class).getSingleResult();
+        long messagesCount = entityManager.createQuery("SELECT COUNT(m) FROM Message m", Long.class).getSingleResult();
+
+        long attendanceCount = entityManager.createQuery(
+            "SELECT COUNT(ad) FROM AttendanceDetail ad WHERE ad.session.cls.academicYear.id = :yearId", Long.class)
+            .setParameter("yearId", id).getSingleResult();
+
+        long gradesCount = entityManager.createQuery(
+            "SELECT COUNT(ss) FROM StudentScore ss WHERE ss.gradeItem.gradeBook.semester.academicYear.id = :yearId", Long.class)
+            .setParameter("yearId", id).getSingleResult();
+
+        Double tuitionSum = entityManager.createQuery(
+            "SELECT SUM(tb.amount) FROM TuitionBill tb WHERE tb.semester.academicYear.id = :yearId AND tb.status = 'PAID'", Double.class)
+            .setParameter("yearId", id).getSingleResult();
+        java.math.BigDecimal tuitionCollected = tuitionSum != null ? java.math.BigDecimal.valueOf(tuitionSum) : java.math.BigDecimal.ZERO;
+
+        return new AcademicYearArchiveStatsDto(
+            classesCount,
+            studentsCount,
+            teachersCount,
+            parentsCount,
+            subjectsCount,
+            announcementsCount,
+            messagesCount,
+            chatsCount,
+            attendanceCount,
+            gradesCount,
+            tuitionCollected
+        );
     }
 }

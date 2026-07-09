@@ -1,5 +1,6 @@
 package vn.edu.fpt.myfschool.service;
 
+import vn.edu.fpt.myfschool.common.dto.AcademicYearArchiveStatsDto;
 import vn.edu.fpt.myfschool.common.dto.AcademicYearDto;
 import vn.edu.fpt.myfschool.common.dto.CreateAcademicYearRequest;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
@@ -17,4 +18,5 @@ public interface AcademicYearService {
     void openAcademicYear(Long id);
     void openSemester2(Long id);
     void completeAcademicYear(Long id);
+    AcademicYearArchiveStatsDto getArchiveStats(Long id);
 }

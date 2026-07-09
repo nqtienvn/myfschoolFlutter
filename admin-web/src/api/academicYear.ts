@@ -51,3 +51,7 @@ export async function completeAcademicYear(id: number) {
     method: 'POST'
   });
 }
+
+export async function getAcademicYearArchiveStats(id: number) {
+  return apiFetch(`/academic-years/${id}/archive-stats`);
+}

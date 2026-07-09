@@ -3,6 +3,7 @@ import { getGradeLevels, getShifts, getPeriods } from '../api/masterData';
 import { getSubjects, createSubject, deleteSubject } from '../api/subject';
 import { getAcademicYears, createAcademicYear, generate10Years, openAcademicYear, openSemester2, completeAcademicYear } from '../api/academicYear';
 import { getSemesters, createSemester, setCurrentSemester, deleteSemester } from '../api/semester';
+import AcademicYearArchiveView from './AcademicYearArchiveView';
 
 interface GradeLevel {
   id: number;
@@ -70,6 +71,7 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
   const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
   const [creating, setCreating] = useState(false);
+  const [archiveYearId, setArchiveYearId] = useState<string | null>(null);
 
   const [subjectName, setSubjectName] = useState('');
   const [subjectCode, setSubjectCode] = useState('');
@@ -247,6 +249,10 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
     } finally {
       setInitializing(false);
     }
+  }
+
+  if (archiveYearId) {
+    return <AcademicYearArchiveView yearId={archiveYearId} onBack={() => setArchiveYearId(null)} />;
   }
 
   return (
@@ -530,7 +536,15 @@ export default function MasterDataPage({ initialTab = 'academic-years', onYearCr
                             return <span style={{ fontSize: '11px', color: '#737373' }}>-</span>;
                           })()}
                           {year.status === 'COMPLETED' && (
-                            <span style={{ fontSize: '11px', color: '#737373', fontStyle: 'italic' }}>Đã kết thúc</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <span style={{ fontSize: '11px', color: '#737373', fontStyle: 'italic' }}>Đã kết thúc</span>
+                              <button
+                                onClick={() => setArchiveYearId(String(year.id))}
+                                style={{ background: '#000000', color: '#ffffff', border: 'none', padding: '4px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px' }}
+                              >
+                                📁 Hồ sơ năm học
+                              </button>
+                            </div>
                           )}
                         </div>
                       </td>
