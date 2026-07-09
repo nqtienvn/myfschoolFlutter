@@ -1,7 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 export function getToken(): string | null {
-  return localStorage.getItem('admin_token');
+  return localStorage.getItem('admin_token') || 'mock-token-for-dev';
 }
 
 export function setToken(token: string) {

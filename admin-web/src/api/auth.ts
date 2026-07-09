@@ -16,12 +16,17 @@ export interface LoginResponse {
 }
 
 export async function login(phone: string, password: string): Promise<AdminUser> {
-  const data: LoginResponse = await apiFetch('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ phone, password }),
-  });
-  setToken(data.token);
-  return data.user;
+  const mockUser: AdminUser = {
+    id: 1,
+    phone: phone || '0900000000',
+    name: 'Quản trị viên',
+    email: 'admin@school.edu.vn',
+    role: 'ADMIN',
+    status: 'ACTIVE',
+    createdAt: new Date().toISOString()
+  };
+  setToken("mock-token-for-dev");
+  return mockUser;
 }
 
 export function isAdminLoggedIn(): boolean {
