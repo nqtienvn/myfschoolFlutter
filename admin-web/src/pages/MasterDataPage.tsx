@@ -9,7 +9,7 @@ type TabKey = 'academic-years' | 'catalogs';
 interface Props { initialTab?: TabKey; selectedYearId?: string; selectedYearStatus?: string; onYearCreated?: () => void; }
 interface Year { id: number; name: string; startDate: string; endDate: string; status: string; }
 interface Semester { id: number; academicYearId: number; name: string; order: number; startDate: string; endDate: string; status: string; }
-interface CatalogItem { id: number; name: string; code?: string; order?: number; shiftName?: string; }
+interface CatalogItem { id: number; name: string; code?: string; order?: number; shiftId?: number; shiftName?: string; }
 
 export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId, selectedYearStatus, onYearCreated }: Props) {
   const [tab, setTab] = useState<TabKey>(initialTab);
@@ -100,6 +100,16 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
   const toggle = (items: number[], id: number, setter: (value: number[]) => void) =>
     setter(items.includes(id) ? items.filter(item => item !== id) : [...items, id]);
 
+  function toggleShift(shiftId: number) {
+    if (shiftIds.includes(shiftId)) {
+      const removedPeriodIds = new Set(periods.filter(period => period.shiftId === shiftId).map(period => period.id));
+      setShiftIds(current => current.filter(id => id !== shiftId));
+      setPeriodIds(current => current.filter(id => !removedPeriodIds.has(id)));
+      return;
+    }
+    setShiftIds(current => [...current, shiftId]);
+  }
+
   return (
     <div className="page-stack">
       <section className="page-heading">
@@ -127,8 +137,8 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
           <div className="step-grid">
             <Catalog title="Khối lớp dùng chung" items={gradeLevels} selected={gradeLevels.map(i=>i.id)} readOnly />
             <Catalog title="Môn áp dụng" items={subjects} selected={subjectIds} onToggle={id=>toggle(subjectIds,id,setSubjectIds)} onDelete={async id=>{await deleteSubject(id);await loadCatalogs();}} />
-            <Catalog title="Ca học áp dụng" items={shifts} selected={shiftIds} onToggle={id=>toggle(shiftIds,id,setShiftIds)} />
-            <Catalog title="Tiết học áp dụng" items={periods} selected={periodIds} onToggle={id=>toggle(periodIds,id,setPeriodIds)} />
+            <Catalog title="Ca học áp dụng" items={shifts} selected={shiftIds} onToggle={toggleShift} />
+            <PeriodCatalog shifts={shifts} periods={periods} selectedShiftIds={shiftIds} selectedPeriodIds={periodIds} onToggle={id=>toggle(periodIds,id,setPeriodIds)} />
           </div>
         </>
       )}
@@ -138,4 +148,37 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
 
 function Catalog({ title, items, selected, onToggle, onDelete, readOnly = false }: { title: string; items: CatalogItem[]; selected: number[]; onToggle?: (id:number)=>void; onDelete?: (id:number)=>void; readOnly?: boolean }) {
   return <section className="step-card" style={{display:'block'}}><h3 style={{marginTop:0}}>{title}</h3><div style={{display:'grid',gap:8}}>{items.map(item=><label key={item.id} style={{display:'flex',gap:9,alignItems:'center',fontSize:13}}><input type="checkbox" checked={selected.includes(item.id)} disabled={readOnly} onChange={()=>onToggle?.(item.id)}/><span style={{flex:1}}><strong>{item.name}</strong>{item.code && <small style={{display:'block',color:'#687386'}}>{item.code}{item.shiftName ? ` · ${item.shiftName}` : ''}</small>}</span>{onDelete && <button className="danger" onClick={(event)=>{event.preventDefault();onDelete(item.id);}}>Xóa</button>}</label>)}{items.length===0&&<span className="input-desc">Chưa có dữ liệu.</span>}</div></section>;
+}
+
+function PeriodCatalog({ shifts, periods, selectedShiftIds, selectedPeriodIds, onToggle }: {
+  shifts: CatalogItem[];
+  periods: CatalogItem[];
+  selectedShiftIds: number[];
+  selectedPeriodIds: number[];
+  onToggle: (id: number) => void;
+}) {
+  return <section className="step-card period-catalog">
+    <h3>Tiết học theo ca</h3>
+    <p className="input-desc">Chọn ca học trước, sau đó chọn các tiết thuộc ca đó.</p>
+    <div className="period-shift-groups">
+      {shifts.map(shift => {
+        const enabled = selectedShiftIds.includes(shift.id);
+        const shiftPeriods = periods.filter(period => period.shiftId === shift.id);
+        return <div key={shift.id} className={`period-shift-group ${enabled ? 'enabled' : 'disabled'}`}>
+          <div className="period-shift-heading">
+            <strong>{shift.name}</strong>
+            <span className={`badge-status ${enabled ? 'active' : ''}`}>{enabled ? 'ĐÃ CHỌN CA' : 'CHỌN CA TRƯỚC'}</span>
+          </div>
+          <div className="period-options">
+            {shiftPeriods.map(period => <label key={period.id}>
+              <input type="checkbox" checked={selectedPeriodIds.includes(period.id)} disabled={!enabled} onChange={() => onToggle(period.id)} />
+              <span>{period.name}</span>
+            </label>)}
+            {shiftPeriods.length === 0 && <span className="input-desc">Ca này chưa có tiết học.</span>}
+          </div>
+        </div>;
+      })}
+      {shifts.length === 0 && <span className="input-desc">Chưa có ca học.</span>}
+    </div>
+  </section>;
 }
