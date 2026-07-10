@@ -127,7 +127,6 @@ public abstract class BaseIntegrationTest {
         testTeacher = new Teacher();
         testTeacher.setUser(teacherUser);
         testTeacher.setEmployeeCode("GV100");
-        testTeacher.setDepartment("PRM393");
         testTeacher = teacherRepository.save(testTeacher);
 
         testTeachingAssignment = new TeachingAssignment();
@@ -201,14 +200,13 @@ public abstract class BaseIntegrationTest {
     }
 
     protected String registerUser(String phone, String password, String name, String role,
-                                   String studentCode, String employeeCode) throws Exception {
+                                   String studentCode) throws Exception {
         StringBuilder sb = new StringBuilder();
         sb.append("{\"phone\":\"").append(phone).append("\"");
         sb.append(",\"password\":\"").append(password).append("\"");
         sb.append(",\"name\":\"").append(name).append("\"");
         sb.append(",\"role\":\"").append(role).append("\"");
         if (studentCode != null) sb.append(",\"studentCode\":\"").append(studentCode).append("\"");
-        if (employeeCode != null) sb.append(",\"employeeCode\":\"").append(employeeCode).append("\"");
         sb.append("}");
 
         MvcResult result = mockMvc.perform(post("/api/auth/register")

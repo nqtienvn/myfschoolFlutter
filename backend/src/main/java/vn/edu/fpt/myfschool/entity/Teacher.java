@@ -31,9 +31,6 @@ public class Teacher extends BaseEntity {
     @Column(nullable = false, unique = true, length = 20)
     private String employeeCode;
 
-    @Column(length = 100)
-    private String department;
-
     @ManyToMany
     @JoinTable(
             name = "teacher_subjects",

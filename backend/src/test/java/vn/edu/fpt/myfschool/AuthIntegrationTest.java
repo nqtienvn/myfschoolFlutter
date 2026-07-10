@@ -39,7 +39,7 @@ class AuthIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"phone":"0901000003","password":"test1234","name":"GV Test","role":"TEACHER","employeeCode":"GV999","department":"PRM393"}
+                    {"phone":"0901000003","password":"test1234","name":"GV Test","role":"TEACHER"}
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false));
@@ -122,7 +122,7 @@ class AuthIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void get_profile_authenticated() throws Exception {
-        String token = registerUser("0901000020", "test1234", "Profile User", "PARENT", null, null);
+        String token = registerUser("0901000020", "test1234", "Profile User", "PARENT", null);
 
         mockMvc.perform(get("/api/user/profile")
                 .header("Authorization", "Bearer " + token))
@@ -141,7 +141,7 @@ class AuthIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void change_password_success() throws Exception {
-        String token = registerUser("0901000021", "oldpass123", "Change PW User", "PARENT", null, null);
+        String token = registerUser("0901000021", "oldpass123", "Change PW User", "PARENT", null);
 
         mockMvc.perform(put("/api/user/password")
                 .header("Authorization", "Bearer " + token)
@@ -164,7 +164,7 @@ class AuthIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void change_password_wrong_old_fails() throws Exception {
-        String token = registerUser("0901000022", "correct123", "Wrong PW", "PARENT", null, null);
+        String token = registerUser("0901000022", "correct123", "Wrong PW", "PARENT", null);
 
         mockMvc.perform(put("/api/user/password")
                 .header("Authorization", "Bearer " + token)

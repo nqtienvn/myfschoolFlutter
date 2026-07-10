@@ -21,12 +21,10 @@ import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.entity.Subject;
 import vn.edu.fpt.myfschool.entity.Teacher;
 import vn.edu.fpt.myfschool.entity.User;
-import vn.edu.fpt.myfschool.entity.UserSetting;
 import vn.edu.fpt.myfschool.repository.SubjectRepository;
 import vn.edu.fpt.myfschool.repository.TeacherRepository;
 import vn.edu.fpt.myfschool.repository.TeachingAssignmentRepository;
 import vn.edu.fpt.myfschool.repository.UserRepository;
-import vn.edu.fpt.myfschool.repository.UserSettingRepository;
 import vn.edu.fpt.myfschool.service.AdminUserService;
 
 import java.util.HashSet;
@@ -43,7 +41,6 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final UserRepository userRepository;
     private final TeacherRepository teacherRepository;
     private final SubjectRepository subjectRepository;
-    private final UserSettingRepository userSettingRepository;
     private final TeachingAssignmentRepository teachingAssignmentRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -83,17 +80,11 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public TeacherSummaryDto createTeacherAccount(CreateTeacherAccountRequest request) {
         String phone = request.phone().trim();
-        String employeeCode = request.employeeCode().trim();
         String email = request.email() == null || request.email().isBlank() ? null : request.email().trim();
-        String department = request.department() == null || request.department().isBlank() ? null : request.department().trim();
         List<Subject> subjects = loadSubjects(request.subjectIds());
         if (userRepository.existsByPhone(phone)) {
             throw new ConflictException("Số điện thoại đã được đăng ký");
         }
-        if (teacherRepository.existsByEmployeeCode(employeeCode)) {
-            throw new ConflictException("Mã giáo viên đã tồn tại");
-        }
-
         if (email != null && userRepository.existsByEmail(email)) {
             throw new ConflictException("Email giáo viên đã tồn tại");
         }
@@ -110,14 +101,9 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         Teacher teacher = new Teacher();
         teacher.setUser(user);
-        teacher.setEmployeeCode(employeeCode);
-        teacher.setDepartment(department);
+        teacher.setEmployeeCode("GV-%04d".formatted(user.getId()));
         teacher.setSubjects(new HashSet<>(subjects));
         teacher = teacherRepository.save(teacher);
-
-        UserSetting settings = new UserSetting();
-        settings.setUser(user);
-        userSettingRepository.save(settings);
 
         return toTeacherSummaryDto(teacher);
     }
@@ -172,7 +158,6 @@ public class AdminUserServiceImpl implements AdminUserService {
                 user.getEmail(),
                 user.getStatus(),
                 teacher.getEmployeeCode(),
-                teacher.getDepartment(),
                 user.getAvatar(),
                 subjects);
     }

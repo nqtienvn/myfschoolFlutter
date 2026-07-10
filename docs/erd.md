@@ -7,11 +7,11 @@ Tối ưu hiệu năng (index, partition) và dễ scale.
 
 ## Tổng quan
 
-**Tổng cộng: 27 bảng**
+**Tổng cộng: 26 bảng**
 
 | Nhóm | Bảng |
 |------|------|
-| **Tài khoản** | `users`, `user_settings` |
+| **Tài khoản** | `users` |
 | **Actor** | `parents`, `students`, `teachers` |
 | **Liên kết** | `student_guardians`, `student_classes`, `class_subjects`, `announcement_classes` |
 | **Giáo dục** | `classes`, `subjects`, `semesters`, `schedules` |
@@ -31,10 +31,10 @@ Tối ưu hiệu năng (index, partition) và dễ scale.
 │                          TÀI KHOẢN & VAI TRÒ                        │
 └─────────────────────────────────────────────────────────────────────┘
 
-                          ┌──────────────┐       ┌────────────────┐
-                          │     users     │◄─────►│ user_settings  │
-                          └──────┬───────┘       └────────────────┘
-                                 │                   (theme, language)
+                          ┌──────────────┐
+                          │     users     │
+                          └──────┬───────┘
+                                 │
             ┌────────────────────┼────────────────────┐
             │ 1:1               │ 1:1                │ 1:1
             ▼                    ▼                    ▼
@@ -273,7 +273,6 @@ Tối ưu hiệu năng (index, partition) và dễ scale.
 | 1 | `users` | `parents` | 1:1 | `parent.user_id` | Tài khoản phụ huynh |
 | 2 | `users` | `students` | 1:1 | `student.user_id` | Tài khoản học sinh |
 | 3 | `users` | `teachers` | 1:1 | `teacher.user_id` | Tài khoản giáo viên |
-| 4 | `users` | `user_settings` | 1:1 | `us.user_id` | Cài đặt theme + ngôn ngữ |
 | 5 | `parents` | `student_guardians` | 1:N | `sg.guardian_id` | 1 PH liên kết nhiều HS |
 | 6 | `students` | `student_guardians` | 1:N | `sg.student_id` | 1 HS có nhiều người giám hộ |
 | 7 | `students` | `student_classes` | 1:N | `sc.student_id` | 1 HS chuyển lớp qua các năm |
@@ -345,23 +344,6 @@ Tối ưu hiệu năng (index, partition) và dễ scale.
 └─────────────────────────────────────────────────────┘
 ```
 
-### `user_settings`
-
-```text
-┌─────────────────────────────────────────────────────┐
-│  user_settings                                      │
-├──────────────────┬──────────────────────────────────┤
-│ id               │ BIGINT PK AUTO_INCREMENT          │
-│ user_id          │ BIGINT FK UNIQUE → users          │
-│ theme            │ ENUM: LIGHT, DARK DEFAULT LIGHT   │
-│ language         │ ENUM: VI, EN DEFAULT VI           │
-│ notification_    │ BOOLEAN DEFAULT TRUE              │
-│   enabled        │                                   │
-│ created_at       │ TIMESTAMP DEFAULT CURRENT         │
-│ updated_at       │ TIMESTAMP ON UPDATE CURRENT       │
-└─────────────────────────────────────────────────────┘
-```
-
 ### `parents`
 
 ```text
@@ -405,9 +387,8 @@ Tối ưu hiệu năng (index, partition) và dễ scale.
 ├──────────────────┬──────────────────────────────────┤
 │ id               │ BIGINT PK AUTO_INCREMENT          │
 │ user_id          │ BIGINT FK UNIQUE → users          │
-│ employee_code    │ VARCHAR(20) UNIQUE NOT NULL       │
-│ department       │ VARCHAR(100) NULL                 │
-│   (VD: PRM393)   │                                   │
+│ employee_code    │ VARCHAR(20) UNIQUE, tự sinh       │
+│                  │ (VD: GV-0001)                     │
 │ created_at       │ TIMESTAMP DEFAULT CURRENT         │
 │ updated_at       │ TIMESTAMP ON UPDATE CURRENT       │
 └─────────────────────────────────────────────────────┘

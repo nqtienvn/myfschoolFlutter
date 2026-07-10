@@ -16,7 +16,6 @@ export interface TeacherItem {
   email: string;
   status: string;
   employeeCode: string;
-  department: string;
   avatar: string;
   subjects: { id: number; name: string; code: string }[];
 }
@@ -33,8 +32,6 @@ export interface CreateTeacherAccountRequest {
   phone: string;
   name: string;
   email?: string;
-  employeeCode: string;
-  department?: string;
   subjectIds: number[];
 }
 

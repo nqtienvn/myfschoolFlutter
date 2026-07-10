@@ -10,7 +10,7 @@ import {
 
 interface SubjectItem { id: number; name: string; code: string; }
 
-const emptyForm = { employeeCode: '', name: '', phone: '', email: '', department: '' };
+const emptyForm = { name: '', phone: '', email: '' };
 
 export default function UsersPage() {
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
@@ -48,9 +48,9 @@ export default function UsersPage() {
     event.preventDefault();
     setError(''); setMessage(''); setLoading(true);
     try {
-      await createTeacherAccount({ ...form, subjectIds });
+      const created = await createTeacherAccount({ ...form, subjectIds });
       setForm(emptyForm); setSubjectIds([]);
-      setMessage('Đã tạo tài khoản giáo viên. Giáo viên phải đổi mật khẩu ở lần đăng nhập đầu tiên.');
+      setMessage(`Đã tạo giáo viên ${created.employeeCode}. Giáo viên phải đổi mật khẩu ở lần đăng nhập đầu tiên.`);
       await load();
     } catch (cause: any) {
       setError(cause.message || 'Không thể tạo giáo viên.');
@@ -79,12 +79,11 @@ export default function UsersPage() {
       {message && <div className="notice success">{message}</div>}
 
       <form className="form-grid" onSubmit={create}>
-        <div className="form-group"><label>Mã giáo viên</label><input required value={form.employeeCode} onChange={e => setForm({ ...form, employeeCode: e.target.value })} /></div>
         <div className="form-group"><label>Họ và tên</label><input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
         <div className="form-group"><label>Số điện thoại</label><input required pattern="0[0-9]{9}" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
         <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
-        <div className="form-group"><label>Tổ chuyên môn</label><input value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} /></div>
         <div className="form-group"><label>Môn có thể giảng dạy</label><select required multiple value={subjectIds.map(String)} onChange={e => setSubjectIds(Array.from(e.target.selectedOptions, option => Number(option.value)))}>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name} ({subject.code})</option>)}</select><small className="input-desc">Giữ Ctrl/Cmd để chọn nhiều môn.</small></div>
+        <div className="notice" style={{ gridColumn: '1 / -1' }}>Mã giáo viên được hệ thống tự sinh theo định dạng <strong>GV-0001</strong>.</div>
         <div className="form-actions" style={{ gridColumn: '1 / -1' }}><button disabled={loading}>Tạo giáo viên</button></div>
       </form>
 
@@ -96,7 +95,7 @@ export default function UsersPage() {
 
       <div className="table-responsive"><table><thead><tr><th>Mã GV</th><th>Họ tên</th><th>Liên hệ</th><th>Môn phụ trách</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>
         {teachers.map(teacher => <tr key={teacher.id}>
-          <td>{teacher.employeeCode}</td><td>{teacher.name}<br /><small>{teacher.department}</small></td><td>{teacher.phone}<br /><small>{teacher.email}</small></td>
+          <td>{teacher.employeeCode}</td><td>{teacher.name}</td><td>{teacher.phone}<br /><small>{teacher.email}</small></td>
           <td>{editingId === teacher.id ? <div className="form-group"><select multiple value={editingSubjects.map(String)} onChange={e => setEditingSubjects(Array.from(e.target.selectedOptions, option => Number(option.value)))}>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select><div><button onClick={() => saveSubjects(teacher.id)}>Lưu</button> <button className="secondary-button" onClick={() => setEditingId(null)}>Hủy</button></div></div> : <button className="secondary-button" onClick={() => { setEditingId(teacher.id); setEditingSubjects(teacher.subjects.map(subject => subject.id)); }}>{teacher.subjects.map(subject => subject.code).join(', ') || 'Chọn môn'}</button>}</td>
           <td><span className={`badge-status ${teacher.status === 'ACTIVE' ? 'active' : ''}`}>{teacher.status}</span></td>
           <td><button className="secondary-button" onClick={() => toggle(teacher)}>{teacher.status === 'ACTIVE' ? 'Khóa' : 'Mở khóa'}</button></td>

@@ -9,15 +9,12 @@ import vn.edu.fpt.myfschool.common.dto.StudentDto;
 import vn.edu.fpt.myfschool.common.dto.StudentSummaryDto;
 import vn.edu.fpt.myfschool.common.dto.TeacherDto;
 import vn.edu.fpt.myfschool.common.dto.UpdateProfileRequest;
-import vn.edu.fpt.myfschool.common.dto.UpdateSettingsRequest;
 import vn.edu.fpt.myfschool.common.dto.UserDto;
-import vn.edu.fpt.myfschool.common.dto.UserSettingDto;
 import vn.edu.fpt.myfschool.entity.Parent;
 import vn.edu.fpt.myfschool.entity.Student;
 import vn.edu.fpt.myfschool.entity.StudentGuardian;
 import vn.edu.fpt.myfschool.entity.Teacher;
 import vn.edu.fpt.myfschool.entity.User;
-import vn.edu.fpt.myfschool.entity.UserSetting;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -32,7 +29,6 @@ import vn.edu.fpt.myfschool.repository.StudentGuardianRepository;
 import vn.edu.fpt.myfschool.repository.StudentRepository;
 import vn.edu.fpt.myfschool.repository.TeacherRepository;
 import vn.edu.fpt.myfschool.repository.UserRepository;
-import vn.edu.fpt.myfschool.repository.UserSettingRepository;
 import vn.edu.fpt.myfschool.security.JwtTokenProvider;
 import vn.edu.fpt.myfschool.service.AuthService;
 
@@ -48,7 +44,6 @@ public class AuthServiceImpl implements AuthService {
     private final ParentRepository parentRepository;
     private final StudentRepository studentRepository;
     private final TeacherRepository teacherRepository;
-    private final UserSettingRepository userSettingRepository;
     private final StudentGuardianRepository studentGuardianRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -117,28 +112,8 @@ public class AuthServiceImpl implements AuthService {
                 student.setStudentCode(request.studentCode());
                 studentRepository.save(student);
             }
-            case TEACHER -> {
-                if (request.employeeCode() == null || request.employeeCode().isBlank()) {
-                    throw new BadRequestException("Mã giáo viên không được để trống");
-                }
-                if (teacherRepository.existsByEmployeeCode(request.employeeCode())) {
-                    throw new ConflictException("Mã giáo viên đã tồn tại");
-                }
-                Teacher teacher = new Teacher();
-                teacher.setUser(user);
-                teacher.setEmployeeCode(request.employeeCode());
-                teacher.setDepartment(request.department());
-                teacherRepository.save(teacher);
-            }
-            case ADMIN -> {
-                // ponytail: admin has no profile table, user record is sufficient
-            }
+            case TEACHER, ADMIN -> throw new BadRequestException("Không thể tự đăng ký tài khoản ADMIN hoặc TEACHER");
         }
-
-        // Create default settings
-        UserSetting settings = new UserSetting();
-        settings.setUser(user);
-        userSettingRepository.save(settings);
 
         String token = jwtTokenProvider.generateToken(user.getId(), user.getRole(), user.getName());
         UserDto profile = getProfile(user.getId());
@@ -151,11 +126,6 @@ public class AuthServiceImpl implements AuthService {
     public UserDto getProfile(Long userId) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-
-        UserSetting setting = userSettingRepository.findByUserId(userId).orElse(null);
-        UserSettingDto settingDto = setting != null
-            ? new UserSettingDto(setting.getTheme(), setting.getLanguage(), setting.getNotificationEnabled())
-            : null;
 
         ParentDto parentDto = null;
         StudentDto studentDto = null;
@@ -191,7 +161,7 @@ public class AuthServiceImpl implements AuthService {
             case TEACHER -> {
                 Teacher teacher = teacherRepository.findByUserId(userId).orElse(null);
                 if (teacher != null) {
-                    teacherDto = new TeacherDto(teacher.getId(), teacher.getEmployeeCode(), teacher.getDepartment());
+                    teacherDto = new TeacherDto(teacher.getId(), teacher.getEmployeeCode());
                 }
             }
         }
@@ -199,7 +169,7 @@ public class AuthServiceImpl implements AuthService {
         return new UserDto(
             user.getId(), user.getPhone(), user.getName(), user.getEmail(),
             user.getAvatar(), user.getRole(), user.getStatus(), user.getCreatedAt(), user.getMustChangePassword(),
-            parentDto, studentDto, teacherDto, settingDto);
+            parentDto, studentDto, teacherDto);
     }
 
     @Override
@@ -242,25 +212,6 @@ public class AuthServiceImpl implements AuthService {
         }
 
         return getProfile(userId);
-    }
-
-    @Override
-    public UserSettingDto updateSettings(Long userId, UpdateSettingsRequest request) {
-        UserSetting setting = userSettingRepository.findByUserId(userId)
-            .orElseGet(() -> {
-                User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-                UserSetting newSetting = new UserSetting();
-                newSetting.setUser(user);
-                return newSetting;
-            });
-
-        if (request.theme() != null) setting.setTheme(request.theme());
-        if (request.language() != null) setting.setLanguage(request.language());
-        if (request.notificationEnabled() != null) setting.setNotificationEnabled(request.notificationEnabled());
-        userSettingRepository.save(setting);
-
-        return new UserSettingDto(setting.getTheme(), setting.getLanguage(), setting.getNotificationEnabled());
     }
 
     @Override

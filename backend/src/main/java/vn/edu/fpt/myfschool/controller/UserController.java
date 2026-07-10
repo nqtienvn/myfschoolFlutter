@@ -14,9 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
 import vn.edu.fpt.myfschool.common.dto.ChangePasswordRequest;
 import vn.edu.fpt.myfschool.common.dto.UpdateProfileRequest;
-import vn.edu.fpt.myfschool.common.dto.UpdateSettingsRequest;
 import vn.edu.fpt.myfschool.common.dto.UserDto;
-import vn.edu.fpt.myfschool.common.dto.UserSettingDto;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.AuthService;
 
@@ -57,22 +55,4 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("Đổi mật khẩu thành công", null));
     }
 
-    @GetMapping("/settings")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
-    @Operation(summary = "Xem cài đặt")
-    public ResponseEntity<ApiResponse<UserSettingDto>> getSettings() {
-        Long userId = SecurityUtil.getCurrentUserId();
-        UserDto profile = authService.getProfile(userId);
-        return ResponseEntity.ok(ApiResponse.success(profile.settings()));
-    }
-
-    @PutMapping("/settings")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
-    @Operation(summary = "Cập nhật cài đặt")
-    public ResponseEntity<ApiResponse<UserSettingDto>> updateSettings(
-            @Valid @RequestBody UpdateSettingsRequest request) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        UserSettingDto settings = authService.updateSettings(userId, request);
-        return ResponseEntity.ok(ApiResponse.success("Cập nhật cài đặt thành công", settings));
-    }
 }

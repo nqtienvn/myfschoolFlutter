@@ -30,15 +30,15 @@ Engine: **InnoDB** | Charset: **utf8mb4** | Collation: **utf8mb4_unicode_ci**
 │  Engine:     InnoDB (transaction + FK support)          │
 │  Charset:    utf8mb4 (hỗ trợ emoji + tiếng Việt)       │
 │  Collation:  utf8mb4_unicode_ci                         │
-│  Tables:     27                                          │
-│  Foreign Keys: 48                                        │
+│  Tables:     26                                          │
+│  Foreign Keys: 47                                        │
 │  Indexes:    ~75                                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
 | Nhóm | Số bảng | Bảng |
 |------|---------|------|
-| **Tài khoản** | 2 | `users`, `user_settings` |
+| **Tài khoản** | 1 | `users` |
 | **Actor** | 3 | `parents`, `students`, `teachers` |
 | **Liên kết** | 4 | `student_guardians`, `student_classes`, `class_subjects`, `announcement_classes` |
 | **Giáo dục** | 4 | `classes`, `subjects`, `semesters`, `schedules` |
@@ -93,27 +93,6 @@ CREATE TABLE users (
   COMMENT='Tài khoản người dùng (chung cho 3 role)';
 ```
 
-#### `user_settings`
-
-```sql
-CREATE TABLE user_settings (
-  id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id               BIGINT UNSIGNED NOT NULL,
-  theme                 ENUM('LIGHT','DARK') NOT NULL DEFAULT 'LIGHT',
-  language              ENUM('VI','EN') NOT NULL DEFAULT 'VI',
-  notification_enabled  TINYINT(1) NOT NULL DEFAULT 1,
-  created_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  UNIQUE KEY uk_us_user (user_id),
-  CONSTRAINT fk_us_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='Cài đặt cá nhân (theme, ngôn ngữ, thông báo)';
-```
-
----
-
 ### 3.3. Nhóm Actor
 
 #### `parents`
@@ -160,8 +139,7 @@ CREATE TABLE students (
 CREATE TABLE teachers (
   id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id       BIGINT UNSIGNED NOT NULL,
-  employee_code VARCHAR(20)     NOT NULL COMMENT 'VD: GV001',
-  department    VARCHAR(100)    NULL COMMENT 'VD: PRM393 - SE1913',
+  employee_code VARCHAR(20)     NOT NULL COMMENT 'Tự sinh, VD: GV-0001',
   created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -683,7 +661,6 @@ CREATE TABLE attachments (
 
 | # | Table | Column | FK → Table | On Delete | On Update |
 |---|-------|--------|------------|-----------|-----------|
-| 1 | `user_settings` | `user_id` | `users.id` | CASCADE | CASCADE |
 | 2 | `parents` | `user_id` | `users.id` | CASCADE | CASCADE |
 | 3 | `students` | `user_id` | `users.id` | CASCADE | CASCADE |
 | 4 | `students` | `class_id` | `classes.id` | RESTRICT | CASCADE |
@@ -742,7 +719,7 @@ CREATE TABLE attachments (
 ├───────────────────────────────────────────────────────────┤
 │                                                           │
 │  CASCADE — Xóa kèm dữ liệu con:                         │
-│  ├── user → user_settings, parents, students, teachers   │
+│  ├── user → parents, students, teachers                  │
 │  ├── student → grades, attendance, leave_requests, etc.  │
 │  ├── announcement → announcement_classes, reads          │
 │  └── conversation → participants, messages               │
@@ -897,9 +874,9 @@ INSERT INTO students (user_id, student_code, class_id, date_of_birth) VALUES
 ### 6.6. Teachers
 
 ```sql
-INSERT INTO teachers (user_id, employee_code, department) VALUES
-(7, 'GV001', 'PRM393 - SE1913'),
-(8, 'GV002', 'Kỹ năng dự án');
+INSERT INTO teachers (user_id, employee_code) VALUES
+(7, 'GV-0007'),
+(8, 'GV-0008');
 ```
 
 ### 6.7. Student Guardians

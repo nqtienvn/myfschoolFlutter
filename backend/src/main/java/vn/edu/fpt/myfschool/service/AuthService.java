@@ -13,8 +13,6 @@ public interface AuthService {
 
     UserDto updateProfile(Long userId, UpdateProfileRequest request);
 
-    UserSettingDto updateSettings(Long userId, UpdateSettingsRequest request);
-
     void linkGuardianStudent(Long parentId, Long studentId,
                                      vn.edu.fpt.myfschool.common.enums.Relationship relationship);
 }

@@ -18,6 +18,5 @@ public record UserDto(
     Boolean mustChangePassword,
     ParentDto parentProfile,
     StudentDto studentProfile,
-    TeacherDto teacherProfile,
-    UserSettingDto settings
+    TeacherDto teacherProfile
 ) {}

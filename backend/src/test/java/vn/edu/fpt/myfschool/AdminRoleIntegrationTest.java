@@ -79,10 +79,10 @@ class AdminRoleIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/admin/users/teachers")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"phone\":\"0909000099\",\"name\":\"GV Manual\",\"employeeCode\":\"GV999\",\"department\":\"Toán\",\"subjectIds\":[" + testSubject.getId() + "]}"))
+                .content("{\"phone\":\"0909000099\",\"name\":\"GV Manual\",\"subjectIds\":[" + testSubject.getId() + "]}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.employeeCode").value("GV999"))
+            .andExpect(jsonPath("$.data.employeeCode").value(org.hamcrest.Matchers.matchesPattern("GV-[0-9]{4,}")))
             .andExpect(jsonPath("$.data.status").value("ACTIVE"))
             .andExpect(jsonPath("$.data.subjects[0].name").value("Toán"));
 
@@ -96,7 +96,7 @@ class AdminRoleIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/admin/users/teachers")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"phone\":\"0909000098\",\"name\":\"GV Fail\",\"employeeCode\":\"GV998\",\"subjectIds\":[" + testSubject.getId() + "]}"))
+                .content("{\"phone\":\"0909000098\",\"name\":\"GV Fail\",\"subjectIds\":[" + testSubject.getId() + "]}"))
             .andExpect(status().isForbidden());
     }
 

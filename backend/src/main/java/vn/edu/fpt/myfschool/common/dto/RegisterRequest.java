@@ -10,8 +10,6 @@ public record RegisterRequest(
     @Email String email,
     @NotNull UserRole role,
     String studentCode,
-    String employeeCode,
-    String department,
     String address,
     String occupation
 ) {}
