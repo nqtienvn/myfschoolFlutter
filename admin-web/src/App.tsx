@@ -128,7 +128,7 @@ export default function App() {
     teachers: <UsersPage />,
     classes: <ClassesPage selectedYearId={yearId} selectedSemesterId={semesterId} editable={selectedYear?.status === 'DRAFT'} />,
     students: <StudentEnrollmentPage selectedYearId={yearId} editable={selectedYear?.status === 'DRAFT'} />,
-    assignments: <AssignmentsPage selectedYearId={yearId} selectedSemesterId={semesterId} />,
+    assignments: <AssignmentsPage selectedYearId={yearId} />,
     validation: <ValidationPage academicYearId={yearId} onNavigate={goTo} />,
     activation: (
       <ActivationPage
@@ -176,7 +176,7 @@ export default function App() {
               ))}
             </select>
           </div>
-          <div>
+          {page !== 'assignments' && <div>
             <p>Học kỳ</p>
             <select value={semesterId} onChange={event => setSemesterId(event.target.value)} disabled={!yearId}>
               <option value="">Chưa có học kỳ</option>
@@ -184,11 +184,11 @@ export default function App() {
                 <option key={semester.id} value={semester.id}>{semester.name} · {STATUS_LABELS[semester.status] || semester.status}</option>
               ))}
             </select>
-          </div>
+          </div>}
           <div className={`year-state state-${selectedYear?.status?.toLowerCase() || 'none'}`}>
             <span>Trạng thái</span>
             <strong>{selectedYear?.status ? STATUS_LABELS[selectedYear.status] : 'CHƯA KHỞI TẠO'}</strong>
-            <small>{selectedSemester?.name || 'Chọn năm học để bắt đầu'}</small>
+            <small>{page === 'assignments' ? 'Phân công áp dụng toàn năm' : selectedSemester?.name || 'Chọn năm học để bắt đầu'}</small>
           </div>
         </header>
         <main className="page-content">{pages[page]}</main>

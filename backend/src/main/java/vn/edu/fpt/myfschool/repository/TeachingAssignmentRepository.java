@@ -18,6 +18,8 @@ public interface TeachingAssignmentRepository extends JpaRepository<TeachingAssi
 
     List<TeachingAssignment> findByClsIdAndStatus(Long classId, AssignmentStatus status);
 
+    List<TeachingAssignment> findByClsIdAndSubjectId(Long classId, Long subjectId);
+
     List<TeachingAssignment> findByTeacherIdAndSemesterIdAndStatus(
         Long teacherId, Long semesterId, AssignmentStatus status);
 

@@ -8,9 +8,8 @@ import { createTeachingAssignment, deleteTeachingAssignment, getTeachingAssignme
 interface ClassItem { id: number; name: string; gradeLevel: number; }
 interface SubjectItem { id: number; name: string; code: string; }
 interface AssignmentItem { id: number; subjectId: number; teacherId: number; status: string; }
-const today = () => new Date().toISOString().slice(0, 10);
 
-export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: { selectedYearId?: string; selectedSemesterId?: string }) {
+export default function AssignmentsPage({ selectedYearId }: { selectedYearId?: string }) {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
@@ -40,23 +39,23 @@ export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: 
   }, [selectedYearId]);
 
   async function loadAssignments(targetClassId = classId) {
-    if (!targetClassId || !selectedSemesterId) return setAssignments([]);
-    const data = await getTeachingAssignments({ classId: targetClassId, semesterId: selectedSemesterId }) as AssignmentItem[];
+    if (!targetClassId) return setAssignments([]);
+    const data = await getTeachingAssignments({ classId: targetClassId }) as AssignmentItem[];
     setAssignments(data || []);
   }
-  useEffect(() => { loadAssignments(); }, [classId, selectedSemesterId]);
+  useEffect(() => { loadAssignments(); }, [classId]);
 
   const filteredClasses = useMemo(() => classes.filter(item => String(item.gradeLevel) === grade), [classes, grade]);
   const selectedClass = classes.find(item => String(item.id) === classId);
 
   async function assign(subjectId: number, teacherId: string) {
-    if (!classId || !selectedSemesterId) return;
+    if (!classId) return;
     setLoading(true); setError(''); setMessage('');
     const existing = assignments.find(item => item.subjectId === subjectId);
     try {
       if (!teacherId && existing) await deleteTeachingAssignment(existing.id);
       if (teacherId) {
-        const body = { classId: Number(classId), subjectId, teacherId: Number(teacherId), semesterId: Number(selectedSemesterId), effectiveFrom: today() };
+        const body = { classId: Number(classId), subjectId, teacherId: Number(teacherId) };
         if (existing) await updateTeachingAssignment(existing.id, body); else await createTeachingAssignment(body);
       }
       setMessage('Đã lưu phân công giảng dạy.');
@@ -66,8 +65,8 @@ export default function AssignmentsPage({ selectedYearId, selectedSemesterId }: 
   }
 
   return <div className="page-stack">
-    <div className="page-heading"><div><span className="eyebrow">Bước 6</span><h1>Phân công giảng dạy</h1><p>Mỗi lớp chỉ có một giáo viên cho một môn trong từng học kỳ.</p></div></div>
-    {(!selectedYearId || !selectedSemesterId) && <div className="notice warning">Chọn đủ năm học và học kỳ ở thanh phía trên.</div>}
+    <div className="page-heading"><div><span className="eyebrow">Bước 6</span><h1>Phân công giảng dạy</h1><p>Mỗi lớp chỉ có một giáo viên phụ trách một môn trong suốt năm học.</p></div></div>
+    {!selectedYearId && <div className="notice warning">Chọn năm học ở thanh phía trên.</div>}
     {error && <div className="notice error">{error}</div>}{message && <div className="notice success">{message}</div>}
     <div className="form-inline">
       <div className="form-group"><label>Khối</label><select value={grade} onChange={e => { setGrade(e.target.value); setClassId(''); }}>{Array.from({ length: 12 }, (_, index) => index + 1).map(value => <option key={value}>{value}</option>)}</select></div>

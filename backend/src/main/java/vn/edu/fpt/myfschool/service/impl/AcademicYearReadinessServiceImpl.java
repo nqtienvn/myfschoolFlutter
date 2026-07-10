@@ -9,7 +9,6 @@ import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.entity.SchoolClass;
-import vn.edu.fpt.myfschool.entity.Semester;
 import vn.edu.fpt.myfschool.repository.*;
 import vn.edu.fpt.myfschool.service.AcademicYearReadinessService;
 
@@ -22,7 +21,6 @@ import java.util.List;
 public class AcademicYearReadinessServiceImpl implements AcademicYearReadinessService {
     private final AcademicYearRepository yearRepository;
     private final ClassRepository classRepository;
-    private final SemesterRepository semesterRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final HomeroomAssignmentRepository homeroomRepository;
     private final TeachingAssignmentRepository teachingRepository;
@@ -48,18 +46,28 @@ public class AcademicYearReadinessServiceImpl implements AcademicYearReadinessSe
         long emptyClasses = classes.stream().filter(cls -> enrollmentRepository.findByClsIdAndAcademicYearIdAndStatus(cls.getId(), yearId, EnrollmentStatus.ACTIVE).isEmpty()).count();
         checks.add(check("STUDENTS", "Học sinh trong lớp", !classes.isEmpty() && emptyClasses == 0, emptyClasses == 0 ? "Tất cả lớp đã có học sinh." : emptyClasses + " lớp chưa có học sinh."));
 
-        List<Semester> semesters = semesterRepository.findByAcademicYearId(yearId);
-        long requiredSubjects = yearSubjectRepository.findByAcademicYearId(yearId).size();
-        long missingAssignments = classes.stream().flatMap(cls -> semesters.stream().map(semester ->
-            teachingRepository.findByClsIdAndSemesterIdAndStatus(cls.getId(), semester.getId(), AssignmentStatus.ACTIVE)
-                .stream().map(item -> item.getSubject().getId()).distinct().count() < requiredSubjects)).filter(Boolean::booleanValue).count();
-        checks.add(check("ASSIGNMENTS", "Phân công giảng dạy", !classes.isEmpty() && semesters.size() == 2 && missingAssignments == 0,
-            missingAssignments == 0 ? "Mỗi lớp đã có phân công ở cả hai học kỳ." : missingAssignments + " cặp lớp/học kỳ chưa có phân công."));
+        var requiredSubjects = yearSubjectRepository.findByAcademicYearId(yearId);
+        List<String> missingAssignments = new ArrayList<>();
+        for (SchoolClass cls : classes) {
+            var assignedSubjectIds = teachingRepository.findByClsIdAndStatus(cls.getId(), AssignmentStatus.ACTIVE).stream()
+                .map(item -> item.getSubject().getId()).collect(java.util.stream.Collectors.toSet());
+            requiredSubjects.stream()
+                .filter(item -> !assignedSubjectIds.contains(item.getSubject().getId()))
+                .forEach(item -> missingAssignments.add(cls.getName() + " – " + item.getSubject().getName()));
+        }
+        String assignmentDetail = missingAssignments.isEmpty()
+            ? "Mỗi lớp đã có đủ giáo viên cho các môn áp dụng trong năm học."
+            : "Còn thiếu " + missingAssignments.size() + " phân công lớp/môn: "
+                + String.join(", ", missingAssignments.stream().limit(5).toList())
+                + (missingAssignments.size() > 5 ? "…" : ".");
+        checks.add(check("ASSIGNMENTS", "Phân công giảng dạy",
+            !classes.isEmpty() && !requiredSubjects.isEmpty() && missingAssignments.isEmpty(), assignmentDetail));
 
         long duplicates = teachingRepository.findByAcademicYearId(yearId).stream()
-            .collect(java.util.stream.Collectors.groupingBy(ta -> ta.getCls().getId() + "-" + ta.getSubject().getId() + "-" + ta.getSemester().getId()))
-            .values().stream().mapToLong(items -> Math.max(0, items.size() - 1)).sum();
-        checks.add(check("DUPLICATES", "Không trùng phân công", duplicates == 0, duplicates == 0 ? "Không có lớp/môn/học kỳ bị phân công trùng." : "Có " + duplicates + " phân công trùng."));
+            .collect(java.util.stream.Collectors.groupingBy(ta -> ta.getCls().getId() + "-" + ta.getSubject().getId()))
+            .values().stream().filter(items -> items.stream().map(item -> item.getTeacher().getId()).distinct().count() > 1).count();
+        checks.add(check("DUPLICATES", "Không trùng phân công", duplicates == 0,
+            duplicates == 0 ? "Không có lớp/môn bị phân cho nhiều giáo viên trong cùng năm học." : "Có " + duplicates + " lớp/môn đang có nhiều giáo viên."));
         return new AcademicYearReadinessDto(yearId, checks.stream().allMatch(ReadinessCheckDto::passed), checks);
     }
 

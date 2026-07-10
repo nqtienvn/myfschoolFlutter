@@ -17,8 +17,8 @@ export interface TeachingAssignmentData {
   classId: number;
   subjectId: number;
   teacherId: number;
-  semesterId: number;
-  effectiveFrom: string;
+  semesterId?: number;
+  effectiveFrom?: string;
 }
 
 export async function createTeachingAssignment(data: TeachingAssignmentData) {

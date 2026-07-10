@@ -152,13 +152,19 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
                     """.formatted(yearId, classId)))
             .andExpect(status().isOk());
 
-        for (var semester : semesters) {
-            mockMvc.perform(post("/api/teaching-assignments")
-                    .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"classId\":%d,\"subjectId\":%d,\"teacherId\":%d,\"semesterId\":%d,\"effectiveFrom\":\"2032-08-01\"}"
-                        .formatted(classId, testSubject.getId(), testTeacher.getId(), semester.getId())))
-                .andExpect(status().isOk());
-        }
+        mockMvc.perform(post("/api/teaching-assignments")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"classId\":%d,\"subjectId\":%d,\"teacherId\":%d}"
+                    .formatted(classId, testSubject.getId(), testTeacher.getId())))
+            .andExpect(status().isOk());
+
+        assertEquals(semesters.size(), teachingAssignmentRepository
+            .findByClsIdAndStatus(classId, vn.edu.fpt.myfschool.common.enums.AssignmentStatus.ACTIVE).size());
+        mockMvc.perform(get("/api/teaching-assignments")
+                .param("classId", String.valueOf(classId))
+                .header("Authorization", authHeader(token)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(1));
 
         mockMvc.perform(get("/api/academic-years/" + yearId + "/readiness").header("Authorization", authHeader(token)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.ready").value(true));
