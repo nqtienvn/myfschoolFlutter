@@ -20,12 +20,23 @@ export async function createClass(data: {
   gradeLevel: number;
   academicYearId: number;
   schoolName: string;
-  teacherCode?: string;
 }) {
   return apiFetch('/classes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
+  });
+}
+
+export async function generateClasses(data: {
+  academicYearId: number;
+  gradeLevel: number;
+  namingPrefix: string;
+  count: number;
+}) {
+  return apiFetch('/classes/generate', {
+    method: 'POST',
+    body: JSON.stringify(data),
   });
 }
 

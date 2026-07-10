@@ -17,6 +17,7 @@ import vn.edu.fpt.myfschool.entity.Semester;
 import vn.edu.fpt.myfschool.repository.AcademicYearRepository;
 import vn.edu.fpt.myfschool.repository.SemesterRepository;
 import vn.edu.fpt.myfschool.service.AcademicYearService;
+import vn.edu.fpt.myfschool.service.AcademicYearReadinessService;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -29,6 +30,7 @@ public class AcademicYearServiceImpl implements AcademicYearService {
     private final AcademicYearRepository academicYearRepository;
     private final SemesterRepository semesterRepository;
     private final EntityManager entityManager;
+    private final AcademicYearReadinessService readinessService;
 
     @Override
     @Transactional(readOnly = true)
@@ -58,6 +60,9 @@ public class AcademicYearServiceImpl implements AcademicYearService {
     @Override
     public AcademicYearDto updateAcademicYear(Long id, UpdateAcademicYearRequest request) {
         AcademicYear year = findEntity(id);
+        if (year.getStatus() != AcademicYearStatus.DRAFT) {
+            throw new ConflictException("Chỉ được sửa năm học ở trạng thái DRAFT");
+        }
         LocalDate start = request.startDate() != null ? request.startDate() : year.getStartDate();
         LocalDate end = request.endDate() != null ? request.endDate() : year.getEndDate();
         if (start.getYear() >= end.getYear()) {
@@ -93,26 +98,22 @@ public class AcademicYearServiceImpl implements AcademicYearService {
     @Override
     public AcademicYearDto updateStatus(Long id, AcademicYearStatus status) {
         AcademicYear year = findEntity(id);
-        if (status == AcademicYearStatus.ACTIVE) deactivateOtherActiveYears(id);
-        year.setStatus(status);
-        return toDto(academicYearRepository.save(year));
+        if (status == AcademicYearStatus.ACTIVE) {
+            openAcademicYear(id);
+            return toDto(findEntity(id));
+        }
+        if (status == AcademicYearStatus.COMPLETED) {
+            completeAcademicYear(id);
+            return toDto(findEntity(id));
+        }
+        if (status == AcademicYearStatus.DRAFT && year.getStatus() == AcademicYearStatus.DRAFT) return toDto(year);
+        throw new ConflictException("Không được chuyển lùi trạng thái năm học");
     }
 
     @Override
     public AcademicYear findEntity(Long id) {
         return academicYearRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("AcademicYear", "id", id));
-    }
-
-    private void deactivateActiveYears() {
-        academicYearRepository.findByStatus(AcademicYearStatus.ACTIVE)
-                .forEach(year -> year.setStatus(AcademicYearStatus.COMPLETED));
-    }
-
-    private void deactivateOtherActiveYears(Long activeId) {
-        academicYearRepository.findByStatus(AcademicYearStatus.ACTIVE).stream()
-                .filter(year -> !year.getId().equals(activeId))
-                .forEach(year -> year.setStatus(AcademicYearStatus.COMPLETED));
     }
 
     private AcademicYearDto toDto(AcademicYear year) {
@@ -144,6 +145,14 @@ public class AcademicYearServiceImpl implements AcademicYearService {
     @Transactional
     public void openAcademicYear(Long id) {
         AcademicYear targetYear = findEntity(id);
+        if (targetYear.getStatus() != AcademicYearStatus.DRAFT) {
+            throw new ConflictException("Chỉ năm học DRAFT mới được kích hoạt");
+        }
+        if (academicYearRepository.findByStatus(AcademicYearStatus.ACTIVE).stream()
+                .anyMatch(year -> !year.getId().equals(id))) {
+            throw new ConflictException("Đang có một năm học ACTIVE; hãy hoàn tất năm học đó trước");
+        }
+        readinessService.requireReady(id);
         targetYear.setStatus(AcademicYearStatus.ACTIVE);
         academicYearRepository.save(targetYear);
 
@@ -163,7 +172,18 @@ public class AcademicYearServiceImpl implements AcademicYearService {
     @Override
     @Transactional
     public void openSemester2(Long id) {
+        AcademicYear year = findEntity(id);
+        if (year.getStatus() != AcademicYearStatus.ACTIVE) {
+            throw new ConflictException("Năm học phải ACTIVE mới được mở Học kỳ 2");
+        }
         List<Semester> semesters = semesterRepository.findByAcademicYearId(id);
+        Semester semester1 = semesters.stream().filter(item -> item.getOrder() == 1).findFirst()
+            .orElseThrow(() -> new ConflictException("Thiếu Học kỳ 1"));
+        Semester semester2 = semesters.stream().filter(item -> item.getOrder() == 2).findFirst()
+            .orElseThrow(() -> new ConflictException("Thiếu Học kỳ 2"));
+        if (semester1.getStatus() != SemesterStatus.ACTIVE || semester2.getStatus() != SemesterStatus.NOT_STARTED) {
+            throw new ConflictException("Trạng thái học kỳ không hợp lệ để mở Học kỳ 2");
+        }
         for (Semester s : semesters) {
             if (s.getOrder() == 1) {
                 if (s.getStatus() == SemesterStatus.ACTIVE) {
@@ -183,7 +203,15 @@ public class AcademicYearServiceImpl implements AcademicYearService {
     @Transactional
     public void completeAcademicYear(Long id) {
         AcademicYear year = findEntity(id);
+        if (year.getStatus() != AcademicYearStatus.ACTIVE) {
+            throw new ConflictException("Chỉ năm học ACTIVE mới được hoàn tất");
+        }
         List<Semester> semesters = semesterRepository.findByAcademicYearId(id);
+        Semester semester2 = semesters.stream().filter(item -> item.getOrder() == 2).findFirst()
+            .orElseThrow(() -> new ConflictException("Thiếu Học kỳ 2"));
+        if (semester2.getStatus() != SemesterStatus.ACTIVE) {
+            throw new ConflictException("Học kỳ 2 phải ACTIVE trước khi hoàn tất năm học");
+        }
         for (Semester s : semesters) {
             if (s.getOrder() == 2) {
                 s.setStatus(SemesterStatus.COMPLETED);

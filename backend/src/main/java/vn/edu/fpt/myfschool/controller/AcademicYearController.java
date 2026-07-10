@@ -20,6 +20,8 @@ import vn.edu.fpt.myfschool.common.dto.CreateAcademicYearRequest;
 import vn.edu.fpt.myfschool.common.dto.UpdateAcademicYearRequest;
 import vn.edu.fpt.myfschool.common.dto.UpdateAcademicYearStatusRequest;
 import vn.edu.fpt.myfschool.service.AcademicYearService;
+import vn.edu.fpt.myfschool.service.AcademicYearReadinessService;
+import vn.edu.fpt.myfschool.common.dto.AcademicYearReadinessDto;
 
 import java.util.List;
 
@@ -30,6 +32,20 @@ import java.util.List;
 public class AcademicYearController {
 
     private final AcademicYearService academicYearService;
+    private final AcademicYearReadinessService readinessService;
+
+    @GetMapping("/{id}/readiness")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AcademicYearReadinessDto>> readiness(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(readinessService.check(id)));
+    }
+
+    @PostMapping("/{id}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> activate(@PathVariable Long id) {
+        academicYearService.openAcademicYear(id);
+        return ResponseEntity.ok(ApiResponse.success("Kích hoạt năm học thành công", null));
+    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")

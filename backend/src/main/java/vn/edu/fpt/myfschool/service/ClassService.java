@@ -12,6 +12,8 @@ public interface ClassService {
 
     ClassDto createClass(CreateClassRequest request);
 
+    List<ClassDto> generateClasses(GenerateClassesRequest request);
+
     ClassDto updateClass(Long classId, CreateClassRequest request);
 
     void deleteClass(Long classId);

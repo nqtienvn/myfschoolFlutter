@@ -15,6 +15,9 @@ import lombok.EqualsAndHashCode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import vn.edu.fpt.myfschool.common.enums.Gender;
 
 @Entity
 @Table(name = "students")
@@ -38,6 +41,13 @@ public class Student extends BaseEntity {
 
     @Column(columnDefinition = "DATE")
     private LocalDate dateOfBirth;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10)
+    private Gender gender;
+
+    @Column(length = 500)
+    private String address;
 
     @OneToMany(mappedBy = "student", fetch = FetchType.LAZY)
     private List<StudentGuardian> studentGuardians = new ArrayList<>();

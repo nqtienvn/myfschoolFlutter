@@ -8,6 +8,7 @@ import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
 import vn.edu.fpt.myfschool.entity.TeachingAssignment;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TeachingAssignmentRepository extends JpaRepository<TeachingAssignment, Long> {
@@ -15,8 +16,12 @@ public interface TeachingAssignmentRepository extends JpaRepository<TeachingAssi
     List<TeachingAssignment> findByClsIdAndSemesterIdAndStatus(
         Long classId, Long semesterId, AssignmentStatus status);
 
+    List<TeachingAssignment> findByClsIdAndStatus(Long classId, AssignmentStatus status);
+
     List<TeachingAssignment> findByTeacherIdAndSemesterIdAndStatus(
         Long teacherId, Long semesterId, AssignmentStatus status);
+
+    List<TeachingAssignment> findByTeacherIdAndStatus(Long teacherId, AssignmentStatus status);
 
     boolean existsByTeacherIdAndClsIdAndStatus(Long teacherId, Long classId, AssignmentStatus status);
 
@@ -43,6 +48,10 @@ public interface TeachingAssignmentRepository extends JpaRepository<TeachingAssi
 
     boolean existsByClsIdAndSubjectIdAndSemesterIdAndEffectiveFrom(
         Long classId, Long subjectId, Long semesterId, LocalDate effectiveFrom);
+
+    Optional<TeachingAssignment> findByClsIdAndSubjectIdAndSemesterId(Long classId, Long subjectId, Long semesterId);
+
+    boolean existsByClsIdAndSubjectIdAndSemesterIdAndIdNot(Long classId, Long subjectId, Long semesterId, Long id);
 
     boolean existsByTeacherIdAndSubjectIdAndStatus(Long teacherId, Long subjectId, AssignmentStatus status);
 }

@@ -1,74 +1,46 @@
-interface SetupWizardPageProps {
+import type { AcademicYearItem } from '../App';
+
+interface Props {
   onNavigate: (pageKey: string) => void;
+  selectedYear?: AcademicYearItem;
 }
 
-export default function SetupWizardPage({ onNavigate }: SetupWizardPageProps) {
-  const steps = [
-    {
-      stepNum: 1,
-      key: 'master-data',
-      title: 'Bước 1: Thiết lập Danh mục nền tảng',
-      badgeText: 'Khởi đầu',
-      badgeClass: 'ready'
-    },
-    {
-      stepNum: 2,
-      key: 'semesters',
-      title: 'Bước 2: Khởi tạo Dòng thời gian gốc',
-      badgeText: 'Bắt buộc trước',
-      badgeClass: 'ready'
-    },
-    {
-      stepNum: 3,
-      key: 'users',
-      title: 'Bước 3: Nhập dữ liệu Giáo viên',
-      badgeText: 'Nhập thô',
-      badgeClass: ''
-    },
-    {
-      stepNum: 4,
-      key: 'classes',
-      title: 'Bước 4: Khởi tạo Lớp học cụ thể',
-      badgeText: 'Phụ thuộc năm học',
-      badgeClass: 'ready'
-    },
-    {
-      stepNum: 5,
-      key: 'enrollment-import',
-      title: 'Bước 5: Nhập Học sinh & Phụ huynh',
-      badgeText: 'Liên kết cuối',
-      badgeClass: 'ready'
-    }
-  ];
+const steps = [
+  ['years', 'Khởi tạo năm học', 'Tạo năm học ở trạng thái DRAFT; hệ thống tự sinh Học kỳ 1 và Học kỳ 2.'],
+  ['master-data', 'Cấu hình danh mục', 'Chọn môn học, ca học và tiết học áp dụng cho năm học.'],
+  ['teachers', 'Quản lý giáo viên', 'Tạo hồ sơ giáo viên dùng nhiều năm và khai báo môn phụ trách.'],
+  ['classes', 'Sinh lớp hàng loạt', 'Sinh lớp theo khối, ký hiệu và số lượng; sau đó gán giáo viên chủ nhiệm.'],
+  ['students', 'Thêm học sinh & phụ huynh', 'Tạo thủ công tài khoản, liên kết phụ huynh và xếp lớp.'],
+  ['assignments', 'Phân công giảng dạy', 'Mỗi lớp, môn và học kỳ chỉ có một giáo viên phụ trách.'],
+  ['validation', 'Kiểm tra dữ liệu', 'Xác nhận lớp có GVCN, học sinh và phân công môn trước khi mở năm học.'],
+  ['activation', 'Kích hoạt năm học', 'Chỉ kích hoạt khi mọi kiểm tra đạt; cấu hình quan trọng sẽ được khóa.'],
+] as const;
 
+export default function SetupWizardPage({ onNavigate, selectedYear }: Props) {
   return (
-    <div style={{ paddingBottom: 40 }}>
-      <div style={{ marginBottom: 32 }}>
-        <h2 style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 8 }}>Hệ thống Cấu hình Dữ liệu Gốc (Year-Centric Flow)</h2>
-      </div>
+    <div className="page-stack">
+      <section className="page-hero">
+        <div>
+          <span className="eyebrow">Quy trình chuẩn BA</span>
+          <h1>Thiết lập năm học theo 8 bước</h1>
+          <p>Thực hiện lần lượt để dữ liệu nhất quán và đủ điều kiện kích hoạt.</p>
+        </div>
+        <div className="hero-context">
+          <span>Năm học hiện tại</span>
+          <strong>{selectedYear?.name || 'Chưa chọn'}</strong>
+          <small>{selectedYear?.status || 'Tạo năm học để bắt đầu'}</small>
+        </div>
+      </section>
 
-      <div className="wizard-container">
-        {steps.map(step => (
-          <div 
-            key={step.stepNum} 
-            className="wizard-step-card" 
-            onClick={() => onNavigate(step.key)}
-            style={{ padding: '20px 24px', minHeight: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div className="wizard-step-num" style={{ margin: 0 }}>{step.stepNum}</div>
-              <div className="wizard-step-title" style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>
-                {step.title}
-              </div>
-            </div>
-            {step.badgeText && (
-              <div className={`wizard-step-badge ${step.badgeClass}`} style={{ margin: 0, position: 'static' }}>
-                {step.badgeText}
-              </div>
-            )}
-          </div>
+      <section className="step-grid">
+        {steps.map(([key, title, description], index) => (
+          <button key={key} className="step-card" onClick={() => onNavigate(key)}>
+            <span className="step-index">{String(index + 1).padStart(2, '0')}</span>
+            <span className="step-copy"><strong>{title}</strong><small>{description}</small></span>
+            <span className="step-arrow">→</span>
+          </button>
         ))}
-      </div>
+      </section>
     </div>
   );
 }

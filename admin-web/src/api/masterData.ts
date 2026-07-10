@@ -12,3 +12,7 @@ export async function getPeriods(shiftId?: number) {
   const path = shiftId ? `/master-data/periods?shiftId=${shiftId}` : '/master-data/periods';
   return apiFetch(path);
 }
+
+export async function initializeMasterData() {
+  return apiFetch('/master-data/initialize', { method: 'POST' });
+}

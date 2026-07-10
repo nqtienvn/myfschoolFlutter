@@ -15,6 +15,7 @@ public record UserDto(
     UserRole role,
     UserStatus status,
     LocalDateTime createdAt,
+    Boolean mustChangePassword,
     ParentDto parentProfile,
     StudentDto studentProfile,
     TeacherDto teacherProfile,

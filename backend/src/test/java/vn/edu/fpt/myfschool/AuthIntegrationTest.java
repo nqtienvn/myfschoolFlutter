@@ -35,15 +35,14 @@ class AuthIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void register_teacher_success() throws Exception {
+    void register_teacher_publicEndpoint_forbidden() throws Exception {
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"phone":"0901000003","password":"test1234","name":"GV Test","role":"TEACHER","employeeCode":"GV999","department":"PRM393"}
                     """))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.user.teacherProfile.employeeCode").value("GV999"));
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test

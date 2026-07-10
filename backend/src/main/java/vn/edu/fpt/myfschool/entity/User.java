@@ -21,7 +21,7 @@ import vn.edu.fpt.myfschool.common.enums.UserStatus;
 @EqualsAndHashCode(callSuper = true)
 public class User extends BaseEntity {
 
-    @Column(nullable = false, unique = true, length = 15)
+    @Column(nullable = false, unique = true, length = 30)
     private String phone;
 
     @Column(nullable = false)
@@ -30,8 +30,14 @@ public class User extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(length = 255)
+    @Column(length = 255, unique = true)
     private String email;
+
+    @Column(length = 30, unique = true)
+    private String citizenId;
+
+    @Column(nullable = false)
+    private Boolean mustChangePassword = false;
 
     @Column(length = 500)
     private String avatar;

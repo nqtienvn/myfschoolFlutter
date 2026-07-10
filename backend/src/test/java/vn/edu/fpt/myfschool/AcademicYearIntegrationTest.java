@@ -1,10 +1,8 @@
 package vn.edu.fpt.myfschool;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -25,7 +23,7 @@ class AcademicYearIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void activateAcademicYear_deactivatesPreviousActiveYear() throws Exception {
+    void activateAcademicYear_whenAnotherYearActive_returnsConflict() throws Exception {
         String token = loginAsAdmin();
 
         String body = "{\"name\":\"2028-2029\",\"startDate\":\"2028-08-01\",\"endDate\":\"2029-05-31\",\"status\":\"DRAFT\"}";
@@ -42,19 +40,7 @@ class AcademicYearIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\":\"ACTIVE\"}"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.status").value("ACTIVE"));
-
-        String listResponse = mockMvc.perform(get("/api/academic-years")
-                .header("Authorization", authHeader(token)))
-            .andExpect(status().isOk())
-            .andReturn().getResponse().getContentAsString();
-
-        JsonNode years = objectMapper.readTree(listResponse).path("data");
-        long activeCount = 0;
-        for (JsonNode year : years) {
-            if ("ACTIVE".equals(year.path("status").asText())) activeCount++;
-        }
-        assertEquals(1, activeCount);
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.success").value(false));
     }
 }

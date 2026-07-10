@@ -105,6 +105,7 @@ public class ClassServiceImpl implements ClassService {
     @Override
     public ClassDto createClass(CreateClassRequest request) {
         AcademicYear year = academicYearService.findEntity(request.academicYearId());
+        requireDraft(year);
         if (classRepository.existsByNameAndAcademicYearId(request.name(), year.getId())) {
             throw new ConflictException("Lớp đã tồn tại trong năm học này");
         }
@@ -117,10 +118,28 @@ public class ClassServiceImpl implements ClassService {
     }
 
     @Override
+    public List<ClassDto> generateClasses(GenerateClassesRequest request) {
+        AcademicYear year = academicYearService.findEntity(request.academicYearId());
+        requireDraft(year);
+        String prefix = request.namingPrefix().trim().toUpperCase();
+        List<String> names = java.util.stream.IntStream.rangeClosed(1, request.count())
+            .mapToObj(index -> request.gradeLevel() + prefix + index).toList();
+        names.stream().filter(name -> classRepository.existsByNameAndAcademicYearId(name, year.getId())).findFirst()
+            .ifPresent(name -> { throw new ConflictException("Lớp " + name + " đã tồn tại trong năm học"); });
+        return names.stream().map(name -> {
+            SchoolClass cls = new SchoolClass(); cls.setName(name); cls.setGradeLevel(request.gradeLevel());
+            cls.setAcademicYear(year); cls.setSchoolName("FPT Schools");
+            return classMapper.toDto(classRepository.save(cls));
+        }).toList();
+    }
+
+    @Override
     public ClassDto updateClass(Long classId, CreateClassRequest request) {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
         AcademicYear year = academicYearService.findEntity(request.academicYearId());
+        requireDraft(year);
+        requireDraft(cls.getAcademicYear());
         classRepository.findByNameAndAcademicYearId(request.name(), year.getId())
             .filter(existing -> !existing.getId().equals(classId))
             .ifPresent(existing -> { throw new ConflictException("Lớp đã tồn tại trong năm học này"); });
@@ -135,6 +154,7 @@ public class ClassServiceImpl implements ClassService {
     public void deleteClass(Long classId) {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
+        requireDraft(cls.getAcademicYear());
         if (!enrollmentRepository.findActiveStudentsByClassAndYear(classId, cls.getAcademicYear().getId()).isEmpty()) {
             throw new BadRequestException("Không thể xóa lớp có học sinh");
         }
@@ -159,5 +179,11 @@ public class ClassServiceImpl implements ClassService {
             .findFirst()
             .orElseThrow(() -> new ResourceNotFoundException("AcademicYear", "status", AcademicYearStatus.ACTIVE))
             .getId();
+    }
+
+    private void requireDraft(AcademicYear year) {
+        if (year.getStatus() != AcademicYearStatus.DRAFT) {
+            throw new ConflictException("Chỉ được thay đổi lớp khi năm học ở trạng thái DRAFT");
+        }
     }
 }

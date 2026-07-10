@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
+import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
+import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.entity.*;
@@ -53,6 +55,7 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
             .orElseThrow(() -> new ResourceNotFoundException("Teacher", "id", request.teacherId()));
         AcademicYear year = academicYearRepository.findById(request.academicYearId())
             .orElseThrow(() -> new ResourceNotFoundException("AcademicYear", "id", request.academicYearId()));
+        validate(request, cls, teacher, year);
 
         Optional<HomeroomAssignment> existing = homeroomAssignmentRepository
             .findActiveByClassAndYear(request.classId(), request.academicYearId());
@@ -75,9 +78,16 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", request.classId()));
         Teacher teacher = teacherRepository.findById(request.teacherId())
             .orElseThrow(() -> new ResourceNotFoundException("Teacher", "id", request.teacherId()));
+        AcademicYear year = academicYearRepository.findById(request.academicYearId())
+            .orElseThrow(() -> new ResourceNotFoundException("AcademicYear", "id", request.academicYearId()));
+        validate(request, cls, teacher, year);
+        homeroomAssignmentRepository.findActiveByClassAndYear(request.classId(), request.academicYearId())
+            .filter(existing -> !existing.getId().equals(id))
+            .ifPresent(existing -> { throw new ConflictException("Lớp đã có giáo viên chủ nhiệm"); });
 
         ha.setCls(cls);
         ha.setTeacher(teacher);
+        ha.setAcademicYear(year);
         ha.setEffectiveFrom(request.effectiveFrom());
         return toDto(homeroomAssignmentRepository.save(ha));
     }
@@ -85,6 +95,7 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
     @Override
     public void delete(Long id) {
         HomeroomAssignment ha = findEntity(id);
+        requireDraft(ha.getAcademicYear());
         ha.setEffectiveTo(java.time.LocalDate.now());
         homeroomAssignmentRepository.save(ha);
     }
@@ -92,6 +103,16 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
     private HomeroomAssignment findEntity(Long id) {
         return homeroomAssignmentRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("HomeroomAssignment", "id", id));
+    }
+
+    private void validate(CreateHomeroomAssignmentRequest request, SchoolClass cls, Teacher teacher, AcademicYear year) {
+        requireDraft(year);
+        if (!cls.getAcademicYear().getId().equals(year.getId())) throw new ConflictException("Lớp không thuộc năm học đã chọn");
+        if (teacher.getUser().getStatus() != UserStatus.ACTIVE) throw new ConflictException("Giáo viên đã bị khóa");
+    }
+
+    private void requireDraft(AcademicYear year) {
+        if (year.getStatus() != AcademicYearStatus.DRAFT) throw new ConflictException("Chỉ được thay đổi GVCN khi năm học ở trạng thái DRAFT");
     }
 
     private HomeroomAssignmentDto toDto(HomeroomAssignment ha) {

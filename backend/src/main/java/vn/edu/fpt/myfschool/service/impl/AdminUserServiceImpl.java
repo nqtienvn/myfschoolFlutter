@@ -94,6 +94,10 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new ConflictException("Mã giáo viên đã tồn tại");
         }
 
+        if (email != null && userRepository.existsByEmail(email)) {
+            throw new ConflictException("Email giáo viên đã tồn tại");
+        }
+
         User user = new User();
         user.setPhone(phone);
         user.setPassword(passwordEncoder.encode(DEFAULT_TEACHER_PASSWORD));
@@ -101,6 +105,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setEmail(email);
         user.setRole(UserRole.TEACHER);
         user.setStatus(UserStatus.ACTIVE);
+        user.setMustChangePassword(true);
         user = userRepository.save(user);
 
         Teacher teacher = new Teacher();

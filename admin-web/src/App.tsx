@@ -1,32 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { getAcademicYears } from './api/academicYear';
 import { isAdminLoggedIn, logout } from './api/auth';
-import LoginPage from './pages/LoginPage';
-import UsersPage from './pages/UsersPage';
-import ClassesPage from './pages/ClassesPage';
+import { getSemesters } from './api/semester';
 import AssignmentsPage from './pages/AssignmentsPage';
-import SchedulesPage from './pages/SchedulesPage';
-import TuitionPage from './pages/TuitionPage';
-import FeeCategoriesPage from './pages/FeeCategoriesPage';
-import FeeTemplatesPage from './pages/FeeTemplatesPage';
-import AnnouncementsPage from './pages/AnnouncementsPage';
-import AttendanceSessionPage from './pages/AttendanceSessionPage';
-import GradeBookPage from './pages/GradeBookPage';
-import AcademicYearInitPage from './pages/AcademicYearInitPage';
-import EnrollmentImportPage from './pages/EnrollmentImportPage';
-import ScheduleImportPage from './pages/ScheduleImportPage';
+import ClassesPage from './pages/ClassesPage';
+import StudentEnrollmentPage from './pages/StudentEnrollmentPage';
+import LoginPage from './pages/LoginPage';
 import MasterDataPage from './pages/MasterDataPage';
 import SetupWizardPage from './pages/SetupWizardPage';
-import DashboardPage from './pages/DashboardPage';
-import { getAcademicYears } from './api/academicYear';
-import { getSemesters } from './api/semester';
+import UsersPage from './pages/UsersPage';
+import ValidationPage from './pages/ValidationPage';
+import ActivationPage from './pages/ActivationPage';
 
-interface AcademicYearItem {
+export interface AcademicYearItem {
   id: number;
   name: string;
-  status: string;
+  startDate: string;
+  endDate: string;
+  status: 'DRAFT' | 'ACTIVE' | 'COMPLETED';
 }
 
-interface SemesterItem {
+export interface SemesterItem {
   id: number;
   name: string;
   academicYearId: number;
@@ -35,155 +29,163 @@ interface SemesterItem {
   startDate: string;
   endDate: string;
   isCurrent: boolean;
-  status: string;
+  status: 'NOT_STARTED' | 'ACTIVE' | 'COMPLETED';
 }
+
+const STEPS = [
+  { key: 'years', number: 1, label: 'Khởi tạo năm học' },
+  { key: 'master-data', number: 2, label: 'Cấu hình danh mục' },
+  { key: 'teachers', number: 3, label: 'Quản lý giáo viên' },
+  { key: 'classes', number: 4, label: 'Sinh lớp học' },
+  { key: 'students', number: 5, label: 'Thêm học sinh & PH' },
+  { key: 'assignments', number: 6, label: 'Phân công giảng dạy' },
+  { key: 'validation', number: 7, label: 'Kiểm tra dữ liệu' },
+  { key: 'activation', number: 8, label: 'Kích hoạt năm học' },
+] as const;
+
+type PageKey = 'workflow' | typeof STEPS[number]['key'];
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(isAdminLoggedIn());
-  const [page, setPage] = useState('dashboard');
-  const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
+  const [page, setPage] = useState<PageKey>('workflow');
+  const [years, setYears] = useState<AcademicYearItem[]>([]);
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
-  const [globalYearId, setGlobalYearId] = useState('');
-  const [globalSemesterId, setGlobalSemesterId] = useState('');
+  const [yearId, setYearId] = useState('');
+  const [semesterId, setSemesterId] = useState('');
+  const [loadingContext, setLoadingContext] = useState(false);
+
+  async function refreshYears(preferredYearId?: string) {
+    setLoadingContext(true);
+    try {
+      const data = (await getAcademicYears()) as AcademicYearItem[];
+      const sorted = [...(data || [])].sort((a, b) => b.id - a.id);
+      setYears(sorted);
+      const selected = sorted.find(y => String(y.id) === (preferredYearId || yearId))
+        || sorted.find(y => y.status === 'DRAFT')
+        || sorted.find(y => y.status === 'ACTIVE')
+        || sorted[0];
+      setYearId(selected ? String(selected.id) : '');
+    } finally {
+      setLoadingContext(false);
+    }
+  }
 
   useEffect(() => {
-    setLoggedIn(isAdminLoggedIn());
-    if (isAdminLoggedIn()) {
-      fetchYears();
-    }
+    if (loggedIn) refreshYears();
   }, [loggedIn]);
 
-  // Load active semester for active academic year
   useEffect(() => {
-    if (!globalYearId) {
+    if (!yearId) {
       setSemesters([]);
-      setGlobalSemesterId('');
+      setSemesterId('');
       return;
     }
-    getSemesters(globalYearId)
-      .then((sems: any) => {
-        const list = sems || [];
-        setSemesters(list);
-        const activeSem = list.find((s: any) => s.status === 'ACTIVE');
-        setGlobalSemesterId(activeSem ? String(activeSem.id) : '');
-      })
-      .catch(err => {
-        console.error('Error fetching semesters for global year:', err);
-      });
-  }, [globalYearId]);
+    getSemesters(yearId).then((data: any) => {
+      const list = (data || []) as SemesterItem[];
+      setSemesters(list);
+      const selected = list.find(s => String(s.id) === semesterId)
+        || list.find(s => s.status === 'ACTIVE')
+        || list[0];
+      setSemesterId(selected ? String(selected.id) : '');
+    });
+  }, [yearId]);
 
-  async function fetchYears() {
-    try {
-      const data = await getAcademicYears() as AcademicYearItem[];
-      const years = data || [];
-      setAcademicYears(years);
-      const active = years.find(y => y.status === 'ACTIVE');
-      if (!active) {
-        setGlobalYearId('');
-        setSemesters([]);
-        setGlobalSemesterId('');
-        return;
-      }
+  const selectedYear = useMemo(
+    () => years.find(year => String(year.id) === yearId),
+    [years, yearId],
+  );
+  const selectedSemester = useMemo(
+    () => semesters.find(semester => String(semester.id) === semesterId),
+    [semesters, semesterId],
+  );
 
-      setGlobalYearId(String(active.id));
-      const sems = await getSemesters(String(active.id)) as SemesterItem[];
-      const semesterList = sems || [];
-      setSemesters(semesterList);
-      const activeSem = semesterList.find(s => s.status === 'ACTIVE');
-      setGlobalSemesterId(activeSem ? String(activeSem.id) : '');
-    } catch (err) {
-      console.error('Error fetching academic years:', err);
-    }
-  }
+  if (!loggedIn) return <LoginPage onLogin={() => setLoggedIn(true)} />;
 
-  if (!loggedIn) {
-    return <LoginPage onLogin={() => setLoggedIn(true)} />;
-  }
-
-  function handleLogout() {
-    logout();
-    setLoggedIn(false);
-  }
-
-  const pages: Record<string, React.ReactNode> = {
-    dashboard: <DashboardPage selectedYearId={globalYearId} selectedSemesterId={globalSemesterId} />,
-    wizard: <SetupWizardPage onNavigate={(key) => setPage(key)} />,
-    semesters: <MasterDataPage initialTab="academic-years" onYearCreated={fetchYears} />,
-    'master-data': <MasterDataPage onYearCreated={fetchYears} />,
-    users: <UsersPage />,
-    classes: <ClassesPage selectedYearId={globalYearId} selectedSemesterId={globalSemesterId} />,
-    'academicyear-init': <AcademicYearInitPage />,
-    'enrollment-import': <EnrollmentImportPage selectedYearId={globalYearId} />,
-    schedules: <SchedulesPage selectedYearId={globalYearId} selectedSemesterId={globalSemesterId} />,
-    'schedule-import': <ScheduleImportPage selectedYearId={globalYearId} selectedSemesterId={globalSemesterId} />,
-    'attendance-sessions': <AttendanceSessionPage selectedYearId={globalYearId} selectedSemesterId={globalSemesterId} />,
-    'grade-books': <GradeBookPage selectedYearId={globalYearId} selectedSemesterId={globalSemesterId} />,
-    'fee-categories': <FeeCategoriesPage />,
-    'fee-templates': <FeeTemplatesPage selectedYearId={globalYearId} selectedSemesterId={globalSemesterId} />,
-    tuition: <TuitionPage selectedYearId={globalYearId} selectedSemesterId={globalSemesterId} />,
-    announcements: <AnnouncementsPage />,
-    assignments: <AssignmentsPage selectedYearId={globalYearId} selectedSemesterId={globalSemesterId} />,
+  const goTo = (key: string) => setPage(key as PageKey);
+  const pages: Record<PageKey, React.ReactNode> = {
+    workflow: <SetupWizardPage onNavigate={goTo} selectedYear={selectedYear} />,
+    years: (
+      <MasterDataPage
+        initialTab="academic-years"
+        onYearCreated={() => refreshYears(yearId)}
+      />
+    ),
+    'master-data': (
+      <MasterDataPage
+        initialTab="catalogs"
+        selectedYearId={yearId}
+        selectedYearStatus={selectedYear?.status}
+        onYearCreated={() => refreshYears(yearId)}
+      />
+    ),
+    teachers: <UsersPage />,
+    classes: <ClassesPage selectedYearId={yearId} selectedSemesterId={semesterId} editable={selectedYear?.status === 'DRAFT'} />,
+    students: <StudentEnrollmentPage selectedYearId={yearId} editable={selectedYear?.status === 'DRAFT'} />,
+    assignments: <AssignmentsPage selectedYearId={yearId} selectedSemesterId={semesterId} />,
+    validation: <ValidationPage academicYearId={yearId} onNavigate={goTo} />,
+    activation: (
+      <ActivationPage
+        academicYearId={yearId}
+        academicYearStatus={selectedYear?.status}
+        onChanged={() => refreshYears(yearId)}
+        onNavigate={goTo}
+      />
+    ),
   };
-  const activeYear = academicYears.find(y => String(y.id) === globalYearId);
-  const activeSemester = semesters.find(s => String(s.id) === globalSemesterId);
 
   return (
-    <div className="app">
-      <nav className="sidebar" style={{ overflowY: 'auto' }}>
-        <h2 style={{ padding: '0 8px', marginBottom: '24px' }}>MyFschool Admin</h2>
+    <div className="app-shell">
+      <aside className="workflow-sidebar">
+        <button className="brand" onClick={() => setPage('workflow')}>
+          <span className="brand-mark">MF</span>
+          <span><strong>MyFschool</strong><small>Thiết lập năm học</small></span>
+        </button>
+        <div className="workflow-nav-label">Quy trình Admin</div>
+        <nav className="workflow-nav">
+          {STEPS.map(step => (
+            <button
+              key={step.key}
+              className={page === step.key ? 'active' : ''}
+              onClick={() => setPage(step.key)}
+            >
+              <span>{step.number}</span>
+              {step.label}
+            </button>
+          ))}
+        </nav>
+        <button className="logout-button" onClick={() => { logout(); setLoggedIn(false); }}>
+          Đăng xuất
+        </button>
+      </aside>
 
-        <div className="sidebar-section-title">Tổng quan</div>
-        <button className={page === 'dashboard' ? 'active' : ''} onClick={() => setPage('dashboard')}>Trang tổng quan</button>
-        <button className={page === 'wizard' ? 'active' : ''} onClick={() => setPage('wizard')}>Hướng dẫn cấu hình</button>
-
-        <div className="sidebar-section-title">Danh mục tĩnh</div>
-        <button className={page === 'master-data' ? 'active' : ''} onClick={() => setPage('master-data')}>Danh Mục Chung</button>
-
-        <div className="sidebar-section-title">Nhân sự</div>
-        <button className={page === 'users' ? 'active' : ''} onClick={() => setPage('users')}>Quản lý Giáo viên</button>
-
-        <div className="sidebar-section-title">Cấu hình lớp</div>
-        <button className={page === 'classes' ? 'active' : ''} onClick={() => setPage('classes')}>Thiết lập Lớp học</button>
-
-        <div className="sidebar-section-title">Học sinh</div>
-        <button className={page === 'enrollment-import' ? 'active' : ''} onClick={() => setPage('enrollment-import')}>Nhập Học sinh & PH</button>
-
-        <div className="sidebar-section-title">Vận hành học tập</div>
-        <button className={page === 'assignments' ? 'active' : ''} onClick={() => setPage('assignments')}>Phân công giảng dạy</button>
-        <button className={page === 'schedules' ? 'active' : ''} onClick={() => setPage('schedules')}>Thời khóa biểu</button>
-        <button className={page === 'schedule-import' ? 'active' : ''} onClick={() => setPage('schedule-import')}>Import Excel TKB</button>
-        <button className={page === 'attendance-sessions' ? 'active' : ''} onClick={() => setPage('attendance-sessions')}>Điểm danh buổi học</button>
-        <button className={page === 'grade-books' ? 'active' : ''} onClick={() => setPage('grade-books')}>Sổ điểm & Bảng điểm</button>
-
-        <div className="sidebar-section-title">Tài chính & Thông báo</div>
-        <button className={page === 'fee-categories' ? 'active' : ''} onClick={() => setPage('fee-categories')}>Danh mục Học phí</button>
-        <button className={page === 'fee-templates' ? 'active' : ''} onClick={() => setPage('fee-templates')}>Tạo Mẫu học phí</button>
-        <button className={page === 'tuition' ? 'active' : ''} onClick={() => setPage('tuition')}>Hóa đơn Học phí</button>
-        <button className={page === 'announcements' ? 'active' : ''} onClick={() => setPage('announcements')}>Gửi Thông báo</button>
-        <button className={page === 'academicyear-init' ? 'active' : ''} onClick={() => setPage('academicyear-init')}>Khởi tạo Năm mới</button>
-
-        <button className="logout" onClick={handleLogout} style={{ marginTop: 24 }}>Đăng xuất</button>
-      </nav>
-
-      <div className="app-content">
-        <header className="top-header">
-          <div className="top-header-controls active-term-strip">
-            <div className="term-chip">
-              <span>Năm học đang hoạt động</span>
-              <strong>{activeYear ? activeYear.name : 'Chưa có'}</strong>
-            </div>
-
-            <div className="term-chip">
-              <span>Học kỳ đang hoạt động</span>
-              <strong>{activeSemester ? activeSemester.name : 'Chưa có'}</strong>
-            </div>
+      <section className="workspace">
+        <header className="context-bar">
+          <div>
+            <p>Năm học đang cấu hình</p>
+            <select value={yearId} onChange={event => setYearId(event.target.value)} disabled={loadingContext}>
+              <option value="">Chưa có năm học</option>
+              {years.map(year => (
+                <option key={year.id} value={year.id}>{year.name} · {year.status}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <p>Học kỳ</p>
+            <select value={semesterId} onChange={event => setSemesterId(event.target.value)} disabled={!yearId}>
+              <option value="">Chưa có học kỳ</option>
+              {semesters.map(semester => (
+                <option key={semester.id} value={semester.id}>{semester.name} · {semester.status}</option>
+              ))}
+            </select>
+          </div>
+          <div className={`year-state state-${selectedYear?.status?.toLowerCase() || 'none'}`}>
+            <span>Trạng thái</span>
+            <strong>{selectedYear?.status || 'CHƯA KHỞI TẠO'}</strong>
+            <small>{selectedSemester?.name || 'Chọn năm học để bắt đầu'}</small>
           </div>
         </header>
-
-        <main>
-          {pages[page] || <DashboardPage selectedYearId={globalYearId} selectedSemesterId={globalSemesterId} />}
-        </main>
-      </div>
+        <main className="page-content">{pages[page]}</main>
+      </section>
     </div>
   );
 }

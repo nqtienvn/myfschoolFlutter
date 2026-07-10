@@ -74,8 +74,16 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginResponse register(RegisterRequest request) {
+        if (request.role() == UserRole.ADMIN || request.role() == UserRole.TEACHER) {
+            throw new BadRequestException("Không thể tự đăng ký tài khoản ADMIN hoặc TEACHER");
+        }
         if (userRepository.existsByPhone(request.phone())) {
             throw new ConflictException("Số điện thoại đã được đăng ký");
+        }
+
+        if (request.email() != null && !request.email().isBlank()
+                && userRepository.existsByEmail(request.email().trim())) {
+            throw new ConflictException("Email đã được đăng ký");
         }
 
         // Create User
@@ -190,7 +198,7 @@ public class AuthServiceImpl implements AuthService {
 
         return new UserDto(
             user.getId(), user.getPhone(), user.getName(), user.getEmail(),
-            user.getAvatar(), user.getRole(), user.getStatus(), user.getCreatedAt(),
+            user.getAvatar(), user.getRole(), user.getStatus(), user.getCreatedAt(), user.getMustChangePassword(),
             parentDto, studentDto, teacherDto, settingDto);
     }
 
@@ -204,6 +212,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         user.setPassword(passwordEncoder.encode(request.newPassword()));
+        user.setMustChangePassword(false);
         userRepository.save(user);
     }
 
@@ -213,7 +222,13 @@ public class AuthServiceImpl implements AuthService {
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
         if (request.name() != null) user.setName(request.name());
-        if (request.email() != null) user.setEmail(request.email());
+        if (request.email() != null) {
+            String email = request.email().isBlank() ? null : request.email().trim();
+            if (email != null && !email.equalsIgnoreCase(user.getEmail()) && userRepository.existsByEmail(email)) {
+                throw new ConflictException("Email đã được đăng ký");
+            }
+            user.setEmail(email);
+        }
         if (request.avatar() != null) user.setAvatar(request.avatar());
         userRepository.save(user);
 

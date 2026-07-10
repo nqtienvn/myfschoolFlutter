@@ -63,6 +63,11 @@ public class SemesterServiceImpl implements SemesterService {
     @Override
     public SemesterDto createSemester(CreateSemesterRequest request) {
         AcademicYear year = academicYearService.findEntity(request.academicYearId());
+        requireDraft(year);
+        validateDates(year, request);
+        if (request.order() < 1 || request.order() > 2) {
+            throw new ConflictException("Năm học chỉ có Học kỳ 1 và Học kỳ 2");
+        }
         if (semesterRepository.findByNameAndAcademicYearId(request.name(), year.getId()).isPresent()) {
             throw new ConflictException("Học kỳ đã tồn tại trong năm học này");
         }
@@ -82,6 +87,11 @@ public class SemesterServiceImpl implements SemesterService {
         Semester semester = semesterRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", id));
         AcademicYear year = academicYearService.findEntity(request.academicYearId());
+        requireDraft(year);
+        if (!semester.getAcademicYear().getId().equals(year.getId())) {
+            throw new ConflictException("Không được chuyển học kỳ sang năm học khác");
+        }
+        validateDates(year, request);
         semesterRepository.findByNameAndAcademicYearId(request.name(), year.getId())
             .filter(existing -> !existing.getId().equals(id))
             .ifPresent(existing -> { throw new ConflictException("Học kỳ đã tồn tại trong năm học này"); });
@@ -103,6 +113,9 @@ public class SemesterServiceImpl implements SemesterService {
     public void setCurrentSemester(Long semesterId) {
         Semester semester = semesterRepository.findById(semesterId)
             .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+        if (semester.getAcademicYear().getStatus() != AcademicYearStatus.ACTIVE) {
+            throw new ConflictException("Học kỳ hiện tại chỉ được thay đổi trong năm học ACTIVE");
+        }
         clearCurrentSemesters(semester.getAcademicYear().getId());
         semester.setIsCurrent(true);
         semesterRepository.save(semester);
@@ -115,7 +128,20 @@ public class SemesterServiceImpl implements SemesterService {
         if (semester.getIsCurrent()) {
             throw new ConflictException("Không thể xóa học kỳ hiện tại đang hoạt động");
         }
-        semesterRepository.delete(semester);
+        throw new ConflictException("Hai học kỳ mặc định của năm học không được phép xóa");
+    }
+
+    private void requireDraft(AcademicYear year) {
+        if (year.getStatus() != AcademicYearStatus.DRAFT) {
+            throw new ConflictException("Chỉ được sửa học kỳ khi năm học ở trạng thái DRAFT");
+        }
+    }
+
+    private void validateDates(AcademicYear year, CreateSemesterRequest request) {
+        if (request.startDate().isBefore(year.getStartDate()) || request.endDate().isAfter(year.getEndDate())
+                || !request.startDate().isBefore(request.endDate())) {
+            throw new ConflictException("Thời gian học kỳ phải nằm trong năm học và ngày bắt đầu phải trước ngày kết thúc");
+        }
     }
 
     private void clearCurrentSemesters(Long academicYearId) {

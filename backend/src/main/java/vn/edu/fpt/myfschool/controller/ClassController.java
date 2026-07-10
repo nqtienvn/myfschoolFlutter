@@ -20,6 +20,7 @@ import vn.edu.fpt.myfschool.common.dto.ApiResponse;
 import vn.edu.fpt.myfschool.common.dto.ClassDetailDto;
 import vn.edu.fpt.myfschool.common.dto.ClassDto;
 import vn.edu.fpt.myfschool.common.dto.CreateClassRequest;
+import vn.edu.fpt.myfschool.common.dto.GenerateClassesRequest;
 import vn.edu.fpt.myfschool.common.dto.StudentSummaryDto;
 import vn.edu.fpt.myfschool.service.ClassService;
 
@@ -58,6 +59,13 @@ public class ClassController {
     public ResponseEntity<ApiResponse<ClassDto>> createClass(
             @Valid @RequestBody CreateClassRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Tạo lớp thành công", classService.createClass(request)));
+    }
+
+    @PostMapping("/generate")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Sinh nhiều lớp theo quy tắc đặt tên")
+    public ResponseEntity<ApiResponse<List<ClassDto>>> generateClasses(@Valid @RequestBody GenerateClassesRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Sinh lớp thành công", classService.generateClasses(request)));
     }
 
     @PutMapping("/{id}")

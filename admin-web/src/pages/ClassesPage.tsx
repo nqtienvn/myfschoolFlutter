@@ -1,242 +1,94 @@
-import { useState, useEffect, useRef } from 'react';
-import { getAcademicYears } from '../api/academicYear';
-import { getClasses, createClass, deleteClass } from '../api/class';
+import { useEffect, useState } from 'react';
+import { createClass, deleteClass, generateClasses, getClasses } from '../api/class';
+import { createHomeroomAssignment, getHomeroomAssignment, updateHomeroomAssignment } from '../api/homeroomAssignment';
+import type { HomeroomAssignmentItem } from '../api/homeroomAssignment';
+import { getTeachers } from '../api/user';
+import type { TeacherItem } from '../api/user';
 
-interface AcademicYearItem { id: number; name: string; status: string; }
 interface ClassItem { id: number; name: string; gradeLevel: number; academicYearId: number; academicYearName: string; }
+const today = () => new Date().toISOString().slice(0, 10);
 
-export default function ClassesPage({ selectedYearId, selectedSemesterId }: { selectedYearId?: string; selectedSemesterId?: string }) {
-  const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
-  const [academicYearId, setAcademicYearId] = useState(selectedYearId || '');
-  const [items, setItems] = useState<ClassItem[]>([]);
-  const [activeTab, setActiveTab] = useState<'manual' | 'csv'>('manual');
-  const [error, setError] = useState('');
-  const [progress, setProgress] = useState({ active: false, current: 0, total: 0, label: '' });
-  
-  // Manual creation states
+export default function ClassesPage({ selectedYearId, editable = true }: { selectedYearId?: string; selectedSemesterId?: string; editable?: boolean }) {
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [teachers, setTeachers] = useState<TeacherItem[]>([]);
+  const [homerooms, setHomerooms] = useState<Record<number, HomeroomAssignmentItem | null>>({});
+  const [gradeLevel, setGradeLevel] = useState(10);
+  const [namingPrefix, setNamingPrefix] = useState('A');
+  const [count, setCount] = useState(1);
   const [manualName, setManualName] = useState('');
-  const [manualGrade, setManualGrade] = useState(10);
-  const [teacherCode, setTeacherCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { fetchAcademicYears(); }, []);
-  
-  useEffect(() => {
-    if (selectedYearId) {
-      setAcademicYearId(selectedYearId);
-    }
-  }, [selectedYearId]);
-
-  useEffect(() => { if (academicYearId) fetchItems(); }, [academicYearId]);
-
-  async function fetchAcademicYears() {
-    const data = await getAcademicYears() as AcademicYearItem[];
-    setAcademicYears(data);
-    if (!selectedYearId) {
-      const active = data.find(y => y.status === 'ACTIVE') || data[0];
-      if (active) setAcademicYearId(String(active.id));
-    }
-  }
-
-  async function fetchItems() {
+  async function load() {
+    if (!selectedYearId) return;
+    setLoading(true);
     try {
-      const data = await getClasses({ academicYearId, page: 0, size: 100 });
-      setItems(data.content || []);
-    } catch (err: any) {
-      setError(err.message || 'Không thể tải danh sách lớp học');
-    }
+      const [classPage, teacherPage] = await Promise.all([
+        getClasses({ academicYearId: selectedYearId, page: 0, size: 500 }),
+        getTeachers({ status: 'ACTIVE', page: 0, size: 500 }),
+      ]);
+      const list = (classPage.content || []) as ClassItem[];
+      setClasses(list);
+      setTeachers(teacherPage.content || []);
+      const values = await Promise.all(list.map(async cls => [cls.id, await getHomeroomAssignment(cls.id, selectedYearId)] as const));
+      setHomerooms(Object.fromEntries(values));
+    } catch (cause: any) { setError(cause.message || 'Không thể tải lớp học.'); }
+    finally { setLoading(false); }
   }
 
-  function requireYear() {
-    if (!academicYearId) {
-      setError('Vui lòng chọn năm học.');
-      return false;
-    }
-    return true;
+  useEffect(() => { load(); }, [selectedYearId]);
+
+  async function bulkGenerate() {
+    if (!selectedYearId) return setError('Chọn năm học cần cấu hình.');
+    if (!namingPrefix.trim() || count < 1 || count > 50) return setError('Ký hiệu lớp và số lượng từ 1 đến 50 là bắt buộc.');
+    setLoading(true); setError(''); setMessage('');
+    try {
+      await generateClasses({ academicYearId: Number(selectedYearId), gradeLevel, namingPrefix: namingPrefix.trim().toUpperCase(), count });
+      setMessage(`Đã sinh ${count} lớp theo mẫu ${gradeLevel}${namingPrefix.toUpperCase()}1…`);
+      await load();
+    } catch (cause: any) { setError(cause.message || 'Không thể sinh lớp.'); }
+    finally { setLoading(false); }
   }
 
-  async function handleManualCreate() {
+  async function addManual() {
+    if (!selectedYearId || !manualName.trim()) return setError('Nhập tên lớp và chọn năm học.');
+    try {
+      await createClass({ name: manualName.trim(), gradeLevel, academicYearId: Number(selectedYearId), schoolName: 'FPT Schools' });
+      setManualName(''); setMessage('Đã tạo lớp.'); await load();
+    } catch (cause: any) { setError(cause.message || 'Không thể tạo lớp.'); }
+  }
+
+  async function assignHomeroom(cls: ClassItem, teacherId: number) {
+    if (!selectedYearId) return;
     setError('');
-    if (!requireYear()) return;
-    if (!manualName.trim()) return setError('Tên lớp không được để trống.');
-    if (manualName.length > 20) return setError('Tên lớp không được dài quá 20 ký tự.');
-    if (isNaN(manualGrade) || manualGrade < 1 || manualGrade > 12) return setError('Khối lớp phải là số nguyên từ 1 đến 12.');
-
     try {
-      await createClass({ 
-        name: manualName.trim(), 
-        gradeLevel: manualGrade, 
-        academicYearId: +academicYearId, 
-        schoolName: 'FPT Schools',
-        teacherCode: teacherCode.trim() || undefined
-      });
-      setManualName('');
-      setTeacherCode('');
-      fetchItems();
-    } catch (err: any) {
-      setError(err.message || 'Lỗi lưu thông tin lớp học');
-    }
-  }
-
-  function handleCsvFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) processCsvFile(file);
-  }
-
-  function processCsvFile(file: File) {
-    setError('');
-    if (!requireYear()) return;
-    if (!file.name.endsWith('.csv')) return setError('Chỉ chấp nhận tệp định dạng CSV (.csv)');
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const text = event.target?.result as string;
-      const lines = (text || '').split('\n').map(l => l.trim()).filter(Boolean);
-      if (lines.length === 0) return setError('Tệp không chứa dữ liệu.');
-
-      let startIndex = 0;
-      const firstLineParts = lines[0].split(',');
-      if (isNaN(Number(firstLineParts[1]?.trim()))) startIndex = 1;
-
-      const parsedClasses: { name: string; gradeLevel: number }[] = [];
-      for (let i = startIndex; i < lines.length; i++) {
-        const parts = lines[i].split(',').map(p => p.trim());
-        if (parts.length < 2) return setError(`Lỗi định dạng dòng số ${i + 1}: Thiếu cột thông tin.`);
-        const name = parts[0];
-        const gradeLevel = parseInt(parts[1]);
-        if (!name) return setError(`Lỗi dòng ${i + 1}: Tên lớp không được để trống.`);
-        if (name.length > 20) return setError(`Lỗi dòng ${i + 1}: Tên lớp quá 20 ký tự.`);
-        if (isNaN(gradeLevel) || gradeLevel < 1 || gradeLevel > 12) return setError(`Lỗi dòng ${i + 1}: Khối lớp '${parts[1]}' không hợp lệ (phải từ 1-12).`);
-        parsedClasses.push({ name, gradeLevel });
-      }
-      if (parsedClasses.length === 0) return setError('Không tìm thấy bản ghi lớp học nào hợp lệ để tạo.');
-
-      setProgress({ active: true, current: 0, total: parsedClasses.length, label: 'Bắt đầu tải danh sách...' });
-      try {
-        for (let idx = 0; idx < parsedClasses.length; idx++) {
-          const c = parsedClasses[idx];
-          setProgress(p => ({ ...p, current: idx, label: `Đang import: ${c.name} (${idx + 1}/${parsedClasses.length})...` }));
-          await createClass({ name: c.name, gradeLevel: c.gradeLevel, academicYearId: +academicYearId, schoolName: 'FPT Schools' });
-        }
-        setProgress(p => ({ ...p, current: parsedClasses.length, label: 'Đã nhập thành công toàn bộ lớp học!' }));
-        setTimeout(() => setProgress(p => ({ ...p, active: false })), 2000);
-        fetchItems();
-      } catch (err: any) {
-        setError(`Lỗi import: ${err.message || 'Lỗi không xác định'}`);
-        setProgress(p => ({ ...p, active: false }));
-      }
-    };
-    reader.onerror = () => setError('Đọc tệp tin thất bại.');
-    reader.readAsText(file);
-  }
-
-  function downloadCsvTemplate() {
-    const content = 'Tên lớp,Khối\n10A1,10\n10A2,10\n11B1,11\n';
-    const link = document.createElement('a');
-    link.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(content));
-    link.setAttribute('download', 'template_lophoc.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
-
-  async function deleteItem(id: number) {
-    if (!confirm('Xóa lớp này?')) return;
-    try {
-      await deleteClass(id);
-      fetchItems();
-    } catch (err: any) {
-      alert(err.message);
-    }
+      const existing = homerooms[cls.id];
+      const data = { classId: cls.id, teacherId, academicYearId: Number(selectedYearId), effectiveFrom: today() };
+      const saved = existing ? await updateHomeroomAssignment(existing.id, data) : await createHomeroomAssignment(data);
+      setHomerooms(current => ({ ...current, [cls.id]: saved }));
+      setMessage(`Đã gán GVCN cho lớp ${cls.name}.`);
+    } catch (cause: any) { setError(cause.message || 'Không thể gán giáo viên chủ nhiệm.'); }
   }
 
   return (
-    <div>
-      <h2>Quản lý lớp học</h2>
-      <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
-        <div className="form-group">
-          <label>Năm học đang hoạt động</label>
-          <div style={{ padding: '8px 12px', background: '#f3f4f6', border: '1px solid #d1d5db', fontSize: '13px', fontWeight: 'bold', fontFamily: 'ui-monospace, monospace' }}>
-            NĂM HỌC {academicYears.find(y => String(y.id) === academicYearId)?.name || 'CHƯA CHỌN'}
-          </div>
-        </div>
-      </div>
-
-      <div className="tabs-container">
-        <button className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`} onClick={() => { setActiveTab('manual'); setError(''); }}>Tạo thủ công</button>
-        <button className={`tab-btn ${activeTab === 'csv' ? 'active' : ''}`} onClick={() => { setActiveTab('csv'); setError(''); }}>Import từ CSV</button>
-      </div>
-
-      {error && <div className="error">{error}</div>}
-      {progress.active && (
-        <div className="progress-container">
-          <div>{progress.label}</div>
-          <div className="progress-bar-bg"><div className="progress-bar-fill" style={{ width: `${progress.total ? (progress.current / progress.total) * 100 : 0}%` }} /></div>
-          <div className="progress-text">Đã hoàn thành: {progress.current} / {progress.total} lớp</div>
-        </div>
-      )}
-
-      {activeTab === 'manual' && !progress.active && (
-        <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-          <div className="form-group">
-            <label>Tên lớp</label>
-            <input 
-              placeholder="VD: 10A1, 12C3..." 
-              value={manualName} 
-              onChange={e => setManualName(e.target.value)} 
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Mã khối</label>
-            <select 
-              value={manualGrade} 
-              onChange={e => setManualGrade(+e.target.value)}
-              style={{ height: '38px', padding: '0 8px', border: '1px solid #d4d4d4' }}
-            >
-              {Array.from({ length: 12 }, (_, i) => i + 1).map(g => (
-                <option key={g} value={g}>Khối {g}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Mã giáo viên chủ nhiệm</label>
-            <input 
-              placeholder="VD: GV001..." 
-              value={teacherCode} 
-              onChange={e => setTeacherCode(e.target.value)} 
-            />
-          </div>
-
-          <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
-            <button 
-              onClick={handleManualCreate} 
-              style={{ width: '100%', height: '38px', background: '#000000', color: '#ffffff', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
-            >
-              Tạo lớp
-            </button>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'csv' && !progress.active && (
-        <div>
-          <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".csv" onChange={handleCsvFileSelect} />
-          <div className="file-upload-zone" onClick={() => fileInputRef.current?.click()}>
-            <p>Bấm vào đây để tải lên tệp CSV danh sách lớp học</p>
-            <div className="csv-template-link" onClick={(e) => { e.stopPropagation(); downloadCsvTemplate(); }}>Tải tệp mẫu tại đây (.csv)</div>
-          </div>
-        </div>
-      )}
-
-      <table>
-        <thead><tr><th>ID</th><th>Tên lớp</th><th>Khối</th><th>Năm học</th><th>Thao tác</th></tr></thead>
-        <tbody>
-          {items.map(c => <tr key={c.id}><td>{c.id}</td><td>{c.name}</td><td>{c.gradeLevel}</td><td>{c.academicYearName}</td><td><button className="danger" onClick={() => deleteItem(c.id)}>Xóa</button></td></tr>)}
-        </tbody>
-      </table>
+    <div className="page-stack">
+      <section className="page-heading"><div><span className="eyebrow">Bước 4</span><h1>Sinh lớp & gán GVCN</h1><p>Tên lớp không được trùng trong cùng năm học; mỗi lớp chỉ có một GVCN.</p></div></section>
+      {!selectedYearId && <div className="notice warning">Chọn năm học DRAFT ở thanh trên.</div>}
+      {!editable && selectedYearId && <div className="notice warning">Danh sách lớp và GVCN đã bị khóa vì năm học không còn ở trạng thái DRAFT.</div>}
+      {error && <div className="notice error">{error}</div>}
+      {message && <div className="notice success">{message}</div>}
+      <section className="form-grid">
+        <div className="form-group"><label>Khối lớp</label><select value={gradeLevel} onChange={e=>setGradeLevel(Number(e.target.value))}>{Array.from({length:12},(_,i)=>i+1).map(value=><option key={value} value={value}>Khối {value}</option>)}</select></div>
+        <div className="form-group"><label>Ký hiệu</label><input value={namingPrefix} onChange={e=>setNamingPrefix(e.target.value)} maxLength={3} placeholder="A"/><small className="input-desc">Ví dụ khối 10, ký hiệu A → 10A1</small></div>
+        <div className="form-group"><label>Số lượng lớp</label><input type="number" min={1} max={50} value={count} onChange={e=>setCount(Number(e.target.value))}/></div>
+        <div className="form-group" style={{alignSelf:'end'}}><button onClick={bulkGenerate} disabled={!selectedYearId||!editable||loading}>Sinh lớp hàng loạt</button></div>
+      </section>
+      <section className="form-inline"><div className="form-group"><label>Tạo riêng một lớp</label><input value={manualName} onChange={e=>setManualName(e.target.value)} placeholder="Ví dụ: 10A1"/></div><button onClick={addManual} disabled={!selectedYearId||!editable}>Tạo lớp</button></section>
+      <div className="table-responsive"><table><thead><tr><th>Lớp</th><th>Khối</th><th>Giáo viên chủ nhiệm</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+        {classes.map(cls=><tr key={cls.id}><td><strong>{cls.name}</strong></td><td>{cls.gradeLevel}</td><td><select disabled={!editable} value={homerooms[cls.id]?.teacherId || ''} onChange={e=>assignHomeroom(cls,Number(e.target.value))}><option value="">Chọn GVCN</option>{teachers.map(teacher=><option key={teacher.id} value={teacher.id}>{teacher.name} · {teacher.employeeCode}</option>)}</select></td><td><span className={`badge-status ${homerooms[cls.id]?'active':'preparing'}`}>{homerooms[cls.id]?'ĐÃ CÓ GVCN':'THIẾU GVCN'}</span></td><td><button disabled={!editable} className="danger" onClick={async()=>{if(confirm(`Xóa lớp ${cls.name}?`)){try{await deleteClass(cls.id);await load();}catch(cause:any){setError(cause.message);}}}}>Xóa</button></td></tr>)}
+        {!loading&&classes.length===0&&<tr><td colSpan={5}>Chưa có lớp trong năm học này.</td></tr>}
+      </tbody></table></div>
     </div>
   );
 }

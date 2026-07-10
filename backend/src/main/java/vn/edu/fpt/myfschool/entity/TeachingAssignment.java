@@ -19,7 +19,7 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "teaching_assignments",
        uniqueConstraints = @UniqueConstraint(
-           columnNames = {"class_id", "subject_id", "semester_id", "effective_from"}))
+           columnNames = {"class_id", "subject_id", "semester_id"}))
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class TeachingAssignment extends BaseEntity {

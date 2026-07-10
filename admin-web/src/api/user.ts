@@ -81,10 +81,3 @@ export async function updateTeacherSubjects(teacherId: number, subjectIds: numbe
     body: JSON.stringify({ subjectIds })
   });
 }
-
-export async function importTeachers(formData: FormData) {
-  return apiFetch('/import/teachers', {
-    method: 'POST',
-    body: formData
-  });
-}
