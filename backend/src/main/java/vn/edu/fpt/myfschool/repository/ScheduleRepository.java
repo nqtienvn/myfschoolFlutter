@@ -48,4 +48,8 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
            "AND s.assignment.semester.id = :semesterId")
     void deleteByClassIdAndSemesterId(@Param("classId") Long classId,
                                        @Param("semesterId") Long semesterId);
+
+    @Modifying
+    @Query("DELETE FROM Schedule s WHERE s.assignment.cls.id = :classId")
+    void deleteByClassId(@Param("classId") Long classId);
 }

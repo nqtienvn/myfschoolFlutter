@@ -54,4 +54,6 @@ public interface TeachingAssignmentRepository extends JpaRepository<TeachingAssi
     boolean existsByClsIdAndSubjectIdAndSemesterIdAndIdNot(Long classId, Long subjectId, Long semesterId, Long id);
 
     boolean existsByTeacherIdAndSubjectIdAndStatus(Long teacherId, Long subjectId, AssignmentStatus status);
+
+    void deleteByClsId(Long classId);
 }

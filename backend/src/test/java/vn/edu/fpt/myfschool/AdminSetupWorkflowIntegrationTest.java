@@ -4,9 +4,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
+import vn.edu.fpt.myfschool.entity.AcademicYearSubject;
 import vn.edu.fpt.myfschool.repository.AcademicYearPeriodRepository;
 import vn.edu.fpt.myfschool.repository.AcademicYearShiftRepository;
 import vn.edu.fpt.myfschool.repository.AcademicYearSubjectRepository;
+import vn.edu.fpt.myfschool.repository.HomeroomAssignmentRepository;
 import vn.edu.fpt.myfschool.repository.PeriodRepository;
 import vn.edu.fpt.myfschool.repository.SchoolShiftRepository;
 
@@ -14,6 +16,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -23,6 +26,79 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
     @Autowired AcademicYearSubjectRepository yearSubjectRepository;
     @Autowired AcademicYearShiftRepository yearShiftRepository;
     @Autowired AcademicYearPeriodRepository yearPeriodRepository;
+    @Autowired HomeroomAssignmentRepository homeroomAssignmentRepository;
+
+    @Test
+    void assignSameTeacherToTwoHomeroomClasses_returnsConflict() throws Exception {
+        String token = loginAsAdmin();
+        String yearResponse = mockMvc.perform(post("/api/academic-years")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"startDate\":\"2040-08-01\",\"endDate\":\"2041-05-31\"}"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        long yearId = objectMapper.readTree(yearResponse).path("data").path("id").asLong();
+
+        String classesResponse = mockMvc.perform(post("/api/classes/generate")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"academicYearId\":%d,\"gradeLevel\":10,\"namingPrefix\":\"H\",\"count\":2}".formatted(yearId)))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        long class1Id = objectMapper.readTree(classesResponse).path("data").get(0).path("id").asLong();
+        long class2Id = objectMapper.readTree(classesResponse).path("data").get(1).path("id").asLong();
+
+        mockMvc.perform(post("/api/homeroom-assignments")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"classId\":%d,\"teacherId\":%d,\"academicYearId\":%d,\"effectiveFrom\":\"2040-08-01\"}"
+                    .formatted(class1Id, testTeacher.getId(), yearId)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/homeroom-assignments")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"classId\":%d,\"teacherId\":%d,\"academicYearId\":%d,\"effectiveFrom\":\"2040-08-01\"}"
+                    .formatted(class2Id, testTeacher.getId(), yearId)))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("đang là GVCN lớp")));
+    }
+
+    @Test
+    void deleteDraftClass_removesHomeroomAndTeachingAssignments() throws Exception {
+        String token = loginAsAdmin();
+        String yearResponse = mockMvc.perform(post("/api/academic-years")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"startDate\":\"2042-08-01\",\"endDate\":\"2043-05-31\"}"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        long yearId = objectMapper.readTree(yearResponse).path("data").path("id").asLong();
+        long semesterId = semesterRepository.findByAcademicYearIdOrderByOrderAsc(yearId).getFirst().getId();
+
+        String classesResponse = mockMvc.perform(post("/api/classes/generate")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"academicYearId\":%d,\"gradeLevel\":11,\"namingPrefix\":\"D\",\"count\":1}".formatted(yearId)))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        long classId = objectMapper.readTree(classesResponse).path("data").get(0).path("id").asLong();
+
+        testTeacher.getSubjects().add(testSubject);
+        teacherRepository.save(testTeacher);
+        AcademicYearSubject yearSubject = new AcademicYearSubject();
+        yearSubject.setAcademicYear(academicYearRepository.findById(yearId).orElseThrow());
+        yearSubject.setSubject(testSubject);
+        yearSubjectRepository.save(yearSubject);
+        mockMvc.perform(post("/api/homeroom-assignments")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"classId\":%d,\"teacherId\":%d,\"academicYearId\":%d,\"effectiveFrom\":\"2042-08-01\"}"
+                    .formatted(classId, testTeacher.getId(), yearId)))
+            .andExpect(status().isOk());
+        mockMvc.perform(post("/api/teaching-assignments")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"classId\":%d,\"subjectId\":%d,\"teacherId\":%d,\"semesterId\":%d,\"effectiveFrom\":\"2042-08-01\"}"
+                    .formatted(classId, testSubject.getId(), testTeacher.getId(), semesterId)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/classes/" + classId).header("Authorization", authHeader(token)))
+            .andExpect(status().isOk());
+
+        assertTrue(classRepository.findById(classId).isEmpty());
+        assertTrue(homeroomAssignmentRepository.findByClsIdAndAcademicYearId(classId, yearId).isEmpty());
+        assertTrue(teachingAssignmentRepository.findByClsIdAndStatus(classId,
+            vn.edu.fpt.myfschool.common.enums.AssignmentStatus.ACTIVE).isEmpty());
+    }
 
     @Test
     void manualClassCreationEndpoint_isNotAvailable() throws Exception {

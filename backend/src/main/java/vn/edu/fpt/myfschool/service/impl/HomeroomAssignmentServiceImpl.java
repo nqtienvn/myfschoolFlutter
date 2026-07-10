@@ -55,7 +55,7 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
             .orElseThrow(() -> new ResourceNotFoundException("Teacher", "id", request.teacherId()));
         AcademicYear year = academicYearRepository.findById(request.academicYearId())
             .orElseThrow(() -> new ResourceNotFoundException("AcademicYear", "id", request.academicYearId()));
-        validate(request, cls, teacher, year);
+        validate(request, cls, teacher, year, null);
 
         Optional<HomeroomAssignment> existing = homeroomAssignmentRepository
             .findActiveByClassAndYear(request.classId(), request.academicYearId());
@@ -80,7 +80,7 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
             .orElseThrow(() -> new ResourceNotFoundException("Teacher", "id", request.teacherId()));
         AcademicYear year = academicYearRepository.findById(request.academicYearId())
             .orElseThrow(() -> new ResourceNotFoundException("AcademicYear", "id", request.academicYearId()));
-        validate(request, cls, teacher, year);
+        validate(request, cls, teacher, year, id);
         homeroomAssignmentRepository.findActiveByClassAndYear(request.classId(), request.academicYearId())
             .filter(existing -> !existing.getId().equals(id))
             .ifPresent(existing -> { throw new ConflictException("Lớp đã có giáo viên chủ nhiệm"); });
@@ -105,10 +105,17 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
             .orElseThrow(() -> new ResourceNotFoundException("HomeroomAssignment", "id", id));
     }
 
-    private void validate(CreateHomeroomAssignmentRequest request, SchoolClass cls, Teacher teacher, AcademicYear year) {
+    private void validate(CreateHomeroomAssignmentRequest request, SchoolClass cls, Teacher teacher, AcademicYear year, Long currentAssignmentId) {
         requireDraft(year);
         if (!cls.getAcademicYear().getId().equals(year.getId())) throw new ConflictException("Lớp không thuộc năm học đã chọn");
         if (teacher.getUser().getStatus() != UserStatus.ACTIVE) throw new ConflictException("Giáo viên đã bị khóa");
+        homeroomAssignmentRepository.findActiveByTeacherAndYear(teacher.getId(), year.getId()).stream()
+            .filter(existing -> currentAssignmentId == null || !existing.getId().equals(currentAssignmentId))
+            .findFirst()
+            .ifPresent(existing -> {
+                throw new ConflictException("Giáo viên " + teacher.getUser().getName()
+                    + " đang là GVCN lớp " + existing.getCls().getName() + " trong năm học này");
+            });
     }
 
     private void requireDraft(AcademicYear year) {

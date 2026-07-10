@@ -15,6 +15,7 @@ export default function ClassesPage({ selectedYearId, editable = true }: { selec
   const [gradeLevel, setGradeLevel] = useState(10);
   const [namingPrefix, setNamingPrefix] = useState('A');
   const [count, setCount] = useState<number | ''>(1);
+  const [deleteTarget, setDeleteTarget] = useState<ClassItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -69,6 +70,14 @@ export default function ClassesPage({ selectedYearId, editable = true }: { selec
 
   async function assignHomeroom(cls: ClassItem, teacherId: number) {
     if (!selectedYearId) return;
+    if (!teacherId) return;
+    const assignedClass = classes.find(item =>
+      item.id !== cls.id && homerooms[item.id]?.teacherId === teacherId);
+    if (assignedClass) {
+      const teacher = teachers.find(item => item.id === teacherId);
+      setError(`Giáo viên ${teacher?.name || ''} đang là GVCN lớp ${assignedClass.name} trong năm học này.`);
+      return;
+    }
     setError('');
     try {
       const existing = homerooms[cls.id];
@@ -94,7 +103,7 @@ export default function ClassesPage({ selectedYearId, editable = true }: { selec
       </section>
       <div className="class-list-heading"><div><h2>Danh sách lớp & giáo viên chủ nhiệm</h2><p>Chọn giáo viên chủ nhiệm ngay trên từng dòng lớp.</p></div><span>{totalElements} lớp</span></div>
       <div className="table-responsive"><table className="classes-table"><thead><tr><th>Lớp</th><th>Khối</th><th>Giáo viên chủ nhiệm</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>
-        {classes.map(cls => <tr key={cls.id}><td><strong>{cls.name}</strong></td><td>{cls.gradeLevel}</td><td><select className="homeroom-select" disabled={!editable} value={homerooms[cls.id]?.teacherId || ''} onChange={e => assignHomeroom(cls, Number(e.target.value))}><option value="">Chọn GVCN</option>{teachers.map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.name} · {teacher.employeeCode}</option>)}</select></td><td><span className={`badge-status ${homerooms[cls.id] ? 'active' : 'preparing'}`}>{homerooms[cls.id] ? 'ĐÃ CÓ GVCN' : 'THIẾU GVCN'}</span></td><td><button type="button" disabled={!editable} className="danger class-delete-button" onClick={async () => { if (confirm(`Xóa lớp ${cls.name}?`)) { try { await deleteClass(cls.id); if (classes.length === 1 && pageIndex > 0) { setPageIndex(prev => prev - 1); } else { await load(); } } catch (cause: any) { setError(cause.message); } } }}>Xóa</button></td></tr>)}
+        {classes.map(cls => <tr key={cls.id}><td><strong>{cls.name}</strong></td><td>{cls.gradeLevel}</td><td><select className="homeroom-select" disabled={!editable} value={homerooms[cls.id]?.teacherId || ''} onChange={e => assignHomeroom(cls, Number(e.target.value))}><option value="">Chọn GVCN</option>{teachers.map(teacher => { const assignedClass = classes.find(item => item.id !== cls.id && homerooms[item.id]?.teacherId === teacher.id); return <option key={teacher.id} value={teacher.id} disabled={!!assignedClass}>{teacher.name} · {teacher.employeeCode}{assignedClass ? ` · GVCN ${assignedClass.name}` : ''}</option>; })}</select></td><td><span className={`badge-status ${homerooms[cls.id] ? 'active' : 'preparing'}`}>{homerooms[cls.id] ? 'ĐÃ CÓ GVCN' : 'THIẾU GVCN'}</span></td><td><button type="button" disabled={!editable} className="danger class-delete-button" onClick={() => setDeleteTarget(cls)}>Xóa</button></td></tr>)}
         {!loading && classes.length === 0 && <tr><td colSpan={5}>Chưa có lớp trong năm học này.</td></tr>}
       </tbody></table></div>
       {totalPages > 1 && (
@@ -118,6 +127,63 @@ export default function ClassesPage({ selectedYearId, editable = true }: { selec
           >
             Sau
           </button>
+        </div>
+      )}
+      {deleteTarget && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div className="modal-content" style={{
+            background: 'white', padding: '24px', borderRadius: '16px',
+            width: 'min(90%, 400px)', boxShadow: '0 20px 48px rgba(0,0,0,0.15)'
+          }}>
+            <h3 style={{ marginTop: 0, fontSize: 18, color: 'var(--navy)' }}>Xác nhận xóa</h3>
+            <p style={{ fontSize: 14, color: 'var(--muted)', margin: '12px 0 24px', lineHeight: 1.5 }}>
+              Bạn có chắc chắn muốn xóa lớp học <strong>{deleteTarget.name}</strong> chứ? Phân công GVCN và giảng dạy của lớp cũng sẽ bị xóa. Thao tác này không thể hoàn tác.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                style={{
+                  border: '1px solid var(--line)', background: '#f1f3f5', color: '#495057',
+                  padding: '10px 16px', borderRadius: '8px', fontWeight: 650,
+                  fontSize: 13, cursor: 'pointer'
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const target = deleteTarget;
+                  setDeleteTarget(null);
+                  setError(''); setMessage('');
+                  try {
+                    await deleteClass(target.id);
+                    if (classes.length === 1 && pageIndex > 0) {
+                      setPageIndex(previous => previous - 1);
+                    } else {
+                      await load();
+                    }
+                    setMessage(`Đã xóa lớp ${target.name}.`);
+                  } catch (cause: any) {
+                    setError(cause.message || 'Không thể xóa lớp học.');
+                  }
+                }}
+                style={{
+                  border: '1px solid #dc3545', background: '#dc3545', color: 'white',
+                  padding: '10px 16px', borderRadius: '8px', fontWeight: 650,
+                  fontSize: 13, cursor: 'pointer'
+                }}
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -32,6 +32,7 @@ public class ClassServiceImpl implements ClassService {
     private final EnrollmentRepository enrollmentRepository;
     private final TeachingAssignmentRepository teachingAssignmentRepository;
     private final HomeroomAssignmentRepository homeroomAssignmentRepository;
+    private final ScheduleRepository scheduleRepository;
     private final AcademicYearRepository academicYearRepository;
     private final AcademicYearService academicYearService;
     private final ClassMapper classMapper;
@@ -143,6 +144,9 @@ public class ClassServiceImpl implements ClassService {
         if (!enrollmentRepository.findActiveStudentsByClassAndYear(classId, cls.getAcademicYear().getId()).isEmpty()) {
             throw new BadRequestException("Không thể xóa lớp có học sinh");
         }
+        scheduleRepository.deleteByClassId(classId);
+        teachingAssignmentRepository.deleteByClsId(classId);
+        homeroomAssignmentRepository.deleteByClsId(classId);
         classRepository.delete(cls);
     }
 
