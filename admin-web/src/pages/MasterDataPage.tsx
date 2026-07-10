@@ -60,6 +60,9 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
 
   async function saveYear() {
     if (!startDate || !endDate) return setError('Vui lòng nhập ngày bắt đầu và kết thúc.');
+    const startYear = Number(startDate.slice(0, 4));
+    const endYear = Number(endDate.slice(0, 4));
+    if (endYear !== startYear + 1) return setError(`Ngày kết thúc phải thuộc năm ${startYear + 1}.`);
     setSaving(true); setError(''); setMessage('');
     try {
       if (editingId) await updateAcademicYear(editingId, { startDate, endDate });
@@ -100,6 +103,17 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
   const toggle = (items: number[], id: number, setter: (value: number[]) => void) =>
     setter(items.includes(id) ? items.filter(item => item !== id) : [...items, id]);
 
+  const nextYear = startDate ? Number(startDate.slice(0, 4)) + 1 : null;
+  const endDateMin = nextYear ? `${nextYear}-01-01` : undefined;
+  const endDateMax = nextYear ? `${nextYear}-12-31` : undefined;
+
+  function changeStartDate(value: string) {
+    setStartDate(value);
+    if (!value || !endDate) return;
+    const expectedEndYear = Number(value.slice(0, 4)) + 1;
+    if (Number(endDate.slice(0, 4)) !== expectedEndYear) setEndDate('');
+  }
+
   function toggleShift(shiftId: number) {
     if (shiftIds.includes(shiftId)) {
       const removedPeriodIds = new Set(periods.filter(period => period.shiftId === shiftId).map(period => period.id));
@@ -126,7 +140,7 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
             ))}
             {years.length === 0 && <tr><td colSpan={5}>Chưa có năm học.</td></tr>}
           </tbody></table></div>
-          <aside className="master-data-side"><div className="master-data-form-card"><h3>{editingId ? 'Sửa năm học DRAFT' : 'Tạo năm học'}</h3><div className="form-group"><label>Ngày bắt đầu</label><input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}/></div><div className="form-group"><label>Ngày kết thúc</label><input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)}/></div><button onClick={saveYear} disabled={saving}>{saving ? 'Đang lưu…' : editingId ? 'Lưu thay đổi' : 'Tạo năm học'}</button>{editingId && <button className="secondary-button" onClick={()=>{setEditingId(null);setStartDate('');setEndDate('');}}>Hủy</button>}<small className="input-desc">Hệ thống tự tạo Học kỳ 1 và Học kỳ 2.</small></div></aside>
+          <aside className="master-data-side"><div className="master-data-form-card"><h3>{editingId ? 'Sửa năm học DRAFT' : 'Tạo năm học'}</h3><div className="form-group"><label>Ngày bắt đầu</label><input type="date" value={startDate} onChange={e=>changeStartDate(e.target.value)}/></div><div className="form-group"><label>Ngày kết thúc</label><input type="date" value={endDate} min={endDateMin} max={endDateMax} disabled={!startDate} onChange={e=>setEndDate(e.target.value)}/><small className="input-desc">{nextYear ? `Chỉ chọn ngày trong năm ${nextYear}.` : 'Chọn ngày bắt đầu trước.'}</small></div><button onClick={saveYear} disabled={saving}>{saving ? 'Đang lưu…' : editingId ? 'Lưu thay đổi' : 'Tạo năm học'}</button>{editingId && <button className="secondary-button" onClick={()=>{setEditingId(null);setStartDate('');setEndDate('');}}>Hủy</button>}<small className="input-desc">Năm học chỉ kéo dài qua hai năm liên tiếp; hệ thống tự tạo Học kỳ 1 và Học kỳ 2.</small></div></aside>
         </div>
       ) : (
         <>

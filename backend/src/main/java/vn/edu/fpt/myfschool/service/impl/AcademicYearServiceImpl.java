@@ -40,9 +40,7 @@ public class AcademicYearServiceImpl implements AcademicYearService {
 
     @Override
     public AcademicYearDto createAcademicYear(CreateAcademicYearRequest request) {
-        if (request.startDate().getYear() >= request.endDate().getYear()) {
-            throw new ConflictException("Không thể tạo năm học với năm bắt đầu lớn hơn năm kết thúc");
-        }
+        requireConsecutiveYears(request.startDate(), request.endDate());
         AcademicYear year = new AcademicYear();
         String name = request.startDate().getYear() + "-" + request.endDate().getYear();
         if (academicYearRepository.existsByName(name)) {
@@ -65,9 +63,7 @@ public class AcademicYearServiceImpl implements AcademicYearService {
         }
         LocalDate start = request.startDate() != null ? request.startDate() : year.getStartDate();
         LocalDate end = request.endDate() != null ? request.endDate() : year.getEndDate();
-        if (start.getYear() >= end.getYear()) {
-            throw new ConflictException("Không thể cập nhật năm học với năm bắt đầu lớn hơn năm kết thúc");
-        }
+        requireConsecutiveYears(start, end);
         
         String name = start.getYear() + "-" + end.getYear();
         if (!name.equals(year.getName()) && academicYearRepository.existsByName(name)) {
@@ -139,6 +135,12 @@ public class AcademicYearServiceImpl implements AcademicYearService {
         s2.setStartDate(LocalDate.of(endYear, 1, 1));
         s2.setEndDate(year.getEndDate());
         semesterRepository.save(s2);
+    }
+
+    private void requireConsecutiveYears(LocalDate startDate, LocalDate endDate) {
+        if (endDate.getYear() != startDate.getYear() + 1) {
+            throw new ConflictException("Năm học phải nằm trong hai năm liên tiếp, ví dụ 2024-2025");
+        }
     }
 
     @Override
