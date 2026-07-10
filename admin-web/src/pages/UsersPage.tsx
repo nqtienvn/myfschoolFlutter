@@ -46,6 +46,10 @@ export default function UsersPage() {
 
   async function create(event: React.FormEvent) {
     event.preventDefault();
+    if (subjectIds.length === 0) {
+      setError('Chọn ít nhất một môn giáo viên có thể giảng dạy.');
+      return;
+    }
     setError(''); setMessage(''); setLoading(true);
     try {
       const created = await createTeacherAccount({ ...form, subjectIds });
@@ -78,13 +82,41 @@ export default function UsersPage() {
       {error && <div className="notice error">{error}</div>}
       {message && <div className="notice success">{message}</div>}
 
-      <form className="form-grid" onSubmit={create}>
-        <div className="form-group"><label>Họ và tên</label><input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-        <div className="form-group"><label>Số điện thoại</label><input required pattern="0[0-9]{9}" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
-        <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
-        <div className="form-group"><label>Môn có thể giảng dạy</label><select required multiple value={subjectIds.map(String)} onChange={e => setSubjectIds(Array.from(e.target.selectedOptions, option => Number(option.value)))}>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name} ({subject.code})</option>)}</select><small className="input-desc">Giữ Ctrl/Cmd để chọn nhiều môn.</small></div>
-        <div className="notice" style={{ gridColumn: '1 / -1' }}>Mã giáo viên được hệ thống tự sinh theo định dạng <strong>GV-0001</strong>.</div>
-        <div className="form-actions" style={{ gridColumn: '1 / -1' }}><button disabled={loading}>Tạo giáo viên</button></div>
+      <form className="teacher-create-form" onSubmit={create}>
+        <div className="teacher-form-heading">
+          <div><span className="teacher-form-index">01</span><div><h2>Thông tin giáo viên</h2><p>Nhập thông tin tài khoản và chọn các môn có thể phụ trách.</p></div></div>
+          <span className="teacher-required-note">* Thông tin bắt buộc</span>
+        </div>
+
+        <div className="teacher-primary-fields">
+          <div className="form-group"><label>Họ và tên *</label><input required placeholder="Ví dụ: Nguyễn Văn An" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+          <div className="form-group"><label>Số điện thoại *</label><input required inputMode="numeric" pattern="0[0-9]{9}" placeholder="10 chữ số, bắt đầu bằng 0" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+          <div className="form-group"><label>Email</label><input type="email" placeholder="giaovien@myfschool.edu.vn" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+        </div>
+
+        <fieldset className="teacher-subject-picker">
+          <legend>Môn có thể giảng dạy *</legend>
+          <p>Chọn ít nhất một môn. Có thể chọn nhiều môn cùng lúc.</p>
+          <div className="teacher-subject-grid">
+            {subjects.map(subject => {
+              const selected = subjectIds.includes(subject.id);
+              return <label key={subject.id} className={selected ? 'selected' : ''}>
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() => setSubjectIds(current => selected ? current.filter(id => id !== subject.id) : [...current, subject.id])}
+                />
+                <span><strong>{subject.name}</strong><small>{subject.code}</small></span>
+              </label>;
+            })}
+            {subjects.length === 0 && <span className="input-desc">Chưa có môn học. Hãy khởi tạo danh mục trước.</span>}
+          </div>
+        </fieldset>
+
+        <div className="teacher-form-footer">
+          <div className="teacher-code-note"><span>i</span><p>Mã giáo viên được hệ thống tự sinh theo định dạng <strong>GV-0001</strong>.</p></div>
+          <button disabled={loading}>{loading ? 'Đang tạo…' : 'Tạo giáo viên'}</button>
+        </div>
       </form>
 
       <div className="filters">
