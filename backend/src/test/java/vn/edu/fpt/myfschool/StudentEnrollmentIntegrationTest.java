@@ -9,6 +9,7 @@ import vn.edu.fpt.myfschool.entity.SchoolClass;
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -38,6 +39,17 @@ class StudentEnrollmentIntegrationTest extends BaseIntegrationTest {
         assertTrue(student.getUser().getMustChangePassword());
         assertTrue(enrollmentRepository.findByStudentIdAndAcademicYearIdAndStatus(student.getId(), draft.getId(), vn.edu.fpt.myfschool.common.enums.EnrollmentStatus.ACTIVE).isPresent());
         assertTrue(studentGuardianRepository.existsByStudentIdAndGuardianId(student.getId(), testParent.getId()));
+
+        mockMvc.perform(get("/api/admin/student-enrollments")
+                .param("academicYearId", draft.getId().toString())
+                .param("classId", cls.getId().toString())
+                .header("Authorization", authHeader(token)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].studentName").value("Học sinh mới"))
+            .andExpect(jsonPath("$.data[0].studentUsername").value("HS203001"))
+            .andExpect(jsonPath("$.data[0].guardians[0].parentName").value("PH Test"))
+            .andExpect(jsonPath("$.data[0].guardians[0].parentUsername").value("0909000002"))
+            .andExpect(jsonPath("$.data[0].guardians[0].relationship").value("FATHER"));
     }
 
     @Test

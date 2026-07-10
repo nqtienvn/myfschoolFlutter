@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.service.StudentEnrollmentService;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/admin/student-enrollments")
 @RequiredArgsConstructor
@@ -16,5 +18,11 @@ public class StudentEnrollmentController {
     @PostMapping @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<StudentEnrollmentResultDto>> create(@Valid @RequestBody CreateStudentEnrollmentRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Tạo học sinh và xếp lớp thành công", service.create(request)));
+    }
+
+    @GetMapping @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<StudentAccountByClassDto>>> listAccounts(
+        @RequestParam Long academicYearId, @RequestParam Long classId) {
+        return ResponseEntity.ok(ApiResponse.success(service.listAccounts(academicYearId, classId)));
     }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getClasses } from '../api/class';
-import { createStudentEnrollment, type CreateStudentEnrollmentRequest, type StudentEnrollmentResult } from '../api/studentEnrollment';
+import { createStudentEnrollment, getStudentAccountsByClass, type CreateStudentEnrollmentRequest, type StudentAccountByClass, type StudentEnrollmentResult } from '../api/studentEnrollment';
 
 interface ClassItem { id: number; name: string; gradeLevel: number; }
 const emptyForm = {
@@ -13,7 +13,9 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
   const [grade, setGrade] = useState('10');
   const [form, setForm] = useState(emptyForm);
   const [result, setResult] = useState<StudentEnrollmentResult | null>(null);
+  const [accounts, setAccounts] = useState<StudentAccountByClass[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -26,6 +28,20 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
 
   const filteredClasses = useMemo(() => classes.filter(item => String(item.gradeLevel) === grade), [classes, grade]);
   const set = (key: keyof typeof emptyForm, value: string) => setForm(current => ({ ...current, [key]: value }));
+
+  async function loadAccounts(classId: string) {
+    if (!selectedYearId || !classId) { setAccounts([]); return; }
+    setLoadingAccounts(true);
+    try {
+      setAccounts(await getStudentAccountsByClass(Number(selectedYearId), Number(classId)));
+    } catch (cause: any) {
+      setError(cause.message || 'Không thể tải danh sách tài khoản theo lớp.');
+    } finally { setLoadingAccounts(false); }
+  }
+
+  useEffect(() => {
+    loadAccounts(form.classId);
+  }, [selectedYearId, form.classId]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -40,6 +56,7 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
         relationship: form.relationship as CreateStudentEnrollmentRequest['relationship'],
       });
       setResult(data);
+      await loadAccounts(form.classId);
       setForm(current => ({ ...emptyForm, classId: current.classId }));
     } catch (cause: any) {
       setError(cause.message || 'Không thể thêm học sinh.');
@@ -83,5 +100,29 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
       <div className="notice">Mật khẩu mặc định: <strong>12345678</strong>. Tài khoản mới phải đổi mật khẩu ở lần đăng nhập đầu tiên.</div>
       <div className="page-actions"><button disabled={loading || !selectedYearId || !editable}>{loading ? 'Đang tạo...' : 'Tạo học sinh & xếp lớp'}</button></div>
     </form>
+
+    <section className="page-stack">
+      <div className="class-list-heading">
+        <div><h2>Danh sách tài khoản theo lớp</h2><p>Tài khoản học sinh và phụ huynh của lớp đang chọn.</p></div>
+        <span>{accounts.length} học sinh</span>
+      </div>
+      {!form.classId && <div className="notice">Chọn lớp ở phía trên để xem danh sách tài khoản.</div>}
+      {form.classId && loadingAccounts && <div className="notice">Đang tải danh sách tài khoản...</div>}
+      {form.classId && !loadingAccounts && <div className="table-responsive"><table className="classes-table">
+        <thead><tr><th>Học sinh</th><th>Tài khoản học sinh</th><th>Phụ huynh</th><th>Tài khoản phụ huynh</th><th>Quan hệ</th></tr></thead>
+        <tbody>
+          {accounts.flatMap(student => student.guardians.length > 0
+            ? student.guardians.map((guardian, index) => <tr key={`${student.studentId}-${guardian.parentId}`}>
+                <td>{index === 0 && <><strong>{student.studentName}</strong><br /><small>{student.studentCode}</small></>}</td>
+                <td>{index === 0 && <strong>{student.studentUsername}</strong>}</td>
+                <td><strong>{guardian.parentName}</strong>{guardian.parentEmail && <><br /><small>{guardian.parentEmail}</small></>}</td>
+                <td>{guardian.parentUsername}</td>
+                <td>{{ FATHER: 'Bố', MOTHER: 'Mẹ', GUARDIAN: 'Người giám hộ' }[guardian.relationship]}</td>
+              </tr>)
+            : [<tr key={`${student.studentId}-none`}><td><strong>{student.studentName}</strong><br /><small>{student.studentCode}</small></td><td><strong>{student.studentUsername}</strong></td><td colSpan={3}>Chưa có phụ huynh</td></tr>])}
+          {accounts.length === 0 && <tr><td colSpan={5}>Lớp chưa có học sinh.</td></tr>}
+        </tbody>
+      </table></div>}
+    </section>
   </div>;
 }

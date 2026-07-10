@@ -12,6 +12,8 @@ import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.repository.*;
 import vn.edu.fpt.myfschool.service.StudentEnrollmentService;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -67,6 +69,27 @@ public class StudentEnrollmentServiceImpl implements StudentEnrollmentService {
         Enrollment enrollment = new Enrollment(); enrollment.setStudent(student); enrollment.setCls(cls); enrollment.setAcademicYear(year);
         enrollment.setJoinDate(year.getStartDate()); enrollment.setStatus(EnrollmentStatus.ACTIVE); enrollmentRepository.save(enrollment);
         return new StudentEnrollmentResultDto(student.getId(), code, cls.getId(), cls.getName(), parent.getId(), parentReused);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StudentAccountByClassDto> listAccounts(Long academicYearId, Long classId) {
+        SchoolClass cls = classRepository.findById(classId)
+            .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
+        if (!cls.getAcademicYear().getId().equals(academicYearId)) {
+            throw new ConflictException("Lớp không thuộc năm học đã chọn");
+        }
+
+        return enrollmentRepository.findActiveStudentsByClassAndYear(classId, academicYearId).stream()
+            .map(student -> new StudentAccountByClassDto(
+                student.getId(), student.getStudentCode(), student.getUser().getName(), student.getUser().getPhone(),
+                guardianRepository.findByStudentId(student.getId()).stream()
+                    .map(link -> new StudentAccountByClassDto.GuardianAccountDto(
+                        link.getGuardian().getId(), link.getGuardian().getUser().getName(),
+                        link.getGuardian().getUser().getPhone(), link.getGuardian().getUser().getEmail(),
+                        link.getRelationship()))
+                    .toList()))
+            .toList();
     }
 
     private User newUser(String login, String name, String email, String citizenId, UserRole role) {
