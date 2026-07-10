@@ -4,15 +4,25 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
+import vn.edu.fpt.myfschool.repository.AcademicYearPeriodRepository;
+import vn.edu.fpt.myfschool.repository.AcademicYearShiftRepository;
+import vn.edu.fpt.myfschool.repository.AcademicYearSubjectRepository;
 import vn.edu.fpt.myfschool.repository.PeriodRepository;
 import vn.edu.fpt.myfschool.repository.SchoolShiftRepository;
 
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
     @Autowired SchoolShiftRepository shiftRepository;
     @Autowired PeriodRepository periodRepository;
+    @Autowired AcademicYearSubjectRepository yearSubjectRepository;
+    @Autowired AcademicYearShiftRepository yearShiftRepository;
+    @Autowired AcademicYearPeriodRepository yearPeriodRepository;
 
     @Test
     void completeEightStepSetup_canActivateDraftYear() throws Exception {
@@ -73,5 +83,55 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/academic-years").header("Authorization", authHeader(token)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[?(@.id == %d)].status".formatted(yearId)).value("ACTIVE"));
+    }
+
+    @Test
+    void updateMasterData_addKeepAndRemoveSelections_isIdempotent() throws Exception {
+        String token = loginAsAdmin();
+        mockMvc.perform(post("/api/master-data/initialize").header("Authorization", authHeader(token)))
+            .andExpect(status().isOk());
+
+        String yearResponse = mockMvc.perform(post("/api/academic-years")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"startDate\":\"2034-08-01\",\"endDate\":\"2035-05-31\"}"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        long yearId = objectMapper.readTree(yearResponse).path("data").path("id").asLong();
+
+        long subject1 = testSubject.getId();
+        long subject2 = subjectRepository.findByCode("VAN12").orElseThrow().getId();
+        var shifts = shiftRepository.findAllByOrderByOrderAsc();
+        long shift1 = shifts.get(0).getId();
+        long shift2 = shifts.get(1).getId();
+        long period1 = periodRepository.findByShiftIdOrderByOrderAsc(shift1).getFirst().getId();
+        long period2 = periodRepository.findByShiftIdOrderByOrderAsc(shift2).getFirst().getId();
+
+        saveMasterData(token, yearId,
+            "{\"subjectIds\":[%d],\"shiftIds\":[%d],\"periodIds\":[%d]}".formatted(subject1, shift1, period1));
+
+        String expanded = "{\"subjectIds\":[%d,%d],\"shiftIds\":[%d,%d],\"periodIds\":[%d,%d]}"
+            .formatted(subject1, subject2, shift1, shift2, period1, period2);
+        saveMasterData(token, yearId, expanded);
+        saveMasterData(token, yearId, expanded);
+
+        assertEquals(Set.of(subject1, subject2), yearSubjectRepository.findByAcademicYearId(yearId).stream()
+            .map(item -> item.getSubject().getId()).collect(Collectors.toSet()));
+        assertEquals(2, yearShiftRepository.findByAcademicYearId(yearId).size());
+        assertEquals(2, yearPeriodRepository.findByAcademicYearId(yearId).size());
+
+        saveMasterData(token, yearId,
+            "{\"subjectIds\":[%d],\"shiftIds\":[%d],\"periodIds\":[%d]}".formatted(subject2, shift2, period2));
+
+        assertEquals(Set.of(subject2), yearSubjectRepository.findByAcademicYearId(yearId).stream()
+            .map(item -> item.getSubject().getId()).collect(Collectors.toSet()));
+        assertEquals(Set.of(shift2), yearShiftRepository.findByAcademicYearId(yearId).stream()
+            .map(item -> item.getShift().getId()).collect(Collectors.toSet()));
+        assertEquals(Set.of(period2), yearPeriodRepository.findByAcademicYearId(yearId).stream()
+            .map(item -> item.getPeriod().getId()).collect(Collectors.toSet()));
+    }
+
+    private void saveMasterData(String token, long yearId, String body) throws Exception {
+        mockMvc.perform(put("/api/academic-years/" + yearId + "/master-data")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isOk());
     }
 }
