@@ -16,6 +16,13 @@ const steps = [
   ['activation', 'Kích hoạt năm học', 'Chỉ kích hoạt khi mọi kiểm tra đạt; cấu hình quan trọng sẽ được khóa.'],
 ] as const;
 
+const STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'NHÁP',
+  NOT_STARTED: 'CHƯA BẮT ĐẦU',
+  ACTIVE: 'ĐANG HOẠT ĐỘNG',
+  COMPLETED: 'ĐÃ HOÀN THÀNH',
+};
+
 export default function SetupWizardPage({ onNavigate, selectedYear }: Props) {
   return (
     <div className="page-stack">
@@ -28,7 +35,7 @@ export default function SetupWizardPage({ onNavigate, selectedYear }: Props) {
         <div className="hero-context">
           <span>Năm học hiện tại</span>
           <strong>{selectedYear?.name || 'Chưa chọn'}</strong>
-          <small>{selectedYear?.status || 'Tạo năm học để bắt đầu'}</small>
+          <small>{selectedYear?.status ? STATUS_LABELS[selectedYear.status] : 'Tạo năm học để bắt đầu'}</small>
         </div>
       </section>
 

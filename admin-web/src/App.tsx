@@ -32,6 +32,13 @@ export interface SemesterItem {
   status: 'NOT_STARTED' | 'ACTIVE' | 'COMPLETED';
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'NHÁP',
+  NOT_STARTED: 'CHƯA BẮT ĐẦU',
+  ACTIVE: 'ĐANG HOẠT ĐỘNG',
+  COMPLETED: 'ĐÃ HOÀN THÀNH',
+};
+
 const STEPS = [
   { key: 'years', number: 1, label: 'Khởi tạo năm học' },
   { key: 'master-data', number: 2, label: 'Cấu hình danh mục' },
@@ -165,7 +172,7 @@ export default function App() {
             <select value={yearId} onChange={event => setYearId(event.target.value)} disabled={loadingContext}>
               <option value="">Chưa có năm học</option>
               {years.map(year => (
-                <option key={year.id} value={year.id}>{year.name} · {year.status}</option>
+                <option key={year.id} value={year.id}>{year.name} · {STATUS_LABELS[year.status] || year.status}</option>
               ))}
             </select>
           </div>
@@ -174,13 +181,13 @@ export default function App() {
             <select value={semesterId} onChange={event => setSemesterId(event.target.value)} disabled={!yearId}>
               <option value="">Chưa có học kỳ</option>
               {semesters.map(semester => (
-                <option key={semester.id} value={semester.id}>{semester.name} · {semester.status}</option>
+                <option key={semester.id} value={semester.id}>{semester.name} · {STATUS_LABELS[semester.status] || semester.status}</option>
               ))}
             </select>
           </div>
           <div className={`year-state state-${selectedYear?.status?.toLowerCase() || 'none'}`}>
             <span>Trạng thái</span>
-            <strong>{selectedYear?.status || 'CHƯA KHỞI TẠO'}</strong>
+            <strong>{selectedYear?.status ? STATUS_LABELS[selectedYear.status] : 'CHƯA KHỞI TẠO'}</strong>
             <small>{selectedSemester?.name || 'Chọn năm học để bắt đầu'}</small>
           </div>
         </header>
