@@ -21,9 +21,11 @@ export interface CreateStudentEnrollmentRequest {
 export interface StudentEnrollmentResult {
   studentId: number;
   studentCode: string;
+  studentUsername: string;
   classId: number;
   className: string;
   parentId: number;
+  parentUsername: string;
   parentReused: boolean;
 }
 

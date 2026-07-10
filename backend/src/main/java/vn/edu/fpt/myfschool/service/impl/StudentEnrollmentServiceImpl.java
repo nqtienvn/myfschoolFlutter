@@ -68,7 +68,9 @@ public class StudentEnrollmentServiceImpl implements StudentEnrollmentService {
         guardianRepository.save(guardian);
         Enrollment enrollment = new Enrollment(); enrollment.setStudent(student); enrollment.setCls(cls); enrollment.setAcademicYear(year);
         enrollment.setJoinDate(year.getStartDate()); enrollment.setStatus(EnrollmentStatus.ACTIVE); enrollmentRepository.save(enrollment);
-        return new StudentEnrollmentResultDto(student.getId(), code, cls.getId(), cls.getName(), parent.getId(), parentReused);
+        return new StudentEnrollmentResultDto(
+            student.getId(), code, studentUser.getPhone(), cls.getId(), cls.getName(),
+            parent.getId(), parentUser.getPhone(), parentReused);
     }
 
     @Override

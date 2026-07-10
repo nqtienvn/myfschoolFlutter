@@ -32,7 +32,9 @@ class StudentEnrollmentIntegrationTest extends BaseIntegrationTest {
                     """.formatted(draft.getId(), cls.getId())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.studentCode").value("HS203001"))
+            .andExpect(jsonPath("$.data.studentUsername").value("HS203001"))
             .andExpect(jsonPath("$.data.className").value("10A1"))
+            .andExpect(jsonPath("$.data.parentUsername").value("0909000002"))
             .andExpect(jsonPath("$.data.parentReused").value(true));
 
         var student = studentRepository.findByStudentCode("HS203001").orElseThrow();
