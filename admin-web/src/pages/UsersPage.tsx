@@ -24,13 +24,26 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
+  // useState trả về một mảng đúng 2 phần tử
+  //1 là biến lưu giá trị hiện tại
+  //2 là hàm để thay đổi giá trị
+  //'' là giá trị khởi tạo ban đầu --> khi web vừa load xong thì selectedSubjectId sẽ là chuỗi rỗng
+  //useState là một hook để tạo và quản lý một biến có thể thay đổi dữ liệu trên giao diện
+  //khi giá trị buêns này thay đổi UI sẽ tự động vẽ lại để hiển thị giá trị mới ngay lập tức
+
 
   async function load() {
     setLoading(true);
     setError('');
     try {
       const [teacherPage, subjectList] = await Promise.all([
-        getTeachers({ status: status || undefined, keyword: keyword || undefined, page: 0, size: 500 }) as any,
+        getTeachers({
+          status: status || undefined,
+          keyword: keyword || undefined,
+          subjectId: selectedSubjectId ? Number(selectedSubjectId) : undefined,
+          page: 0, size: 500
+        }) as any,
         getSubjects() as Promise<SubjectItem[]>,
       ]);
       setTeachers(teacherPage.content || []);
@@ -42,7 +55,9 @@ export default function UsersPage() {
     }
   }
 
-  useEffect(() => { load(); }, [status]);
+  useEffect(
+    () => { load(); },
+    [status, selectedSubjectId]);
 
   async function create(event: React.FormEvent) {
     event.preventDefault();
@@ -78,13 +93,13 @@ export default function UsersPage() {
 
   return (
     <div className="page-stack">
-      <div className="page-heading"><div><span className="eyebrow">Bước 3</span><h1>Quản lý giáo viên</h1><p>Hồ sơ giáo viên dùng lâu dài; phân công lớp và môn được quản lý riêng theo năm học.</p></div></div>
+      <div className="page-heading"><div><span className="eyebrow">Bước 3</span><h1>Quản lý giáo viên</h1></div></div>
       {error && <div className="notice error">{error}</div>}
       {message && <div className="notice success">{message}</div>}
 
       <form className="teacher-create-form" onSubmit={create}>
         <div className="teacher-form-heading">
-          <div><span className="teacher-form-index">01</span><div><h2>Thông tin giáo viên</h2><p>Nhập thông tin tài khoản và chọn các môn có thể phụ trách.</p></div></div>
+          <div><span className="teacher-form-index">01</span><div><h2>Thông tin giáo viên</h2></div></div>
           <span className="teacher-required-note">* Thông tin bắt buộc</span>
         </div>
 
@@ -96,7 +111,6 @@ export default function UsersPage() {
 
         <fieldset className="teacher-subject-picker">
           <legend>Môn có thể giảng dạy *</legend>
-          <p>Chọn ít nhất một môn. Có thể chọn nhiều môn cùng lúc.</p>
           <div className="teacher-subject-grid">
             {subjects.map(subject => {
               const selected = subjectIds.includes(subject.id);
@@ -114,14 +128,23 @@ export default function UsersPage() {
         </fieldset>
 
         <div className="teacher-form-footer">
-          <div className="teacher-code-note"><span>i</span><p>Mã giáo viên được hệ thống tự sinh theo định dạng <strong>GV-0001</strong>.</p></div>
           <button disabled={loading}>{loading ? 'Đang tạo…' : 'Tạo giáo viên'}</button>
         </div>
       </form>
 
       <div className="filters">
-        <div className="form-group"><label>Tìm kiếm</label><input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder="Tên, SĐT hoặc mã giáo viên" /></div>
+        <div className="form-group"><label>Tìm kiếm</label><input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder="Tìm theo Tên, SĐT, Mã GV" /></div>
         <div className="form-group"><label>Trạng thái</label><select value={status} onChange={e => setStatus(e.target.value)}><option value="ACTIVE">Đang hoạt động</option><option value="LOCKED">Đã khóa</option><option value="">Tất cả</option></select></div>
+        <div className="form-group"><label>Bộ Môn</label>
+          <select value={selectedSubjectId} onChange={e => setSelectedSubjectId(e.target.value)}>
+            <option value="">Tất cả</option>
+            {subjects.map(subject => (
+              <option key={subject.id} value={subject.id}>
+                {subject.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <button type="button" onClick={load} disabled={loading}>Tìm</button>
       </div>
 
