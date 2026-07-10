@@ -10,11 +10,9 @@ public interface ClassService {
 
     ClassDetailDto getClassDetail(Long classId);
 
-    ClassDto createClass(CreateClassRequest request);
-
     List<ClassDto> generateClasses(GenerateClassesRequest request);
 
-    ClassDto updateClass(Long classId, CreateClassRequest request);
+    ClassDto updateClass(Long classId, UpdateClassRequest request);
 
     void deleteClass(Long classId);
 

@@ -103,21 +103,6 @@ public class ClassServiceImpl implements ClassService {
     }
 
     @Override
-    public ClassDto createClass(CreateClassRequest request) {
-        AcademicYear year = academicYearService.findEntity(request.academicYearId());
-        requireDraft(year);
-        if (classRepository.existsByNameAndAcademicYearId(request.name(), year.getId())) {
-            throw new ConflictException("Lớp đã tồn tại trong năm học này");
-        }
-        SchoolClass cls = new SchoolClass();
-        cls.setName(request.name());
-        cls.setGradeLevel(request.gradeLevel());
-        cls.setAcademicYear(year);
-        cls.setSchoolName(request.schoolName() != null ? request.schoolName() : "FPT Schools");
-        return classMapper.toDto(classRepository.save(cls));
-    }
-
-    @Override
     public List<ClassDto> generateClasses(GenerateClassesRequest request) {
         AcademicYear year = academicYearService.findEntity(request.academicYearId());
         requireDraft(year);
@@ -134,7 +119,7 @@ public class ClassServiceImpl implements ClassService {
     }
 
     @Override
-    public ClassDto updateClass(Long classId, CreateClassRequest request) {
+    public ClassDto updateClass(Long classId, UpdateClassRequest request) {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
         AcademicYear year = academicYearService.findEntity(request.academicYearId());

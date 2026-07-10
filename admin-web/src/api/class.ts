@@ -15,19 +15,6 @@ export async function getClasses(params: GetClassesParams = {}) {
   return apiFetch(`/classes?${queryParams.toString()}`);
 }
 
-export async function createClass(data: {
-  name: string;
-  gradeLevel: number;
-  academicYearId: number;
-  schoolName: string;
-}) {
-  return apiFetch('/classes', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-}
-
 export async function generateClasses(data: {
   academicYearId: number;
   gradeLevel: number;

@@ -10,6 +10,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
 
 import java.util.HashMap;
@@ -91,6 +92,14 @@ public class GlobalExceptionHandler {
                         .message("Lỗi validation")
                         .data(errors)
                         .build());
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex) {
+        log.warn(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ApiResponse.error("Phương thức HTTP không được hỗ trợ cho endpoint này"));
     }
 
     @ExceptionHandler(Exception.class)

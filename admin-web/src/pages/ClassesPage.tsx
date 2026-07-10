@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { createClass, deleteClass, generateClasses, getClasses } from '../api/class';
+import { deleteClass, generateClasses, getClasses } from '../api/class';
 import { createHomeroomAssignment, getHomeroomAssignment, updateHomeroomAssignment } from '../api/homeroomAssignment';
 import type { HomeroomAssignmentItem } from '../api/homeroomAssignment';
 import { getTeachers } from '../api/user';
@@ -15,7 +15,6 @@ export default function ClassesPage({ selectedYearId, editable = true }: { selec
   const [gradeLevel, setGradeLevel] = useState(10);
   const [namingPrefix, setNamingPrefix] = useState('A');
   const [count, setCount] = useState(1);
-  const [manualName, setManualName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -51,14 +50,6 @@ export default function ClassesPage({ selectedYearId, editable = true }: { selec
     finally { setLoading(false); }
   }
 
-  async function addManual() {
-    if (!selectedYearId || !manualName.trim()) return setError('Nhập tên lớp và chọn năm học.');
-    try {
-      await createClass({ name: manualName.trim(), gradeLevel, academicYearId: Number(selectedYearId), schoolName: 'FPT Schools' });
-      setManualName(''); setMessage('Đã tạo lớp.'); await load();
-    } catch (cause: any) { setError(cause.message || 'Không thể tạo lớp.'); }
-  }
-
   async function assignHomeroom(cls: ClassItem, teacherId: number) {
     if (!selectedYearId) return;
     setError('');
@@ -84,7 +75,6 @@ export default function ClassesPage({ selectedYearId, editable = true }: { selec
         <div className="form-group"><label>Số lượng lớp</label><input type="number" min={1} max={50} value={count} onChange={e=>setCount(Number(e.target.value))}/></div>
         <div className="form-group" style={{alignSelf:'end'}}><button onClick={bulkGenerate} disabled={!selectedYearId||!editable||loading}>Sinh lớp hàng loạt</button></div>
       </section>
-      <section className="form-inline"><div className="form-group"><label>Tạo riêng một lớp</label><input value={manualName} onChange={e=>setManualName(e.target.value)} placeholder="Ví dụ: 10A1"/></div><button onClick={addManual} disabled={!selectedYearId||!editable}>Tạo lớp</button></section>
       <div className="table-responsive"><table><thead><tr><th>Lớp</th><th>Khối</th><th>Giáo viên chủ nhiệm</th><th>Trạng thái</th><th></th></tr></thead><tbody>
         {classes.map(cls=><tr key={cls.id}><td><strong>{cls.name}</strong></td><td>{cls.gradeLevel}</td><td><select disabled={!editable} value={homerooms[cls.id]?.teacherId || ''} onChange={e=>assignHomeroom(cls,Number(e.target.value))}><option value="">Chọn GVCN</option>{teachers.map(teacher=><option key={teacher.id} value={teacher.id}>{teacher.name} · {teacher.employeeCode}</option>)}</select></td><td><span className={`badge-status ${homerooms[cls.id]?'active':'preparing'}`}>{homerooms[cls.id]?'ĐÃ CÓ GVCN':'THIẾU GVCN'}</span></td><td><button disabled={!editable} className="danger" onClick={async()=>{if(confirm(`Xóa lớp ${cls.name}?`)){try{await deleteClass(cls.id);await load();}catch(cause:any){setError(cause.message);}}}}>Xóa</button></td></tr>)}
         {!loading&&classes.length===0&&<tr><td colSpan={5}>Chưa có lớp trong năm học này.</td></tr>}

@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
 import vn.edu.fpt.myfschool.common.dto.ClassDetailDto;
 import vn.edu.fpt.myfschool.common.dto.ClassDto;
-import vn.edu.fpt.myfschool.common.dto.CreateClassRequest;
 import vn.edu.fpt.myfschool.common.dto.GenerateClassesRequest;
 import vn.edu.fpt.myfschool.common.dto.StudentSummaryDto;
+import vn.edu.fpt.myfschool.common.dto.UpdateClassRequest;
 import vn.edu.fpt.myfschool.service.ClassService;
 
 import java.util.List;
@@ -53,14 +53,6 @@ public class ClassController {
         return ResponseEntity.ok(ApiResponse.success(classService.getClassDetail(id)));
     }
 
-    @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Tạo lớp")
-    public ResponseEntity<ApiResponse<ClassDto>> createClass(
-            @Valid @RequestBody CreateClassRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Tạo lớp thành công", classService.createClass(request)));
-    }
-
     @PostMapping("/generate")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Sinh nhiều lớp theo quy tắc đặt tên")
@@ -73,7 +65,7 @@ public class ClassController {
     @Operation(summary = "Sửa lớp")
     public ResponseEntity<ApiResponse<ClassDto>> updateClass(
             @PathVariable Long id,
-            @Valid @RequestBody CreateClassRequest request) {
+            @Valid @RequestBody UpdateClassRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật thành công", classService.updateClass(id, request)));
     }
 

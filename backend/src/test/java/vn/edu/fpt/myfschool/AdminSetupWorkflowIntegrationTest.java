@@ -25,6 +25,17 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
     @Autowired AcademicYearPeriodRepository yearPeriodRepository;
 
     @Test
+    void manualClassCreationEndpoint_isNotAvailable() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(post("/api/classes")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"10A1\",\"gradeLevel\":10,\"academicYearId\":1}"))
+            .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
     void completeEightStepSetup_canActivateDraftYear() throws Exception {
         String token = loginAsAdmin();
         mockMvc.perform(post("/api/master-data/initialize").header("Authorization", authHeader(token)))

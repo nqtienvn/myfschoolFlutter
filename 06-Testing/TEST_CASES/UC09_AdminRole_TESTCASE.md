@@ -101,7 +101,7 @@ Admin có thể đăng nhập vào web app React để quản trị cấu hình 
 | `TD-ADMIN-005` | DB Seed | User ID `2001`, role `STUDENT`, status `ACTIVE` | `TC-ADMIN-API-003`, `TC-ADMIN-UI-002` | Target account for lock/unlock. |
 | `TD-ADMIN-006` | API Payload | `{ "status": "LOCKED" }` | `TC-ADMIN-API-003` | Valid lock payload. |
 | `TD-ADMIN-007` | API Payload | `{ "status": "ACTIVE" }` | `TC-ADMIN-API-003` | Valid unlock payload. |
-| `TD-ADMIN-008` | API Payload | `{ "name": "ADM-TEST-01", "gradeLevel": 10, "academicYear": "2026-2027", "schoolName": "FPT Schools Test" }` | `TC-ADMIN-API-004` | Valid `CreateClassRequest` payload. |
+| `TD-ADMIN-008` | API Payload | `{ "academicYearId": 1, "gradeLevel": 10, "namingPrefix": "A", "count": 2 }` | `TC-ADMIN-API-004` | Valid `GenerateClassesRequest` payload. |
 | `TD-ADMIN-009` | API Payload | `{ "status": "DELETED" }` | `TC-ADMIN-API-006` | Invalid user status payload. |
 
 ---
@@ -310,7 +310,7 @@ cd backend && mvn test -Dtest=AdminRoleIntegrationTest#updateUserStatus_adminRol
 | :--- | :--- |
 | **Type** | API |
 | **Priority** | Critical |
-| **Endpoint** | `POST /api/classes` |
+| **Endpoint** | `POST /api/classes/generate` |
 | **Auth Required** | Yes |
 | **Required Role** | `ADMIN` |
 | **Requirement Ref** | `UC09-BR-003` |
@@ -320,33 +320,33 @@ cd backend && mvn test -Dtest=AdminRoleIntegrationTest#updateUserStatus_adminRol
 #### Request
 
 ```http
-POST /api/classes HTTP/1.1
+POST /api/classes/generate HTTP/1.1
 Authorization: Bearer <admin-token>
 Content-Type: application/json
 ```
 
 ```json
 {
-  "name": "ADM-TEST-01",
+  "academicYearId": 1,
   "gradeLevel": 10,
-  "academicYear": "2026-2027",
-  "schoolName": "FPT Schools Test"
+  "namingPrefix": "A",
+  "count": 2
 }
 ```
 
 #### Steps
 
 1. Login as admin and get JWT.
-2. Send create class request using valid payload.
+2. Send bulk class generation request using valid payload.
 3. Check response status and body.
-4. Verify created class exists in DB.
-5. Delete test class during cleanup.
+4. Verify generated classes exist in DB.
+5. Delete generated test classes during cleanup.
 
 #### Expected Result
 
 - HTTP Status: `201 Created` or `200 OK` according to current controller contract.
-- Response contains created class data.
-- DB contains class with name `ADM-TEST-01` and academic year `2026-2027`.
+- Response contains the generated class list.
+- DB contains classes `10A1` and `10A2` for the selected academic year.
 
 #### Actual Result
 
@@ -486,7 +486,7 @@ Teacher, parent, student, or unauthenticated user tries to access admin user lis
 | :--- | :--- |
 | **Type** | Security |
 | **Priority** | Critical |
-| **Endpoint/UI** | `POST /api/classes`, `POST /api/subjects`, `POST /api/semesters`, `POST /api/schedules` |
+| **Endpoint/UI** | `POST /api/classes/generate`, `POST /api/subjects`, `POST /api/semesters`, `POST /api/schedules` |
 | **Security Rule** | Teacher cannot write system configuration after permission split. |
 | **Requirement Ref** | `UC09-BR-003` |
 | **Status** | Not Run |
@@ -498,7 +498,7 @@ Teacher uses valid JWT and manually calls admin-only write endpoint.
 #### Steps
 
 1. Login as teacher and get JWT.
-2. Send `POST /api/classes` with valid payload.
+2. Send `POST /api/classes/generate` with valid payload.
 3. Send one more write request to another config endpoint, such as `POST /api/subjects`.
 4. Verify response status.
 5. Verify DB did not create rows.
@@ -634,7 +634,7 @@ cd backend && mvn test -Dtest=AdminRoleIntegrationTest#adminRole_usesUsersTableA
 | :--- | :--- |
 | **Type** | E2E |
 | **Priority** | Critical |
-| **Business Flow** | Admin login → create config → verify list/detail → cleanup |
+| **Business Flow** | Admin login → generate classes → verify list → cleanup |
 | **Actors** | Admin, System |
 | **Requirement Ref** | `UC09-BR-003` |
 | **Status** | Not Run |
@@ -643,15 +643,14 @@ cd backend && mvn test -Dtest=AdminRoleIntegrationTest#adminRole_usesUsersTableA
 
 1. Login admin web with admin account.
 2. Open Classes page.
-3. Create class with name `ADM-TEST-01`, grade level `10`, academic year `2026-2027`.
-4. Verify class appears in list.
-5. Edit class name.
-6. Delete class during cleanup.
-7. Repeat smoke path for one other config module, such as Subject or Semester.
+3. Generate two classes for grade level `10`, prefix `A`, academic year `2026-2027`.
+4. Verify classes `10A1` and `10A2` appear in the list.
+5. Delete generated classes during cleanup.
+6. Repeat smoke path for one other config module, such as Subject or Semester.
 
 #### Expected Result
 
-- Admin can create/edit/delete config data.
+- Admin can generate/delete classes and create/edit/delete other config data.
 - UI reflects backend response after each action.
 - DB state matches final cleanup state.
 - No teacher token is used in this flow.
@@ -716,7 +715,7 @@ cd backend && mvn test -Dtest=AdminRoleIntegrationTest#adminRole_usesUsersTableA
 | `DB-ADMIN-002` | `SELECT status FROM users WHERE id = 2001;` | `LOCKED` after lock, `ACTIVE` after unlock | `TC-ADMIN-API-003` |
 | `DB-ADMIN-003` | `SELECT COUNT(*) FROM users WHERE id = 2001 AND status = 'ACTIVE';` | Count remains `1` after invalid status payload | `TC-ADMIN-API-006` |
 | `DB-ADMIN-004` | `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'admin';` | `0` | `TC-ADMIN-INT-001` |
-| `DB-ADMIN-005` | `SELECT COUNT(*) FROM classes WHERE name = 'ADM-TEST-01' AND academic_year = '2026-2027';` | `1` after create, `0` after cleanup | `TC-ADMIN-API-004`, `TC-ADMIN-E2E-001` |
+| `DB-ADMIN-005` | `SELECT COUNT(*) FROM classes WHERE name IN ('10A1', '10A2') AND academic_year_id = 1;` | `2` after generation, `0` after cleanup | `TC-ADMIN-API-004`, `TC-ADMIN-E2E-001` |
 
 ```sql
 SELECT role, status
