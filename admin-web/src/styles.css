@@ -300,6 +300,11 @@ td button { min-height: 30px !important; padding: 0 10px !important; font-size: 
 .student-identity strong, .guardian-account strong { color: var(--ink); font-size: 11px; }
 .student-identity small, .guardian-account small { margin-top: 3px; color: var(--muted); font-size: 9px; }
 .login-chip { display: inline-flex; padding: 6px 9px; border: 1px solid #ced6e1; border-radius: 7px; background: #f5f7fa; color: var(--navy); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; font-weight: 800; }
+.credential-pair { display: flex; flex-wrap: wrap; gap: 8px; }
+.credential-pair > span { display: grid; gap: 3px; }
+.credential-pair small { color: var(--muted); font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.password-chip { background: #fff8e8; border-color: #ead49c; color: #73510a; }
+.guardian-credentials { justify-content: flex-end; }
 .guardian-list { display: grid; gap: 7px; }
 .guardian-account { display: flex; align-items: center; justify-content: space-between; gap: 15px; min-height: 46px; padding: 7px 9px 7px 11px; border: 1px solid #edf0f4; border-radius: 9px; background: #fbfcfe; }
 .parent-login { flex: 0 0 auto; border-color: #f0d4c1; background: var(--orange-soft); color: #a44d16; }

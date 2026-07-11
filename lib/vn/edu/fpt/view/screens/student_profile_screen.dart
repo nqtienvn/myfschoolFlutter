@@ -10,6 +10,21 @@ class StudentProfileScreen extends StatelessWidget {
 
   final StudentSnapshot student;
 
+  String get _genderLabel => switch (student.gender) {
+        'MALE' => 'Nam',
+        'FEMALE' => 'Nữ',
+        'OTHER' => 'Khác',
+        _ => 'Chưa cập nhật',
+      };
+
+  String get _dateOfBirth {
+    final value = student.dateOfBirth;
+    if (value == null || value.isEmpty) return 'Chưa cập nhật';
+    final date = DateTime.tryParse(value);
+    if (date == null) return value;
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,6 +78,21 @@ class StudentProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
+            const SectionHeader(title: 'Thông tin cá nhân'),
+            AppCard(
+              child: Column(
+                children: [
+                  _ProfileRow(label: 'Ngày sinh', value: _dateOfBirth),
+                  const Divider(height: AppSpacing.lg),
+                  _ProfileRow(label: 'Giới tính', value: _genderLabel),
+                  const Divider(height: AppSpacing.lg),
+                  _ProfileRow(label: 'Địa chỉ', value: student.address?.isNotEmpty == true ? student.address! : 'Chưa cập nhật'),
+                  const Divider(height: AppSpacing.lg),
+                  _ProfileRow(label: 'Email', value: student.email?.isNotEmpty == true ? student.email! : 'Chưa cập nhật'),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
             const SectionHeader(title: 'Thông tin trường lớp'),
             AppCard(
               child: Column(
@@ -70,6 +100,13 @@ class StudentProfileScreen extends StatelessWidget {
                   _ProfileRow(label: 'Trường học', value: student.school),
                   const Divider(height: AppSpacing.lg),
                   _ProfileRow(label: 'Lớp học', value: student.className),
+                  const Divider(height: AppSpacing.lg),
+                  _ProfileRow(
+                    label: 'Năm học',
+                    value: student.academicYearName?.isNotEmpty == true
+                        ? student.academicYearName!
+                        : 'Chưa cập nhật',
+                  ),
                   const Divider(height: AppSpacing.lg),
                   _ProfileRow(label: 'GV Chủ nhiệm', value: student.homeroomTeacher),
                   const Divider(height: AppSpacing.lg),

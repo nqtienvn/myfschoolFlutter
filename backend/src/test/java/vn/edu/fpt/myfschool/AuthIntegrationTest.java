@@ -2,6 +2,8 @@ package vn.edu.fpt.myfschool;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import vn.edu.fpt.myfschool.common.enums.UserStatus;
+import vn.edu.fpt.myfschool.entity.User;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -121,6 +123,40 @@ class AuthIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void login_inactive_account_shows_specific_error() throws Exception {
+        registerUser("0901000012", "test1234", "Inactive User", "PARENT", null);
+        User user = userRepository.findByPhone("0901000012").orElseThrow();
+        user.setStatus(UserStatus.INACTIVE);
+        userRepository.saveAndFlush(user);
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"phone":"0901000012","password":"test1234"}
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("Tài khoản chưa được kích hoạt. Vui lòng liên hệ nhà trường"));
+    }
+
+    @Test
+    void login_locked_account_shows_specific_error() throws Exception {
+        registerUser("0901000013", "test1234", "Locked User", "PARENT", null);
+        User user = userRepository.findByPhone("0901000013").orElseThrow();
+        user.setStatus(UserStatus.LOCKED);
+        userRepository.saveAndFlush(user);
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"phone":"0901000013","password":"test1234"}
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message").value("Tài khoản đã bị khóa. Vui lòng liên hệ nhà trường"));
+    }
+
+    @Test
     void get_profile_authenticated() throws Exception {
         String token = registerUser("0901000020", "test1234", "Profile User", "PARENT", null);
 
@@ -137,6 +173,21 @@ class AuthIntegrationTest extends BaseIntegrationTest {
     void get_profile_unauthenticated_fails() throws Exception {
         mockMvc.perform(get("/api/user/profile"))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void get_parent_profile_returns_all_linked_students_with_details() throws Exception {
+        mockMvc.perform(get("/api/user/profile")
+                .header("Authorization", authHeader(loginAsParent())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.parentProfile.children.length()").value(3))
+            .andExpect(jsonPath("$.data.parentProfile.children[0].name").isNotEmpty())
+            .andExpect(jsonPath("$.data.parentProfile.children[0].studentCode").isNotEmpty())
+            .andExpect(jsonPath("$.data.parentProfile.children[0].className").value(testClass.getName()))
+            .andExpect(jsonPath("$.data.parentProfile.children[0].schoolName").value(testClass.getSchoolName()))
+            .andExpect(jsonPath("$.data.parentProfile.children[0].academicYearName").value(testAcademicYear.getName()))
+            .andExpect(jsonPath("$.data.parentProfile.children[0].dateOfBirth").isNotEmpty())
+            .andExpect(jsonPath("$.data.parentProfile.children[0].status").value("ACTIVE"));
     }
 
     @Test

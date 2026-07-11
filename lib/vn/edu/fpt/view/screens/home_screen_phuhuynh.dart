@@ -9,19 +9,66 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/tuition_payment_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_bottom_sheet.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 
 
 class HomeParent extends StatefulWidget {
-  const HomeParent({super.key});
+  const HomeParent({super.key, required this.authService});
+
+  final AuthService authService;
 
   @override
   State<HomeParent> createState() => _HomeParentState();
 }
 
 class _HomeParentState extends State<HomeParent> {
-  int _selectedStudentIndex = 0;
+  @override
+  void initState() {
+    super.initState();
+    widget.authService.addListener(_onSelectionChanged);
+  }
 
-  StudentSnapshot get _student => mockStudents[_selectedStudentIndex];
+  @override
+  void didUpdateWidget(covariant HomeParent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.authService != widget.authService) {
+      oldWidget.authService.removeListener(_onSelectionChanged);
+      widget.authService.addListener(_onSelectionChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.authService.removeListener(_onSelectionChanged);
+    super.dispose();
+  }
+
+  void _onSelectionChanged() {
+    if (mounted) setState(() {});
+  }
+
+  List<StudentSnapshot> get _students {
+    const colors = [AppColors.fptOrange, AppColors.blue, AppColors.teal, AppColors.green];
+    return widget.authService.currentSession?.children.asMap().entries.map((entry) {
+          final child = entry.value;
+          return StudentSnapshot.linked(
+            name: child.name,
+            studentCode: child.studentCode,
+            className: child.className ?? 'Chưa xếp lớp',
+            school: child.schoolName ?? 'FPT Schools',
+            linkStatus: child.status == 'ACTIVE' ? 'Đang học' : child.status,
+            avatarColor: colors[entry.key % colors.length],
+            dateOfBirth: child.dateOfBirth,
+            gender: child.gender,
+            address: child.address,
+            email: child.email,
+            academicYearName: child.academicYearName,
+          );
+        }).toList(growable: false) ??
+        const [];
+  }
+
+  StudentSnapshot get _student => _students[widget.authService.selectedChildIndex];
 
   void _showTuitionNotificationsSheet(BuildContext context) {
     final unpaidSum = _student.tuitionBills
@@ -130,6 +177,24 @@ class _HomeParentState extends State<HomeParent> {
 
   @override
   Widget build(BuildContext context) {
+    final students = _students;
+    if (students.isEmpty) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              child: Text(
+                'Tài khoản phụ huynh chưa được liên kết với học sinh nào.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -160,14 +225,14 @@ class _HomeParentState extends State<HomeParent> {
                     height: 48,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: mockStudents.length,
+                      itemCount: students.length,
                       itemBuilder: (context, index) {
-                        final s = mockStudents[index];
-                        final isSelected = index == _selectedStudentIndex;
+                        final s = students[index];
+                        final isSelected = index == widget.authService.selectedChildIndex;
                         return Padding(
                           padding: const EdgeInsets.only(right: AppSpacing.sm),
                           child: GestureDetector(
-                            onTap: () => setState(() => _selectedStudentIndex = index),
+                            onTap: () => widget.authService.selectChild(index),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
                               decoration: BoxDecoration(
@@ -248,7 +313,7 @@ class _HomeParentState extends State<HomeParent> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => const ScheduleScreen(),
+                                  builder: (_) => ScheduleScreen(student: _student),
                                 ),
                               );
                             },
@@ -261,7 +326,7 @@ class _HomeParentState extends State<HomeParent> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => const GradesScreen(),
+                                  builder: (_) => GradesScreen(student: _student),
                                 ),
                               );
                             },

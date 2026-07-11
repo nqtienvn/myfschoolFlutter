@@ -22,10 +22,12 @@ export interface StudentEnrollmentResult {
   studentId: number;
   studentCode: string;
   studentUsername: string;
+  studentInitialPassword: string;
   classId: number;
   className: string;
   parentId: number;
   parentUsername: string;
+  parentInitialPassword?: string;
   parentReused: boolean;
 }
 
@@ -34,10 +36,12 @@ export interface StudentAccountByClass {
   studentCode: string;
   studentName: string;
   studentUsername: string;
+  studentInitialPassword?: string;
   guardians: Array<{
     parentId: number;
     parentName: string;
     parentUsername: string;
+    parentInitialPassword?: string;
     parentEmail?: string;
     relationship: 'FATHER' | 'MOTHER' | 'GUARDIAN';
   }>;

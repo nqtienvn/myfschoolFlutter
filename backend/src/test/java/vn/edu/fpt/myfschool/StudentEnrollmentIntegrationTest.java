@@ -9,6 +9,7 @@ import vn.edu.fpt.myfschool.entity.SchoolClass;
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -32,15 +33,26 @@ class StudentEnrollmentIntegrationTest extends BaseIntegrationTest {
                     """.formatted(draft.getId(), cls.getId())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.studentCode").value("HS203001"))
-            .andExpect(jsonPath("$.data.studentUsername").value("HS203001"))
+            .andExpect(jsonPath("$.data.studentUsername").value(matchesPattern("[1-9][0-9]{9}")))
+            .andExpect(jsonPath("$.data.studentInitialPassword").value("12345678"))
             .andExpect(jsonPath("$.data.className").value("10A1"))
             .andExpect(jsonPath("$.data.parentUsername").value("0909000002"))
             .andExpect(jsonPath("$.data.parentReused").value(true));
 
         var student = studentRepository.findByStudentCode("HS203001").orElseThrow();
+        assertNotEquals("HS203001", student.getUser().getPhone());
+        assertTrue(student.getUser().getPhone().matches("[1-9][0-9]{9}"));
         assertTrue(student.getUser().getMustChangePassword());
         assertTrue(enrollmentRepository.findByStudentIdAndAcademicYearIdAndStatus(student.getId(), draft.getId(), vn.edu.fpt.myfschool.common.enums.EnrollmentStatus.ACTIVE).isPresent());
         assertTrue(studentGuardianRepository.existsByStudentIdAndGuardianId(student.getId(), testParent.getId()));
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"phone":"%s","password":"12345678"}
+                    """.formatted(student.getUser().getPhone())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.user.role").value("STUDENT"));
 
         mockMvc.perform(get("/api/admin/student-enrollments")
                 .param("academicYearId", draft.getId().toString())
@@ -48,7 +60,8 @@ class StudentEnrollmentIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", authHeader(token)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[0].studentName").value("Học sinh mới"))
-            .andExpect(jsonPath("$.data[0].studentUsername").value("HS203001"))
+            .andExpect(jsonPath("$.data[0].studentUsername").value(student.getUser().getPhone()))
+            .andExpect(jsonPath("$.data[0].studentInitialPassword").value("12345678"))
             .andExpect(jsonPath("$.data[0].guardians[0].parentName").value("PH Test"))
             .andExpect(jsonPath("$.data[0].guardians[0].parentUsername").value("0909000002"))
             .andExpect(jsonPath("$.data[0].guardians[0].relationship").value("FATHER"));
@@ -62,7 +75,10 @@ class StudentEnrollmentIntegrationTest extends BaseIntegrationTest {
                     {"academicYearId":%d,"classId":%d,"studentCode":"HS-ACTIVE","studentName":"Học sinh mới",
                     "dateOfBirth":"2015-01-10","gender":"FEMALE","parentName":"Phụ huynh mới","relationship":"MOTHER","parentPhone":"0901234567"}
                     """.formatted(testAcademicYear.getId(), testClass.getId())))
-            .andExpect(status().isOk());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.studentUsername").value(matchesPattern("[1-9][0-9]{9}")))
+            .andExpect(jsonPath("$.data.studentInitialPassword").value("12345678"))
+            .andExpect(jsonPath("$.data.parentInitialPassword").value("12345678"));
     }
 
     @Test

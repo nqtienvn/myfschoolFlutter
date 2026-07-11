@@ -1,0 +1,22 @@
+package vn.edu.fpt.myfschool.common.dto;
+
+import vn.edu.fpt.myfschool.common.enums.Gender;
+import vn.edu.fpt.myfschool.common.enums.UserStatus;
+
+import java.time.LocalDate;
+
+public record ParentChildDto(
+    Long id,
+    String name,
+    String studentCode,
+    String className,
+    Long classId,
+    String schoolName,
+    String academicYearName,
+    LocalDate dateOfBirth,
+    Gender gender,
+    String address,
+    String email,
+    String avatar,
+    UserStatus status
+) {}

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
 
 class ScheduleScreen extends StatefulWidget {
-  const ScheduleScreen({super.key});
+  const ScheduleScreen({super.key, this.student});
+
+  final StudentSnapshot? student;
 
   @override
   State<ScheduleScreen> createState() => _ScheduleScreenState();
@@ -37,7 +40,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const OrangeTopBar(title: 'Thời khóa biểu lớp'),
+      appBar: OrangeTopBar(
+        title: widget.student == null
+            ? 'Thời khóa biểu lớp'
+            : 'Thời khóa biểu · ${widget.student!.name}',
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

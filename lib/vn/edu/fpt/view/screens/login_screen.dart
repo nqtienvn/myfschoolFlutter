@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/exception/backend_api_exception.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_radius.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
@@ -57,9 +58,12 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         (route) => false,
       );
+    } on BackendApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Không đăng nhập được. Vui lòng kiểm tra tài khoản.');
+      setState(() => _error = 'Không thể kết nối máy chủ. Vui lòng thử lại.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -74,9 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
           builder: (context, constraints) {
             return SingleChildScrollView(
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: IntrinsicHeight(
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.lg),
@@ -96,7 +98,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               labelText: 'Số điện thoại',
                               prefixIcon: const Icon(Icons.phone),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.md,
+                                ),
                               ),
                             ),
                           ),
@@ -120,7 +124,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 },
                               ),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.md,
+                                ),
                               ),
                             ),
                           ),
@@ -128,7 +134,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: AppSpacing.sm),
                             Text(
                               _error!,
-                              style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                color: AppColors.danger,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                           const SizedBox(height: AppSpacing.lg),

@@ -3,6 +3,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
 
 class SubjectGrade {
   SubjectGrade({
@@ -108,7 +109,9 @@ class SubjectGrade {
 }
 
 class GradesScreen extends StatefulWidget {
-  const GradesScreen({super.key});
+  const GradesScreen({super.key, this.student});
+
+  final StudentSnapshot? student;
 
   @override
   State<GradesScreen> createState() => _GradesScreenState();
@@ -659,9 +662,11 @@ class _GradesScreenState extends State<GradesScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text(
-          'Bảng kết quả học tập',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.white),
+        title: Text(
+          widget.student == null
+              ? 'Bảng kết quả học tập'
+              : 'Kết quả · ${widget.student!.name}',
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.white),
         ),
         backgroundColor: AppColors.fptOrange,
         iconTheme: const IconThemeData(color: Colors.white),

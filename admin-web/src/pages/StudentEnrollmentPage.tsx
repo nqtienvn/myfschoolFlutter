@@ -114,8 +114,8 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
       <div className="success-check">✓</div>
       <div><strong>Đã thêm {result.studentCode} vào lớp {result.className}</strong><p>{result.parentReused ? 'Đã liên kết với tài khoản phụ huynh hiện có.' : 'Đã tạo mới tài khoản phụ huynh.'} Danh sách bên dưới đã được cập nhật.</p></div>
       <div className="created-accounts">
-        <span>Học sinh <strong>{result.studentUsername}</strong></span>
-        <span>Phụ huynh <strong>{result.parentUsername}</strong></span>
+        <span>Học sinh <strong>TK: {result.studentUsername}</strong><strong>MK: {result.studentInitialPassword}</strong></span>
+        <span>Phụ huynh <strong>TK: {result.parentUsername}</strong><strong>MK: {result.parentInitialPassword || 'Đã đổi / không hiển thị'}</strong></span>
       </div>
     </section>}
 
@@ -131,7 +131,7 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
 
       <div className="enrollment-people-grid">
         <section className="enrollment-person-card">
-          <div className="enrollment-section-heading"><span>2</span><div><h2>Thông tin học sinh</h2><p>Mã học sinh đồng thời là tên đăng nhập.</p></div></div>
+          <div className="enrollment-section-heading"><span>2</span><div><h2>Thông tin học sinh</h2><p>Hệ thống tự sinh số đăng nhập gồm 10 chữ số, không bắt đầu bằng số 0 và không trùng tài khoản khác.</p></div></div>
           <div className="enrollment-fields">
             <div className="form-group"><label>Mã học sinh <em>*</em></label><input required maxLength={20} placeholder="VD: HS2026001" value={form.studentCode} onChange={e => set('studentCode', e.target.value.toUpperCase())} /></div>
             <div className="form-group wide"><label>Họ và tên <em>*</em></label><input required placeholder="Nguyễn Văn An" value={form.studentName} onChange={e => set('studentName', e.target.value)} /></div>
@@ -164,7 +164,7 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
 
     <section className="account-directory">
       <div className="account-directory-heading">
-        <div><span className="eyebrow">Danh sách sau khi tạo</span><h2>Tài khoản học sinh & phụ huynh</h2><p>Lọc theo lớp để tra cứu nhanh tên đăng nhập của từng gia đình.</p></div>
+        <div><span className="eyebrow">Danh sách sau khi tạo</span><h2>Tài khoản học sinh & phụ huynh</h2><p>Lọc theo lớp để tra cứu tài khoản và mật khẩu ban đầu của từng gia đình.</p></div>
         <div className="account-totals"><span><strong>{accounts.length}</strong> Học sinh</span><span><strong>{parentAccountCount}</strong> Phụ huynh</span></div>
       </div>
 
@@ -182,10 +182,10 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
         <tbody>{accounts.map((student, index) => <tr key={student.studentId}>
           <td><span className="row-number">{index + 1}</span></td>
           <td><div className="student-identity"><span>{student.studentName.trim().charAt(0).toUpperCase()}</span><div><strong>{student.studentName}</strong><small>{student.studentCode}</small></div></div></td>
-          <td><span className="login-chip">{student.studentUsername}</span></td>
+          <td><div className="credential-pair"><span><small>Tài khoản</small><b className="login-chip">{student.studentUsername}</b></span><span><small>Mật khẩu</small><b className="login-chip password-chip">{student.studentInitialPassword || 'Đã đổi'}</b></span></div></td>
           <td>{student.guardians.length > 0 ? <div className="guardian-list">{student.guardians.map(guardian => <div className="guardian-account" key={guardian.parentId}>
             <div><strong>{guardian.parentName}</strong><small>{relationshipLabels[guardian.relationship]}{guardian.parentEmail ? ` · ${guardian.parentEmail}` : ''}</small></div>
-            <span className="login-chip parent-login">{guardian.parentUsername}</span>
+            <div className="credential-pair guardian-credentials"><span><small>Tài khoản</small><b className="login-chip parent-login">{guardian.parentUsername}</b></span><span><small>Mật khẩu</small><b className="login-chip password-chip">{guardian.parentInitialPassword || 'Đã đổi'}</b></span></div>
           </div>)}</div> : <span className="muted-text">Chưa có phụ huynh</span>}</td>
         </tr>)}</tbody>
       </table></div>}

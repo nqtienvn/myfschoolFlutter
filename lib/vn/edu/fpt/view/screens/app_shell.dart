@@ -31,7 +31,7 @@ class _AppShellState extends State<AppShell> {
   Widget _homeForActor() {
     switch (widget.actor) {
       case AppActor.parent:
-        return const HomeParent();
+        return HomeParent(authService: widget.authService!);
       case AppActor.teacher:
         return const HomeTeacher();
       case AppActor.student:

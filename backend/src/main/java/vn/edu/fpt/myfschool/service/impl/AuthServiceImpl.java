@@ -4,9 +4,9 @@ import vn.edu.fpt.myfschool.common.dto.ChangePasswordRequest;
 import vn.edu.fpt.myfschool.common.dto.LoginRequest;
 import vn.edu.fpt.myfschool.common.dto.LoginResponse;
 import vn.edu.fpt.myfschool.common.dto.ParentDto;
+import vn.edu.fpt.myfschool.common.dto.ParentChildDto;
 import vn.edu.fpt.myfschool.common.dto.RegisterRequest;
 import vn.edu.fpt.myfschool.common.dto.StudentDto;
-import vn.edu.fpt.myfschool.common.dto.StudentSummaryDto;
 import vn.edu.fpt.myfschool.common.dto.TeacherDto;
 import vn.edu.fpt.myfschool.common.dto.UpdateProfileRequest;
 import vn.edu.fpt.myfschool.common.dto.UserDto;
@@ -57,8 +57,11 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Số điện thoại hoặc mật khẩu không đúng");
         }
 
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new BadRequestException("Tài khoản đã bị khóa hoặc vô hiệu hóa");
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            throw new BadRequestException("Tài khoản chưa được kích hoạt. Vui lòng liên hệ nhà trường");
+        }
+        if (user.getStatus() == UserStatus.LOCKED) {
+            throw new BadRequestException("Tài khoản đã bị khóa. Vui lòng liên hệ nhà trường");
         }
 
         String token = jwtTokenProvider.generateToken(user.getId(), user.getRole(), user.getName());
@@ -136,13 +139,21 @@ public class AuthServiceImpl implements AuthService {
                 Parent parent = parentRepository.findByUserId(userId).orElse(null);
                 if (parent != null) {
                     List<Student> children = parentRepository.findChildrenByParentId(parent.getId());
-                    List<StudentSummaryDto> childSummaries = children.stream()
-                        .map(s -> new StudentSummaryDto(
+                    List<ParentChildDto> childSummaries = children.stream()
+                        .map(s -> new ParentChildDto(
                             s.getId(),
                             s.getUser().getName(),
                             s.getStudentCode(),
                             s.getCurrentClass() != null ? s.getCurrentClass().getName() : null,
-                            s.getUser().getAvatar()))
+                            s.getCurrentClass() != null ? s.getCurrentClass().getId() : null,
+                            s.getCurrentClass() != null ? s.getCurrentClass().getSchoolName() : null,
+                            s.getCurrentClass() != null ? s.getCurrentClass().getAcademicYear().getName() : null,
+                            s.getDateOfBirth(),
+                            s.getGender(),
+                            s.getAddress(),
+                            s.getUser().getEmail(),
+                            s.getUser().getAvatar(),
+                            s.getUser().getStatus()))
                         .collect(Collectors.toList());
                     parentDto = new ParentDto(parent.getId(), parent.getAddress(), parent.getOccupation(), childSummaries);
                 }

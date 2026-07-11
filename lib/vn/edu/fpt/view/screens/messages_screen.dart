@@ -9,9 +9,15 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/chat_detail_screen.dart'
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/login_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/user_search_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_profile_screen.dart';
 
 class ConversationsScreen extends StatelessWidget {
-  const ConversationsScreen({super.key, this.actor = AppActor.parent, required this.chatService});
+  const ConversationsScreen({
+    super.key,
+    this.actor = AppActor.parent,
+    required this.chatService,
+  });
 
   final AppActor actor;
   final ChatService chatService;
@@ -23,7 +29,10 @@ class ConversationsScreen extends StatelessWidget {
 }
 
 class _ServiceConversationsScreen extends StatelessWidget {
-  const _ServiceConversationsScreen({required this.chatService, this.actor = AppActor.parent});
+  const _ServiceConversationsScreen({
+    required this.chatService,
+    this.actor = AppActor.parent,
+  });
 
   final ChatService chatService;
   final AppActor actor;
@@ -37,7 +46,9 @@ class _ServiceConversationsScreen extends StatelessWidget {
         return Scaffold(
           backgroundColor: AppColors.background,
           appBar: OrangeTopBar(
-            title: actor == AppActor.teacher ? 'Tin nhắn phụ huynh' : 'Tin nhắn liên lạc',
+            title: actor == AppActor.teacher
+                ? 'Tin nhắn phụ huynh'
+                : 'Tin nhắn liên lạc',
             actions: [
               IconButton(
                 icon: const Icon(Icons.person_add_alt_1, color: Colors.white),
@@ -45,7 +56,8 @@ class _ServiceConversationsScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => UserSearchScreen(chatService: chatService),
+                      builder: (_) =>
+                          UserSearchScreen(chatService: chatService),
                     ),
                   );
                 },
@@ -70,10 +82,13 @@ class _ServiceConversationsScreen extends StatelessWidget {
                     )
                   else
                     for (final conversation in conversations) ...[
-                      _ConversationCard(conversation: conversation, chatService: chatService),
+                      _ConversationCard(
+                        conversation: conversation,
+                        chatService: chatService,
+                      ),
                       const SizedBox(height: AppSpacing.sm),
                     ],
-                  ],
+                ],
               ),
             ),
           ),
@@ -84,7 +99,10 @@ class _ServiceConversationsScreen extends StatelessWidget {
 }
 
 class _ConversationCard extends StatelessWidget {
-  const _ConversationCard({required this.conversation, required this.chatService});
+  const _ConversationCard({
+    required this.conversation,
+    required this.chatService,
+  });
 
   final domain.Conversation conversation;
   final ChatService chatService;
@@ -103,7 +121,10 @@ class _ConversationCard extends StatelessWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => ChatDetailScreen(conversation: conversation, chatService: chatService),
+                  builder: (_) => ChatDetailScreen(
+                    conversation: conversation,
+                    chatService: chatService,
+                  ),
                 ),
               );
             },
@@ -114,8 +135,13 @@ class _ConversationCard extends StatelessWidget {
                   Stack(
                     children: [
                       CircleAvatar(
-                        backgroundColor: AppColors.fptOrange.withValues(alpha: 0.12),
-                        child: const Icon(Icons.person, color: AppColors.fptOrange),
+                        backgroundColor: AppColors.fptOrange.withValues(
+                          alpha: 0.12,
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          color: AppColors.fptOrange,
+                        ),
                       ),
                       if (conversation.isOnline)
                         Positioned(
@@ -127,7 +153,10 @@ class _ConversationCard extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: AppColors.success,
                               shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.surface, width: 2),
+                              border: Border.all(
+                                color: AppColors.surface,
+                                width: 2,
+                              ),
                             ),
                           ),
                         ),
@@ -138,20 +167,54 @@ class _ConversationCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.ink)),
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.ink,
+                          ),
+                        ),
                         const SizedBox(height: AppSpacing.xs),
-                        Text(conversation.lastMessage ?? 'Nhắn tin ngay', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
+                        Text(
+                          conversation.lastMessage ?? 'Nhắn tin ngay',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.muted,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   if (conversation.unreadCount > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: const BoxDecoration(color: AppColors.fptOrange, shape: BoxShape.circle),
-                      child: Text('${conversation.unreadCount}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: AppColors.fptOrange,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '${conversation.unreadCount}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   const SizedBox(width: AppSpacing.sm),
-                  const Icon(Icons.chevron_right, color: AppColors.quiet, size: 20),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: AppColors.quiet,
+                    size: 20,
+                  ),
                 ],
               ),
             ),
@@ -179,21 +242,24 @@ class AnnouncementsScreen extends StatelessWidget {
             const SectionHeader(title: 'Thông báo lớp học & nhà trường'),
             _AnnouncementCard(
               title: 'Lịch thi cuối kỳ II sắp tới',
-              body: 'Nhà trường công bố lịch thi, phòng thi và danh sách giám thị theo lớp học.',
+              body:
+                  'Nhà trường công bố lịch thi, phòng thi và danh sách giám thị theo lớp học.',
               tag: 'Quan trọng',
               color: AppColors.fptOrange,
             ),
             const SizedBox(height: AppSpacing.sm),
             _AnnouncementCard(
               title: 'Yêu cầu xác nhận thông tin bán trú',
-              body: 'Vui lòng kiểm tra dữ liệu đăng ký bán trú trước ngày 20/06/2026.',
+              body:
+                  'Vui lòng kiểm tra dữ liệu đăng ký bán trú trước ngày 20/06/2026.',
               tag: 'Cần phản hồi',
               color: AppColors.warning,
             ),
             const SizedBox(height: AppSpacing.sm),
             _AnnouncementCard(
               title: 'Cập nhật hệ thống sổ liên lạc',
-              body: 'Hệ thống bổ sung chatbot AI thống kê và theo dõi trạng thái đọc thông báo.',
+              body:
+                  'Hệ thống bổ sung chatbot AI thống kê và theo dõi trạng thái đọc thông báo.',
               tag: 'Tin hệ thống',
               color: AppColors.blue,
             ),
@@ -228,7 +294,11 @@ class _AnnouncementCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.ink),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.ink,
+                  ),
                 ),
               ),
               StatusPill(
@@ -242,7 +312,11 @@ class _AnnouncementCard extends StatelessWidget {
           const Divider(height: AppSpacing.lg),
           Text(
             body,
-            style: const TextStyle(fontSize: 12.5, color: AppColors.muted, height: 1.35),
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppColors.muted,
+              height: 1.35,
+            ),
           ),
         ],
       ),
@@ -263,11 +337,23 @@ class ContactsScreen extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: const [
             SectionHeader(title: 'Văn phòng & Giáo viên'),
-            _ContactCard(name: 'Cô Nguyễn Thu Hà', role: 'Giáo viên chủ nhiệm lớp 12A', phone: '0901 234 567'),
+            _ContactCard(
+              name: 'Cô Nguyễn Thu Hà',
+              role: 'Giáo viên chủ nhiệm lớp 12A',
+              phone: '0901 234 567',
+            ),
             SizedBox(height: AppSpacing.sm),
-            _ContactCard(name: 'Văn phòng FPT Schools', role: 'Hành chính học vụ', phone: '024 7300 5588'),
+            _ContactCard(
+              name: 'Văn phòng FPT Schools',
+              role: 'Hành chính học vụ',
+              phone: '024 7300 5588',
+            ),
             SizedBox(height: AppSpacing.sm),
-            _ContactCard(name: 'Y tế học đường', role: 'Hỗ trợ sức khỏe học sinh', phone: '024 7300 5599'),
+            _ContactCard(
+              name: 'Y tế học đường',
+              role: 'Hỗ trợ sức khỏe học sinh',
+              phone: '024 7300 5599',
+            ),
           ],
         ),
       ),
@@ -302,16 +388,27 @@ class _ContactCard extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.ink),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.ink,
+                  ),
                 ),
                 Text(
                   role,
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.muted),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.muted,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   phone,
-                  style: const TextStyle(fontSize: 12, color: AppColors.blue, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.blue,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -322,9 +419,13 @@ class _ContactCard extends StatelessWidget {
   }
 }
 
-
 class AccountProfileScreen extends StatelessWidget {
-  const AccountProfileScreen({super.key, this.actor = AppActor.parent, this.authService, this.chatService});
+  const AccountProfileScreen({
+    super.key,
+    this.actor = AppActor.parent,
+    this.authService,
+    this.chatService,
+  });
 
   final AppActor actor;
   final AuthService? authService;
@@ -332,48 +433,43 @@ class AccountProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Dynamically retrieve info based on actor
-    final String name;
-    final String subtitle;
-    final String idLabel;
-    final String idValue;
-    final String deptLabel;
-    final String deptValue;
-    final String email;
-    final String phone;
+    final service = authService;
+    if (service == null) return _buildContent(context);
+    return ListenableBuilder(
+      listenable: service,
+      builder: (context, _) => _buildContent(context),
+    );
+  }
 
-    switch (actor) {
-      case AppActor.parent:
-        name = 'Nguyễn Minh Anh';
-        subtitle = 'Phụ huynh của Nguyễn Minh An (12A1)';
-        idLabel = 'MÃ PHỤ HUYNH';
-        idValue = 'PH-1201';
-        deptLabel = 'HỌC KỲ';
-        deptValue = 'Fall 2026';
-        email = 'parent.an@fpt.edu.vn';
-        phone = '0987 654 321';
-        break;
-      case AppActor.teacher:
-        name = 'Cô Nguyễn Thu Hà';
-        subtitle = 'Giáo viên chủ nhiệm lớp 12A1';
-        idLabel = 'MÃ GIÁO VIÊN';
-        idValue = 'GV-1201';
-        deptLabel = 'BỘ MÔN';
-        deptValue = 'Tin học (CNTT)';
-        email = 'ha.nt@fpt.edu.vn';
-        phone = '0901 234 567';
-        break;
-      case AppActor.student:
-        name = 'Nguyễn Minh An';
-        subtitle = 'Học sinh lớp 12A1';
-        idLabel = 'MÃ HỌC SINH';
-        idValue = 'MFS-1201';
-        deptLabel = 'LỚP';
-        deptValue = '12A1';
-        email = 'an.nm@fpt.edu.vn';
-        phone = '0901 234 567';
-        break;
+  Widget _buildContent(BuildContext context) {
+    final session = authService?.currentSession;
+    if (session == null) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: OrangeTopBar(title: 'Tài khoản'),
+        body: Center(child: Text('Không tìm thấy thông tin tài khoản')),
+      );
     }
+
+    final name = session.userName;
+    final email = session.email?.trim().isNotEmpty == true
+        ? session.email!
+        : 'Chưa cập nhật';
+    final phone = session.phone.trim().isNotEmpty
+        ? session.phone
+        : 'Chưa cập nhật';
+    final initials = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part[0].toUpperCase())
+        .join();
+    final subtitle = switch (actor) {
+      AppActor.parent => 'Phụ huynh',
+      AppActor.teacher => 'Giáo viên',
+      AppActor.student => 'Học sinh',
+    };
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -394,10 +490,7 @@ class AccountProfileScreen extends StatelessWidget {
                       left: 0,
                       top: 0,
                       bottom: 0,
-                      child: Container(
-                        width: 5,
-                        color: actor.color,
-                      ),
+                      child: Container(width: 5, color: actor.color),
                     ),
                     // Decorative icon in background
                     Positioned(
@@ -436,12 +529,12 @@ class AccountProfileScreen extends StatelessWidget {
                                   color: Colors.black.withValues(alpha: 0.08),
                                   blurRadius: 6,
                                   offset: const Offset(0, 2),
-                                )
+                                ),
                               ],
                             ),
                             child: Center(
                               child: Text(
-                                actor == AppActor.parent ? 'AN' : (actor == AppActor.teacher ? 'TH' : 'MA'),
+                                initials.isEmpty ? '--' : initials,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 22,
@@ -472,61 +565,6 @@ class AccountProfileScreen extends StatelessWidget {
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            idLabel,
-                                            style: const TextStyle(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.muted,
-                                              letterSpacing: 0.5,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            idValue,
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.ink,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            deptLabel,
-                                            style: const TextStyle(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.muted,
-                                              letterSpacing: 0.5,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            deptValue,
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.ink,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ],
                             ),
                           ),
@@ -547,7 +585,11 @@ class AccountProfileScreen extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.contact_page_outlined, color: actor.color, size: 20),
+                      Icon(
+                        Icons.contact_page_outlined,
+                        color: actor.color,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       const Text(
                         'Thông tin liên hệ',
@@ -565,7 +607,11 @@ class AccountProfileScreen extends StatelessWidget {
                       CircleAvatar(
                         radius: 14,
                         backgroundColor: AppColors.line.withValues(alpha: 0.5),
-                        child: Icon(Icons.email_outlined, color: actor.color, size: 14),
+                        child: Icon(
+                          Icons.email_outlined,
+                          color: actor.color,
+                          size: 14,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -586,7 +632,11 @@ class AccountProfileScreen extends StatelessWidget {
                       CircleAvatar(
                         radius: 14,
                         backgroundColor: AppColors.line.withValues(alpha: 0.5),
-                        child: Icon(Icons.phone_outlined, color: actor.color, size: 14),
+                        child: Icon(
+                          Icons.phone_outlined,
+                          color: actor.color,
+                          size: 14,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Text(
@@ -612,7 +662,9 @@ class AccountProfileScreen extends StatelessWidget {
                         ),
                       ),
                       StatusPill(
-                        label: 'Đang hoạt động',
+                        label: session.isActive
+                            ? 'Đang hoạt động'
+                            : session.status,
                         foreground: AppColors.success,
                         background: AppColors.successSoft,
                         compact: true,
@@ -623,6 +675,12 @@ class AccountProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
+
+            if (actor == AppActor.parent) ...[
+              const SectionHeader(title: 'Bạn là phụ huynh của'),
+              _ParentChildrenCard(authService: authService!),
+              const SizedBox(height: AppSpacing.md),
+            ],
 
             // Settings & Preferences Card
             const SectionHeader(title: 'Cài đặt & Thiết lập'),
@@ -638,7 +696,6 @@ class AccountProfileScreen extends StatelessWidget {
                     iconBgColor: AppColors.blueSoft,
                     onTap: () {},
                   ),
-
                 ],
               ),
             ),
@@ -695,6 +752,107 @@ class AccountProfileScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ParentChildrenCard extends StatelessWidget {
+  const _ParentChildrenCard({required this.authService});
+
+  final AuthService authService;
+
+  StudentSnapshot _snapshot(domain.LinkedStudent child, int index) {
+    const colors = [AppColors.fptOrange, AppColors.blue, AppColors.teal, AppColors.green];
+    return StudentSnapshot.linked(
+      name: child.name,
+      studentCode: child.studentCode,
+      className: child.className ?? 'Chưa xếp lớp',
+      school: child.schoolName ?? 'FPT Schools',
+      linkStatus: child.status == 'ACTIVE' ? 'Đang học' : child.status,
+      avatarColor: colors[index % colors.length],
+      dateOfBirth: child.dateOfBirth,
+      gender: child.gender,
+      address: child.address,
+      email: child.email,
+      academicYearName: child.academicYearName,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final children = authService.currentSession?.children ?? const [];
+    if (children.isEmpty) {
+      return const AppCard(
+        child: Text(
+          'Tài khoản chưa được liên kết với học sinh nào.',
+          style: TextStyle(color: AppColors.muted),
+        ),
+      );
+    }
+
+    return AppCard(
+      padding: 8,
+      child: Column(
+        children: List.generate(children.length, (index) {
+          final child = children[index];
+          final selected = index == authService.selectedChildIndex;
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: (selected ? AppColors.fptOrange : AppColors.blue)
+                          .withValues(alpha: 0.12),
+                      child: Text(
+                        _snapshot(child, index).shortName,
+                        style: TextStyle(
+                          color: selected ? AppColors.fptOrange : AppColors.blue,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            child.name,
+                            style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.ink),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${child.className ?? 'Chưa xếp lớp'}${selected ? ' · Đang quản lý' : ''}',
+                            style: TextStyle(
+                              color: selected ? AppColors.fptOrange : AppColors.muted,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    OutlinedButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => StudentProfileScreen(student: _snapshot(child, index)),
+                          ),
+                        );
+                      },
+                      child: const Text('Xem thông tin'),
+                    ),
+                  ],
+                ),
+              ),
+              if (index != children.length - 1) const Divider(height: 1),
+            ],
+          );
+        }),
       ),
     );
   }
@@ -784,11 +942,19 @@ class FileViewerScreen extends StatelessWidget {
             AppCard(
               child: Column(
                 children: const [
-                  Icon(Icons.picture_as_pdf_outlined, color: AppColors.fptOrange, size: 48),
+                  Icon(
+                    Icons.picture_as_pdf_outlined,
+                    color: AppColors.fptOrange,
+                    size: 48,
+                  ),
                   SizedBox(height: AppSpacing.sm),
                   Text(
                     'lich-thi-cuoi-ky-ii.pdf',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.ink),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.ink,
+                    ),
                   ),
                   SizedBox(height: AppSpacing.xs),
                   Text(

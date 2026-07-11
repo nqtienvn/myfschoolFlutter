@@ -24,7 +24,61 @@ class StudentSnapshot {
     required this.aiSummary,
     required this.avatarColor,
     required this.tuitionBills,
+    this.dateOfBirth,
+    this.gender,
+    this.address,
+    this.email,
+    this.academicYearName,
   });
+
+  factory StudentSnapshot.linked({
+    required String name,
+    required String studentCode,
+    required String className,
+    required String school,
+    required String linkStatus,
+    required Color avatarColor,
+    String? dateOfBirth,
+    String? gender,
+    String? address,
+    String? email,
+    String? academicYearName,
+  }) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+    final shortName = parts.isEmpty
+        ? '--'
+        : parts.length == 1
+            ? parts.first.substring(0, 1).toUpperCase()
+            : '${parts[parts.length - 2][0]}${parts.last[0]}'.toUpperCase();
+    return StudentSnapshot(
+      name: name,
+      shortName: shortName,
+      className: className,
+      school: school,
+      studentCode: studentCode,
+      linkStatus: linkStatus,
+      homeroomTeacher: 'Chưa cập nhật',
+      homeroomPhone: 'Chưa cập nhật',
+      averageScore: 0,
+      attendanceRate: 0,
+      unreadNotifications: 0,
+      pendingLeaveRequests: 0,
+      subjects: const [],
+      attendanceEvents: const [],
+      scheduleItems: const [],
+      leaveRequests: const [],
+      notifications: const [],
+      teacherMessages: const [],
+      aiSummary: '',
+      avatarColor: avatarColor,
+      tuitionBills: const [],
+      dateOfBirth: dateOfBirth,
+      gender: gender,
+      address: address,
+      email: email,
+      academicYearName: academicYearName,
+    );
+  }
 
   final String name;
   final String shortName;
@@ -47,6 +101,11 @@ class StudentSnapshot {
   final String aiSummary;
   final Color avatarColor;
   final List<TuitionBill> tuitionBills;
+  final String? dateOfBirth;
+  final String? gender;
+  final String? address;
+  final String? email;
+  final String? academicYearName;
 }
 
 class SubjectScore {

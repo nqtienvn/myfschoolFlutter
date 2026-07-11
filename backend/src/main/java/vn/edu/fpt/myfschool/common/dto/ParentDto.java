@@ -6,5 +6,5 @@ public record ParentDto(
     Long id,
     String address,
     String occupation,
-    List<StudentSummaryDto> children
+    List<ParentChildDto> children
 ) {}
