@@ -42,6 +42,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .workflow-nav button:hover { background: rgba(255,255,255,.08); color: white; }
 .workflow-nav button.active { background: white; color: var(--navy); }
 .workflow-nav .module-icon { width: 25px; height: 25px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 8px; background: rgba(255,255,255,.12); font-size: 11px; font-weight: 900; }
+.workflow-nav .module-icon svg { width: 17px; height: 17px; }
 .workflow-nav button.active .module-icon { background: var(--orange-soft); color: var(--orange); }
 .module-label { min-width: 0; }
 .logout-button { margin-top: auto; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid rgba(255,255,255,.18); border-radius: 9px; background: transparent; color: #d7dfeb; }
@@ -60,6 +61,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .configuration-tabs button:hover { border-color: var(--line); background: #f7f9fc; color: var(--ink); }
 .configuration-tabs button.active { border-color: #f5c6a8; background: var(--orange-soft); color: #a64e17; }
 .configuration-tabs button span { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 7px; background: #edf1f6; color: var(--navy); font-size: 10px; font-weight: 900; }
+.configuration-tabs button span svg { width: 15px; height: 15px; }
 .configuration-tabs button.active span { background: var(--orange); color: white; }
 
 .page-content { padding: clamp(20px, 3vw, 40px); }
@@ -312,6 +314,7 @@ td button { min-height: 30px !important; padding: 0 10px !important; font-size: 
   .workflow-nav { gap: 8px; }
   .workflow-nav button { min-height: 48px; justify-content: center; padding: 8px; }
   .workflow-nav .module-icon { width: 30px; height: 30px; }
+  .workflow-nav .module-icon svg { width: 19px; height: 19px; }
   .logout-button { width: 44px; margin-left: auto; margin-right: auto; padding: 0; font-size: 18px; }
 }
 

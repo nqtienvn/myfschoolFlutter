@@ -40,23 +40,40 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const CONFIG_TABS = [
-  { key: 'years', label: 'Năm học' },
-  { key: 'master-data', label: 'Danh mục' },
-  { key: 'classes', label: 'Lớp học' },
-  { key: 'students', label: 'Học sinh & phụ huynh' },
-  { key: 'assignments', label: 'Phân công giảng dạy' },
-  { key: 'validation', label: 'Kiểm tra dữ liệu' },
-  { key: 'activation', label: 'Kích hoạt năm học' },
+  { key: 'years', icon: 'calendar', label: 'Năm học' },
+  { key: 'master-data', icon: 'catalog', label: 'Danh mục' },
+  { key: 'classes', icon: 'school', label: 'Lớp học' },
+  { key: 'students', icon: 'family', label: 'Học sinh & phụ huynh' },
+  { key: 'assignments', icon: 'assignment', label: 'Phân công giảng dạy' },
+  { key: 'validation', icon: 'checklist', label: 'Kiểm tra dữ liệu' },
+  { key: 'activation', icon: 'power', label: 'Kích hoạt năm học' },
 ] as const;
 
 const MODULES = [
-  { key: 'configuration', number: '01', label: 'Cấu hình năm học' },
-  { key: 'teachers', number: '02', label: 'Quản lý giáo viên' },
-  { key: 'timetables', number: '03', label: 'Thời khóa biểu' },
+  { key: 'configuration', icon: 'settings', label: 'Cấu hình năm học' },
+  { key: 'teachers', icon: 'teacher', label: 'Quản lý giáo viên' },
+  { key: 'timetables', icon: 'timetable', label: 'Thời khóa biểu' },
 ] as const;
 
 type ConfigTabKey = typeof CONFIG_TABS[number]['key'];
 type ModuleKey = typeof MODULES[number]['key'];
+type IconName = typeof CONFIG_TABS[number]['icon'] | typeof MODULES[number]['icon'];
+
+function NavIcon({ name }: { name: IconName }) {
+  const paths: Record<IconName, React.ReactNode> = {
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V20h-3v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7.08 15a1.7 1.7 0 0 0-1.55-1H5.4v-3h.13a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1-1.55V4.7h3v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.12 2.12-.06.06A1.7 1.7 0 0 0 19.4 10a1.7 1.7 0 0 0 1.55 1h.09v3h-.09a1.7 1.7 0 0 0-1.55 1Z"/></>,
+    teacher: <><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-1.5A4.5 4.5 0 0 1 8 14h2a4.5 4.5 0 0 1 4.5 4.5V20M15 5h6v8h-5M17 8h2M17 10.5h2"/></>,
+    timetable: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M7 14h2M11 14h2M15 14h2M7 17.5h2M11 17.5h2"/></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 14h3M8 17h6"/></>,
+    catalog: <><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></>,
+    school: <><path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M6 12.5V18h12v-5.5M9 20v-4h6v4"/></>,
+    family: <><circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2"/><path d="M3 20v-1.5A4.5 4.5 0 0 1 7.5 14h3A4.5 4.5 0 0 1 15 18.5V20M15 15h1.5a3.5 3.5 0 0 1 3.5 3.5V20"/></>,
+    assignment: <><path d="M4 19.5V6.8A2.8 2.8 0 0 1 6.8 4H20v15.5H6.5A2.5 2.5 0 0 0 4 22"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M9 9h7M9 12h5"/></>,
+    checklist: <><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 9 1.5 1.5L12 8M14 9h2M8 15l1.5 1.5L12 14M14 15h2"/></>,
+    power: <><path d="M12 3v9"/><path d="M7.1 6.2a8 8 0 1 0 9.8 0"/></>,
+  };
+  return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
+}
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(isAdminLoggedIn());
@@ -188,7 +205,7 @@ export default function App() {
               onClick={() => selectModule(item.key)}
               title={item.label}
             >
-              <span className="module-icon">{item.number}</span>
+              <span className="module-icon"><NavIcon name={item.icon} /></span>
               <span className="module-label">{item.label}</span>
             </button>
           ))}
@@ -224,9 +241,9 @@ export default function App() {
         </header>
         {module === 'configuration' && (
           <nav className="configuration-tabs" aria-label="Các bước cấu hình năm học">
-            {CONFIG_TABS.map((tab, index) => (
+            {CONFIG_TABS.map(tab => (
               <button key={tab.key} className={configTab === tab.key ? 'active' : ''} onClick={() => setConfigTab(tab.key)}>
-                <span>{index + 1}</span>{tab.label}
+                <span><NavIcon name={tab.icon} /></span>{tab.label}
               </button>
             ))}
           </nav>
