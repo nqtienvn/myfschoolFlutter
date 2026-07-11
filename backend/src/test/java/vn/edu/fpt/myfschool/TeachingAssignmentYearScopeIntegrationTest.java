@@ -63,7 +63,8 @@ class TeachingAssignmentYearScopeIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/academic-years/" + testAcademicYear.getId() + "/readiness")
                 .header("Authorization", authHeader(token)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.checks[?(@.code == 'ASSIGNMENTS')].passed").value(true));
+            .andExpect(jsonPath("$.data.checks[?(@.code == 'ASSIGNMENTS')].passed").value(true))
+            .andExpect(jsonPath("$.data.checks[?(@.code == 'TIMETABLES')]").isEmpty());
     }
 
 }

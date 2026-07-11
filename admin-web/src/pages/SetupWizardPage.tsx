@@ -12,7 +12,7 @@ const steps = [
   ['classes', 'Sinh lớp hàng loạt', 'Sinh lớp theo khối, ký hiệu và số lượng; sau đó gán giáo viên chủ nhiệm.'],
   ['students', 'Thêm học sinh & phụ huynh', 'Tạo thủ công tài khoản, liên kết phụ huynh và xếp lớp.'],
   ['assignments', 'Phân công giảng dạy', 'Mỗi lớp và môn chỉ có một giáo viên phụ trách trong năm học.'],
-  ['timetables', 'Thời khóa biểu', 'Tạo và phát hành các phiên bản thời khóa biểu theo lớp, học kỳ và ngày hiệu lực.'],
+  ['timetables', 'Thời khóa biểu (tùy chọn)', 'Có thể tạo và phát hành trước hoặc sau khi kích hoạt năm học.'],
   ['validation', 'Kiểm tra dữ liệu', 'Xác nhận lớp có GVCN, học sinh và phân công môn trước khi mở năm học.'],
   ['activation', 'Kích hoạt năm học', 'Chỉ kích hoạt khi mọi kiểm tra đạt; cấu hình quan trọng sẽ được khóa.'],
 ] as const;

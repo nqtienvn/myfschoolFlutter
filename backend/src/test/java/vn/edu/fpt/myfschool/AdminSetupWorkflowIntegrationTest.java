@@ -166,7 +166,9 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.data.length()").value(1));
 
         mockMvc.perform(get("/api/academic-years/" + yearId + "/readiness").header("Authorization", authHeader(token)))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.data.ready").value(true));
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.ready").value(true))
+            .andExpect(jsonPath("$.data.checks[?(@.code == 'TIMETABLES')]").isEmpty());
 
         testAcademicYear.setStatus(AcademicYearStatus.COMPLETED);
         academicYearRepository.save(testAcademicYear);
