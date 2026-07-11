@@ -59,15 +59,6 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .configuration-tabs button span { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 7px; background: #edf1f6; color: var(--navy); font-size: 10px; font-weight: 900; }
 .configuration-tabs button.active span { background: var(--orange); color: white; }
 
-.year-state { margin-left: auto; min-width: 175px; padding: 9px 12px; border: 1px solid var(--line); border-left: 4px solid var(--muted); border-radius: 9px; background: #f9fafc; }
-.year-state span, .year-state small, .year-state strong { display: block; }
-.year-state span { color: var(--muted); font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
-.year-state strong { margin: 2px 0; font-size: 12px; }
-.year-state small { color: var(--muted); font-size: 10px; }
-.year-state.state-draft, .year-state.state-not_started { border-left-color: var(--muted); background: #f0f2f5; }
-.year-state.state-active { border-left-color: #0052cc; background: #e5efff; }
-.year-state.state-completed { border-left-color: var(--green); background: var(--green-soft); }
-
 .page-content { padding: clamp(20px, 3vw, 40px); }
 .page-stack { display: grid; gap: 22px; max-width: 1280px; margin: 0 auto; }
 .page-hero, .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
@@ -317,7 +308,6 @@ td button { min-height: 30px !important; padding: 0 10px !important; font-size: 
   .logout-button { margin-top: 12px; }
   .context-bar { top: 0; flex-wrap: wrap; }
   .configuration-tabs { padding: 10px 14px; }
-  .year-state { margin-left: 0; }
   .master-data-layout { grid-template-columns: 1fr; }
   .master-data-side { position: static; }
   .class-generation-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -330,7 +320,7 @@ td button { min-height: 30px !important; padding: 0 10px !important; font-size: 
 
 @media (max-width: 700px) {
   .workflow-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .context-bar > div:not(.year-state), .year-state { width: 100%; min-width: 0; }
+  .context-bar > div { width: 100%; min-width: 0; }
   .step-grid { grid-template-columns: 1fr; }
   .page-hero, .page-heading, .readiness-summary { align-items: stretch; flex-direction: column; }
   .hero-context { min-width: 0; }

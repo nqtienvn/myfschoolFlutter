@@ -111,11 +111,6 @@ export default function App() {
     () => years.find(year => String(year.id) === yearId),
     [years, yearId],
   );
-  const selectedSemester = useMemo(
-    () => semesters.find(semester => String(semester.id) === semesterId),
-    [semesters, semesterId],
-  );
-
   if (!loggedIn) return <LoginPage onLogin={() => setLoggedIn(true)} />;
 
   const goToConfigTab = (key: string) => {
@@ -185,7 +180,7 @@ export default function App() {
       <section className="workspace">
         <header className="context-bar">
           <div>
-            <p>Năm học đang cấu hình</p>
+            <p>Năm học</p>
             <select value={yearId} onChange={event => setYearId(event.target.value)} disabled={loadingContext}>
               <option value="">Chưa có năm học</option>
               {years.map(year => (
@@ -201,11 +196,6 @@ export default function App() {
                 <option key={semester.id} value={semester.id}>{semester.name} · {STATUS_LABELS[semester.status] || semester.status}</option>
               ))}
             </select>
-          </div>
-          <div className={`year-state state-${selectedYear?.status?.toLowerCase() || 'none'}`}>
-            <span>Trạng thái</span>
-            <strong>{selectedYear?.status ? STATUS_LABELS[selectedYear.status] : 'CHƯA KHỞI TẠO'}</strong>
-            <small>{module === 'configuration' && configTab === 'assignments' ? 'Phân công áp dụng toàn năm' : selectedSemester?.name || 'Chọn năm học để bắt đầu'}</small>
           </div>
         </header>
         {module === 'configuration' && (
