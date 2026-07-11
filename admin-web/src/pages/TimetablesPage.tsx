@@ -15,16 +15,22 @@ import {
 
 interface ClassItem { id: number; name: string; gradeLevel: number; }
 interface SemesterItem { id: number; startDate: string; endDate: string; }
-interface AssignmentItem { id: number; subjectName: string; teacherName: string; }
+interface AssignmentItem {
+  id: number;
+  subjectId: number;
+  subjectName: string;
+  teacherId: number;
+  teacherName: string;
+}
 
 const DAYS = [
-  { value: 2, label: 'Thứ 2', short: 'T2' },
-  { value: 3, label: 'Thứ 3', short: 'T3' },
-  { value: 4, label: 'Thứ 4', short: 'T4' },
-  { value: 5, label: 'Thứ 5', short: 'T5' },
-  { value: 6, label: 'Thứ 6', short: 'T6' },
-  { value: 7, label: 'Thứ 7', short: 'T7' },
-  { value: 1, label: 'Chủ nhật', short: 'CN' },
+  { value: 2, label: 'Thứ 2' },
+  { value: 3, label: 'Thứ 3' },
+  { value: 4, label: 'Thứ 4' },
+  { value: 5, label: 'Thứ 5' },
+  { value: 6, label: 'Thứ 6' },
+  { value: 7, label: 'Thứ 7' },
+  { value: 1, label: 'Chủ nhật' },
 ];
 const PERIODS = Array.from({ length: 10 }, (_, index) => index + 1);
 
@@ -38,21 +44,30 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
   const [slots, setSlots] = useState<ScheduleSlotItem[]>([]);
   const [draftId, setDraftId] = useState<number | null>(null);
   const [publishDate, setPublishDate] = useState('');
-  const [slotForm, setSlotForm] = useState({ assignmentId: '', dayOfWeek: 2, period: 1 });
+  const [cellSubjects, setCellSubjects] = useState<Record<string, string>>({});
+  const [savingCell, setSavingCell] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    setClassId(''); setVersions([]); setAssignments([]); setSlots([]); setDraftId(null); setError('');
+    setClassId('');
+    setVersions([]);
+    setAssignments([]);
+    setSlots([]);
+    setDraftId(null);
+    setCellSubjects({});
+    setError('');
     if (!selectedYearId) { setClasses([]); return; }
-    Promise.all([getClasses({ academicYearId: selectedYearId, page: 0, size: 500 }) as any, getSemesters(selectedYearId) as any])
-      .then(([page, semesterList]) => {
-        setClasses(page.content || []);
-        const selected = (semesterList || []).find((item: SemesterItem) => String(item.id) === selectedSemesterId) || null;
-        setSemester(selected);
-        setPublishDate(selected ? firstScheduleDate(selected) : '');
-      }).catch((cause: any) => setError(cause.message || 'Không thể tải dữ liệu thời khóa biểu.'));
+    Promise.all([
+      getClasses({ academicYearId: selectedYearId, page: 0, size: 500 }) as any,
+      getSemesters(selectedYearId) as any,
+    ]).then(([page, semesterList]) => {
+      setClasses(page.content || []);
+      const selected = (semesterList || []).find((item: SemesterItem) => String(item.id) === selectedSemesterId) || null;
+      setSemester(selected);
+      setPublishDate(selected ? firstScheduleDate(selected) : '');
+    }).catch((cause: any) => setError(cause.message || 'Không thể tải dữ liệu thời khóa biểu.'));
   }, [selectedYearId, selectedSemesterId]);
 
   async function loadClassData(targetClassId = classId) {
@@ -63,11 +78,15 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
         getTimetables(targetClassId, selectedSemesterId),
         getTeachingAssignments({ classId: targetClassId }) as Promise<AssignmentItem[]>,
       ]);
-      setVersions(versionList || []);
-      setAssignments(assignmentList || []);
       const draft = (versionList || []).find(item => item.status === 'DRAFT');
+      const displayed = draft
+        || (versionList || []).find(item => item.status === 'SCHEDULED')
+        || (versionList || []).find(item => item.status === 'ACTIVE');
+      setVersions(versionList || []);
+      setAssignments((assignmentList || []).filter(item => item.id && item.subjectId && item.teacherId));
       setDraftId(draft?.id || null);
-      setSlots(draft ? await getTimetableSlots(draft.id) : []);
+      setSlots(displayed ? await getTimetableSlots(displayed.id) : []);
+      setCellSubjects({});
     } catch (cause: any) {
       setError(cause.message || 'Không thể tải thời khóa biểu của lớp.');
     }
@@ -79,46 +98,68 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
   const draft = versions.find(item => item.id === draftId);
   const active = versions.find(item => item.status === 'ACTIVE');
   const scheduled = versions.find(item => item.status === 'SCHEDULED');
-  const selectedAssignment = assignments.find(item => item.id === Number(slotForm.assignmentId));
+  const subjects = useMemo(() => {
+    const unique = new Map<number, string>();
+    assignments.forEach(item => unique.set(item.subjectId, item.subjectName));
+    return Array.from(unique, ([id, name]) => ({ id, name }));
+  }, [assignments]);
   const slotsByCell = useMemo(() => new Map(slots.map(slot => [`${slot.dayOfWeek}-${slot.period}`, slot])), [slots]);
 
-  async function createDraft() {
-    if (!classId || !selectedSemesterId) return;
-    setLoading(true); setError(''); setMessage('');
-    try {
-      await createTimetable({
-        classId: Number(classId), semesterId: Number(selectedSemesterId),
-        copyFromTimetableId: active?.id,
-      });
-      setMessage(active ? 'Đã tạo bản nháp từ thời khóa biểu đang dùng.' : 'Đã tạo bản nháp mới.');
-      await loadClassData();
-    } catch (cause: any) { setError(cause.message || 'Không thể tạo bản nháp.'); }
-    finally { setLoading(false); }
+  async function ensureDraft() {
+    if (draftId) return { id: draftId, slots };
+    if (!classId || !selectedSemesterId || scheduled) throw new Error('Thời khóa biểu đang chờ phát hành nên chưa thể chỉnh sửa.');
+    const created = await createTimetable({
+      classId: Number(classId),
+      semesterId: Number(selectedSemesterId),
+      copyFromTimetableId: active?.id,
+    });
+    const copiedSlots = await getTimetableSlots(created.id);
+    setVersions(current => [...current, created]);
+    setDraftId(created.id);
+    setSlots(copiedSlots);
+    setMessage(active ? 'Đã tự động tạo bản chỉnh sửa từ lịch đang áp dụng.' : 'Đã tự động tạo thời khóa biểu mới.');
+    return { id: created.id, slots: copiedSlots };
   }
 
-  async function addSlot() {
-    if (!draftId || !slotForm.assignmentId) return;
-    setLoading(true); setError(''); setMessage('');
+  async function saveCell(dayOfWeek: number, period: number, assignmentId: number) {
+    const key = `${dayOfWeek}-${period}`;
+    setSavingCell(key); setError(''); setMessage('');
+    let removed: ScheduleSlotItem | undefined;
+    let editableId: number | undefined;
     try {
+      const editable = await ensureDraft();
+      editableId = editable.id;
+      removed = editable.slots.find(slot => slot.dayOfWeek === dayOfWeek && slot.period === period);
+      if (removed) await deleteScheduleSlot(removed.id);
       await createScheduleSlot({
-        timetableId: draftId,
-        assignmentId: Number(slotForm.assignmentId),
-        dayOfWeek: slotForm.dayOfWeek,
-        period: slotForm.period,
-        shift: slotForm.period <= 5 ? 'MORNING' : 'AFTERNOON',
+        timetableId: editable.id,
+        assignmentId,
+        dayOfWeek,
+        period,
+        shift: period <= 5 ? 'MORNING' : 'AFTERNOON',
       });
-      setSlots(await getTimetableSlots(draftId));
-      setSlotForm(current => ({ ...current, assignmentId: '' }));
-    } catch (cause: any) { setError(cause.message || 'Không thể thêm tiết học.'); }
-    finally { setLoading(false); }
+      setSlots(await getTimetableSlots(editable.id));
+      setCellSubjects(current => { const next = { ...current }; delete next[key]; return next; });
+    } catch (cause: any) {
+      if (removed && editableId) {
+        await createScheduleSlot({ timetableId: editableId, assignmentId: removed.assignmentId, dayOfWeek, period, shift: removed.shift }).catch(() => undefined);
+        setSlots(await getTimetableSlots(editableId).catch(() => slots));
+      }
+      setError(cause.message || 'Không thể lưu tiết học.');
+    } finally { setSavingCell(''); }
   }
 
-  async function removeSlot(id: number) {
-    if (!draftId) return;
-    setLoading(true); setError('');
-    try { await deleteScheduleSlot(id); setSlots(await getTimetableSlots(draftId)); }
-    catch (cause: any) { setError(cause.message || 'Không thể xóa tiết học.'); }
-    finally { setLoading(false); }
+  async function clearCell(dayOfWeek: number, period: number) {
+    const key = `${dayOfWeek}-${period}`;
+    setSavingCell(key); setError('');
+    try {
+      const editable = await ensureDraft();
+      const slot = editable.slots.find(item => item.dayOfWeek === dayOfWeek && item.period === period);
+      if (slot) await deleteScheduleSlot(slot.id);
+      setSlots(await getTimetableSlots(editable.id));
+      setCellSubjects(current => { const next = { ...current }; delete next[key]; return next; });
+    } catch (cause: any) { setError(cause.message || 'Không thể xóa tiết học.'); }
+    finally { setSavingCell(''); }
   }
 
   async function publishNow() {
@@ -144,65 +185,69 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
   }
 
   async function removeDraft() {
-    if (!draftId || !confirm('Xóa bản nháp này?')) return;
-    setLoading(true);
+    if (!draftId || !confirm('Hủy tất cả thay đổi trong bản nháp này?')) return;
+    setLoading(true); setError('');
     try { await deleteTimetable(draftId); await loadClassData(); }
-    catch (cause: any) { setError(cause.message || 'Không thể xóa bản nháp.'); }
+    catch (cause: any) { setError(cause.message || 'Không thể hủy bản nháp.'); }
     finally { setLoading(false); }
   }
 
   return <div className="page-stack timetable-page">
     <div className="page-heading timetable-heading">
-      <div><span className="eyebrow">Lập lịch giảng dạy</span><h1>Thời khóa biểu</h1><p>Chọn lớp, bấm trực tiếp vào ô Thứ × Tiết và phân công môn học.</p></div>
-      {classId && <div className="timetable-summary"><strong>{slots.length}</strong><span>tiết trong bản nháp</span></div>}
+      <div><span className="eyebrow">Lập lịch giảng dạy</span><h1>Thời khóa biểu</h1><p>Chọn môn và giáo viên ngay trong từng ô Thứ × Tiết. Hệ thống tự tạo bản nháp khi có thay đổi đầu tiên.</p></div>
+      {classId && <div className="timetable-summary"><strong>{slots.length}</strong><span>tiết đang hiển thị</span></div>}
     </div>
 
     {(!selectedYearId || !selectedSemesterId) && <div className="notice warning">Chọn năm học và học kỳ ở thanh phía trên.</div>}
     {error && <div className="notice error">{error}</div>}
     {message && <div className="notice success">{message}</div>}
 
-    <section className="timetable-filter-card">
+    <section className="timetable-filter-card inline-only">
       <div className="form-group"><label>Khối</label><select value={grade} onChange={event => { setGrade(event.target.value); setClassId(''); }}>{Array.from({ length: 12 }, (_, index) => index + 1).map(value => <option key={value}>{value}</option>)}</select></div>
       <div className="form-group timetable-class-select"><label>Lớp học</label><select value={classId} onChange={event => setClassId(event.target.value)}><option value="">Chọn lớp để lập lịch</option>{filteredClasses.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-      <div className="timetable-filter-action">
-        <button type="button" disabled={!classId || !!draft || !!scheduled || loading} onClick={createDraft}>{active ? 'Tạo lịch thay thế' : 'Tạo thời khóa biểu'}</button>
-      </div>
     </section>
 
-    {scheduled && <div className="timetable-scheduled-banner"><span className="scheduled-icon">◷</span><div><strong>Đang chờ phát hành</strong><p>Phiên bản {scheduled.version} sẽ được cronjob phát hành ngày {formatDate(scheduled.effectiveFrom || '')}.</p></div></div>}
+    {scheduled && <div className="timetable-scheduled-banner"><span className="scheduled-icon">◷</span><div><strong>Đang chờ phát hành</strong><p>Phiên bản {scheduled.version} sẽ được cronjob phát hành ngày {formatDate(scheduled.effectiveFrom || '')}. Không thể sửa trong thời gian chờ.</p></div></div>}
 
-    {draft && <>
-      <section className="timetable-editor-card">
-        <div className="timetable-editor-heading">
-          <div><span className="step-number">1</span><div><h2>Chọn môn học và vị trí</h2><p>Bấm ô trống trong bảng hoặc chọn Thứ/Tiết bên dưới.</p></div></div>
-          <span className="status-badge preparing">Bản nháp · v{draft.version}</span>
-        </div>
-        <div className="timetable-slot-form">
-          <div className="form-group assignment-field"><label>Môn học · Giáo viên</label><select value={slotForm.assignmentId} onChange={event => setSlotForm(current => ({ ...current, assignmentId: event.target.value }))}><option value="">Chọn phân công giảng dạy</option>{assignments.map(item => <option key={item.id} value={item.id}>{item.subjectName} · {item.teacherName}</option>)}</select></div>
-          <div className="day-selector"><label>Thứ</label><div>{DAYS.map(day => <button type="button" key={day.value} className={slotForm.dayOfWeek === day.value ? 'selected' : ''} onClick={() => setSlotForm(current => ({ ...current, dayOfWeek: day.value }))}>{day.short}</button>)}</div></div>
-          <div className="period-selector"><label>Tiết</label><div>{PERIODS.map(period => <button type="button" key={period} className={slotForm.period === period ? 'selected' : ''} onClick={() => setSlotForm(current => ({ ...current, period }))}>{period}</button>)}</div></div>
-          <button type="button" className="add-slot-button" disabled={!selectedAssignment || loading || slotsByCell.has(`${slotForm.dayOfWeek}-${slotForm.period}`)} onClick={addSlot}>+ Thêm vào {DAYS.find(day => day.value === slotForm.dayOfWeek)?.label}, tiết {slotForm.period}</button>
-        </div>
-      </section>
+    {classId && <section className="timetable-board-card">
+      <div className="timetable-editor-heading">
+        <div><div><h2>Thời khóa biểu theo thứ</h2><p>Chọn môn học, sau đó chọn giáo viên để lưu tiết ngay trong bảng.</p></div></div>
+        {draft && <span className="status-badge preparing">Bản nháp · v{draft.version}</span>}
+      </div>
+      {assignments.length === 0 && <div className="notice warning">Lớp này chưa có phân công môn học và giáo viên. Hãy tạo phân công giảng dạy trước khi xếp tiết.</div>}
+      <div className="timetable-board-wrap"><table className="timetable-board inline-editor"><thead><tr><th className="period-heading">Tiết</th>{DAYS.map(day => <th key={day.value}>{day.label}</th>)}</tr></thead><tbody>{PERIODS.map(period => <tr key={period} className={period === 6 ? 'afternoon-start' : ''}><th><span>{period}</span><small>{period <= 5 ? 'Sáng' : 'Chiều'}</small></th>{DAYS.map(day => {
+        const key = `${day.value}-${period}`;
+        const slot = slotsByCell.get(key);
+        const currentAssignment = slot ? assignments.find(item => item.id === slot.assignmentId) : undefined;
+        const subjectId = cellSubjects[key] ?? (currentAssignment ? String(currentAssignment.subjectId) : '');
+        const teacherAssignments = assignments.filter(item => String(item.subjectId) === subjectId);
+        const teacherValue = currentAssignment && String(currentAssignment.subjectId) === subjectId ? String(currentAssignment.id) : '';
+        const disabled = !!scheduled || savingCell === key || assignments.length === 0;
+        return <td key={day.value}><div className={`schedule-cell inline-selects ${slot ? 'filled' : ''} ${savingCell === key ? 'saving' : ''}`}>
+          <select aria-label={`Môn học ${day.label} tiết ${period}`} disabled={disabled} value={subjectId} onChange={event => setCellSubjects(current => ({ ...current, [key]: event.target.value }))}>
+            <option value="">Môn học</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+          </select>
+          <select aria-label={`Giáo viên ${day.label} tiết ${period}`} disabled={disabled || !subjectId} value={teacherValue} onChange={event => event.target.value && saveCell(day.value, period, Number(event.target.value))}>
+            <option value="">Giáo viên</option>{teacherAssignments.map(item => <option key={item.id} value={item.id}>{item.teacherName}</option>)}
+          </select>
+          {slot && <button type="button" className="clear-cell-button" title="Xóa tiết" disabled={disabled} onClick={() => clearCell(day.value, period)}>×</button>}
+          {savingCell === key && <small className="cell-saving-label">Đang lưu…</small>}
+        </div></td>;
+      })}</tr>)}</tbody></table></div>
+    </section>}
 
-      <section className="timetable-board-card">
-        <div className="timetable-editor-heading"><div><span className="step-number">2</span><div><h2>Thời khóa biểu theo thứ</h2><p>Chọn ô trống để thêm nhanh; chọn × để xóa tiết.</p></div></div></div>
-        <div className="timetable-board-wrap"><table className="timetable-board"><thead><tr><th className="period-heading">Tiết</th>{DAYS.map(day => <th key={day.value}>{day.label}</th>)}</tr></thead><tbody>{PERIODS.map(period => <tr key={period} className={period === 6 ? 'afternoon-start' : ''}><th><span>{period}</span><small>{period <= 5 ? 'Sáng' : 'Chiều'}</small></th>{DAYS.map(day => { const slot = slotsByCell.get(`${day.value}-${period}`); return <td key={day.value}>{slot ? <div className="schedule-cell filled"><strong>{slot.subjectName}</strong><span>{slot.teacherName}</span><small>{slot.room}</small><button type="button" title="Xóa tiết" disabled={loading} onClick={() => removeSlot(slot.id)}>×</button></div> : <button type="button" className={`schedule-cell empty ${slotForm.dayOfWeek === day.value && slotForm.period === period ? 'selected' : ''}`} onClick={() => setSlotForm(current => ({ ...current, dayOfWeek: day.value, period }))}><span>+</span><small>Thêm tiết</small></button>}</td>; })}</tr>)}</tbody></table></div>
-      </section>
+    {draft && <section className="timetable-publish-card">
+      <div className="timetable-editor-heading"><div><div><h2>Phát hành thời khóa biểu</h2><p>Thông báo sẽ gửi cho học sinh, phụ huynh và giáo viên qua WebSocket.</p></div></div></div>
+      <div className="publish-options">
+        <div className="publish-option immediate"><div><strong>Phát hành ngay</strong><p>Kích hoạt lịch và gửi thông báo ngay lập tức.</p></div><button type="button" disabled={loading || slots.length === 0} onClick={publishNow}>Phát hành ngay</button></div>
+        <div className="publish-divider"><span>hoặc</span></div>
+        <div className="publish-option scheduled"><div><strong>Hẹn ngày phát hành</strong><p>Spring Scheduler tự phát hành lúc 00:00 ngày đã chọn.</p></div><div className="schedule-publish-controls"><input type="date" min={semester ? firstScheduleDate(semester) : undefined} max={semester?.endDate} value={publishDate} onChange={event => setPublishDate(event.target.value)} /><button type="button" className="secondary" disabled={loading || slots.length === 0 || !publishDate} onClick={schedulePublish}>Hẹn phát hành</button></div></div>
+      </div>
+      <div className="draft-danger-zone"><button type="button" className="danger" disabled={loading} onClick={removeDraft}>Hủy các thay đổi</button></div>
+    </section>}
 
-      <section className="timetable-publish-card">
-        <div className="timetable-editor-heading"><div><span className="step-number">3</span><div><h2>Phát hành thời khóa biểu</h2><p>Thông báo sẽ gửi cho học sinh, phụ huynh và giáo viên qua WebSocket.</p></div></div></div>
-        <div className="publish-options">
-          <div className="publish-option immediate"><div><strong>Phát hành ngay</strong><p>Kích hoạt lịch và gửi thông báo ngay lập tức.</p></div><button type="button" disabled={loading || slots.length === 0} onClick={publishNow}>Phát hành ngay</button></div>
-          <div className="publish-divider"><span>hoặc</span></div>
-          <div className="publish-option scheduled"><div><strong>Hẹn ngày phát hành</strong><p>Spring Scheduler tự phát hành lúc 00:00 ngày đã chọn.</p></div><div className="schedule-publish-controls"><input type="date" min={semester ? firstScheduleDate(semester) : undefined} max={semester?.endDate} value={publishDate} onChange={event => setPublishDate(event.target.value)} /><button type="button" className="secondary" disabled={loading || slots.length === 0 || !publishDate} onClick={schedulePublish}>Hẹn phát hành</button></div></div>
-        </div>
-        <div className="draft-danger-zone"><button type="button" className="danger" disabled={loading} onClick={removeDraft}>Xóa bản nháp</button></div>
-      </section>
-    </>}
-
-    {classId && <section className="timetable-history"><div className="class-list-heading"><div><h2>Lịch sử phiên bản</h2><p>Theo dõi lịch đang dùng, chờ phát hành và đã lưu trữ.</p></div></div><div className="table-responsive"><table><thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Ngày áp dụng/phát hành</th><th>Số tiết</th></tr></thead><tbody>{versions.map(item => <tr key={item.id}><td><strong>Phiên bản {item.version}</strong></td><td><span className={`badge-status ${statusClass(item.status)}`}>{statusLabel(item.status)}</span></td><td>{item.effectiveFrom ? formatDate(item.effectiveFrom) : '—'}{item.effectiveTo ? ` → ${formatDate(item.effectiveTo)}` : ''}</td><td>{item.slotCount}</td></tr>)}{versions.length === 0 && <tr><td colSpan={4}>Chưa có thời khóa biểu cho lớp và học kỳ này.</td></tr>}</tbody></table></div></section>}
-    {!classId && <div className="timetable-empty-state"><span>▦</span><h2>Chọn lớp để bắt đầu</h2><p>Bạn sẽ lập lịch trực tiếp theo từng Thứ và Tiết.</p></div>}
+    {classId && <section className="timetable-history"><div className="class-list-heading"><div><h2>Lịch sử phiên bản</h2><p>Theo dõi lịch đang dùng, chờ phát hành và đã lưu trữ.</p></div></div><div className="table-responsive"><table><thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Ngày áp dụng/phát hành</th><th>Số tiết</th></tr></thead><tbody>{versions.map(item => <tr key={item.id}><td><strong>Phiên bản {item.version}</strong></td><td><span className={`badge-status ${statusClass(item.status)}`}>{statusLabel(item.status)}</span></td><td>{item.effectiveFrom ? formatDate(item.effectiveFrom) : '—'}{item.effectiveTo ? ` → ${formatDate(item.effectiveTo)}` : ''}</td><td>{item.slotCount}</td></tr>)}{versions.length === 0 && <tr><td colSpan={4}>Chưa có thời khóa biểu cho lớp và học kỳ này. Chọn môn và giáo viên trong bảng để bắt đầu.</td></tr>}</tbody></table></div></section>}
+    {!classId && <div className="timetable-empty-state"><span>▦</span><h2>Chọn lớp để bắt đầu</h2><p>Bạn sẽ chọn môn và giáo viên trực tiếp trong từng ô thời khóa biểu.</p></div>}
   </div>;
 }
 

@@ -399,6 +399,7 @@ td button { min-height: 30px !important; padding: 0 10px !important; font-size: 
 .timetable-summary strong { font-size: 28px; line-height: 1; }
 .timetable-summary span { margin-top: 5px; font-size: 12px; font-weight: 700; }
 .timetable-filter-card { display: grid; grid-template-columns: 160px minmax(260px, 1fr) auto; align-items: end; gap: 14px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: 0 5px 18px rgba(25, 35, 50, .05); }
+.timetable-filter-card.inline-only { grid-template-columns: 160px minmax(260px, 1fr); }
 .timetable-filter-action button { min-height: 40px; white-space: nowrap; }
 .timetable-scheduled-banner { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border: 1px solid #f3c768; border-radius: 14px; background: #fff9e8; color: #774300; }
 .timetable-scheduled-banner .scheduled-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: #ffe7ab; font-size: 26px; }
@@ -436,6 +437,17 @@ td button { min-height: 30px !important; padding: 0 10px !important; font-size: 
 .schedule-cell.filled span, .schedule-cell.filled small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #5c6e84; font-size: 10px; }
 .schedule-cell.filled button { position: absolute; top: 4px; right: 4px; min-width: 22px; min-height: 22px; padding: 0; border-radius: 6px; background: transparent; color: #8b98a9; font-size: 17px; }
 .schedule-cell.filled button:hover { background: #ffe8e5; color: #c52f20; }
+.timetable-board.inline-editor { min-width: 1320px; }
+.schedule-cell.inline-selects { display: grid; align-content: center; gap: 7px; min-height: 92px; padding: 9px; border: 1px solid transparent; background: #fbfcfd; }
+.schedule-cell.inline-selects.filled { border-color: #bfdbfe; background: #eff6ff; }
+.schedule-cell.inline-selects.saving { opacity: .68; }
+.schedule-cell.inline-selects select { width: 100%; min-width: 0; height: 31px; padding: 4px 24px 4px 7px; border: 1px solid #d1d5db; background: white; color: #1f2937; font-size: 11px; }
+.schedule-cell.inline-selects select:focus { border-color: #1d4ed8; outline: 1px solid #1d4ed8; }
+.schedule-cell.inline-selects .clear-cell-button { position: absolute; top: 1px; right: 1px; z-index: 1; min-width: 20px; min-height: 20px; padding: 0; border: 0; background: #fff; color: #9b1c1c; font-size: 16px; line-height: 18px; }
+.schedule-cell.inline-selects .clear-cell-button:hover { background: #fee2e2; color: #7f1d1d; }
+.cell-saving-label { position: absolute; right: 6px; bottom: 2px; color: #1d4ed8; font-size: 9px; font-weight: 700; }
+.timetable-board .schedule-cell.inline-selects .clear-cell-button { border: 0 !important; background: #fff !important; color: #9b1c1c !important; }
+.timetable-board .schedule-cell.inline-selects .clear-cell-button:hover { background: #fee2e2 !important; color: #7f1d1d !important; }
 .publish-options { display: grid; grid-template-columns: 1fr 52px 1fr; align-items: stretch; gap: 12px; }
 .publish-option { display: flex; flex-direction: column; justify-content: space-between; gap: 16px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: #fbfcfd; }
 .publish-option.immediate { border-color: #ffc49c; background: #fff8f3; }
