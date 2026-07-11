@@ -4,7 +4,6 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/assigned_classes_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_attendance_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_leave_requests_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_web_screen.dart';
@@ -126,13 +125,23 @@ class _HomeTeacherState extends State<HomeTeacher> {
                         childAspectRatio: 1.4,
                         children: [
                           _FeatureButton(
-                            title: 'Lớp được phân công',
-                            icon: Icons.groups_2_outlined,
-                            color: AppColors.blue,
+                            title: 'Lịch dạy',
+                            icon: Icons.calendar_month_outlined,
+                            color: AppColors.teal,
                             onTap: () {
+                              final session =
+                                  widget.authService.currentSession!;
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => const AssignedClassesScreen(),
+                                  builder: (_) => ScheduleScreen(
+                                    service: ScheduleService(
+                                      apiClient: ScheduleApiClient(
+                                        backend: BackendApiClient(),
+                                      ),
+                                      token: session.token,
+                                    ),
+                                    mode: ScheduleViewMode.teacher,
+                                  ),
                                 ),
                               );
                             },
@@ -214,28 +223,6 @@ class _HomeTeacherState extends State<HomeTeacher> {
                                     ),
                                   )
                                   .then((_) => setState(() {}));
-                            },
-                          ),
-                          _FeatureButton(
-                            title: 'Lịch dạy',
-                            icon: Icons.calendar_month,
-                            color: AppColors.teal,
-                            onTap: () {
-                              final session =
-                                  widget.authService.currentSession!;
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => ScheduleScreen(
-                                    service: ScheduleService(
-                                      apiClient: ScheduleApiClient(
-                                        backend: BackendApiClient(),
-                                      ),
-                                      token: session.token,
-                                    ),
-                                    mode: ScheduleViewMode.teacher,
-                                  ),
-                                ),
-                              );
                             },
                           ),
                         ],

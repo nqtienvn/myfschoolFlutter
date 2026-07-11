@@ -107,7 +107,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   Widget _buildSummary(SchoolSchedule schedule) {
     final label = widget.mode == ScheduleViewMode.teacher
-        ? '${schedule.semesterName} · Các lớp được phân công'
+        ? '${schedule.semesterName} · Lịch dạy theo phân công bộ môn'
         : '${schedule.ownerName} · ${schedule.semesterName}';
     return AppCard(
       padding: 14,
@@ -157,8 +157,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       padding: 12,
       child: Column(
         children: [
-          const Text(
-            'LỊCH HỌC THEO THỨ',
+          Text(
+            widget.mode == ScheduleViewMode.teacher
+                ? 'LỊCH DẠY THEO THỨ'
+                : 'LỊCH HỌC THEO THỨ',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w900,
@@ -214,15 +216,21 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     final lessons = [...day.morningLessons, ...day.afternoonLessons];
     if (lessons.isEmpty) {
       return AppCard(
-        child: const Padding(
-          padding: EdgeInsets.symmetric(vertical: 36),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 36),
           child: Column(
             children: [
-              Icon(Icons.event_available, size: 44, color: AppColors.muted),
-              SizedBox(height: 12),
+              const Icon(
+                Icons.event_available,
+                size: 44,
+                color: AppColors.muted,
+              ),
+              const SizedBox(height: 12),
               Text(
-                'Không có tiết học trong ngày này.',
-                style: TextStyle(
+                widget.mode == ScheduleViewMode.teacher
+                    ? 'Không có tiết dạy trong ngày này.'
+                    : 'Không có tiết học trong ngày này.',
+                style: const TextStyle(
                   color: AppColors.muted,
                   fontWeight: FontWeight.w600,
                 ),
