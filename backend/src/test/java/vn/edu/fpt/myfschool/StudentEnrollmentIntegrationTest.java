@@ -55,12 +55,25 @@ class StudentEnrollmentIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void createManually_activeYear_isRejected() throws Exception {
+    void createManually_activeYear_isAllowed() throws Exception {
         mockMvc.perform(post("/api/admin/student-enrollments")
                 .header("Authorization", authHeader(loginAsAdmin())).contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"academicYearId":%d,"classId":%d,"studentCode":"HS-ACTIVE","studentName":"Học sinh mới",
                     "dateOfBirth":"2015-01-10","gender":"FEMALE","parentName":"Phụ huynh mới","relationship":"MOTHER","parentPhone":"0901234567"}
+                    """.formatted(testAcademicYear.getId(), testClass.getId())))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void createManually_completedYear_isRejected() throws Exception {
+        testAcademicYear.setStatus(AcademicYearStatus.COMPLETED);
+        academicYearRepository.save(testAcademicYear);
+        mockMvc.perform(post("/api/admin/student-enrollments")
+                .header("Authorization", authHeader(loginAsAdmin())).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"academicYearId":%d,"classId":%d,"studentCode":"HS-COMPLETED","studentName":"Học sinh mới",
+                    "dateOfBirth":"2015-01-10","gender":"FEMALE","parentName":"Phụ huynh mới","relationship":"MOTHER","parentPhone":"0901234568"}
                     """.formatted(testAcademicYear.getId(), testClass.getId())))
             .andExpect(status().isConflict());
     }

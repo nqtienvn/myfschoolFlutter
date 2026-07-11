@@ -39,7 +39,9 @@ public class AcademicYearMasterDataServiceImpl implements AcademicYearMasterData
     @Override
     public AcademicYearMasterDataConfigDto update(Long yearId, UpdateAcademicYearMasterDataRequest request) {
         AcademicYear year = requireYear(yearId);
-        if (year.getStatus() != AcademicYearStatus.DRAFT) throw new ConflictException("Chỉ được sửa danh mục khi năm học ở trạng thái DRAFT");
+        if (year.getStatus() == AcademicYearStatus.COMPLETED) {
+            throw new ConflictException("Không được sửa danh mục khi năm học đã hoàn tất");
+        }
         List<Subject> subjects = requireAll(subjectRepository.findAllById(request.subjectIds()), request.subjectIds(), "Subject");
         List<SchoolShift> shifts = requireAll(shiftRepository.findAllById(request.shiftIds()), request.shiftIds(), "SchoolShift");
         List<Period> periods = requireAll(periodRepository.findAllById(request.periodIds()), request.periodIds(), "Period");

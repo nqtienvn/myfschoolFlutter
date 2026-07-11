@@ -32,7 +32,9 @@ public class StudentEnrollmentServiceImpl implements StudentEnrollmentService {
     public StudentEnrollmentResultDto create(CreateStudentEnrollmentRequest request) {
         AcademicYear year = yearRepository.findById(request.academicYearId())
             .orElseThrow(() -> new ResourceNotFoundException("AcademicYear", "id", request.academicYearId()));
-        if (year.getStatus() != AcademicYearStatus.DRAFT) throw new ConflictException("Chỉ được thêm học sinh khi năm học ở trạng thái DRAFT");
+        if (year.getStatus() == AcademicYearStatus.COMPLETED) {
+            throw new ConflictException("Không được thêm học sinh khi năm học đã hoàn tất");
+        }
         SchoolClass cls = classRepository.findById(request.classId())
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", request.classId()));
         if (!cls.getAcademicYear().getId().equals(year.getId())) throw new ConflictException("Lớp không thuộc năm học đã chọn");

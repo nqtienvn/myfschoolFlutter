@@ -95,7 +95,7 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
     @Override
     public void delete(Long id) {
         HomeroomAssignment ha = findEntity(id);
-        requireDraft(ha.getAcademicYear());
+        requireEditable(ha.getAcademicYear());
         ha.setEffectiveTo(java.time.LocalDate.now());
         homeroomAssignmentRepository.save(ha);
     }
@@ -106,7 +106,7 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
     }
 
     private void validate(CreateHomeroomAssignmentRequest request, SchoolClass cls, Teacher teacher, AcademicYear year, Long currentAssignmentId) {
-        requireDraft(year);
+        requireEditable(year);
         if (!cls.getAcademicYear().getId().equals(year.getId())) throw new ConflictException("Lớp không thuộc năm học đã chọn");
         if (teacher.getUser().getStatus() != UserStatus.ACTIVE) throw new ConflictException("Giáo viên đã bị khóa");
         homeroomAssignmentRepository.findActiveByTeacherAndYear(teacher.getId(), year.getId()).stream()
@@ -118,8 +118,10 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
             });
     }
 
-    private void requireDraft(AcademicYear year) {
-        if (year.getStatus() != AcademicYearStatus.DRAFT) throw new ConflictException("Chỉ được thay đổi GVCN khi năm học ở trạng thái DRAFT");
+    private void requireEditable(AcademicYear year) {
+        if (year.getStatus() == AcademicYearStatus.COMPLETED) {
+            throw new ConflictException("Không được thay đổi GVCN khi năm học đã hoàn tất");
+        }
     }
 
     private HomeroomAssignmentDto toDto(HomeroomAssignment ha) {

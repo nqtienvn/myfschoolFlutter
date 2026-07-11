@@ -92,7 +92,7 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
 
   async function saveAppliedConfig() {
     if (!selectedYearId) return setError('Chọn năm học cần cấu hình ở thanh trên.');
-    if (selectedYearStatus !== 'DRAFT') return setError('Chỉ năm học DRAFT mới được thay đổi cấu hình.');
+    if (selectedYearStatus === 'COMPLETED') return setError('Năm học đã hoàn tất nên không thể thay đổi cấu hình.');
     setSaving(true); setError('');
     try {
       await updateAcademicYearMasterData(selectedYearId, { subjectIds, shiftIds, periodIds });
@@ -148,7 +148,8 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
       ) : (
         <>
           {!selectedYearId && <div className="notice warning">Chọn năm học ở thanh trên để đánh dấu danh mục áp dụng.</div>}
-          {selectedYearId && selectedYearStatus !== 'DRAFT' && <div className="notice warning">Cấu hình của năm học đã được khóa.</div>}
+          {selectedYearId && selectedYearStatus === 'ACTIVE' && <div className="notice warning">Năm học đang hoạt động. Các thay đổi môn, ca và tiết sẽ áp dụng ngay sau khi lưu.</div>}
+          {selectedYearId && selectedYearStatus === 'COMPLETED' && <div className="notice warning">Cấu hình của năm học đã hoàn tất và bị khóa.</div>}
           <section className="form-grid" style={{ gridTemplateColumns: '2.5fr 1fr auto', alignItems: 'end' }}>
             <div className="form-group">
               <label>Tên môn học mới</label>
@@ -170,7 +171,7 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
             <ShiftPeriodCatalog shifts={shifts} periods={periods} selectedShiftIds={shiftIds} selectedPeriodIds={periodIds} onToggleShift={toggleShift} onTogglePeriod={id => toggle(periodIds, id, setPeriodIds)} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24, padding: '16px 20px', borderTop: '1px solid var(--line)', background: 'white', borderRadius: '12px', boxShadow: '0 4px 12px rgba(24,38,61,.03)' }}>
-            <button onClick={saveAppliedConfig} disabled={!selectedYearId || selectedYearStatus !== 'DRAFT' || saving}>
+            <button onClick={saveAppliedConfig} disabled={!selectedYearId || selectedYearStatus === 'COMPLETED' || saving}>
               {saving ? 'Đang lưu cấu hình…' : 'Lưu cấu hình năm học'}
             </button>
           </div>

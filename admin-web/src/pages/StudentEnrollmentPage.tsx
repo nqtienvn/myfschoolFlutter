@@ -107,7 +107,7 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
     </header>
 
     {!selectedYearId && <div className="notice warning">Chọn năm học DRAFT ở thanh phía trên để bắt đầu.</div>}
-    {!editable && selectedYearId && <div className="notice warning">Năm học đã được kích hoạt hoặc hoàn tất nên không thể tạo tài khoản mới.</div>}
+    {!editable && selectedYearId && <div className="notice warning">Năm học đã hoàn tất nên không thể tạo tài khoản mới.</div>}
     {error && <div className="notice error" role="alert">{error}</div>}
 
     {result && <section className="enrollment-success" aria-live="polite">

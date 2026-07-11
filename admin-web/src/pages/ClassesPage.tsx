@@ -8,7 +8,12 @@ import type { TeacherItem } from '../api/user';
 interface ClassItem { id: number; name: string; gradeLevel: number; academicYearId: number; academicYearName: string; }
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function ClassesPage({ selectedYearId, editable = true }: { selectedYearId?: string; selectedSemesterId?: string; editable?: boolean }) {
+export default function ClassesPage({ selectedYearId, classEditable = true, homeroomEditable = true }: {
+  selectedYearId?: string;
+  selectedSemesterId?: string;
+  classEditable?: boolean;
+  homeroomEditable?: boolean;
+}) {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
   const [homerooms, setHomerooms] = useState<Record<number, HomeroomAssignmentItem | null>>({});
@@ -92,18 +97,19 @@ export default function ClassesPage({ selectedYearId, editable = true }: { selec
     <div className="page-stack">
       <section className="page-heading"><div><span className="eyebrow">Bước 4</span><h1>Sinh lớp & gán GVCN</h1></div></section>
       {!selectedYearId && <div className="notice warning">Chọn năm học DRAFT ở thanh trên.</div>}
-      {!editable && selectedYearId && <div className="notice warning">Danh sách lớp và GVCN đã bị khóa vì năm học không còn ở trạng thái DRAFT.</div>}
+      {!classEditable && homeroomEditable && selectedYearId && <div className="notice warning">Danh sách lớp đã bị khóa. GVCN vẫn có thể thay đổi cho đến khi năm học hoàn tất.</div>}
+      {!homeroomEditable && selectedYearId && <div className="notice warning">Năm học đã hoàn tất; danh sách lớp và GVCN đã bị khóa.</div>}
       {error && <div className="notice error">{error}</div>}
       {message && <div className="notice success">{message}</div>}
       <section className="class-generation-form">
         <div className="form-group"><label>Khối lớp</label><select value={gradeLevel} onChange={e => setGradeLevel(Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => i + 1).map(value => <option key={value} value={value}>Khối {value}</option>)}</select><small className="input-desc">Khối áp dụng.</small></div>
         <div className="form-group"><label>Ký hiệu</label><input value={namingPrefix} onChange={e => setNamingPrefix(e.target.value)} maxLength={6} placeholder="A" /><small className="input-desc">Ví dụ: A, SE.</small></div>
         <div className="form-group"><label>Số lượng lớp</label><input type="number" min={1} max={50} value={count} onChange={e => setCount(e.target.value === '' ? '' : Number(e.target.value))} /><small className="input-desc">Tối đa 50 lớp.</small></div>
-        <div className="class-generate-action"><span aria-hidden="true">Thao tác</span><button type="button" onClick={bulkGenerate} disabled={!selectedYearId || !editable || loading}>{loading ? 'Đang sinh lớp…' : 'Sinh lớp hàng loạt'}</button><small aria-hidden="true">Các lớp được tạo theo thứ tự tăng dần.</small></div>
+        <div className="class-generate-action"><span aria-hidden="true">Thao tác</span><button type="button" onClick={bulkGenerate} disabled={!selectedYearId || !classEditable || loading}>{loading ? 'Đang sinh lớp…' : 'Sinh lớp hàng loạt'}</button><small aria-hidden="true">Các lớp được tạo theo thứ tự tăng dần.</small></div>
       </section>
       <div className="class-list-heading"><div><h2>Danh sách lớp & giáo viên chủ nhiệm</h2><p>Chọn giáo viên chủ nhiệm ngay trên từng dòng lớp.</p></div><span>{totalElements} lớp</span></div>
       <div className="table-responsive"><table className="classes-table"><thead><tr><th>Lớp</th><th>Khối</th><th>Giáo viên chủ nhiệm</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>
-        {classes.map(cls => <tr key={cls.id}><td><strong>{cls.name}</strong></td><td>{cls.gradeLevel}</td><td><select className="homeroom-select" disabled={!editable} value={homerooms[cls.id]?.teacherId || ''} onChange={e => assignHomeroom(cls, Number(e.target.value))}><option value="">Chọn GVCN</option>{teachers.filter(teacher => !classes.some(item => item.id !== cls.id && homerooms[item.id]?.teacherId === teacher.id)).map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.name} · {teacher.employeeCode}</option>)}</select></td><td><span className={`badge-status ${homerooms[cls.id] ? 'active' : 'preparing'}`}>{homerooms[cls.id] ? 'ĐÃ CÓ GVCN' : 'THIẾU GVCN'}</span></td><td><button type="button" disabled={!editable} className="danger class-delete-button" onClick={() => setDeleteTarget(cls)}>Xóa</button></td></tr>)}
+        {classes.map(cls => <tr key={cls.id}><td><strong>{cls.name}</strong></td><td>{cls.gradeLevel}</td><td><select className="homeroom-select" disabled={!homeroomEditable} value={homerooms[cls.id]?.teacherId || ''} onChange={e => assignHomeroom(cls, Number(e.target.value))}><option value="">Chọn GVCN</option>{teachers.filter(teacher => !classes.some(item => item.id !== cls.id && homerooms[item.id]?.teacherId === teacher.id)).map(teacher => <option key={teacher.id} value={teacher.id}>{teacher.name} · {teacher.employeeCode}</option>)}</select></td><td><span className={`badge-status ${homerooms[cls.id] ? 'active' : 'preparing'}`}>{homerooms[cls.id] ? 'ĐÃ CÓ GVCN' : 'THIẾU GVCN'}</span></td><td><button type="button" disabled={!classEditable} className="danger class-delete-button" onClick={() => setDeleteTarget(cls)}>Xóa</button></td></tr>)}
         {!loading && classes.length === 0 && <tr><td colSpan={5}>Chưa có lớp trong năm học này.</td></tr>}
       </tbody></table></div>
       {totalPages > 1 && (

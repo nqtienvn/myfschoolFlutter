@@ -128,8 +128,8 @@ export default function App() {
       />
     ),
     teachers: <UsersPage />,
-    classes: <ClassesPage selectedYearId={yearId} selectedSemesterId={semesterId} editable={selectedYear?.status === 'DRAFT'} />,
-    students: <StudentEnrollmentPage selectedYearId={yearId} editable={selectedYear?.status === 'DRAFT'} />,
+    classes: <ClassesPage selectedYearId={yearId} selectedSemesterId={semesterId} classEditable={selectedYear?.status === 'DRAFT'} homeroomEditable={selectedYear?.status !== 'COMPLETED'} />,
+    students: <StudentEnrollmentPage selectedYearId={yearId} editable={selectedYear?.status !== 'COMPLETED'} />,
     assignments: <AssignmentsPage selectedYearId={yearId} />,
     timetables: <TimetablesPage selectedYearId={yearId} selectedSemesterId={semesterId} />,
     validation: <ValidationPage academicYearId={yearId} onNavigate={goTo} />,
