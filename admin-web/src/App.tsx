@@ -193,7 +193,7 @@ export default function App() {
               ))}
             </select>
           </div>
-          {(module !== 'configuration' || configTab !== 'assignments') && <div>
+          <div>
             <p>Học kỳ</p>
             <select value={semesterId} onChange={event => setSemesterId(event.target.value)} disabled={!yearId}>
               <option value="">Chưa có học kỳ</option>
@@ -201,7 +201,7 @@ export default function App() {
                 <option key={semester.id} value={semester.id}>{semester.name} · {STATUS_LABELS[semester.status] || semester.status}</option>
               ))}
             </select>
-          </div>}
+          </div>
           <div className={`year-state state-${selectedYear?.status?.toLowerCase() || 'none'}`}>
             <span>Trạng thái</span>
             <strong>{selectedYear?.status ? STATUS_LABELS[selectedYear.status] : 'CHƯA KHỞI TẠO'}</strong>
