@@ -79,24 +79,27 @@ export default function App() {
     }
   }
 
+  async function refreshSemesters(targetYearId = yearId) {
+    if (!targetYearId) {
+      setSemesters([]);
+      setSemesterId('');
+      return;
+    }
+    const data = await getSemesters(targetYearId) as SemesterItem[];
+    const list = data || [];
+    setSemesters(list);
+    const selected = list.find(s => String(s.id) === semesterId)
+      || list.find(s => s.status === 'ACTIVE')
+      || list[0];
+    setSemesterId(selected ? String(selected.id) : '');
+  }
+
   useEffect(() => {
     if (loggedIn) refreshYears();
   }, [loggedIn]);
 
   useEffect(() => {
-    if (!yearId) {
-      setSemesters([]);
-      setSemesterId('');
-      return;
-    }
-    getSemesters(yearId).then((data: any) => {
-      const list = (data || []) as SemesterItem[];
-      setSemesters(list);
-      const selected = list.find(s => String(s.id) === semesterId)
-        || list.find(s => s.status === 'ACTIVE')
-        || list[0];
-      setSemesterId(selected ? String(selected.id) : '');
-    });
+    refreshSemesters(yearId);
   }, [yearId]);
 
   const selectedYear = useMemo(
@@ -137,7 +140,7 @@ export default function App() {
       <ActivationPage
         academicYearId={yearId}
         academicYearStatus={selectedYear?.status}
-        onChanged={() => refreshYears(yearId)}
+        onChanged={() => Promise.all([refreshYears(yearId), refreshSemesters(yearId)]).then(() => undefined)}
         onNavigate={goTo}
       />
     ),
