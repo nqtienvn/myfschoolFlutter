@@ -127,6 +127,8 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
     setPeriodIds(current => Array.from(new Set([...current, ...addedPeriodIds])));
   }
 
+  const hasDraftYears = years.some(year => year.status === 'DRAFT');
+
   return (
     <div className="page-stack">
       <section className="page-heading">
@@ -137,11 +139,11 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
 
       {tab === 'academic-years' ? (
         <div className="master-data-layout">
-          <div className="table-responsive"><table><thead><tr><th>Năm học</th><th>Thời gian</th><th>Học kỳ</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+          <div className="table-responsive"><table><thead><tr><th>Năm học</th><th>Thời gian</th><th>Học kỳ</th><th>Trạng thái</th>{hasDraftYears && <th>Thao tác</th>}</tr></thead><tbody>
             {[...years].sort((a, b) => b.id - a.id).map(year => (
-              <tr key={year.id}><td><strong>{year.name}</strong></td><td>{year.startDate}<br />{year.endDate}</td><td>{semesters.filter(s => s.academicYearId === year.id).sort((a, b) => a.order - b.order).map(s => <div key={s.id}>{s.name} · {STATUS_LABELS[s.status] || s.status}</div>)}</td><td><span className={`badge-status ${year.status === 'ACTIVE' ? 'active' : year.status === 'COMPLETED' ? 'completed' : 'preparing'}`}>{STATUS_LABELS[year.status] || year.status}</span></td><td>{year.status === 'DRAFT' && <button className="secondary-button" onClick={() => { setEditingId(year.id); setStartDate(year.startDate); setEndDate(year.endDate); }}>Sửa</button>}</td></tr>
+              <tr key={year.id}><td><strong>{year.name}</strong></td><td>{year.startDate}<br />{year.endDate}</td><td>{semesters.filter(s => s.academicYearId === year.id).sort((a, b) => a.order - b.order).map(s => <div key={s.id}>{s.name} · {STATUS_LABELS[s.status] || s.status}</div>)}</td><td><span className={`badge-status ${year.status === 'ACTIVE' ? 'active' : year.status === 'COMPLETED' ? 'completed' : 'preparing'}`}>{STATUS_LABELS[year.status] || year.status}</span></td>{hasDraftYears && <td>{year.status === 'DRAFT' && <button className="secondary-button" onClick={() => { setEditingId(year.id); setStartDate(year.startDate); setEndDate(year.endDate); }}>Sửa</button>}</td>}</tr>
             ))}
-            {years.length === 0 && <tr><td colSpan={5}>Chưa có năm học.</td></tr>}
+            {years.length === 0 && <tr><td colSpan={hasDraftYears ? 5 : 4}>Chưa có năm học.</td></tr>}
           </tbody></table></div>
           <aside className="master-data-side"><div className="master-data-form-card"><h3>{editingId ? 'Sửa năm học DRAFT' : 'Tạo năm học'}</h3><div className="form-group"><label>Ngày bắt đầu</label><input type="date" value={startDate} onChange={e => changeStartDate(e.target.value)} /></div><div className="form-group"><label>Ngày kết thúc</label><input type="date" value={endDate} min={endDateMin} max={endDateMax} disabled={!startDate} onChange={e => setEndDate(e.target.value)} /><small className="input-desc">{nextYear ? `Chỉ chọn ngày trong năm ${nextYear}.` : 'Chọn ngày bắt đầu trước.'}</small></div><button onClick={saveYear} disabled={saving}>{saving ? 'Đang lưu…' : editingId ? 'Lưu thay đổi' : 'Tạo năm học'}</button>{editingId && <button className="secondary-button" onClick={() => { setEditingId(null); setStartDate(''); setEndDate(''); }}>Hủy</button>}<small className="input-desc">Năm học chỉ kéo dài qua hai năm liên tiếp; hệ thống tự tạo Học kỳ 1 và Học kỳ 2.</small></div></aside>
         </div>
@@ -178,69 +180,69 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
         </>
       )}
       {deleteTarget && (
-      <div className="modal-backdrop" style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-        backdropFilter: 'blur(4px)'
-      }}>
-        <div className="modal-content" style={{
-          background: 'white', padding: '24px', borderRadius: '16px',
-          width: 'min(90%, 400px)', boxShadow: '0 20px 48px rgba(0,0,0,0.15)'
+        <div className="modal-backdrop" style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+          backdropFilter: 'blur(4px)'
         }}>
-          <h3 style={{ marginTop: 0, fontSize: 18, color: 'var(--navy)' }}>Xác nhận xóa</h3>
-          <p style={{ fontSize: 14, color: 'var(--muted)', margin: '12px 0 24px', lineHeight: 1.5 }}>
-            Bạn có chắc chắn muốn xóa môn học <strong>{deleteTarget.name}</strong> chứ? Thao tác này không thể hoàn tác.
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-            <button
-              type="button"
-              onClick={() => setDeleteTarget(null)}
-              style={{
-                border: '1px solid var(--line)',
-                background: '#f1f3f5',
-                color: '#495057',
-                padding: '10px 16px',
-                borderRadius: '8px',
-                fontWeight: 650,
-                fontSize: 13,
-                cursor: 'pointer'
-              }}
-            >
-              Hủy
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                const targetId = deleteTarget.id;
-                setDeleteTarget(null);
-                try {
-                  await deleteSubject(targetId);
-                  await loadCatalogs();
-                  setMessage('Đã xóa môn học.');
-                } catch (cause: any) {
-                  setError(cause.message || 'Không thể xóa môn học.');
-                }
-              }}
-              style={{
-                border: '1px solid #dc3545',
-                background: '#dc3545',
-                color: 'white',
-                padding: '10px 16px',
-                borderRadius: '8px',
-                fontWeight: 650,
-                fontSize: 13,
-                cursor: 'pointer'
-              }}
-            >
-              Xóa
-            </button>
+          <div className="modal-content" style={{
+            background: 'white', padding: '24px', borderRadius: '16px',
+            width: 'min(90%, 400px)', boxShadow: '0 20px 48px rgba(0,0,0,0.15)'
+          }}>
+            <h3 style={{ marginTop: 0, fontSize: 18, color: 'var(--navy)' }}>Xác nhận xóa</h3>
+            <p style={{ fontSize: 14, color: 'var(--muted)', margin: '12px 0 24px', lineHeight: 1.5 }}>
+              Bạn có chắc chắn muốn xóa môn học <strong>{deleteTarget.name}</strong> chứ? Thao tác này không thể hoàn tác.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                style={{
+                  border: '1px solid var(--line)',
+                  background: '#f1f3f5',
+                  color: '#495057',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  fontWeight: 650,
+                  fontSize: 13,
+                  cursor: 'pointer'
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const targetId = deleteTarget.id;
+                  setDeleteTarget(null);
+                  try {
+                    await deleteSubject(targetId);
+                    await loadCatalogs();
+                    setMessage('Đã xóa môn học.');
+                  } catch (cause: any) {
+                    setError(cause.message || 'Không thể xóa môn học.');
+                  }
+                }}
+                style={{
+                  border: '1px solid #dc3545',
+                  background: '#dc3545',
+                  color: 'white',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  fontWeight: 650,
+                  fontSize: 13,
+                  cursor: 'pointer'
+                }}
+              >
+                Xóa
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
-  </div>
-);
+      )}
+    </div>
+  );
 }
 
 function Catalog({ title, items, selected, onToggle, onDelete, readOnly = false }: { title: string; items: CatalogItem[]; selected: number[]; onToggle?: (id: number) => void; onDelete?: (id: number) => void; readOnly?: boolean }) {
@@ -256,11 +258,11 @@ function ShiftPeriodCatalog({ shifts, periods, selectedShiftIds, selectedPeriodI
   onTogglePeriod: (id: number) => void;
 }) {
   return <section className="step-card" style={{ display: 'block' }}><h3 style={{ marginTop: 0 }}>Cấu hình Ca & Tiết học</h3><p className="input-desc" style={{ marginBottom: 16 }}>Chọn Ca học để áp dụng cho năm học, sau đó chọn các Tiết học tương ứng thuộc ca đó.</p><div style={{ display: 'grid', gap: 16 }}>{shifts.map(shift => {
-        const isShiftSelected = selectedShiftIds.includes(shift.id);
-        const shiftPeriods = periods.filter(period => period.shiftId === shift.id);
-        return <div key={shift.id} style={{ border: '1px solid var(--line)', borderRadius: '12px', padding: '16px', background: isShiftSelected ? 'var(--green-soft)' : '#fcfdfe', transition: 'all 0.2s ease' }}><label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', borderBottom: isShiftSelected ? '1px dashed rgba(22, 132, 91, 0.3)' : '1px solid transparent', paddingBottom: isShiftSelected ? 10 : 0, marginBottom: isShiftSelected ? 12 : 0, color: isShiftSelected ? 'var(--navy)' : 'var(--ink)' }}><input type="checkbox" checked={isShiftSelected} onChange={() => onToggleShift(shift.id)} style={{ width: 18, height: 18 }} /><span style={{ flex: 1 }}>{shift.name} ({shift.code})</span><span className={`badge-status ${isShiftSelected ? 'active' : ''}`}>{isShiftSelected ? 'ĐANG ÁP DỤNG' : 'CHƯA ÁP DỤNG'}</span></label>{isShiftSelected && <div className="period-options" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8 }}>{shiftPeriods.map(period => {
-              const isPeriodSelected = selectedPeriodIds.includes(period.id);
-              return <label key={period.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', border: '1px solid', borderColor: isPeriodSelected ? 'var(--navy)' : 'var(--line)', borderRadius: '8px', background: isPeriodSelected ? 'white' : '#f8f9fb', fontSize: 12, cursor: 'pointer', fontWeight: isPeriodSelected ? 700 : 500, transition: 'all 0.15s ease' }}><input type="checkbox" checked={isPeriodSelected} onChange={() => onTogglePeriod(period.id)} style={{ width: 14, height: 14 }} /><span>{period.name}</span></label>;
-            })}{shiftPeriods.length === 0 && <span className="input-desc" style={{ gridColumn: '1 / -1' }}>Không có tiết học nào.</span>}</div>}</div>;
-      })}{shifts.length === 0 && <span className="input-desc">Chưa có ca học.</span>}</div></section>;
+    const isShiftSelected = selectedShiftIds.includes(shift.id);
+    const shiftPeriods = periods.filter(period => period.shiftId === shift.id);
+    return <div key={shift.id} style={{ border: '1px solid var(--line)', borderRadius: '12px', padding: '16px', background: isShiftSelected ? 'var(--green-soft)' : '#fcfdfe', transition: 'all 0.2s ease' }}><label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', borderBottom: isShiftSelected ? '1px dashed rgba(22, 132, 91, 0.3)' : '1px solid transparent', paddingBottom: isShiftSelected ? 10 : 0, marginBottom: isShiftSelected ? 12 : 0, color: isShiftSelected ? 'var(--navy)' : 'var(--ink)' }}><input type="checkbox" checked={isShiftSelected} onChange={() => onToggleShift(shift.id)} style={{ width: 18, height: 18 }} /><span style={{ flex: 1 }}>{shift.name} ({shift.code})</span><span className={`badge-status ${isShiftSelected ? 'active' : ''}`}>{isShiftSelected ? 'ĐANG ÁP DỤNG' : 'CHƯA ÁP DỤNG'}</span></label>{isShiftSelected && <div className="period-options" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8 }}>{shiftPeriods.map(period => {
+      const isPeriodSelected = selectedPeriodIds.includes(period.id);
+      return <label key={period.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', border: '1px solid', borderColor: isPeriodSelected ? 'var(--navy)' : 'var(--line)', borderRadius: '8px', background: isPeriodSelected ? 'white' : '#f8f9fb', fontSize: 12, cursor: 'pointer', fontWeight: isPeriodSelected ? 700 : 500, transition: 'all 0.15s ease' }}><input type="checkbox" checked={isPeriodSelected} onChange={() => onTogglePeriod(period.id)} style={{ width: 14, height: 14 }} /><span>{period.name}</span></label>;
+    })}{shiftPeriods.length === 0 && <span className="input-desc" style={{ gridColumn: '1 / -1' }}>Không có tiết học nào.</span>}</div>}</div>;
+  })}{shifts.length === 0 && <span className="input-desc">Chưa có ca học.</span>}</div></section>;
 }
