@@ -62,6 +62,7 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(isAdminLoggedIn());
   const [module, setModule] = useState<ModuleKey>('configuration');
   const [configTab, setConfigTab] = useState<ConfigTabKey>('years');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [years, setYears] = useState<AcademicYearItem[]>([]);
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
   const [yearId, setYearId] = useState('');
@@ -107,6 +108,18 @@ export default function App() {
     refreshSemesters(yearId);
   }, [yearId]);
 
+  useEffect(() => {
+    document.body.classList.toggle('sidebar-lock', sidebarOpen);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSidebarOpen(false);
+    };
+    if (sidebarOpen) window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.classList.remove('sidebar-lock');
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [sidebarOpen]);
+
   const selectedYear = useMemo(
     () => years.find(year => String(year.id) === yearId),
     [years, yearId],
@@ -116,6 +129,12 @@ export default function App() {
   const goToConfigTab = (key: string) => {
     setModule('configuration');
     setConfigTab(key as ConfigTabKey);
+    setSidebarOpen(false);
+  };
+
+  const selectModule = (key: ModuleKey) => {
+    setModule(key);
+    setSidebarOpen(false);
   };
   const configPages: Record<ConfigTabKey, React.ReactNode> = {
     years: (
@@ -153,11 +172,12 @@ export default function App() {
       : configPages[configTab];
 
   return (
-    <div className="app-shell">
-      <aside className="workflow-sidebar">
-        <button className="brand" onClick={() => setModule('configuration')}>
+    <div className={`app-shell ${sidebarOpen ? 'sidebar-is-open' : ''}`}>
+      <button className="sidebar-backdrop" aria-label="Đóng menu" onClick={() => setSidebarOpen(false)} />
+      <aside className="workflow-sidebar" aria-label="Menu quản trị">
+        <button className="brand" onClick={() => selectModule('configuration')}>
           <span className="brand-mark">MF</span>
-          <span><strong>MyFschool</strong><small>Thiết lập năm học</small></span>
+          <span className="brand-copy"><strong>MyFschool</strong><small>Quản trị nhà trường</small></span>
         </button>
         <div className="workflow-nav-label">Phân hệ quản trị</div>
         <nav className="workflow-nav">
@@ -165,20 +185,24 @@ export default function App() {
             <button
               key={item.key}
               className={module === item.key ? 'active' : ''}
-              onClick={() => setModule(item.key)}
+              onClick={() => selectModule(item.key)}
+              title={item.label}
             >
-              <span>{item.number}</span>
-              {item.label}
+              <span className="module-icon">{item.number}</span>
+              <span className="module-label">{item.label}</span>
             </button>
           ))}
         </nav>
-        <button className="logout-button" onClick={() => { logout(); setLoggedIn(false); }}>
-          Đăng xuất
+        <button className="logout-button" title="Đăng xuất" onClick={() => { logout(); setLoggedIn(false); }}>
+          <span aria-hidden="true">→</span><span className="logout-label">Đăng xuất</span>
         </button>
       </aside>
 
       <section className="workspace">
         <header className="context-bar">
+          <button className="mobile-menu-button" aria-label="Mở menu" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}>
+            <span></span><span></span><span></span>
+          </button>
           <div>
             <p>Năm học</p>
             <select value={yearId} onChange={event => setYearId(event.target.value)} disabled={loadingContext}>

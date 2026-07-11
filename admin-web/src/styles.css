@@ -28,8 +28,9 @@ button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .55; }
 
-.app-shell { min-height: 100vh; display: grid; grid-template-columns: 280px minmax(0, 1fr); }
-.workflow-sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 22px 18px; background: var(--navy); color: white; overflow-y: auto; }
+.app-shell { min-height: 100vh; display: grid; grid-template-columns: clamp(260px, 20vw, 300px) minmax(0, 1fr); }
+.workflow-sidebar { position: sticky; top: 0; z-index: 40; height: 100vh; display: flex; flex-direction: column; padding: 22px 18px; background: var(--navy); color: white; overflow-y: auto; transition: width .25s ease, transform .25s ease, padding .25s ease; }
+.sidebar-backdrop { display: none; }
 .brand { width: 100%; display: flex; gap: 12px; align-items: center; padding: 0 4px 22px; color: white; background: transparent; border: 0; border-bottom: 1px solid rgba(255,255,255,.14); text-align: left; }
 .brand-mark { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: var(--orange); font-weight: 900; }
 .brand strong, .brand small { display: block; }
@@ -40,9 +41,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .workflow-nav button { display: flex; align-items: center; gap: 11px; min-height: 44px; padding: 8px 11px; border: 0; border-radius: 10px; background: transparent; color: #ced7e3; text-align: left; font-size: 13px; font-weight: 650; }
 .workflow-nav button:hover { background: rgba(255,255,255,.08); color: white; }
 .workflow-nav button.active { background: white; color: var(--navy); }
-.workflow-nav button span { width: 25px; height: 25px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 8px; background: rgba(255,255,255,.12); font-size: 11px; font-weight: 900; }
-.workflow-nav button.active span { background: var(--orange-soft); color: var(--orange); }
-.logout-button { margin-top: auto; min-height: 40px; border: 1px solid rgba(255,255,255,.18); border-radius: 9px; background: transparent; color: #d7dfeb; }
+.workflow-nav .module-icon { width: 25px; height: 25px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 8px; background: rgba(255,255,255,.12); font-size: 11px; font-weight: 900; }
+.workflow-nav button.active .module-icon { background: var(--orange-soft); color: var(--orange); }
+.module-label { min-width: 0; }
+.logout-button { margin-top: auto; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid rgba(255,255,255,.18); border-radius: 9px; background: transparent; color: #d7dfeb; }
 .logout-button:hover { border-color: #ff9e9e; color: #ffb0b0; }
 
 .workspace { min-width: 0; }
@@ -51,6 +53,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .context-bar p { margin: 0 0 5px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .context-bar select { width: 100%; height: 38px; padding: 0 36px 0 11px; border: 1px solid var(--line); border-radius: 9px; background: #f9fafc; color: var(--ink); font-weight: 700; outline: none; }
 .context-bar select:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-soft); }
+.mobile-menu-button { display: none; }
 
 .configuration-tabs { display: flex; gap: 6px; padding: 12px clamp(18px, 3vw, 38px); border-bottom: 1px solid var(--line); background: white; overflow-x: auto; scrollbar-width: thin; }
 .configuration-tabs button { min-height: 40px; display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 0 13px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 750; white-space: nowrap; }
@@ -106,8 +109,8 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .activation-seal.ready { background: var(--green-soft); color: var(--green); }
 .page-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
-button:not(.brand):not(.workflow-nav button):not(.configuration-tabs button):not(.logout-button):not(.step-card) { min-height: 38px; padding: 0 16px; border: 1px solid var(--navy); border-radius: 9px; background: var(--navy); color: white; font-weight: 750; }
-button:not(.brand):not(.workflow-nav button):not(.configuration-tabs button):not(.logout-button):not(.step-card):hover { background: var(--navy-soft); }
+button:not(.brand):not(.workflow-nav button):not(.configuration-tabs button):not(.mobile-menu-button):not(.sidebar-backdrop):not(.logout-button):not(.step-card) { min-height: 38px; padding: 0 16px; border: 1px solid var(--navy); border-radius: 9px; background: var(--navy); color: white; font-weight: 750; }
+button:not(.brand):not(.workflow-nav button):not(.configuration-tabs button):not(.mobile-menu-button):not(.sidebar-backdrop):not(.logout-button):not(.step-card):hover { background: var(--navy-soft); }
 button.secondary-button, button.danger { border-color: var(--line); background: white; color: var(--ink); }
 button.secondary-button:hover, button.danger:hover { border-color: var(--navy); background: #f6f8fb; }
 
@@ -300,12 +303,19 @@ td button { min-height: 30px !important; padding: 0 10px !important; font-size: 
 .parent-login { flex: 0 0 auto; border-color: #f0d4c1; background: var(--orange-soft); color: #a44d16; }
 .muted-text { color: var(--muted); font-size: 10px; }
 
+@media (min-width: 701px) and (max-width: 1100px) {
+  .app-shell { grid-template-columns: 76px minmax(0, 1fr); }
+  .workflow-sidebar { padding: 18px 10px; overflow: hidden; }
+  .brand { justify-content: center; padding: 0 0 18px; }
+  .brand-mark { width: 42px; flex: 0 0 42px; }
+  .brand-copy, .workflow-nav-label, .module-label, .logout-label { display: none; }
+  .workflow-nav { gap: 8px; }
+  .workflow-nav button { min-height: 48px; justify-content: center; padding: 8px; }
+  .workflow-nav .module-icon { width: 30px; height: 30px; }
+  .logout-button { width: 44px; margin-left: auto; margin-right: auto; padding: 0; font-size: 18px; }
+}
+
 @media (max-width: 980px) {
-  .app-shell { grid-template-columns: 1fr; }
-  .workflow-sidebar { position: static; height: auto; padding: 14px; }
-  .workflow-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .workflow-nav button { min-height: 58px; align-items: flex-start; }
-  .logout-button { margin-top: 12px; }
   .context-bar { top: 0; flex-wrap: wrap; }
   .configuration-tabs { padding: 10px 14px; }
   .master-data-layout { grid-template-columns: 1fr; }
@@ -319,7 +329,26 @@ td button { min-height: 30px !important; padding: 0 10px !important; font-size: 
 }
 
 @media (max-width: 700px) {
-  .workflow-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.sidebar-lock { overflow: hidden; }
+  .app-shell { display: block; }
+  .workflow-sidebar { position: fixed; left: 0; top: 0; width: min(84vw, 304px); height: 100dvh; padding: 20px 16px; transform: translateX(-105%); box-shadow: 18px 0 45px rgba(8,18,31,.28); overflow-y: auto; }
+  .sidebar-is-open .workflow-sidebar { transform: translateX(0); }
+  .sidebar-backdrop { position: fixed; inset: 0; z-index: 35; display: block; width: 100%; height: 100%; padding: 0; border: 0; background: rgba(8,18,31,.55); opacity: 0; visibility: hidden; transition: opacity .25s ease, visibility .25s ease; }
+  .sidebar-is-open .sidebar-backdrop { opacity: 1; visibility: visible; }
+  .brand { justify-content: flex-start; }
+  .brand-copy, .module-label, .logout-label { display: block; }
+  .workflow-nav-label { display: block; }
+  .workflow-nav { grid-template-columns: 1fr; }
+  .workflow-nav button { min-height: 48px; justify-content: flex-start; padding: 8px 11px; }
+  .logout-button { width: 100%; margin-top: auto; font-size: 13px; }
+  .mobile-menu-button { width: 42px; height: 42px; display: grid; place-content: center; gap: 4px; flex: 0 0 42px; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: white; }
+  .mobile-menu-button span { width: 18px; height: 2px; border-radius: 2px; background: var(--navy); }
+  .workspace { width: 100%; }
+  .context-bar { display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: end; padding: 10px 14px; }
+  .context-bar .mobile-menu-button + div { min-width: 0; }
+  .context-bar > div { grid-column: 2; width: 100%; min-width: 0; }
+  .context-bar .mobile-menu-button { grid-column: 1; grid-row: 1; }
+  .context-bar .mobile-menu-button + div { grid-row: 1; }
   .context-bar > div { width: 100%; min-width: 0; }
   .step-grid { grid-template-columns: 1fr; }
   .page-hero, .page-heading, .readiness-summary { align-items: stretch; flex-direction: column; }
