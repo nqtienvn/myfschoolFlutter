@@ -11,5 +11,7 @@ public interface TimetableService {
     TimetableDto get(Long id);
     TimetableDto createDraft(CreateTimetableRequest request);
     TimetableDto publish(Long id, LocalDate effectiveFrom);
+    TimetableDto schedulePublish(Long id, LocalDate publishDate);
+    TimetableDto publishScheduled(Long id);
     void deleteDraft(Long id);
 }

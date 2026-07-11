@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/models/auth_session.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/actor_models.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen_giaovien.dart';
@@ -13,11 +17,13 @@ class AppShell extends StatefulWidget {
     this.actor = AppActor.parent,
     this.authService,
     this.chatService,
+    this.session,
   });
 
   final AppActor actor;
   final AuthService? authService;
   final ChatService? chatService;
+  final AuthSession? session;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -26,11 +32,31 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
   late final List<GlobalKey<NavigatorState>> _navigatorKeys;
+  NotificationService? _notificationService;
 
   @override
   void initState() {
     super.initState();
     _navigatorKeys = List.generate(4, (_) => GlobalKey<NavigatorState>());
+    final session =
+        widget.session ??
+        widget.authService?.currentSession ??
+        widget.chatService?.session;
+    final chatService = widget.chatService;
+    if (session != null && chatService != null) {
+      _notificationService = NotificationService(
+        apiClient: NotificationApiClient(backend: BackendApiClient()),
+        socketEvents: chatService.socketEvents,
+        token: session.token,
+      );
+      unawaited(_notificationService!.start());
+    }
+  }
+
+  @override
+  void dispose() {
+    _notificationService?.dispose();
+    super.dispose();
   }
 
   Widget _homeForActor() {
@@ -60,7 +86,10 @@ class _AppShellState extends State<AppShell> {
                     chatService: widget.chatService!,
                   );
                 case 2:
-                  return AnnouncementsScreen(actor: widget.actor);
+                  return AnnouncementsScreen(
+                    actor: widget.actor,
+                    service: _notificationService!,
+                  );
                 case 3:
                   return AccountProfileScreen(
                     actor: widget.actor,

@@ -16,11 +16,17 @@ import vn.edu.fpt.myfschool.entity.Timetable;
 import vn.edu.fpt.myfschool.repository.ClassRepository;
 import vn.edu.fpt.myfschool.repository.ScheduleRepository;
 import vn.edu.fpt.myfschool.repository.SemesterRepository;
+import vn.edu.fpt.myfschool.repository.StudentGuardianRepository;
+import vn.edu.fpt.myfschool.repository.StudentRepository;
 import vn.edu.fpt.myfschool.repository.TimetableRepository;
+import vn.edu.fpt.myfschool.service.NotificationService;
 import vn.edu.fpt.myfschool.service.TimetableService;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +36,9 @@ public class TimetableServiceImpl implements TimetableService {
     private final ScheduleRepository scheduleRepository;
     private final ClassRepository classRepository;
     private final SemesterRepository semesterRepository;
+    private final StudentRepository studentRepository;
+    private final StudentGuardianRepository studentGuardianRepository;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -51,7 +60,9 @@ public class TimetableServiceImpl implements TimetableService {
         Semester semester = semesterRepository.findById(request.semesterId())
             .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", request.semesterId()));
         requireSameYear(cls, semester);
-        requireDateInSemester(request.effectiveFrom(), semester);
+        LocalDate initialEffectiveFrom = request.effectiveFrom() == null
+            ? semester.getStartDate() : request.effectiveFrom();
+        requireDateInSemester(initialEffectiveFrom, semester);
         if (timetableRepository.existsByClsIdAndSemesterIdAndStatus(cls.getId(), semester.getId(), TimetableStatus.DRAFT)) {
             throw new ConflictException("Lớp đã có một thời khóa biểu nháp trong học kỳ này");
         }
@@ -63,7 +74,7 @@ public class TimetableServiceImpl implements TimetableService {
         timetable.setSemester(semester);
         timetable.setVersion(version);
         timetable.setStatus(TimetableStatus.DRAFT);
-        timetable.setEffectiveFrom(request.effectiveFrom());
+        timetable.setEffectiveFrom(initialEffectiveFrom);
         timetable.setEffectiveTo(semester.getEndDate());
         timetable = timetableRepository.save(timetable);
 
@@ -93,10 +104,43 @@ public class TimetableServiceImpl implements TimetableService {
         if (timetable.getStatus() != TimetableStatus.DRAFT) {
             throw new ConflictException("Chỉ có thể phát hành thời khóa biểu nháp");
         }
-        requireDateInSemester(effectiveFrom, timetable.getSemester());
-        List<Schedule> slots = scheduleRepository.findByTimetableIdOrderByDayOfWeekAscPeriodAsc(id);
-        if (slots.isEmpty()) throw new ConflictException("Thời khóa biểu chưa có tiết học");
-        validatePublishedConflicts(timetable, slots, effectiveFrom, timetable.getSemester().getEndDate());
+        return activate(timetable, effectiveFrom);
+    }
+
+    @Override
+    public TimetableDto schedulePublish(Long id, LocalDate publishDate) {
+        Timetable timetable = find(id);
+        if (timetable.getStatus() != TimetableStatus.DRAFT) {
+            throw new ConflictException("Chỉ có thể hẹn phát hành thời khóa biểu nháp");
+        }
+        if (!publishDate.isAfter(LocalDate.now())) {
+            throw new BadRequestException("Ngày hẹn phát hành phải sau ngày hiện tại; hãy dùng Phát hành ngay cho hôm nay");
+        }
+        requireReadyToPublish(timetable, publishDate);
+        if (timetableRepository.existsByClsIdAndSemesterIdAndStatus(
+                timetable.getCls().getId(), timetable.getSemester().getId(), TimetableStatus.SCHEDULED)) {
+            throw new ConflictException("Lớp đã có một thời khóa biểu đang chờ phát hành");
+        }
+        timetable.setStatus(TimetableStatus.SCHEDULED);
+        timetable.setEffectiveFrom(publishDate);
+        timetable.setEffectiveTo(timetable.getSemester().getEndDate());
+        return toDto(timetableRepository.save(timetable));
+    }
+
+    @Override
+    public TimetableDto publishScheduled(Long id) {
+        Timetable timetable = find(id);
+        if (timetable.getStatus() != TimetableStatus.SCHEDULED) {
+            throw new ConflictException("Thời khóa biểu không ở trạng thái chờ phát hành");
+        }
+        if (timetable.getEffectiveFrom().isAfter(LocalDate.now())) {
+            throw new ConflictException("Chưa đến ngày phát hành thời khóa biểu");
+        }
+        return activate(timetable, timetable.getEffectiveFrom());
+    }
+
+    private TimetableDto activate(Timetable timetable, LocalDate effectiveFrom) {
+        requireReadyToPublish(timetable, effectiveFrom);
 
         timetableRepository.findFirstByClsIdAndSemesterIdAndStatusOrderByVersionDesc(
             timetable.getCls().getId(), timetable.getSemester().getId(), TimetableStatus.ACTIVE).ifPresent(current -> {
@@ -111,13 +155,23 @@ public class TimetableServiceImpl implements TimetableService {
         timetable.setStatus(TimetableStatus.ACTIVE);
         timetable.setEffectiveFrom(effectiveFrom);
         timetable.setEffectiveTo(timetable.getSemester().getEndDate());
-        return toDto(timetableRepository.save(timetable));
+        Timetable saved = timetableRepository.save(timetable);
+        notifyTimetablePublished(saved);
+        return toDto(saved);
+    }
+
+    private void requireReadyToPublish(Timetable timetable, LocalDate effectiveFrom) {
+        requireDateInSemester(effectiveFrom, timetable.getSemester());
+        List<Schedule> slots = scheduleRepository.findByTimetableIdOrderByDayOfWeekAscPeriodAsc(timetable.getId());
+        if (slots.isEmpty()) throw new ConflictException("Thời khóa biểu chưa có tiết học");
+        validatePublishedConflicts(timetable, slots, effectiveFrom, timetable.getSemester().getEndDate());
     }
 
     @Override
     public void deleteDraft(Long id) {
         Timetable timetable = find(id);
-        if (timetable.getStatus() != TimetableStatus.DRAFT) {
+        if (timetable.getStatus() != TimetableStatus.DRAFT
+                && timetable.getStatus() != TimetableStatus.SCHEDULED) {
             throw new ConflictException("Không thể xóa thời khóa biểu đã phát hành");
         }
         timetableRepository.delete(timetable);
@@ -142,6 +196,24 @@ public class TimetableServiceImpl implements TimetableService {
                 if (roomConflict) throw new ConflictException("Phòng " + slot.getRoom() + " bị trùng tại " + dayLabel(slot.getDayOfWeek()) + ", tiết " + slot.getPeriod());
             }
         }
+    }
+
+    private void notifyTimetablePublished(Timetable timetable) {
+        List<Schedule> slots = scheduleRepository
+            .findByTimetableIdOrderByDayOfWeekAscPeriodAsc(timetable.getId());
+        Set<Long> recipientIds = new LinkedHashSet<>();
+        studentRepository.findByCurrentClassId(timetable.getCls().getId()).forEach(student -> {
+            recipientIds.add(student.getUser().getId());
+            studentGuardianRepository.findByStudentId(student.getId())
+                .forEach(link -> recipientIds.add(link.getGuardian().getUser().getId()));
+        });
+        slots.forEach(slot -> recipientIds.add(slot.getAssignment().getTeacher().getUser().getId()));
+
+        String date = timetable.getEffectiveFrom().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String title = "Thời khóa biểu mới của lớp " + timetable.getCls().getName();
+        String body = "Thời khóa biểu đã được phát hành và áp dụng từ ngày " + date + ".";
+        recipientIds.forEach(userId ->
+            notificationService.createNotification(userId, title, body, "Thời khóa biểu"));
     }
 
     private void requireSameYear(SchoolClass cls, Semester semester) {

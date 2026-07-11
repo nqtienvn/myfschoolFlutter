@@ -1,5 +1,7 @@
 package vn.edu.fpt.myfschool.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import vn.edu.fpt.myfschool.entity.User;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
@@ -8,8 +10,13 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.NotificationDto;
 import vn.edu.fpt.myfschool.entity.Notification;
 import vn.edu.fpt.myfschool.repository.NotificationRepository;
+import vn.edu.fpt.myfschool.websocket.WebSocketSessionManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service("notificationService")
@@ -18,6 +25,8 @@ import java.util.stream.Collectors;
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final WebSocketSessionManager sessionManager;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     @Override
@@ -48,7 +57,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public void createNotification(Long userId, String title, String body, String tag) {
+    public NotificationDto createNotification(Long userId, String title, String body, String tag) {
         Notification n = new Notification();
         User user = new User();
         user.setId(userId);
@@ -57,7 +66,30 @@ public class NotificationServiceImpl implements NotificationService {
         n.setBody(body);
         n.setTag(tag);
         n.setIsRead(false);
-        notificationRepository.save(n);
+        NotificationDto saved = toDto(notificationRepository.save(n));
+        Runnable push = () -> pushRealtime(userId, saved);
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    push.run();
+                }
+            });
+        } else {
+            push.run();
+        }
+        return saved;
+    }
+
+    private void pushRealtime(Long userId, NotificationDto notification) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("type", "notification.new");
+        event.put("notification", notification);
+        event.put("unreadCount", notificationRepository.countByUserIdAndIsReadFalse(userId));
+        try {
+            sessionManager.sendToUser(userId, objectMapper.writeValueAsString(event));
+        } catch (JsonProcessingException ignored) {
+        }
     }
 
     private NotificationDto toDto(Notification n) {

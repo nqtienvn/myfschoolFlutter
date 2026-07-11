@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
+import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.repository.*;
 
@@ -26,7 +27,9 @@ public class DashboardServiceImpl implements DashboardService {
     public DashboardStudentStatsDto getStudentDashboard(Long studentUserId) {
         Student student = studentRepository.findByUserId(studentUserId)
             .orElseThrow(() -> new ResourceNotFoundException("Student", "userId", studentUserId));
-        Semester sem = semesterRepository.findByIsCurrentTrue().orElse(null);
+        Semester sem = semesterRepository
+            .findFirstByIsCurrentTrueAndAcademicYearStatus(AcademicYearStatus.ACTIVE)
+            .orElse(null);
         if (sem == null) return null;
 
         long presentDays = attendanceRepository.countByStudentIdAndStatusAndDateBetween(

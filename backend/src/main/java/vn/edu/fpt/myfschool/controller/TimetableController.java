@@ -42,6 +42,15 @@ public class TimetableController {
         return ResponseEntity.ok(ApiResponse.success("Đã phát hành thời khóa biểu", timetableService.publish(id, request.effectiveFrom())));
     }
 
+    @PostMapping("/{id}/schedule")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<TimetableDto>> schedule(
+            @PathVariable Long id, @Valid @RequestBody PublishTimetableRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+            "Đã hẹn ngày phát hành thời khóa biểu",
+            timetableService.schedulePublish(id, request.effectiveFrom())));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {

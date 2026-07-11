@@ -226,101 +226,199 @@ class _ConversationCard extends StatelessWidget {
 }
 
 class AnnouncementsScreen extends StatelessWidget {
-  const AnnouncementsScreen({super.key, this.actor = AppActor.parent});
+  const AnnouncementsScreen({
+    super.key,
+    this.actor = AppActor.parent,
+    required this.service,
+  });
 
   final AppActor actor;
+  final NotificationService service;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: const OrangeTopBar(title: 'Trung tâm thông báo'),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          children: [
-            const SectionHeader(title: 'Thông báo lớp học & nhà trường'),
-            _AnnouncementCard(
-              title: 'Lịch thi cuối kỳ II sắp tới',
-              body:
-                  'Nhà trường công bố lịch thi, phòng thi và danh sách giám thị theo lớp học.',
-              tag: 'Quan trọng',
-              color: AppColors.fptOrange,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _AnnouncementCard(
-              title: 'Yêu cầu xác nhận thông tin bán trú',
-              body:
-                  'Vui lòng kiểm tra dữ liệu đăng ký bán trú trước ngày 20/06/2026.',
-              tag: 'Cần phản hồi',
-              color: AppColors.warning,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _AnnouncementCard(
-              title: 'Cập nhật hệ thống sổ liên lạc',
-              body:
-                  'Hệ thống bổ sung chatbot AI thống kê và theo dõi trạng thái đọc thông báo.',
-              tag: 'Tin hệ thống',
-              color: AppColors.blue,
-            ),
+    return AnimatedBuilder(
+      animation: service,
+      builder: (context, _) => Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: OrangeTopBar(
+          title: service.unreadCount == 0
+              ? 'Trung tâm thông báo'
+              : 'Thông báo (${service.unreadCount})',
+          actions: [
+            if (service.unreadCount > 0)
+              TextButton(
+                onPressed: service.markAllAsRead,
+                child: const Text(
+                  'Đọc tất cả',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
           ],
+        ),
+        body: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: service.load,
+            child: _notificationBody(),
+          ),
         ),
       ),
     );
   }
+
+  Widget _notificationBody() {
+    if (service.isLoading && service.notifications.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 180),
+          Center(child: CircularProgressIndicator(color: AppColors.fptOrange)),
+        ],
+      );
+    }
+    if (service.errorMessage != null && service.notifications.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        children: [
+          const SizedBox(height: 100),
+          const Icon(
+            Icons.cloud_off_outlined,
+            color: AppColors.danger,
+            size: 44,
+          ),
+          const SizedBox(height: 12),
+          Text(service.errorMessage!, textAlign: TextAlign.center),
+        ],
+      );
+    }
+    if (service.notifications.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        children: const [
+          SizedBox(height: 100),
+          Icon(Icons.notifications_none, color: AppColors.muted, size: 48),
+          SizedBox(height: 12),
+          Text('Chưa có thông báo nào.', textAlign: TextAlign.center),
+        ],
+      );
+    }
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      itemCount: service.notifications.length + 1,
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return const Padding(
+            padding: EdgeInsets.only(bottom: AppSpacing.xs),
+            child: SectionHeader(title: 'Thông báo lớp học & nhà trường'),
+          );
+        }
+        final item = service.notifications[index - 1];
+        return _NotificationCard(
+          item: item,
+          onTap: () => service.markAsRead(item.id),
+        );
+      },
+    );
+  }
 }
 
-class _AnnouncementCard extends StatelessWidget {
-  const _AnnouncementCard({
-    required this.title,
-    required this.body,
-    required this.tag,
-    required this.color,
-  });
+class _NotificationCard extends StatelessWidget {
+  const _NotificationCard({required this.item, required this.onTap});
 
-  final String title;
-  final String body;
-  final String tag;
-  final Color color;
+  final domain.AppNotification item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final color = item.tag == 'Thời khóa biểu'
+        ? AppColors.fptOrange
+        : AppColors.blue;
     return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      backgroundColor: item.isRead
+          ? AppColors.surface
+          : color.withValues(alpha: 0.05),
+      padding: 0,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.ink,
-                  ),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                child: Icon(Icons.calendar_month_outlined, color: color),
               ),
-              StatusPill(
-                label: tag,
-                foreground: color,
-                background: color.withValues(alpha: 0.12),
-                compact: true,
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.title,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                        ),
+                        if (!item.isRead)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      item.message,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.muted,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${item.tag} · ${_formatTime(item.createdAt)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          const Divider(height: AppSpacing.lg),
-          Text(
-            body,
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: AppColors.muted,
-              height: 1.35,
-            ),
-          ),
-        ],
+        ),
       ),
     );
+  }
+
+  String _formatTime(DateTime value) {
+    final local = value.toLocal();
+    return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year} '
+        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
   }
 }
 
@@ -763,7 +861,12 @@ class _ParentChildrenCard extends StatelessWidget {
   final AuthService authService;
 
   StudentSnapshot _snapshot(domain.LinkedStudent child, int index) {
-    const colors = [AppColors.fptOrange, AppColors.blue, AppColors.teal, AppColors.green];
+    const colors = [
+      AppColors.fptOrange,
+      AppColors.blue,
+      AppColors.teal,
+      AppColors.green,
+    ];
     return StudentSnapshot.linked(
       name: child.name,
       studentCode: child.studentCode,
@@ -800,17 +903,23 @@ class _ParentChildrenCard extends StatelessWidget {
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 10,
+                ),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: (selected ? AppColors.fptOrange : AppColors.blue)
-                          .withValues(alpha: 0.12),
+                      backgroundColor:
+                          (selected ? AppColors.fptOrange : AppColors.blue)
+                              .withValues(alpha: 0.12),
                       child: Text(
                         _snapshot(child, index).shortName,
                         style: TextStyle(
-                          color: selected ? AppColors.fptOrange : AppColors.blue,
+                          color: selected
+                              ? AppColors.fptOrange
+                              : AppColors.blue,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -822,13 +931,18 @@ class _ParentChildrenCard extends StatelessWidget {
                         children: [
                           Text(
                             child.name,
-                            style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.ink),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.ink,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             '${child.className ?? 'Chưa xếp lớp'}${selected ? ' · Đang quản lý' : ''}',
                             style: TextStyle(
-                              color: selected ? AppColors.fptOrange : AppColors.muted,
+                              color: selected
+                                  ? AppColors.fptOrange
+                                  : AppColors.muted,
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
                             ),
@@ -840,7 +954,9 @@ class _ParentChildrenCard extends StatelessWidget {
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
-                            builder: (_) => StudentProfileScreen(student: _snapshot(child, index)),
+                            builder: (_) => StudentProfileScreen(
+                              student: _snapshot(child, index),
+                            ),
                           ),
                         );
                       },

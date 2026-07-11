@@ -16,21 +16,24 @@ public interface TimetableRepository extends JpaRepository<Timetable, Long> {
         Long classId, Long semesterId, TimetableStatus status);
     Optional<Timetable> findFirstByClsIdAndSemesterIdOrderByVersionDesc(Long classId, Long semesterId);
     boolean existsByClsIdAndSemesterIdAndStatus(Long classId, Long semesterId, TimetableStatus status);
+    List<Timetable> findByStatusAndEffectiveFromLessThanEqualOrderByEffectiveFromAsc(
+        TimetableStatus status, LocalDate effectiveFrom);
 
     @Query("SELECT t FROM Timetable t WHERE t.cls.id = :classId AND t.semester.id = :semesterId " +
-        "AND t.status <> 'DRAFT' AND t.effectiveFrom <= :date " +
+        "AND t.status IN ('ACTIVE', 'ARCHIVED') AND t.effectiveFrom <= :date " +
         "AND (t.effectiveTo IS NULL OR t.effectiveTo >= :date) ORDER BY t.version DESC")
     List<Timetable> findEffective(@Param("classId") Long classId,
                                   @Param("semesterId") Long semesterId,
                                   @Param("date") LocalDate date);
 
     @Query("SELECT t FROM Timetable t WHERE t.semester.id = :semesterId " +
-        "AND t.status <> 'DRAFT' AND t.effectiveFrom <= :date " +
+        "AND t.status IN ('ACTIVE', 'ARCHIVED') AND t.effectiveFrom <= :date " +
         "AND (t.effectiveTo IS NULL OR t.effectiveTo >= :date)")
     List<Timetable> findEffectiveBySemester(@Param("semesterId") Long semesterId,
                                             @Param("date") LocalDate date);
 
-    @Query("SELECT t FROM Timetable t WHERE t.semester.id = :semesterId AND t.status <> 'DRAFT' " +
+    @Query("SELECT t FROM Timetable t WHERE t.semester.id = :semesterId " +
+        "AND t.status IN ('ACTIVE', 'ARCHIVED', 'SCHEDULED') " +
         "AND t.effectiveFrom <= :toDate AND (t.effectiveTo IS NULL OR t.effectiveTo >= :fromDate)")
     List<Timetable> findOverlappingPublished(@Param("semesterId") Long semesterId,
                                              @Param("fromDate") LocalDate fromDate,

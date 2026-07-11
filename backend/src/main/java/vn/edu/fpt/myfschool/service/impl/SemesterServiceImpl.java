@@ -41,13 +41,8 @@ public class SemesterServiceImpl implements SemesterService {
     @Transactional(readOnly = true)
     @Override
     public SemesterDto getCurrentSemester() {
-        // ponytail: return active-year's current semester; global lookup breaks when multiple years have isCurrent=true
-        List<Semester> allCurrent = semesterRepository.findAll().stream()
-            .filter(Semester::getIsCurrent)
-            .toList();
-        Semester semester = allCurrent.stream()
-            .filter(s -> s.getAcademicYear().getStatus() == AcademicYearStatus.ACTIVE)
-            .findFirst()
+        Semester semester = semesterRepository
+            .findFirstByIsCurrentTrueAndAcademicYearStatus(AcademicYearStatus.ACTIVE)
             .orElseThrow(() -> new ResourceNotFoundException("Semester", "isCurrent", true));
         return semesterMapper.toDto(semester);
     }

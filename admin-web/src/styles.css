@@ -138,6 +138,7 @@ td button { min-height: 30px !important; padding: 0 10px !important; font-size: 
 
 .badge-status, .status-badge { display: inline-flex; padding: 4px 10px; border-radius: 999px; background: #eef1f5; color: #586375; font-size: 11px; font-weight: 900; text-transform: uppercase; }
 .badge-status.active, .status-badge.active { background: #e5efff; color: #0052cc; }
+.badge-status.scheduled, .status-badge.scheduled { background: #fff4db; color: #a85d00; }
 .badge-status.completed, .status-badge.completed { background: var(--green-soft); color: var(--green); }
 .badge-status.preparing, .status-badge.preparing { background: #eef1f5; color: #586375; }
 
@@ -389,6 +390,83 @@ td button { min-height: 30px !important; padding: 0 10px !important; font-size: 
   .account-filters { padding: 18px; }
   .active-class-filter { justify-self: stretch; }
   .guardian-account { align-items: flex-start; flex-direction: column; }
+}
+
+/* Timetable workspace */
+.timetable-page { gap: 18px; }
+.timetable-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.timetable-summary { min-width: 150px; padding: 14px 18px; border-radius: 14px; background: linear-gradient(135deg, #ff6b00, #ff914d); color: white; display: grid; text-align: center; box-shadow: 0 10px 24px rgba(255, 107, 0, .2); }
+.timetable-summary strong { font-size: 28px; line-height: 1; }
+.timetable-summary span { margin-top: 5px; font-size: 12px; font-weight: 700; }
+.timetable-filter-card { display: grid; grid-template-columns: 160px minmax(260px, 1fr) auto; align-items: end; gap: 14px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: 0 5px 18px rgba(25, 35, 50, .05); }
+.timetable-filter-action button { min-height: 40px; white-space: nowrap; }
+.timetable-scheduled-banner { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border: 1px solid #f3c768; border-radius: 14px; background: #fff9e8; color: #774300; }
+.timetable-scheduled-banner .scheduled-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: #ffe7ab; font-size: 26px; }
+.timetable-scheduled-banner p { margin: 4px 0 0; }
+.timetable-editor-card, .timetable-board-card, .timetable-publish-card, .timetable-history { padding: 22px; border: 1px solid var(--line); border-radius: 17px; background: white; box-shadow: 0 5px 20px rgba(25, 35, 50, .055); }
+.timetable-editor-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.timetable-editor-heading > div { display: flex; align-items: flex-start; gap: 12px; }
+.timetable-editor-heading h2 { margin: 0; font-size: 18px; }
+.timetable-editor-heading p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.step-number { flex: 0 0 auto; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: #fff0e6; color: #e95d00; font-weight: 900; }
+.timetable-slot-form { display: grid; grid-template-columns: minmax(260px, 1.3fr) minmax(260px, 1fr); gap: 16px 22px; align-items: end; }
+.assignment-field { grid-row: span 2; }
+.day-selector label, .period-selector label { display: block; margin-bottom: 7px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.day-selector > div, .period-selector > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.day-selector button, .period-selector button { min-width: 38px; min-height: 36px; padding: 6px 10px; border: 1px solid var(--line); background: white; color: var(--ink); }
+.day-selector button.selected, .period-selector button.selected { border-color: #ff6b00; background: #ff6b00; color: white; box-shadow: 0 5px 12px rgba(255, 107, 0, .18); }
+.add-slot-button { grid-column: 1 / -1; justify-self: end; }
+.timetable-board-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 13px; }
+.timetable-board { min-width: 980px; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
+.timetable-board th, .timetable-board td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px; vertical-align: middle; }
+.timetable-board thead th { position: sticky; top: 0; z-index: 1; height: 48px; background: #f7f8fa; text-align: center; font-size: 12px; }
+.timetable-board tr:last-child > * { border-bottom: 0; }
+.timetable-board tr > *:last-child { border-right: 0; }
+.timetable-board .period-heading, .timetable-board tbody th { width: 64px; background: #fafbfc; text-align: center; }
+.timetable-board tbody th span { display: block; font-size: 16px; font-weight: 900; color: var(--ink); }
+.timetable-board tbody th small { font-size: 9px; color: var(--muted); text-transform: uppercase; }
+.timetable-board tr.afternoon-start > * { border-top: 3px solid #ffe0cc; }
+.schedule-cell { position: relative; width: 100%; min-height: 82px; border-radius: 9px; }
+.schedule-cell.empty { display: grid; place-items: center; align-content: center; gap: 3px; border: 1px dashed #d5dae2; background: #fbfcfd; color: #9aa3b2; }
+.schedule-cell.empty:hover, .schedule-cell.empty.selected { border-color: #ff6b00; background: #fff7f1; color: #e95d00; }
+.schedule-cell.empty span { font-size: 20px; line-height: 1; }
+.schedule-cell.empty small { font-size: 10px; }
+.schedule-cell.filled { display: flex; flex-direction: column; justify-content: center; padding: 9px 25px 9px 10px; border: 1px solid #b9d6ff; background: #eef6ff; }
+.schedule-cell.filled strong { color: #174b91; font-size: 12px; }
+.schedule-cell.filled span, .schedule-cell.filled small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #5c6e84; font-size: 10px; }
+.schedule-cell.filled button { position: absolute; top: 4px; right: 4px; min-width: 22px; min-height: 22px; padding: 0; border-radius: 6px; background: transparent; color: #8b98a9; font-size: 17px; }
+.schedule-cell.filled button:hover { background: #ffe8e5; color: #c52f20; }
+.publish-options { display: grid; grid-template-columns: 1fr 52px 1fr; align-items: stretch; gap: 12px; }
+.publish-option { display: flex; flex-direction: column; justify-content: space-between; gap: 16px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: #fbfcfd; }
+.publish-option.immediate { border-color: #ffc49c; background: #fff8f3; }
+.publish-option strong { font-size: 15px; }
+.publish-option p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.publish-divider { display: grid; place-items: center; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.schedule-publish-controls { display: flex; gap: 8px; }
+.schedule-publish-controls input { flex: 1; min-height: 40px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.draft-danger-zone { display: flex; justify-content: flex-end; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.timetable-empty-state { padding: 70px 24px; border: 1px dashed #cfd5df; border-radius: 17px; background: white; text-align: center; color: var(--muted); }
+.timetable-empty-state span { font-size: 52px; color: #ff8a3c; }
+.timetable-empty-state h2 { margin: 10px 0 5px; color: var(--ink); }
+.timetable-empty-state p { margin: 0; }
+
+@media (max-width: 900px) {
+  .timetable-filter-card { grid-template-columns: 1fr 1fr; }
+  .timetable-filter-action { grid-column: 1 / -1; }
+  .timetable-filter-action button { width: 100%; }
+  .timetable-slot-form { grid-template-columns: 1fr; }
+  .assignment-field { grid-row: auto; }
+  .publish-options { grid-template-columns: 1fr; }
+  .publish-divider { min-height: 24px; }
+}
+
+@media (max-width: 600px) {
+  .timetable-heading { align-items: stretch; flex-direction: column; }
+  .timetable-filter-card { grid-template-columns: 1fr; }
+  .timetable-filter-action { grid-column: auto; }
+  .timetable-editor-card, .timetable-board-card, .timetable-publish-card, .timetable-history { padding: 15px; }
+  .timetable-editor-heading { flex-direction: column; }
+  .schedule-publish-controls { flex-direction: column; }
 }
 
 /* Flat, square admin visual system */

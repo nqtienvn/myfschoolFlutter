@@ -12,9 +12,11 @@ import '../repositories/chat_repository.dart';
 import 'chat_socket_service.dart';
 
 class ChatService extends ChangeNotifier {
-  ChatService({required ChatRepository repository, required ChatSocketService socketService})
-      : _repository = repository,
-        _socketService = socketService;
+  ChatService({
+    required ChatRepository repository,
+    required ChatSocketService socketService,
+  }) : _repository = repository,
+       _socketService = socketService;
 
   final ChatRepository _repository;
   final ChatSocketService _socketService;
@@ -35,15 +37,20 @@ class ChatService extends ChangeNotifier {
 
   List<Conversation> get conversations => List.unmodifiable(_conversations);
   int? get activeConversationId => _activeConversationId;
+  Stream<ChatSocketEventDto> get socketEvents => _socketService.events;
 
   List<ChatMessage> messagesFor(int conversationId) {
-    return List.unmodifiable(_messagesByConversationId[conversationId] ?? const []);
+    return List.unmodifiable(
+      _messagesByConversationId[conversationId] ?? const [],
+    );
   }
 
   Future<void> start(AuthSession session) async {
     _session = session;
     _socketSub = _socketService.events.listen(_handleEvent);
-    _reconnectSub = _socketService.reconnected.listen((_) => syncAfterReconnect());
+    _reconnectSub = _socketService.reconnected.listen(
+      (_) => syncAfterReconnect(),
+    );
     _socketService.connect(session).catchError((_) {});
     await loadConversations();
   }
@@ -89,7 +96,10 @@ class ChatService extends ChangeNotifier {
       conversationId: conversationId,
       limit: limit,
     );
-    _messagesByConversationId[conversationId] = _mergeAll(_messagesByConversationId[conversationId] ?? [], messages);
+    _messagesByConversationId[conversationId] = _mergeAll(
+      _messagesByConversationId[conversationId] ?? [],
+      messages,
+    );
     _markReadIfActive(conversationId);
     notifyListeners();
   }
@@ -162,7 +172,8 @@ class ChatService extends ChangeNotifier {
     final session = _session;
     final content = text.trim();
     if (session == null || content.isEmpty) return;
-    final clientMessageId = 'fe-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(999999)}';
+    final clientMessageId =
+        'fe-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(999999)}';
     final local = ChatMessage(
       clientMessageId: clientMessageId,
       conversationId: conversationId,
@@ -175,7 +186,11 @@ class ChatService extends ChangeNotifier {
       isMine: true,
     );
     _upsert(local);
-    _socketService.sendMessage(conversationId: conversationId, clientMessageId: clientMessageId, content: content);
+    _socketService.sendMessage(
+      conversationId: conversationId,
+      clientMessageId: clientMessageId,
+      content: content,
+    );
     _ackTimers[clientMessageId]?.cancel();
     _ackTimers[clientMessageId] = Timer(const Duration(seconds: 8), () {
       _updateStatus(clientMessageId, ChatMessageStatus.failed);
@@ -194,8 +209,10 @@ class ChatService extends ChangeNotifier {
     );
   }
 
-  void sendTypingStart(int conversationId) => _socketService.sendTypingStart(conversationId: conversationId);
-  void sendTypingStop(int conversationId) => _socketService.sendTypingStop(conversationId: conversationId);
+  void sendTypingStart(int conversationId) =>
+      _socketService.sendTypingStart(conversationId: conversationId);
+  void sendTypingStop(int conversationId) =>
+      _socketService.sendTypingStop(conversationId: conversationId);
 
   void _handleEvent(ChatSocketEventDto event) {
     switch (event.type) {
@@ -206,7 +223,9 @@ class ChatService extends ChangeNotifier {
         _handleNew(event);
         break;
       case 'message.receipt':
-        if (event.messageId != null) _updateStatusById(event.messageId!, ChatMessageStatus.delivered);
+        if (event.messageId != null) {
+          _updateStatusById(event.messageId!, ChatMessageStatus.delivered);
+        }
         break;
       case 'conversation.read':
         _handleRead(event);
@@ -218,9 +237,13 @@ class ChatService extends ChangeNotifier {
         _handlePresence(event);
         break;
       case 'error':
-        if (event.clientMessageId != null) _updateStatus(event.clientMessageId!, ChatMessageStatus.failed);
+        if (event.clientMessageId != null) {
+          _updateStatus(event.clientMessageId!, ChatMessageStatus.failed);
+        }
         errorMessage = event.errorMessage ?? 'Không gửi được tin nhắn';
-        debugPrint('Chat error event from Backend: ${event.errorMessage} (clientMessageId: ${event.clientMessageId})');
+        debugPrint(
+          'Chat error event from Backend: ${event.errorMessage} (clientMessageId: ${event.clientMessageId})',
+        );
         break;
     }
     notifyListeners();
@@ -231,7 +254,9 @@ class ChatService extends ChangeNotifier {
     final message = event.message;
     if (session == null || message == null) return;
     _ackTimers.remove(event.clientMessageId)?.cancel();
-    _upsert(message.toDomain(session.userId).copyWith(status: ChatMessageStatus.sent));
+    _upsert(
+      message.toDomain(session.userId).copyWith(status: ChatMessageStatus.sent),
+    );
   }
 
   void _handleNew(ChatSocketEventDto event) {
@@ -242,7 +267,10 @@ class ChatService extends ChangeNotifier {
     _upsert(message);
     _updateConversationPreview(message);
     if (!message.isMine && message.id != null) {
-      _socketService.markDelivered(conversationId: message.conversationId, messageId: message.id!);
+      _socketService.markDelivered(
+        conversationId: message.conversationId,
+        messageId: message.id!,
+      );
     }
     _markReadIfActive(message.conversationId);
   }
@@ -253,14 +281,20 @@ class ChatService extends ChangeNotifier {
     if (id == null || convId == null) return;
     final messages = _messagesByConversationId[convId] ?? [];
     _messagesByConversationId[convId] = messages
-        .map((m) => m.isMine && m.id != null && m.id! <= id ? m.copyWith(status: ChatMessageStatus.read) : m)
+        .map(
+          (m) => m.isMine && m.id != null && m.id! <= id
+              ? m.copyWith(status: ChatMessageStatus.read)
+              : m,
+        )
         .toList();
   }
 
   void _handleTyping(ChatSocketEventDto event) {
     final convId = event.conversationId;
     final session = _session;
-    if (convId == null || session == null || event.userId == session.userId) return;
+    if (convId == null || session == null || event.userId == session.userId) {
+      return;
+    }
     if (event.typing == true) {
       typingConversationIds.add(convId);
       _typingTimers[convId]?.cancel();
@@ -278,27 +312,46 @@ class ChatService extends ChangeNotifier {
     if (userId == null) return;
     _conversations = _conversations.map((c) {
       if (c.otherParticipant?.userId != userId) return c;
-      return c.copyWith(isOnline: event.online ?? false, lastSeenAt: event.lastSeenAt);
+      return c.copyWith(
+        isOnline: event.online ?? false,
+        lastSeenAt: event.lastSeenAt,
+      );
     }).toList();
   }
 
   void _markReadIfActive(int conversationId) {
     if (_activeConversationId != conversationId) return;
-    final lastId = (_messagesByConversationId[conversationId] ?? []).map((m) => m.id).whereType<int>().fold<int?>(null, (a, b) => a == null || b > a ? b : a);
-    if (lastId != null) _socketService.markRead(conversationId: conversationId, lastReadMessageId: lastId);
+    final lastId = (_messagesByConversationId[conversationId] ?? [])
+        .map((m) => m.id)
+        .whereType<int>()
+        .fold<int?>(null, (a, b) => a == null || b > a ? b : a);
+    if (lastId != null) {
+      _socketService.markRead(
+        conversationId: conversationId,
+        lastReadMessageId: lastId,
+      );
+    }
   }
 
   void _upsert(ChatMessage message) {
     final current = _messagesByConversationId[message.conversationId] ?? [];
-    _messagesByConversationId[message.conversationId] = _mergeAll(current, [message]);
+    _messagesByConversationId[message.conversationId] = _mergeAll(current, [
+      message,
+    ]);
   }
 
-  List<ChatMessage> _mergeAll(List<ChatMessage> current, List<ChatMessage> incoming) {
+  List<ChatMessage> _mergeAll(
+    List<ChatMessage> current,
+    List<ChatMessage> incoming,
+  ) {
     final result = [...current];
     for (final message in incoming) {
-      final index = result.indexWhere((m) =>
-          (message.id != null && m.id == message.id) ||
-          (message.clientMessageId.isNotEmpty && m.clientMessageId == message.clientMessageId));
+      final index = result.indexWhere(
+        (m) =>
+            (message.id != null && m.id == message.id) ||
+            (message.clientMessageId.isNotEmpty &&
+                m.clientMessageId == message.clientMessageId),
+      );
       if (index >= 0) {
         result[index] = _preferNewer(result[index], message);
       } else {
@@ -306,31 +359,39 @@ class ChatService extends ChangeNotifier {
       }
     }
     result.sort((a, b) {
-      if (a.serverSeq != null && b.serverSeq != null) return a.serverSeq!.compareTo(b.serverSeq!);
+      if (a.serverSeq != null && b.serverSeq != null) {
+        return a.serverSeq!.compareTo(b.serverSeq!);
+      }
       return a.createdAt.compareTo(b.createdAt);
     });
     return result;
   }
 
   ChatMessage _preferNewer(ChatMessage old, ChatMessage next) {
-    final status = _rank(next.status) >= _rank(old.status) ? next.status : old.status;
+    final status = _rank(next.status) >= _rank(old.status)
+        ? next.status
+        : old.status;
     return next.copyWith(status: status);
   }
 
   int _rank(ChatMessageStatus status) => switch (status) {
-        ChatMessageStatus.sending => 0,
-        ChatMessageStatus.failed => 0,
-        ChatMessageStatus.sent => 1,
-        ChatMessageStatus.delivered => 2,
-        ChatMessageStatus.read => 3,
-      };
+    ChatMessageStatus.sending => 0,
+    ChatMessageStatus.failed => 0,
+    ChatMessageStatus.sent => 1,
+    ChatMessageStatus.delivered => 2,
+    ChatMessageStatus.read => 3,
+  };
 
   void _updateStatus(String clientMessageId, ChatMessageStatus status) {
     for (final entry in _messagesByConversationId.entries) {
       entry.value.replaceRange(
         0,
         entry.value.length,
-        entry.value.map((m) => m.clientMessageId == clientMessageId ? m.copyWith(status: status) : m),
+        entry.value.map(
+          (m) => m.clientMessageId == clientMessageId
+              ? m.copyWith(status: status)
+              : m,
+        ),
       );
     }
     notifyListeners();
@@ -341,7 +402,11 @@ class ChatService extends ChangeNotifier {
       entry.value.replaceRange(
         0,
         entry.value.length,
-        entry.value.map((m) => m.id == id && _rank(status) > _rank(m.status) ? m.copyWith(status: status) : m),
+        entry.value.map(
+          (m) => m.id == id && _rank(status) > _rank(m.status)
+              ? m.copyWith(status: status)
+              : m,
+        ),
       );
     }
   }
@@ -361,7 +426,10 @@ class ChatService extends ChangeNotifier {
       return conversation.copyWith(
         lastMessage: message.content,
         lastMessageAt: message.createdAt,
-        unreadCount: _activeConversationId == message.conversationId || message.isMine ? 0 : conversation.unreadCount + 1,
+        unreadCount:
+            _activeConversationId == message.conversationId || message.isMine
+            ? 0
+            : conversation.unreadCount + 1,
       );
     }).toList();
   }

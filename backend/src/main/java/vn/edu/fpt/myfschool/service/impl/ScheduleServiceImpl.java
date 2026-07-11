@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
+import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
 import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.enums.TimetableStatus;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
@@ -168,7 +169,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     private Semester currentSemester() {
-        return semesterRepository.findByIsCurrentTrue()
+        return semesterRepository.findFirstByIsCurrentTrueAndAcademicYearStatus(AcademicYearStatus.ACTIVE)
             .orElseThrow(() -> new ResourceNotFoundException("Semester", "isCurrent", true));
     }
 

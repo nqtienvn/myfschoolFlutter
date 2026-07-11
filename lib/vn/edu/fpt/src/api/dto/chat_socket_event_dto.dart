@@ -1,5 +1,6 @@
 import 'chat_message_dto.dart';
 import '../exception/parse_exception.dart';
+import 'notification_dto.dart';
 
 class ChatSocketEventDto {
   const ChatSocketEventDto({
@@ -16,6 +17,8 @@ class ChatSocketEventDto {
     this.lastSeenAt,
     this.errorCode,
     this.errorMessage,
+    this.notification,
+    this.unreadCount,
   });
 
   final String type;
@@ -31,24 +34,37 @@ class ChatSocketEventDto {
   final DateTime? lastSeenAt;
   final String? errorCode;
   final String? errorMessage;
+  final NotificationDto? notification;
+  final int? unreadCount;
 
   factory ChatSocketEventDto.fromJson(Map<String, dynamic> json) {
     final type = requireField<String>(json, 'type');
     final messageJson = json['message'];
+    final notificationJson = json['notification'];
     return ChatSocketEventDto(
       type: type,
       clientMessageId: json['clientMessageId'] as String?,
       status: json['status'] as String?,
-      message: messageJson is Map<String, dynamic> ? ChatMessageDto.fromJson(messageJson) : null,
+      message: messageJson is Map<String, dynamic>
+          ? ChatMessageDto.fromJson(messageJson)
+          : null,
       conversationId: json['conversationId'] as int?,
       messageId: json['messageId'] as int?,
       userId: json['userId'] as int?,
       lastReadMessageId: json['lastReadMessageId'] as int?,
       typing: json['typing'] as bool?,
       online: json['online'] as bool?,
-      lastSeenAt: json['lastSeenAt'] is String ? DateTime.parse(json['lastSeenAt'] as String) : null,
+      lastSeenAt: json['lastSeenAt'] is String
+          ? DateTime.parse(json['lastSeenAt'] as String)
+          : null,
       errorCode: json['code'] as String?,
-      errorMessage: json['message'] is String ? json['message'] as String : null,
+      errorMessage: json['message'] is String
+          ? json['message'] as String
+          : null,
+      notification: notificationJson is Map<String, dynamic>
+          ? NotificationDto.fromJson(notificationJson)
+          : null,
+      unreadCount: json['unreadCount'] as int?,
     );
   }
 }

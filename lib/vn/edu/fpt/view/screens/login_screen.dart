@@ -52,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute<void>(
           builder: (_) => AppShell(
             actor: session.actor,
+            session: session,
             authService: authService,
             chatService: chatService,
           ),

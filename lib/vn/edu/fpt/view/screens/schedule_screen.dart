@@ -27,7 +27,7 @@ class ScheduleScreen extends StatefulWidget {
 }
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
-  late DateTime _selectedDate;
+  int _selectedDay = 2;
   SchoolSchedule? _schedule;
   bool _loading = true;
   String? _error;
@@ -35,8 +35,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _selectedDate = DateTime(now.year, now.month, now.day);
     _load();
   }
 
@@ -47,11 +45,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     });
     try {
       final schedule = widget.studentId == null
-          ? await widget.service.getMine(_selectedDate)
-          : await widget.service.getForStudent(
-              widget.studentId!,
-              _selectedDate,
-            );
+          ? await widget.service.getMine()
+          : await widget.service.getForStudent(widget.studentId!);
       if (!mounted) return;
       setState(() => _schedule = schedule);
     } on BackendApiException catch (error) {
@@ -65,27 +60,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  DateTime get _weekStart =>
-      _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
-
-  List<DateTime> get _weekDays =>
-      List.generate(7, (index) => _weekStart.add(Duration(days: index)));
-
-  int _apiDay(DateTime date) =>
-      date.weekday == DateTime.sunday ? 1 : date.weekday + 1;
-
-  void _changeWeek(int offset) {
-    setState(
-      () => _selectedDate = _selectedDate.add(Duration(days: 7 * offset)),
-    );
-    _load();
-  }
-
-  String _weekday(DateTime date) {
-    const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-    return labels[date.weekday - 1];
   }
 
   @override
@@ -109,7 +83,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             children: [
               if (schedule != null) _buildSummary(schedule),
               if (schedule != null) const SizedBox(height: 12),
-              _buildWeekPicker(),
+              _buildDayPicker(),
               const SizedBox(height: 20),
               if (_loading)
                 const Padding(
@@ -123,7 +97,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               else if (_error != null)
                 _buildError()
               else if (schedule != null)
-                _buildDay(schedule.day(_apiDay(_selectedDate))),
+                _buildDay(schedule.day(_selectedDay)),
             ],
           ),
         ),
@@ -169,93 +143,60 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     );
   }
 
-  Widget _buildWeekPicker() {
-    final end = _weekStart.add(const Duration(days: 6));
+  Widget _buildDayPicker() {
+    const days = [
+      (2, 'T2'),
+      (3, 'T3'),
+      (4, 'T4'),
+      (5, 'T5'),
+      (6, 'T6'),
+      (7, 'T7'),
+      (1, 'CN'),
+    ];
     return AppCard(
       padding: 12,
       child: Column(
         children: [
-          Row(
-            children: [
-              IconButton(
-                tooltip: 'Tuần trước',
-                onPressed: () => _changeWeek(-1),
-                icon: const Icon(
-                  Icons.chevron_left,
-                  color: AppColors.fptOrange,
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  '${_weekStart.day.toString().padLeft(2, '0')}/${_weekStart.month.toString().padLeft(2, '0')}'
-                  ' – ${end.day.toString().padLeft(2, '0')}/${end.month.toString().padLeft(2, '0')}/${end.year}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Tuần sau',
-                onPressed: () => _changeWeek(1),
-                icon: const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.fptOrange,
-                ),
-              ),
-            ],
+          const Text(
+            'LỊCH HỌC THEO THỨ',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              color: AppColors.muted,
+              letterSpacing: 0.6,
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           Row(
-            children: _weekDays
-                .map((date) {
-                  final selected = DateUtils.isSameDay(date, _selectedDate);
+            children: days
+                .map((day) {
+                  final selected = day.$1 == _selectedDay;
                   return Expanded(
                     child: Semantics(
                       button: true,
                       selected: selected,
-                      label:
-                          '${_weekday(date)}, ngày ${date.day}/${date.month}',
+                      label: day.$2,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(10),
-                        onTap: () {
-                          setState(() => _selectedDate = date);
-                          _load();
-                        },
+                        onTap: () => setState(() => _selectedDay = day.$1),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 160),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
                             color: selected
                                 ? AppColors.fptOrange
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Column(
-                            children: [
-                              Text(
-                                _weekday(date),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: selected
-                                      ? Colors.white
-                                      : AppColors.muted,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${date.day}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w900,
-                                  color: selected
-                                      ? Colors.white
-                                      : AppColors.ink,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            day.$2,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: selected ? Colors.white : AppColors.ink,
+                            ),
                           ),
                         ),
                       ),

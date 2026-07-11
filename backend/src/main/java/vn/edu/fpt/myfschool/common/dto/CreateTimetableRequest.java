@@ -7,6 +7,6 @@ import java.time.LocalDate;
 public record CreateTimetableRequest(
     @NotNull Long classId,
     @NotNull Long semesterId,
-    @NotNull LocalDate effectiveFrom,
+    LocalDate effectiveFrom,
     Long copyFromTimetableId
 ) {}

@@ -1,12 +1,16 @@
 package vn.edu.fpt.myfschool;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import vn.edu.fpt.myfschool.repository.NotificationRepository;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class ScheduleIntegrationTest extends BaseIntegrationTest {
+
+    @Autowired NotificationRepository notificationRepository;
 
     private String schedJson(long timetableId, int day, int period, String shift) {
         return "{\"timetableId\":" + timetableId + ",\"assignmentId\":" + testTeachingAssignment.getId()
@@ -45,6 +49,30 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void current_schedule_uses_current_semester_from_active_year_when_other_year_is_also_current() throws Exception {
+        var otherYear = new vn.edu.fpt.myfschool.entity.AcademicYear();
+        otherYear.setName("2027-2028");
+        otherYear.setStartDate(java.time.LocalDate.of(2027, 8, 1));
+        otherYear.setEndDate(java.time.LocalDate.of(2028, 5, 31));
+        otherYear.setStatus(vn.edu.fpt.myfschool.common.enums.AcademicYearStatus.DRAFT);
+        otherYear = academicYearRepository.save(otherYear);
+
+        var otherSemester = new vn.edu.fpt.myfschool.entity.Semester();
+        otherSemester.setName("HK I");
+        otherSemester.setAcademicYear(otherYear);
+        otherSemester.setOrder(1);
+        otherSemester.setStartDate(java.time.LocalDate.of(2027, 9, 1));
+        otherSemester.setEndDate(java.time.LocalDate.of(2028, 1, 15));
+        otherSemester.setIsCurrent(true);
+        semesterRepository.save(otherSemester);
+
+        mockMvc.perform(get("/api/schedules/me")
+                .header("Authorization", authHeader(loginAsStudent1())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.semesterId").value(testSemester.getId()));
+    }
+
+    @Test
     void parent_cannot_get_unlinked_student_schedule() throws Exception {
         var link = studentGuardianRepository
             .findByStudentIdAndGuardianId(testStudent1.getId(), testParent.getId())
@@ -68,6 +96,16 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk());
         publish(adminToken, timetableId, "2026-09-01");
 
+        org.assertj.core.api.Assertions.assertThat(
+            notificationRepository.findByUserIdOrderByCreatedAtDesc(testStudent1.getUser().getId()))
+            .anyMatch(item -> "Thời khóa biểu".equals(item.getTag()));
+        org.assertj.core.api.Assertions.assertThat(
+            notificationRepository.findByUserIdOrderByCreatedAtDesc(testParent.getUser().getId()))
+            .anyMatch(item -> "Thời khóa biểu".equals(item.getTag()));
+        org.assertj.core.api.Assertions.assertThat(
+            notificationRepository.findByUserIdOrderByCreatedAtDesc(testTeacher.getUser().getId()))
+            .anyMatch(item -> "Thời khóa biểu".equals(item.getTag()));
+
         mockMvc.perform(get("/api/schedules/me")
                 .header("Authorization", authHeader(loginAsStudent1()))
                 .param("date", "2026-09-15"))
@@ -81,6 +119,32 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.days[1].morningSlots[0].className").value(testClass.getName()))
             .andExpect(jsonPath("$.data.days[1].morningSlots[0].teacherId").value(testTeacher.getId()));
+    }
+
+    @Test
+    void admin_can_schedule_publication_without_exposing_timetable_early() throws Exception {
+        String token = loginAsAdmin();
+        long timetableId = createDraft(token, "2026-09-01", null);
+        mockMvc.perform(post("/api/schedules")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(schedJson(timetableId, 2, 1, "MORNING")))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/timetables/" + timetableId + "/schedule")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"effectiveFrom\":\"2026-09-15\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("SCHEDULED"));
+
+        mockMvc.perform(get("/api/schedules/class")
+                .header("Authorization", authHeader(token))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", testSemester.getId().toString())
+                .param("date", "2026-09-20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.timetableId").doesNotExist());
     }
 
     @Test

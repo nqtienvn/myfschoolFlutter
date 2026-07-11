@@ -3,6 +3,7 @@ package vn.edu.fpt.myfschool.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.myfschool.entity.Semester;
+import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,7 +14,7 @@ public interface SemesterRepository extends JpaRepository<Semester, Long> {
 
     List<Semester> findByAcademicYearIdOrderByOrderAsc(Long academicYearId);
 
-    Optional<Semester> findByIsCurrentTrue();
+    Optional<Semester> findFirstByIsCurrentTrueAndAcademicYearStatus(AcademicYearStatus status);
 
     Optional<Semester> findByNameAndAcademicYearId(String name, Long academicYearId);
 }
