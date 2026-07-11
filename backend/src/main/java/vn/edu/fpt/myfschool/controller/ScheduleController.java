@@ -22,6 +22,7 @@ import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.service.ScheduleService;
 
 import java.util.List;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/schedules")
@@ -35,16 +36,18 @@ public class ScheduleController {
     @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "TKB lớp")
     public ResponseEntity<ApiResponse<ClassScheduleDto>> getClassSchedule(
-            @RequestParam Long classId, @RequestParam Long semesterId) {
-        return ResponseEntity.ok(ApiResponse.success(scheduleService.getClassSchedule(classId, semesterId)));
+            @RequestParam Long classId, @RequestParam Long semesterId,
+            @RequestParam(required = false) LocalDate date) {
+        return ResponseEntity.ok(ApiResponse.success(scheduleService.getClassSchedule(classId, semesterId, date)));
     }
 
     @GetMapping("/teacher")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "TKB giáo viên")
     public ResponseEntity<ApiResponse<ClassScheduleDto>> getTeacherSchedule(
-            @RequestParam Long teacherId, @RequestParam Long semesterId) {
-        return ResponseEntity.ok(ApiResponse.success(scheduleService.getTeacherSchedule(teacherId, semesterId)));
+            @RequestParam Long teacherId, @RequestParam Long semesterId,
+            @RequestParam(required = false) LocalDate date) {
+        return ResponseEntity.ok(ApiResponse.success(scheduleService.getTeacherSchedule(teacherId, semesterId, date)));
     }
 
     @PostMapping
@@ -53,6 +56,13 @@ public class ScheduleController {
     public ResponseEntity<ApiResponse<ScheduleDto>> createSchedule(
             @Valid @RequestBody ScheduleRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Tạo thành công", scheduleService.createSchedule(request)));
+    }
+
+    @GetMapping("/timetable/{timetableId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @Operation(summary = "Danh sách tiết trong một phiên bản TKB")
+    public ResponseEntity<ApiResponse<List<ScheduleDto>>> getTimetableSlots(@PathVariable Long timetableId) {
+        return ResponseEntity.ok(ApiResponse.success(scheduleService.getTimetableSlots(timetableId)));
     }
 
     @DeleteMapping("/{id}")

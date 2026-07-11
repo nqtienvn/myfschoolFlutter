@@ -1,11 +1,12 @@
 package vn.edu.fpt.myfschool.common.dto;
 
 import jakarta.validation.constraints.NotNull;
+
 import java.time.LocalDate;
 
-public record CreateTeachingAssignmentRequest(
+public record CreateTimetableRequest(
     @NotNull Long classId,
-    @NotNull Long subjectId,
-    @NotNull Long teacherId,
-    LocalDate effectiveFrom
+    @NotNull Long semesterId,
+    @NotNull LocalDate effectiveFrom,
+    Long copyFromTimetableId
 ) {}

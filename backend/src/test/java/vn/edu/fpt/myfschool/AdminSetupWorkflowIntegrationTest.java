@@ -66,7 +66,6 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
                 .content("{\"startDate\":\"2042-08-01\",\"endDate\":\"2043-05-31\"}"))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         long yearId = objectMapper.readTree(yearResponse).path("data").path("id").asLong();
-        long semesterId = semesterRepository.findByAcademicYearIdOrderByOrderAsc(yearId).getFirst().getId();
 
         String classesResponse = mockMvc.perform(post("/api/classes/generate")
                 .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
@@ -87,8 +86,8 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk());
         mockMvc.perform(post("/api/teaching-assignments")
                 .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"classId\":%d,\"subjectId\":%d,\"teacherId\":%d,\"semesterId\":%d,\"effectiveFrom\":\"2042-08-01\"}"
-                    .formatted(classId, testSubject.getId(), testTeacher.getId(), semesterId)))
+                .content("{\"classId\":%d,\"subjectId\":%d,\"teacherId\":%d,\"effectiveFrom\":\"2042-08-01\"}"
+                    .formatted(classId, testSubject.getId(), testTeacher.getId())))
             .andExpect(status().isOk());
 
         mockMvc.perform(delete("/api/classes/" + classId).header("Authorization", authHeader(token)))
@@ -158,7 +157,7 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
                     .formatted(classId, testSubject.getId(), testTeacher.getId())))
             .andExpect(status().isOk());
 
-        assertEquals(semesters.size(), teachingAssignmentRepository
+        assertEquals(1, teachingAssignmentRepository
             .findByClsIdAndStatus(classId, vn.edu.fpt.myfschool.common.enums.AssignmentStatus.ACTIVE).size());
         mockMvc.perform(get("/api/teaching-assignments")
                 .param("classId", String.valueOf(classId))

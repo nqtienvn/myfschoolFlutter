@@ -11,6 +11,7 @@ import SetupWizardPage from './pages/SetupWizardPage';
 import UsersPage from './pages/UsersPage';
 import ValidationPage from './pages/ValidationPage';
 import ActivationPage from './pages/ActivationPage';
+import TimetablesPage from './pages/TimetablesPage';
 
 export interface AcademicYearItem {
   id: number;
@@ -46,8 +47,9 @@ const STEPS = [
   { key: 'classes', number: 4, label: 'Sinh lớp học' },
   { key: 'students', number: 5, label: 'Thêm học sinh & PH' },
   { key: 'assignments', number: 6, label: 'Phân công giảng dạy' },
-  { key: 'validation', number: 7, label: 'Kiểm tra dữ liệu' },
-  { key: 'activation', number: 8, label: 'Kích hoạt năm học' },
+  { key: 'timetables', number: 7, label: 'Thời khóa biểu' },
+  { key: 'validation', number: 8, label: 'Kiểm tra dữ liệu' },
+  { key: 'activation', number: 9, label: 'Kích hoạt năm học' },
 ] as const;
 
 type PageKey = 'workflow' | typeof STEPS[number]['key'];
@@ -129,6 +131,7 @@ export default function App() {
     classes: <ClassesPage selectedYearId={yearId} selectedSemesterId={semesterId} editable={selectedYear?.status === 'DRAFT'} />,
     students: <StudentEnrollmentPage selectedYearId={yearId} editable={selectedYear?.status === 'DRAFT'} />,
     assignments: <AssignmentsPage selectedYearId={yearId} />,
+    timetables: <TimetablesPage selectedYearId={yearId} selectedSemesterId={semesterId} />,
     validation: <ValidationPage academicYearId={yearId} onNavigate={goTo} />,
     activation: (
       <ActivationPage

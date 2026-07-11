@@ -2,13 +2,11 @@ import { apiFetch } from './client';
 
 export interface GetTeachingAssignmentsParams {
   classId?: number | string;
-  semesterId?: number | string;
 }
 
 export async function getTeachingAssignments(params: GetTeachingAssignmentsParams = {}) {
   const queryParams = new URLSearchParams();
   if (params.classId !== undefined) queryParams.append('classId', String(params.classId));
-  if (params.semesterId !== undefined) queryParams.append('semesterId', String(params.semesterId));
 
   return apiFetch(`/teaching-assignments?${queryParams.toString()}`);
 }
@@ -17,7 +15,6 @@ export interface TeachingAssignmentData {
   classId: number;
   subjectId: number;
   teacherId: number;
-  semesterId?: number;
   effectiveFrom?: string;
 }
 

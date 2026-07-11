@@ -14,42 +14,44 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 
     List<Schedule> findByAssignmentId(Long assignmentId);
 
-    @Query("SELECT s FROM Schedule s WHERE s.assignment.cls.id = :classId " +
-           "AND s.assignment.semester.id = :semesterId " +
+    List<Schedule> findByTimetableIdOrderByDayOfWeekAscPeriodAsc(Long timetableId);
+
+    @Query("SELECT s FROM Schedule s WHERE s.timetable.cls.id = :classId " +
+           "AND s.timetable.semester.id = :semesterId AND s.timetable.status = 'ACTIVE' " +
            "ORDER BY s.dayOfWeek ASC, s.period ASC")
     List<Schedule> findByClassIdAndSemesterId(@Param("classId") Long classId,
                                                @Param("semesterId") Long semesterId);
 
     @Query("SELECT s FROM Schedule s WHERE s.assignment.teacher.id = :teacherId " +
-           "AND s.assignment.semester.id = :semesterId " +
+           "AND s.timetable.semester.id = :semesterId AND s.timetable.status = 'ACTIVE' " +
            "ORDER BY s.dayOfWeek ASC, s.period ASC")
     List<Schedule> findByTeacherIdAndSemesterId(@Param("teacherId") Long teacherId,
                                                  @Param("semesterId") Long semesterId);
 
-    Optional<Schedule> findByAssignmentIdAndDayOfWeekAndPeriod(
-        Long assignmentId, Integer dayOfWeek, Integer period);
+    Optional<Schedule> findByTimetableIdAndDayOfWeekAndPeriod(
+        Long timetableId, Integer dayOfWeek, Integer period);
 
-    @Query("SELECT s FROM Schedule s WHERE s.assignment.cls.id = :classId " +
-           "AND s.assignment.semester.id = :semesterId " +
+    @Query("SELECT s FROM Schedule s WHERE s.timetable.cls.id = :classId " +
+           "AND s.timetable.semester.id = :semesterId AND s.timetable.status = 'ACTIVE' " +
            "AND s.dayOfWeek = :dayOfWeek AND s.period = :period")
     Optional<Schedule> findByClassIdAndSemesterIdAndDayOfWeekAndPeriod(
         @Param("classId") Long classId, @Param("semesterId") Long semesterId,
         @Param("dayOfWeek") Integer dayOfWeek, @Param("period") Integer period);
 
     @Query("SELECT s FROM Schedule s WHERE s.assignment.teacher.id = :teacherId " +
-           "AND s.assignment.semester.id = :semesterId " +
+           "AND s.timetable.semester.id = :semesterId AND s.timetable.status = 'ACTIVE' " +
            "AND s.dayOfWeek = :dayOfWeek AND s.period = :period")
     Optional<Schedule> findTeacherConflict(@Param("teacherId") Long teacherId,
         @Param("semesterId") Long semesterId, @Param("dayOfWeek") Integer dayOfWeek,
         @Param("period") Integer period);
 
     @Modifying
-    @Query("DELETE FROM Schedule s WHERE s.assignment.cls.id = :classId " +
-           "AND s.assignment.semester.id = :semesterId")
+    @Query("DELETE FROM Schedule s WHERE s.timetable.cls.id = :classId " +
+           "AND s.timetable.semester.id = :semesterId")
     void deleteByClassIdAndSemesterId(@Param("classId") Long classId,
                                        @Param("semesterId") Long semesterId);
 
     @Modifying
-    @Query("DELETE FROM Schedule s WHERE s.assignment.cls.id = :classId")
+    @Query("DELETE FROM Schedule s WHERE s.timetable.cls.id = :classId")
     void deleteByClassId(@Param("classId") Long classId);
 }

@@ -87,7 +87,7 @@ public class AcademicYearInitializationServiceImpl implements AcademicYearInitia
             classesCreated++;
         }
 
-        // 2. Copy teaching assignments (template only - teacher set to null)
+        // 2. Copy year-scoped teaching assignments as inactive templates.
         int assignmentsCopied = 0;
         List<TeachingAssignment> fromAssignments = teachingAssignmentRepository.findByAcademicYearId(fromYear.getId());
 
@@ -95,22 +95,17 @@ public class AcademicYearInitializationServiceImpl implements AcademicYearInitia
             SchoolClass newCls = classMap.get(old.getCls().getName());
             if (newCls == null) continue;
 
-            Semester targetSemester = semesterMapping.get(old.getSemester().getId());
-            if (targetSemester == null) continue;
-
-            // Avoid duplicating identical assignment templates
-            if (teachingAssignmentRepository.existsByClsIdAndSubjectIdAndSemesterIdAndEffectiveFrom(
-                    newCls.getId(), old.getSubject().getId(), targetSemester.getId(), newYear.getStartDate())) {
+            if (teachingAssignmentRepository.findByClsIdAndSubjectId(
+                    newCls.getId(), old.getSubject().getId()).isPresent()) {
                 continue;
             }
 
             TeachingAssignment ta = new TeachingAssignment();
             ta.setCls(newCls);
             ta.setSubject(old.getSubject());
-            ta.setTeacher(null); // Keep teacher empty for admin to assign later
-            ta.setSemester(targetSemester);
+            ta.setTeacher(old.getTeacher());
             ta.setEffectiveFrom(newYear.getStartDate());
-            ta.setStatus(AssignmentStatus.INACTIVE); // inactive by default until teacher is assigned
+            ta.setStatus(AssignmentStatus.INACTIVE);
             teachingAssignmentRepository.save(ta);
             assignmentsCopied++;
         }

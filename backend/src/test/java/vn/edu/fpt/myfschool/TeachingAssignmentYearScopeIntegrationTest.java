@@ -52,7 +52,7 @@ class TeachingAssignmentYearScopeIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON).content(secondBody))
             .andExpect(status().isOk());
 
-        assertEquals(2, teachingAssignmentRepository.findByClsIdAndStatus(
+        assertEquals(1, teachingAssignmentRepository.findByClsIdAndStatus(
             testClass.getId(), AssignmentStatus.ACTIVE).size());
         mockMvc.perform(get("/api/teaching-assignments")
                 .param("classId", testClass.getId().toString())

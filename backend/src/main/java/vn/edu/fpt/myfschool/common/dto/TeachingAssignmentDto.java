@@ -8,7 +8,6 @@ public record TeachingAssignmentDto(
     Long classId, String className, Integer gradeLevel,
     Long subjectId, String subjectName, String subjectCode,
     Long teacherId, String teacherName, String teacherCode,
-    Long semesterId, String semesterName,
     LocalDate effectiveFrom, LocalDate effectiveTo,
     AssignmentStatus status
 ) {}

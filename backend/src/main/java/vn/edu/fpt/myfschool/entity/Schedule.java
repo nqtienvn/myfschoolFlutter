@@ -16,11 +16,16 @@ import vn.edu.fpt.myfschool.common.enums.Shift;
 
 @Entity
 @Table(name = "schedules",
-       uniqueConstraints = @UniqueConstraint(
-           columnNames = {"assignment_id", "day_of_week", "period"}))
+       uniqueConstraints = @UniqueConstraint(name = "uq_schedule_timetable_slot",
+           columnNames = {"timetable_id", "day_of_week", "period"}))
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class Schedule extends BaseEntity {
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "timetable_id", nullable = false,
+                foreignKey = @ForeignKey(name = "fk_schedule_timetable"))
+    private Timetable timetable;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignment_id", nullable = false,

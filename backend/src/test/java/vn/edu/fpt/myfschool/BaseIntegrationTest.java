@@ -133,7 +133,6 @@ public abstract class BaseIntegrationTest {
         testTeachingAssignment.setCls(testClass);
         testTeachingAssignment.setSubject(testSubject);
         testTeachingAssignment.setTeacher(testTeacher);
-        testTeachingAssignment.setSemester(testSemester);
         testTeachingAssignment.setEffectiveFrom(testSemester.getStartDate());
         testTeachingAssignment.setStatus(AssignmentStatus.ACTIVE);
         testTeachingAssignment = teachingAssignmentRepository.save(testTeachingAssignment);

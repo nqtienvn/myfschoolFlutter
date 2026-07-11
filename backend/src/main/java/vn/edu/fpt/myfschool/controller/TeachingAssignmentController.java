@@ -38,14 +38,13 @@ public class TeachingAssignmentController {
     public ResponseEntity<ApiResponse<List<TeachingAssignmentDto>>> list(
             @RequestParam(required = false) Long classId,
             @RequestParam(required = false) Long teacherId,
-            @RequestParam(required = false) Long semesterId,
             @RequestParam(defaultValue = "ACTIVE") AssignmentStatus status) {
         if (classId != null) {
             return ResponseEntity.ok(ApiResponse.success(
-                    teachingAssignmentService.listByClass(classId, semesterId, status)));
+                    teachingAssignmentService.listByClass(classId, status)));
         } else if (teacherId != null) {
             return ResponseEntity.ok(ApiResponse.success(
-                    teachingAssignmentService.listByTeacher(teacherId, semesterId, status)));
+                    teachingAssignmentService.listByTeacher(teacherId, status)));
         }
         throw new vn.edu.fpt.myfschool.common.exception.BadRequestException("Phai cung cap classId hoac teacherId");
     }

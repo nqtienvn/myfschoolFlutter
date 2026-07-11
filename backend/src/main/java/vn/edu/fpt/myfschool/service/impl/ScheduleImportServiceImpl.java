@@ -6,14 +6,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.myfschool.common.dto.ImportResultDto;
 import vn.edu.fpt.myfschool.common.enums.Shift;
+import vn.edu.fpt.myfschool.common.enums.TimetableStatus;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.common.util.ExcelReader;
 import vn.edu.fpt.myfschool.entity.Schedule;
-import vn.edu.fpt.myfschool.entity.Semester;
 import vn.edu.fpt.myfschool.entity.TeachingAssignment;
+import vn.edu.fpt.myfschool.entity.Timetable;
 import vn.edu.fpt.myfschool.repository.ScheduleRepository;
-import vn.edu.fpt.myfschool.repository.SemesterRepository;
 import vn.edu.fpt.myfschool.repository.TeachingAssignmentRepository;
+import vn.edu.fpt.myfschool.repository.TimetableRepository;
 import vn.edu.fpt.myfschool.service.ScheduleImportService;
 
 import java.io.InputStream;
@@ -28,13 +29,16 @@ public class ScheduleImportServiceImpl implements ScheduleImportService {
 
     private final ScheduleRepository scheduleRepository;
     private final TeachingAssignmentRepository teachingAssignmentRepository;
-    private final SemesterRepository semesterRepository;
+    private final TimetableRepository timetableRepository;
     private final ExcelReader excelReader;
 
     @Override
-    public ImportResultDto importFromExcel(MultipartFile file, Long semesterId) {
-        Semester semester = semesterRepository.findById(semesterId)
-            .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+    public ImportResultDto importFromExcel(MultipartFile file, Long timetableId) {
+        Timetable timetable = timetableRepository.findById(timetableId)
+            .orElseThrow(() -> new ResourceNotFoundException("Timetable", "id", timetableId));
+        if (timetable.getStatus() != TimetableStatus.DRAFT) {
+            throw new IllegalArgumentException("Chỉ được import vào thời khóa biểu nháp");
+        }
 
         List<Map<String, String>> rows;
         try (InputStream is = file.getInputStream()) {
@@ -74,29 +78,18 @@ public class ScheduleImportServiceImpl implements ScheduleImportService {
                 TeachingAssignment ta = teachingAssignmentRepository.findById(assignmentId)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phân công giảng dạy với ID: " + assignmentId));
 
-                if (!ta.getSemester().getId().equals(semester.getId())) {
-                    throw new IllegalArgumentException("Phân công giảng dạy này thuộc học kỳ khác (" + ta.getSemester().getName() + ")");
+                if (!ta.getCls().getId().equals(timetable.getCls().getId())) {
+                    throw new IllegalArgumentException("Phân công giảng dạy không thuộc lớp của thời khóa biểu");
                 }
 
-                if (scheduleRepository.findByClassIdAndSemesterIdAndDayOfWeekAndPeriod(
-                        ta.getCls().getId(), semester.getId(), dayOfWeek, period).isPresent()) {
+                if (scheduleRepository.findByTimetableIdAndDayOfWeekAndPeriod(
+                        timetable.getId(), dayOfWeek, period).isPresent()) {
                     throw new IllegalArgumentException(String.format("Trùng lịch học: Lớp %s đã có tiết %d vào thứ %d",
                         ta.getCls().getName(), period, dayOfWeek));
                 }
 
-                if (ta.getTeacher() != null) {
-                    if (scheduleRepository.findTeacherConflict(
-                            ta.getTeacher().getId(), semester.getId(), dayOfWeek, period).isPresent()) {
-                        throw new IllegalArgumentException(String.format("Trùng lịch dạy: Giáo viên %s đã có tiết dạy khác vào tiết %d thứ %d",
-                            ta.getTeacher().getUser().getName(), period, dayOfWeek));
-                    }
-                }
-
-                if (scheduleRepository.findByAssignmentIdAndDayOfWeekAndPeriod(assignmentId, dayOfWeek, period).isPresent()) {
-                    throw new IllegalArgumentException(String.format("Tiết học này cho phân công %d đã tồn tại", assignmentId));
-                }
-
                 Schedule schedule = new Schedule();
+                schedule.setTimetable(timetable);
                 schedule.setAssignment(ta);
                 schedule.setDayOfWeek(dayOfWeek);
                 schedule.setPeriod(period);

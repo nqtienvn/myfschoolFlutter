@@ -5,8 +5,8 @@ import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
 import java.util.List;
 
 public interface TeachingAssignmentService {
-    List<TeachingAssignmentDto> listByClass(Long classId, Long semesterId, AssignmentStatus status);
-    List<TeachingAssignmentDto> listByTeacher(Long teacherId, Long semesterId, AssignmentStatus status);
+    List<TeachingAssignmentDto> listByClass(Long classId, AssignmentStatus status);
+    List<TeachingAssignmentDto> listByTeacher(Long teacherId, AssignmentStatus status);
     TeachingAssignmentDto getById(Long id);
     TeachingAssignmentDetailDto getDetail(Long id);
     TeachingAssignmentDto create(CreateTeachingAssignmentRequest request);

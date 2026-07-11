@@ -39,8 +39,8 @@ public class ImportController {
     @Operation(summary = "Import thời khóa biểu từ file Excel")
     public ResponseEntity<ApiResponse<ImportResultDto>> importSchedules(
             @RequestParam("file") MultipartFile file,
-            @RequestParam Long semesterId) {
-        ImportResultDto response = scheduleImportService.importFromExcel(file, semesterId);
+            @RequestParam Long timetableId) {
+        ImportResultDto response = scheduleImportService.importFromExcel(file, timetableId);
         return ResponseEntity.ok(ApiResponse.success("Nhập thời khóa biểu thành công", response));
     }
 }

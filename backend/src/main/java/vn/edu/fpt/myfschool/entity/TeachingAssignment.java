@@ -18,8 +18,8 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "teaching_assignments",
-       uniqueConstraints = @UniqueConstraint(
-           columnNames = {"class_id", "subject_id", "semester_id"}))
+       uniqueConstraints = @UniqueConstraint(name = "uq_ta_class_subject",
+           columnNames = {"class_id", "subject_id"}))
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class TeachingAssignment extends BaseEntity {
@@ -38,11 +38,6 @@ public class TeachingAssignment extends BaseEntity {
     @JoinColumn(name = "teacher_id", nullable = false,
                 foreignKey = @ForeignKey(name = "fk_ta_teacher"))
     private Teacher teacher;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "semester_id", nullable = false,
-                foreignKey = @ForeignKey(name = "fk_ta_semester"))
-    private Semester semester;
 
     @Column(name = "effective_from", nullable = false)
     private LocalDate effectiveFrom;

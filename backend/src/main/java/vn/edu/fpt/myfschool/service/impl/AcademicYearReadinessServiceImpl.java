@@ -21,12 +21,14 @@ import java.util.List;
 public class AcademicYearReadinessServiceImpl implements AcademicYearReadinessService {
     private final AcademicYearRepository yearRepository;
     private final ClassRepository classRepository;
+    private final SemesterRepository semesterRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final HomeroomAssignmentRepository homeroomRepository;
     private final TeachingAssignmentRepository teachingRepository;
     private final AcademicYearSubjectRepository yearSubjectRepository;
     private final AcademicYearShiftRepository yearShiftRepository;
     private final AcademicYearPeriodRepository yearPeriodRepository;
+    private final TimetableRepository timetableRepository;
 
     @Override
     public AcademicYearReadinessDto check(Long yearId) {
@@ -68,6 +70,20 @@ public class AcademicYearReadinessServiceImpl implements AcademicYearReadinessSe
             .values().stream().filter(items -> items.stream().map(item -> item.getTeacher().getId()).distinct().count() > 1).count();
         checks.add(check("DUPLICATES", "Không trùng phân công", duplicates == 0,
             duplicates == 0 ? "Không có lớp/môn bị phân cho nhiều giáo viên trong cùng năm học." : "Có " + duplicates + " lớp/môn đang có nhiều giáo viên."));
+
+        var semesters = semesterRepository.findByAcademicYearId(yearId);
+        List<String> missingTimetables = new ArrayList<>();
+        for (SchoolClass cls : classes) {
+            semesters.stream()
+                .filter(semester -> !timetableRepository.existsByClsIdAndSemesterIdAndStatus(
+                    cls.getId(), semester.getId(), vn.edu.fpt.myfschool.common.enums.TimetableStatus.ACTIVE))
+                .forEach(semester -> missingTimetables.add(cls.getName() + " – " + semester.getName()));
+        }
+        checks.add(check("TIMETABLES", "Thời khóa biểu", !classes.isEmpty() && !semesters.isEmpty() && missingTimetables.isEmpty(),
+            missingTimetables.isEmpty() ? "Mỗi lớp đã có thời khóa biểu được phát hành cho các học kỳ."
+                : "Còn thiếu " + missingTimetables.size() + " thời khóa biểu: "
+                    + String.join(", ", missingTimetables.stream().limit(5).toList())
+                    + (missingTimetables.size() > 5 ? "…" : ".")));
         return new AcademicYearReadinessDto(yearId, checks.stream().allMatch(ReadinessCheckDto::passed), checks);
     }
 

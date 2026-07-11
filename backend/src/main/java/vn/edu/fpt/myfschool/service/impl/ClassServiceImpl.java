@@ -74,13 +74,12 @@ public class ClassServiceImpl implements ClassService {
 
         // Teaching assignments
         List<TeachingAssignmentDto> assignments = teachingAssignmentRepository
-            .findByClsIdAndSemesterIdAndStatus(classId, null, AssignmentStatus.ACTIVE)
+            .findByClsIdAndStatus(classId, AssignmentStatus.ACTIVE)
             .stream().map(ta -> new TeachingAssignmentDto(
                 ta.getId(),
                 ta.getCls().getId(), ta.getCls().getName(), ta.getCls().getGradeLevel(),
                 ta.getSubject().getId(), ta.getSubject().getName(), ta.getSubject().getCode(),
                 ta.getTeacher().getId(), ta.getTeacher().getUser().getName(), ta.getTeacher().getEmployeeCode(),
-                ta.getSemester().getId(), ta.getSemester().getName(),
                 ta.getEffectiveFrom(), ta.getEffectiveTo(),
                 ta.getStatus()))
             .collect(Collectors.toList());
