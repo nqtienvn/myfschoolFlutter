@@ -52,6 +52,7 @@ class ScheduleLesson {
     required this.teacherName,
     required this.dayOfWeek,
     required this.period,
+    required this.periodName,
     required this.room,
     required this.shift,
   });
@@ -64,6 +65,7 @@ class ScheduleLesson {
   final String teacherName;
   final int dayOfWeek;
   final int period;
+  final String periodName;
   final String room;
   final String shift;
 }

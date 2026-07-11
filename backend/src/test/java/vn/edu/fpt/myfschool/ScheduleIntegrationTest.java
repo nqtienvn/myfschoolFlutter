@@ -14,8 +14,7 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
 
     private String schedJson(long timetableId, int day, int period, String shift) {
         return "{\"timetableId\":" + timetableId + ",\"assignmentId\":" + testTeachingAssignment.getId()
-            + ",\"dayOfWeek\":" + day + ",\"period\":" + period
-            + ",\"shift\":\"" + shift + "\"}";
+            + ",\"dayOfWeek\":" + day + ",\"periodId\":" + testPeriods.get(period - 1).getId() + "}";
     }
 
     private long createDraft(String token, String effectiveFrom, Long copyFrom) throws Exception {
@@ -160,6 +159,7 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.dayOfWeek").value(2))
             .andExpect(jsonPath("$.data.period").value(1))
+            .andExpect(jsonPath("$.data.periodName").value("Tiết 1"))
             .andExpect(jsonPath("$.data.room").value(testClass.getName()));
     }
 
@@ -178,6 +178,57 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(schedJson(timetableId, 3, 2, "MORNING")))
+            .andExpect(status().isConflict());
+    }
+
+    @Test
+    void create_schedule_rejects_period_outside_class_academic_year() throws Exception {
+        var otherYear = new vn.edu.fpt.myfschool.entity.AcademicYear();
+        otherYear.setName("2027-2028-isolation");
+        otherYear.setStartDate(java.time.LocalDate.of(2027, 8, 1));
+        otherYear.setEndDate(java.time.LocalDate.of(2028, 5, 31));
+        otherYear.setStatus(vn.edu.fpt.myfschool.common.enums.AcademicYearStatus.DRAFT);
+        otherYear = academicYearRepository.save(otherYear);
+        var foreignPeriod = new vn.edu.fpt.myfschool.entity.Period();
+        foreignPeriod.setName("Tiết ngoài năm");
+        foreignPeriod.setOrder(99);
+        foreignPeriod.setShift(testMorningShift);
+        foreignPeriod = periodRepository.save(foreignPeriod);
+        var otherYearPeriod = new vn.edu.fpt.myfschool.entity.AcademicYearPeriod();
+        otherYearPeriod.setAcademicYear(otherYear);
+        otherYearPeriod.setPeriod(foreignPeriod);
+        academicYearPeriodRepository.save(otherYearPeriod);
+        String token = loginAsAdmin();
+        long timetableId = createDraft(token, "2026-09-01", null);
+        String body = "{\"timetableId\":" + timetableId + ",\"assignmentId\":"
+            + testTeachingAssignment.getId() + ",\"dayOfWeek\":2,\"periodId\":" + foreignPeriod.getId() + "}";
+
+        mockMvc.perform(post("/api/schedules")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isConflict());
+    }
+
+    @Test
+    void academic_year_config_cannot_remove_period_used_by_timetable() throws Exception {
+        String token = loginAsAdmin();
+        long timetableId = createDraft(token, "2026-09-01", null);
+        mockMvc.perform(post("/api/schedules")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(schedJson(timetableId, 2, 1, "MORNING")))
+            .andExpect(status().isOk());
+
+        var config = objectMapper.createObjectNode();
+        config.putArray("subjectIds");
+        config.putArray("shiftIds").add(testMorningShift.getId()).add(testAfternoonShift.getId());
+        var periodIds = config.putArray("periodIds");
+        testPeriods.stream().skip(1).forEach(period -> periodIds.add(period.getId()));
+
+        mockMvc.perform(put("/api/academic-years/" + testAcademicYear.getId() + "/master-data")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(config.toString()))
             .andExpect(status().isConflict());
     }
 
@@ -218,7 +269,7 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
                 .param("classId", testClass.getId().toString())
                 .param("semesterId", testSemester.getId().toString())
                 .param("dayOfWeek", "6")
-                .param("shift", "MORNING"))
+                .param("shiftId", testMorningShift.getId().toString()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data").isArray())
             .andExpect(jsonPath("$.data.length()").value(4));

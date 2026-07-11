@@ -43,6 +43,11 @@ public class TimetableServiceImpl implements TimetableService {
     @Override
     @Transactional(readOnly = true)
     public List<TimetableDto> list(Long classId, Long semesterId) {
+        SchoolClass cls = classRepository.findById(classId)
+            .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
+        Semester semester = semesterRepository.findById(semesterId)
+            .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+        requireSameYear(cls, semester);
         return timetableRepository.findByClsIdAndSemesterIdOrderByVersionDesc(classId, semesterId)
             .stream().map(this::toDto).toList();
     }
@@ -186,12 +191,12 @@ public class TimetableServiceImpl implements TimetableService {
             .flatMap(item -> scheduleRepository.findByTimetableIdOrderByDayOfWeekAscPeriodAsc(item.getId()).stream()).toList();
         for (Schedule slot : slots) {
             boolean teacherConflict = otherSlots.stream().anyMatch(other ->
-                other.getDayOfWeek().equals(slot.getDayOfWeek()) && other.getPeriod().equals(slot.getPeriod())
+                other.getDayOfWeek().equals(slot.getDayOfWeek()) && samePeriod(other, slot)
                     && other.getAssignment().getTeacher().getId().equals(slot.getAssignment().getTeacher().getId()));
             if (teacherConflict) throw new ConflictException("Giáo viên bị trùng lịch tại " + dayLabel(slot.getDayOfWeek()) + ", tiết " + slot.getPeriod());
             if (slot.getRoom() != null && !slot.getRoom().isBlank()) {
                 boolean roomConflict = otherSlots.stream().anyMatch(other ->
-                    other.getDayOfWeek().equals(slot.getDayOfWeek()) && other.getPeriod().equals(slot.getPeriod())
+                    other.getDayOfWeek().equals(slot.getDayOfWeek()) && samePeriod(other, slot)
                         && slot.getRoom().equalsIgnoreCase(other.getRoom()));
                 if (roomConflict) throw new ConflictException("Phòng " + slot.getRoom() + " bị trùng tại " + dayLabel(slot.getDayOfWeek()) + ", tiết " + slot.getPeriod());
             }
@@ -214,6 +219,10 @@ public class TimetableServiceImpl implements TimetableService {
         String body = "Thời khóa biểu đã được phát hành và áp dụng từ ngày " + date + ".";
         recipientIds.forEach(userId ->
             notificationService.createNotification(userId, title, body, "Thời khóa biểu"));
+    }
+
+    private boolean samePeriod(Schedule first, Schedule second) {
+        return first.getPeriodRef().getId().equals(second.getPeriodRef().getId());
     }
 
     private void requireSameYear(SchoolClass cls, Semester semester) {

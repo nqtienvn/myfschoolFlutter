@@ -18,7 +18,6 @@ import vn.edu.fpt.myfschool.common.dto.ApiResponse;
 import vn.edu.fpt.myfschool.common.dto.ClassScheduleDto;
 import vn.edu.fpt.myfschool.common.dto.ScheduleDto;
 import vn.edu.fpt.myfschool.common.dto.ScheduleRequest;
-import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.ScheduleService;
 
@@ -96,10 +95,10 @@ public class ScheduleController {
     @GetMapping("/available-periods")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Tiết trống")
-    public ResponseEntity<ApiResponse<List<Integer>>> getAvailablePeriods(
+    public ResponseEntity<ApiResponse<List<vn.edu.fpt.myfschool.common.dto.PeriodDto>>> getAvailablePeriods(
             @RequestParam Long classId, @RequestParam Long semesterId,
-            @RequestParam Integer dayOfWeek, @RequestParam Shift shift) {
+            @RequestParam Integer dayOfWeek, @RequestParam Long shiftId) {
         return ResponseEntity.ok(ApiResponse.success(
-                scheduleService.getAvailablePeriods(classId, semesterId, dayOfWeek, shift)));
+                scheduleService.getAvailablePeriods(classId, semesterId, dayOfWeek, shiftId)));
     }
 }

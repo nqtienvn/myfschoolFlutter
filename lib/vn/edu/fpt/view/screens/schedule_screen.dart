@@ -291,7 +291,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     ),
                   ),
                   Text(
-                    '${lesson.period}',
+                    lesson.periodName,
                     style: TextStyle(
                       fontSize: 20,
                       color: color,

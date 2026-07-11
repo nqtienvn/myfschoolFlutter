@@ -9,9 +9,12 @@ import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.enums.TimetableStatus;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.common.util.ExcelReader;
+import vn.edu.fpt.myfschool.entity.Period;
 import vn.edu.fpt.myfschool.entity.Schedule;
 import vn.edu.fpt.myfschool.entity.TeachingAssignment;
 import vn.edu.fpt.myfschool.entity.Timetable;
+import vn.edu.fpt.myfschool.repository.AcademicYearPeriodRepository;
+import vn.edu.fpt.myfschool.repository.PeriodRepository;
 import vn.edu.fpt.myfschool.repository.ScheduleRepository;
 import vn.edu.fpt.myfschool.repository.TeachingAssignmentRepository;
 import vn.edu.fpt.myfschool.repository.TimetableRepository;
@@ -20,6 +23,7 @@ import vn.edu.fpt.myfschool.service.ScheduleImportService;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service("scheduleImportService")
@@ -30,6 +34,8 @@ public class ScheduleImportServiceImpl implements ScheduleImportService {
     private final ScheduleRepository scheduleRepository;
     private final TeachingAssignmentRepository teachingAssignmentRepository;
     private final TimetableRepository timetableRepository;
+    private final PeriodRepository periodRepository;
+    private final AcademicYearPeriodRepository academicYearPeriodRepository;
     private final ExcelReader excelReader;
 
     @Override
@@ -47,62 +53,56 @@ public class ScheduleImportServiceImpl implements ScheduleImportService {
             return new ImportResultDto(0, 0, 0, List.of("Không thể đọc tệp Excel: " + e.getMessage()));
         }
 
-        int success = 0, failed = 0;
+        int success = 0;
+        int failed = 0;
         List<String> errors = new ArrayList<>();
-
-        for (int i = 0; i < rows.size(); i++) {
-            Map<String, String> row = rows.get(i);
-            int rowNum = i + 2;
+        for (int index = 0; index < rows.size(); index++) {
+            Map<String, String> row = rows.get(index);
+            int rowNumber = index + 2;
             try {
-                String assignmentIdStr = row.get("assignmentId");
-                String dayOfWeekStr = row.get("dayOfWeek");
-                String periodStr = row.get("period");
-                String shiftStr = row.getOrDefault("shift", "MORNING").trim();
+                Long assignmentId = requiredLong(row, "assignmentId", "Mã phân công");
+                Integer dayOfWeek = requiredLong(row, "dayOfWeek", "Thứ").intValue();
+                Long periodId = requiredLong(row, "periodId", "Mã tiết");
 
-                if (assignmentIdStr == null || assignmentIdStr.trim().isEmpty()) {
-                    throw new IllegalArgumentException("Mã phân công (assignmentId) trống");
+                TeachingAssignment assignment = teachingAssignmentRepository.findById(assignmentId)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phân công ID: " + assignmentId));
+                if (!assignment.getCls().getId().equals(timetable.getCls().getId())) {
+                    throw new IllegalArgumentException("Phân công không thuộc lớp của thời khóa biểu");
                 }
-                if (dayOfWeekStr == null || dayOfWeekStr.trim().isEmpty()) {
-                    throw new IllegalArgumentException("Thứ (dayOfWeek) trống");
+                Period period = periodRepository.findById(periodId)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tiết học ID: " + periodId));
+                Long academicYearId = timetable.getCls().getAcademicYear().getId();
+                if (!academicYearPeriodRepository.existsByAcademicYearIdAndPeriodId(academicYearId, periodId)) {
+                    throw new IllegalArgumentException("Tiết học không thuộc cấu hình năm học của lớp");
                 }
-                if (periodStr == null || periodStr.trim().isEmpty()) {
-                    throw new IllegalArgumentException("Tiết (period) trống");
-                }
-
-                Long assignmentId = Long.parseLong(assignmentIdStr.trim());
-                Integer dayOfWeek = Integer.parseInt(dayOfWeekStr.trim());
-                Integer period = Integer.parseInt(periodStr.trim());
-                Shift shift = "AFTERNOON".equalsIgnoreCase(shiftStr) ? Shift.AFTERNOON : Shift.MORNING;
-
-                TeachingAssignment ta = teachingAssignmentRepository.findById(assignmentId)
-                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phân công giảng dạy với ID: " + assignmentId));
-
-                if (!ta.getCls().getId().equals(timetable.getCls().getId())) {
-                    throw new IllegalArgumentException("Phân công giảng dạy không thuộc lớp của thời khóa biểu");
-                }
-
-                if (scheduleRepository.findByTimetableIdAndDayOfWeekAndPeriod(
-                        timetable.getId(), dayOfWeek, period).isPresent()) {
-                    throw new IllegalArgumentException(String.format("Trùng lịch học: Lớp %s đã có tiết %d vào thứ %d",
-                        ta.getCls().getName(), period, dayOfWeek));
+                if (scheduleRepository.findByTimetableIdAndDayOfWeekAndPeriodRefId(
+                        timetable.getId(), dayOfWeek, periodId).isPresent()) {
+                    throw new IllegalArgumentException("Lớp đã có môn tại tiết này");
                 }
 
                 Schedule schedule = new Schedule();
                 schedule.setTimetable(timetable);
-                schedule.setAssignment(ta);
+                schedule.setAssignment(assignment);
                 schedule.setDayOfWeek(dayOfWeek);
-                schedule.setPeriod(period);
+                schedule.setPeriod(period.getOrder());
+                schedule.setPeriodRef(period);
                 schedule.setRoom(timetable.getCls().getName());
-                schedule.setShift(shift);
+                schedule.setShift(Shift.valueOf(period.getShift().getCode().toUpperCase(Locale.ROOT)));
                 scheduleRepository.save(schedule);
-
                 success++;
             } catch (Exception e) {
                 failed++;
-                errors.add("Dòng " + rowNum + ": " + e.getMessage());
+                errors.add("Dòng " + rowNumber + ": " + e.getMessage());
             }
         }
-
         return new ImportResultDto(rows.size(), success, failed, errors);
+    }
+
+    private Long requiredLong(Map<String, String> row, String key, String label) {
+        String value = row.get(key);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(label + " (" + key + ") trống");
+        }
+        return Long.parseLong(value.trim());
     }
 }

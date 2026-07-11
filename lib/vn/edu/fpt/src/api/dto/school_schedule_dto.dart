@@ -50,6 +50,7 @@ class SchoolScheduleDto {
             teacherName: requireField<String>(json, 'teacherName'),
             dayOfWeek: requireField<int>(json, 'dayOfWeek'),
             period: requireField<int>(json, 'period'),
+            periodName: requireField<String>(json, 'periodName'),
             room: json['room'] is String ? json['room'] as String : '',
             shift: requireField<String>(json, 'shift'),
           );

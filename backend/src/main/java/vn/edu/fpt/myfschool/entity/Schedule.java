@@ -17,7 +17,7 @@ import vn.edu.fpt.myfschool.common.enums.Shift;
 @Entity
 @Table(name = "schedules",
        uniqueConstraints = @UniqueConstraint(name = "uq_schedule_timetable_slot",
-           columnNames = {"timetable_id", "day_of_week", "period"}))
+           columnNames = {"timetable_id", "day_of_week", "period_id"}))
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class Schedule extends BaseEntity {
@@ -39,7 +39,7 @@ public class Schedule extends BaseEntity {
     private Integer period;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "period_id",
+    @JoinColumn(name = "period_id", nullable = false,
                 foreignKey = @ForeignKey(name = "fk_sch_period"))
     private Period periodRef;
 

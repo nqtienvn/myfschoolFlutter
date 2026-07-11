@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { getClasses } from '../api/class';
 import { getSemesters } from '../api/semester';
 import { getTeachingAssignments } from '../api/teachingAssignment';
+import { getAcademicYearMasterData } from '../api/academicYearConfig';
+import { getPeriods, getShifts } from '../api/masterData';
 import { createScheduleSlot, deleteScheduleSlot, getTimetableSlots, type ScheduleSlotItem } from '../api/schedule';
 import {
   createTimetable,
@@ -22,6 +24,8 @@ interface AssignmentItem {
   teacherId: number;
   teacherName: string;
 }
+interface ShiftItem { id: number; name: string; code: 'MORNING' | 'AFTERNOON'; order: number; }
+interface PeriodItem { id: number; name: string; order: number; shiftId: number; shiftName: string; shiftCode: 'MORNING' | 'AFTERNOON'; shiftOrder: number; }
 
 const DAYS = [
   { value: 2, label: 'Thứ 2' },
@@ -32,8 +36,6 @@ const DAYS = [
   { value: 7, label: 'Thứ 7' },
   { value: 1, label: 'Chủ nhật' },
 ];
-const PERIODS = Array.from({ length: 10 }, (_, index) => index + 1);
-
 export default function TimetablesPage({ selectedYearId, selectedSemesterId }: { selectedYearId?: string; selectedSemesterId?: string }) {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [semester, setSemester] = useState<SemesterItem | null>(null);
@@ -41,6 +43,7 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
   const [classId, setClassId] = useState('');
   const [versions, setVersions] = useState<TimetableItem[]>([]);
   const [assignments, setAssignments] = useState<AssignmentItem[]>([]);
+  const [periods, setPeriods] = useState<PeriodItem[]>([]);
   const [slots, setSlots] = useState<ScheduleSlotItem[]>([]);
   const [draftId, setDraftId] = useState<number | null>(null);
   const [publishDate, setPublishDate] = useState('');
@@ -54,6 +57,7 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
     setClassId('');
     setVersions([]);
     setAssignments([]);
+    setPeriods([]);
     setSlots([]);
     setDraftId(null);
     setCellSubjects({});
@@ -62,8 +66,17 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
     Promise.all([
       getClasses({ academicYearId: selectedYearId, page: 0, size: 500 }) as any,
       getSemesters(selectedYearId) as any,
-    ]).then(([page, semesterList]) => {
+      getAcademicYearMasterData(selectedYearId),
+      getPeriods() as Promise<Omit<PeriodItem, 'shiftCode' | 'shiftOrder'>[]>,
+      getShifts() as Promise<ShiftItem[]>,
+    ]).then(([page, semesterList, yearConfig, periodCatalog, shiftCatalog]) => {
       setClasses(page.content || []);
+      const appliedIds = new Set(yearConfig.periodIds || []);
+      const shiftMap = new Map(shiftCatalog.map(shift => [shift.id, shift]));
+      setPeriods(periodCatalog
+        .filter(period => appliedIds.has(period.id))
+        .map(period => ({ ...period, shiftCode: shiftMap.get(period.shiftId)?.code || 'MORNING', shiftOrder: shiftMap.get(period.shiftId)?.order || 0 }))
+        .sort((first, second) => first.shiftOrder - second.shiftOrder || first.order - second.order));
       const selected = (semesterList || []).find((item: SemesterItem) => String(item.id) === selectedSemesterId) || null;
       setSemester(selected);
       setPublishDate(selected ? firstScheduleDate(selected) : '');
@@ -103,7 +116,7 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
     assignments.forEach(item => unique.set(item.subjectId, item.subjectName));
     return Array.from(unique, ([id, name]) => ({ id, name }));
   }, [assignments]);
-  const slotsByCell = useMemo(() => new Map(slots.map(slot => [`${slot.dayOfWeek}-${slot.period}`, slot])), [slots]);
+  const slotsByCell = useMemo(() => new Map(slots.map(slot => [`${slot.dayOfWeek}-${slot.periodId}`, slot])), [slots]);
 
   async function ensureDraft() {
     if (draftId) return { id: draftId, slots };
@@ -121,40 +134,39 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
     return { id: created.id, slots: copiedSlots };
   }
 
-  async function saveCell(dayOfWeek: number, period: number, assignmentId: number) {
-    const key = `${dayOfWeek}-${period}`;
+  async function saveCell(dayOfWeek: number, period: PeriodItem, assignmentId: number) {
+    const key = `${dayOfWeek}-${period.id}`;
     setSavingCell(key); setError(''); setMessage('');
     let removed: ScheduleSlotItem | undefined;
     let editableId: number | undefined;
     try {
       const editable = await ensureDraft();
       editableId = editable.id;
-      removed = editable.slots.find(slot => slot.dayOfWeek === dayOfWeek && slot.period === period);
+      removed = editable.slots.find(slot => slot.dayOfWeek === dayOfWeek && slot.periodId === period.id);
       if (removed) await deleteScheduleSlot(removed.id);
       await createScheduleSlot({
         timetableId: editable.id,
         assignmentId,
         dayOfWeek,
-        period,
-        shift: period <= 5 ? 'MORNING' : 'AFTERNOON',
+        periodId: period.id,
       });
       setSlots(await getTimetableSlots(editable.id));
       setCellSubjects(current => { const next = { ...current }; delete next[key]; return next; });
     } catch (cause: any) {
       if (removed && editableId) {
-        await createScheduleSlot({ timetableId: editableId, assignmentId: removed.assignmentId, dayOfWeek, period, shift: removed.shift }).catch(() => undefined);
+        await createScheduleSlot({ timetableId: editableId, assignmentId: removed.assignmentId, dayOfWeek, periodId: removed.periodId }).catch(() => undefined);
         setSlots(await getTimetableSlots(editableId).catch(() => slots));
       }
       setError(cause.message || 'Không thể lưu tiết học.');
     } finally { setSavingCell(''); }
   }
 
-  async function clearCell(dayOfWeek: number, period: number) {
-    const key = `${dayOfWeek}-${period}`;
+  async function clearCell(dayOfWeek: number, period: PeriodItem) {
+    const key = `${dayOfWeek}-${period.id}`;
     setSavingCell(key); setError('');
     try {
       const editable = await ensureDraft();
-      const slot = editable.slots.find(item => item.dayOfWeek === dayOfWeek && item.period === period);
+      const slot = editable.slots.find(item => item.dayOfWeek === dayOfWeek && item.periodId === period.id);
       if (slot) await deleteScheduleSlot(slot.id);
       setSlots(await getTimetableSlots(editable.id));
       setCellSubjects(current => { const next = { ...current }; delete next[key]; return next; });
@@ -215,8 +227,9 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
         {draft && <span className="status-badge preparing">Bản nháp · v{draft.version}</span>}
       </div>
       {assignments.length === 0 && <div className="notice warning">Lớp này chưa có phân công môn học và giáo viên. Hãy tạo phân công giảng dạy trước khi xếp tiết.</div>}
-      <div className="timetable-board-wrap"><table className="timetable-board inline-editor"><thead><tr><th className="period-heading">Tiết</th>{DAYS.map(day => <th key={day.value}>{day.label}</th>)}</tr></thead><tbody>{PERIODS.map(period => <tr key={period} className={period === 6 ? 'afternoon-start' : ''}><th><span>{period}</span><small>{period <= 5 ? 'Sáng' : 'Chiều'}</small></th>{DAYS.map(day => {
-        const key = `${day.value}-${period}`;
+      {periods.length === 0 && <div className="notice warning">Năm học này chưa được cấu hình buổi học và tiết học.</div>}
+      <div className="timetable-board-wrap"><table className="timetable-board inline-editor"><thead><tr><th className="period-heading">Tiết</th>{DAYS.map(day => <th key={day.value}>{day.label}</th>)}</tr></thead><tbody>{periods.map((period, periodIndex) => <tr key={period.id} className={periodIndex > 0 && periods[periodIndex - 1].shiftId !== period.shiftId ? 'afternoon-start' : ''}><th><span>{period.name}</span><small>{period.shiftName}</small></th>{DAYS.map(day => {
+        const key = `${day.value}-${period.id}`;
         const slot = slotsByCell.get(key);
         const currentAssignment = slot ? assignments.find(item => item.id === slot.assignmentId) : undefined;
         const subjectId = cellSubjects[key] ?? (currentAssignment ? String(currentAssignment.subjectId) : '');
@@ -224,10 +237,10 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
         const teacherValue = currentAssignment && String(currentAssignment.subjectId) === subjectId ? String(currentAssignment.id) : '';
         const disabled = !!scheduled || savingCell === key || assignments.length === 0;
         return <td key={day.value}><div className={`schedule-cell inline-selects ${slot ? 'filled' : ''} ${savingCell === key ? 'saving' : ''}`}>
-          <select aria-label={`Môn học ${day.label} tiết ${period}`} disabled={disabled} value={subjectId} onChange={event => setCellSubjects(current => ({ ...current, [key]: event.target.value }))}>
+          <select aria-label={`Môn học ${day.label} ${period.name}`} disabled={disabled} value={subjectId} onChange={event => setCellSubjects(current => ({ ...current, [key]: event.target.value }))}>
             <option value="">Môn học</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
           </select>
-          <select aria-label={`Giáo viên ${day.label} tiết ${period}`} disabled={disabled || !subjectId} value={teacherValue} onChange={event => event.target.value && saveCell(day.value, period, Number(event.target.value))}>
+          <select aria-label={`Giáo viên ${day.label} ${period.name}`} disabled={disabled || !subjectId} value={teacherValue} onChange={event => event.target.value && saveCell(day.value, period, Number(event.target.value))}>
             <option value="">Giáo viên</option>{teacherAssignments.map(item => <option key={item.id} value={item.id}>{item.teacherName}</option>)}
           </select>
           {slot && <button type="button" className="clear-cell-button" title="Xóa tiết" disabled={disabled} onClick={() => clearCell(day.value, period)}>×</button>}

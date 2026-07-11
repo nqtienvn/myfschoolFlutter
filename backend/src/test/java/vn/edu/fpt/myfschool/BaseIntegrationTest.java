@@ -11,8 +11,12 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.enums.*;
 import vn.edu.fpt.myfschool.entity.AcademicYear;
+import vn.edu.fpt.myfschool.entity.AcademicYearPeriod;
+import vn.edu.fpt.myfschool.entity.AcademicYearShift;
 import vn.edu.fpt.myfschool.entity.Enrollment;
 import vn.edu.fpt.myfschool.entity.Parent;
+import vn.edu.fpt.myfschool.entity.Period;
+import vn.edu.fpt.myfschool.entity.SchoolShift;
 import vn.edu.fpt.myfschool.entity.SchoolClass;
 import vn.edu.fpt.myfschool.entity.Semester;
 import vn.edu.fpt.myfschool.entity.Student;
@@ -27,6 +31,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -50,6 +56,10 @@ public abstract class BaseIntegrationTest {
     @Autowired protected StudentGuardianRepository studentGuardianRepository;
     @Autowired protected EnrollmentRepository enrollmentRepository;
     @Autowired protected TeachingAssignmentRepository teachingAssignmentRepository;
+    @Autowired protected SchoolShiftRepository schoolShiftRepository;
+    @Autowired protected PeriodRepository periodRepository;
+    @Autowired protected AcademicYearShiftRepository academicYearShiftRepository;
+    @Autowired protected AcademicYearPeriodRepository academicYearPeriodRepository;
     @Autowired protected ConversationRepository conversationRepository;
     @Autowired protected ConversationParticipantRepository conversationParticipantRepository;
     @Autowired protected MessageRepository messageRepository;
@@ -68,6 +78,9 @@ public abstract class BaseIntegrationTest {
     protected Student testStudent3;
     protected Parent testParent;
     protected User testAdminUser;
+    protected SchoolShift testMorningShift;
+    protected SchoolShift testAfternoonShift;
+    protected List<Period> testPeriods;
 
     @BeforeEach
     void setUpTestData() {
@@ -78,6 +91,24 @@ public abstract class BaseIntegrationTest {
         testAcademicYear.setEndDate(LocalDate.of(2027, 5, 31));
         testAcademicYear.setStatus(AcademicYearStatus.ACTIVE);
         testAcademicYear = academicYearRepository.save(testAcademicYear);
+
+        testMorningShift = createShift("Sáng", "MORNING", 1);
+        testAfternoonShift = createShift("Chiều", "AFTERNOON", 2);
+        applyShift(testMorningShift);
+        applyShift(testAfternoonShift);
+        testPeriods = new ArrayList<>();
+        for (int order = 1; order <= 10; order++) {
+            Period period = new Period();
+            period.setName("Tiết " + order);
+            period.setOrder(order);
+            period.setShift(order <= 5 ? testMorningShift : testAfternoonShift);
+            period = periodRepository.save(period);
+            testPeriods.add(period);
+            AcademicYearPeriod applied = new AcademicYearPeriod();
+            applied.setAcademicYear(testAcademicYear);
+            applied.setPeriod(period);
+            academicYearPeriodRepository.save(applied);
+        }
 
         // Class
         testClass = new SchoolClass();
@@ -196,6 +227,21 @@ public abstract class BaseIntegrationTest {
             sg.setRelationship(Relationship.FATHER);
             studentGuardianRepository.save(sg);
         }
+    }
+
+    private SchoolShift createShift(String name, String code, int order) {
+        SchoolShift shift = new SchoolShift();
+        shift.setName(name);
+        shift.setCode(code);
+        shift.setOrder(order);
+        return schoolShiftRepository.save(shift);
+    }
+
+    private void applyShift(SchoolShift shift) {
+        AcademicYearShift applied = new AcademicYearShift();
+        applied.setAcademicYear(testAcademicYear);
+        applied.setShift(shift);
+        academicYearShiftRepository.save(applied);
     }
 
     protected String registerUser(String phone, String password, String name, String role,

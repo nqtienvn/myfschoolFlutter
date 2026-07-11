@@ -1,7 +1,6 @@
 package vn.edu.fpt.myfschool.service;
 
 import vn.edu.fpt.myfschool.common.dto.*;
-import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 
 import java.util.*;
@@ -22,5 +21,5 @@ public interface ScheduleService {
 
     void deleteSchedule(Long scheduleId);
 
-    List<Integer> getAvailablePeriods(Long classId, Long semesterId, Integer dayOfWeek, Shift shift);
+    List<PeriodDto> getAvailablePeriods(Long classId, Long semesterId, Integer dayOfWeek, Long shiftId);
 }

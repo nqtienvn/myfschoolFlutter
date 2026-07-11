@@ -24,6 +24,7 @@ void main() {
               'teacherName': 'Nguyễn Văn A',
               'dayOfWeek': 2,
               'period': 1,
+              'periodName': 'Tiết 1',
               'room': '12A',
               'shift': 'MORNING',
             },
@@ -41,6 +42,7 @@ void main() {
     expect(lesson.subjectName, 'Toán');
     expect(lesson.teacherName, 'Nguyễn Văn A');
     expect(lesson.room, '12A');
+    expect(lesson.periodName, 'Tiết 1');
   });
 
   test('returns an empty day when backend omits that weekday', () {

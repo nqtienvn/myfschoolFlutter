@@ -33,6 +33,9 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final StudentRepository studentRepository;
     private final ParentRepository parentRepository;
     private final StudentGuardianRepository studentGuardianRepository;
+    private final PeriodRepository periodRepository;
+    private final AcademicYearPeriodRepository academicYearPeriodRepository;
+    private final AcademicYearShiftRepository academicYearShiftRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -41,6 +44,7 @@ public class ScheduleServiceImpl implements ScheduleService {
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
         Semester semester = semesterRepository.findById(semesterId)
             .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+        requireSameAcademicYear(cls, semester);
         Timetable timetable = resolveTimetable(classId, semesterId, date);
         List<Schedule> schedules = timetable == null ? List.of()
             : scheduleRepository.findByTimetableIdOrderByDayOfWeekAscPeriodAsc(timetable.getId());
@@ -109,8 +113,17 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (!assignment.getCls().getId().equals(timetable.getCls().getId())) {
             throw new ConflictException("Phân công không thuộc lớp của thời khóa biểu");
         }
-        if (scheduleRepository.findByTimetableIdAndDayOfWeekAndPeriod(
-                timetable.getId(), request.dayOfWeek(), request.period()).isPresent()) {
+        Period period = periodRepository.findById(request.periodId())
+            .orElseThrow(() -> new ResourceNotFoundException("Period", "id", request.periodId()));
+        Long academicYearId = timetable.getCls().getAcademicYear().getId();
+        if (!academicYearPeriodRepository.existsByAcademicYearIdAndPeriodId(academicYearId, period.getId())) {
+            throw new ConflictException("Tiết học chưa được áp dụng cho năm học của lớp");
+        }
+        if (!academicYearShiftRepository.existsByAcademicYearIdAndShiftId(academicYearId, period.getShift().getId())) {
+            throw new ConflictException("Buổi học chưa được áp dụng cho năm học của lớp");
+        }
+        if (scheduleRepository.findByTimetableIdAndDayOfWeekAndPeriodRefId(
+                timetable.getId(), request.dayOfWeek(), period.getId()).isPresent()) {
             throw new ConflictException("Lớp đã có môn học tại khung giờ này");
         }
 
@@ -118,9 +131,10 @@ public class ScheduleServiceImpl implements ScheduleService {
         schedule.setTimetable(timetable);
         schedule.setAssignment(assignment);
         schedule.setDayOfWeek(request.dayOfWeek());
-        schedule.setPeriod(request.period());
+        schedule.setPeriod(period.getOrder());
+        schedule.setPeriodRef(period);
         schedule.setRoom(timetable.getCls().getName());
-        schedule.setShift(request.shift());
+        schedule.setShift(resolveShift(period));
         return toDto(scheduleRepository.save(schedule));
     }
 
@@ -146,18 +160,29 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Integer> getAvailablePeriods(Long classId, Long semesterId, Integer dayOfWeek, Shift shift) {
+    public List<PeriodDto> getAvailablePeriods(Long classId, Long semesterId, Integer dayOfWeek, Long shiftId) {
+        SchoolClass cls = classRepository.findById(classId)
+            .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
+        Semester semester = semesterRepository.findById(semesterId)
+            .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+        requireSameAcademicYear(cls, semester);
+        if (!academicYearShiftRepository.existsByAcademicYearIdAndShiftId(cls.getAcademicYear().getId(), shiftId)) {
+            throw new ConflictException("Buổi học chưa được áp dụng cho năm học của lớp");
+        }
         Timetable timetable = timetableRepository
             .findFirstByClsIdAndSemesterIdAndStatusOrderByVersionDesc(classId, semesterId, TimetableStatus.DRAFT)
             .or(() -> timetableRepository.findFirstByClsIdAndSemesterIdAndStatusOrderByVersionDesc(
                 classId, semesterId, TimetableStatus.ACTIVE)).orElse(null);
         List<Schedule> existing = timetable == null ? List.of()
             : scheduleRepository.findByTimetableIdOrderByDayOfWeekAscPeriodAsc(timetable.getId());
-        Set<Integer> occupied = existing.stream()
-            .filter(item -> item.getDayOfWeek().equals(dayOfWeek) && item.getShift() == shift)
-            .map(Schedule::getPeriod).collect(Collectors.toSet());
-        List<Integer> all = shift == Shift.MORNING ? List.of(1, 2, 3, 4, 5) : List.of(6, 7, 8, 9, 10);
-        return all.stream().filter(period -> !occupied.contains(period)).toList();
+        Set<Long> occupied = existing.stream()
+            .filter(item -> item.getDayOfWeek().equals(dayOfWeek) && item.getPeriodRef() != null)
+            .map(item -> item.getPeriodRef().getId()).collect(Collectors.toSet());
+        Set<Long> appliedPeriodIds = academicYearPeriodRepository.findByAcademicYearId(cls.getAcademicYear().getId())
+            .stream().map(item -> item.getPeriod().getId()).collect(Collectors.toSet());
+        return periodRepository.findByShiftIdOrderByOrderAsc(shiftId).stream()
+            .filter(period -> appliedPeriodIds.contains(period.getId()) && !occupied.contains(period.getId()))
+            .map(this::toPeriodDto).toList();
     }
 
     private Timetable resolveTimetable(Long classId, Long semesterId, LocalDate date) {
@@ -204,7 +229,28 @@ public class ScheduleServiceImpl implements ScheduleService {
             assignment.getTeacher().getId(), assignment.getTeacher().getUser().getName(),
             timetable.getSemester().getId(), timetable.getSemester().getName(),
             schedule.getDayOfWeek(), getDayName(schedule.getDayOfWeek()),
-            schedule.getPeriod(), schedule.getRoom(), schedule.getShift());
+            schedule.getPeriodRef().getId(), schedule.getPeriodRef().getName(), schedule.getPeriodRef().getOrder(),
+            schedule.getPeriodRef().getShift().getId(), schedule.getPeriodRef().getShift().getName(),
+            schedule.getRoom(), schedule.getShift());
+    }
+
+    private PeriodDto toPeriodDto(Period period) {
+        return new PeriodDto(period.getId(), period.getName(), period.getOrder(),
+            period.getShift().getId(), period.getShift().getName());
+    }
+
+    private Shift resolveShift(Period period) {
+        try {
+            return Shift.valueOf(period.getShift().getCode().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new ConflictException("Mã buổi học không hỗ trợ: " + period.getShift().getCode());
+        }
+    }
+
+    private void requireSameAcademicYear(SchoolClass cls, Semester semester) {
+        if (!cls.getAcademicYear().getId().equals(semester.getAcademicYear().getId())) {
+            throw new ConflictException("Lớp và học kỳ không thuộc cùng năm học");
+        }
     }
 
     private String getDayName(int day) {

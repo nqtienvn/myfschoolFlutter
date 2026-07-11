@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface AcademicYearShiftRepository extends JpaRepository<AcademicYearShift, Long> {
     List<AcademicYearShift> findByAcademicYearId(Long academicYearId);
+    boolean existsByAcademicYearIdAndShiftId(Long academicYearId, Long shiftId);
 }

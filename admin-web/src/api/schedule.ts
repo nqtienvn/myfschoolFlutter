@@ -9,7 +9,11 @@ export interface ScheduleSlotItem {
   teacherName: string;
   dayOfWeek: number;
   dayOfWeekName: string;
+  periodId: number;
+  periodName: string;
   period: number;
+  shiftId: number;
+  shiftName: string;
   room?: string;
   shift: 'MORNING' | 'AFTERNOON';
 }
@@ -22,8 +26,7 @@ export function createScheduleSlot(data: {
   timetableId: number;
   assignmentId: number;
   dayOfWeek: number;
-  period: number;
-  shift: 'MORNING' | 'AFTERNOON';
+  periodId: number;
 }) {
   return apiFetch('/schedules', { method: 'POST', body: JSON.stringify(data) }) as Promise<ScheduleSlotItem>;
 }

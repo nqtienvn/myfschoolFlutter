@@ -117,6 +117,10 @@ Key relationships:
 
 ## Business Rules
 
+### Admin Web Academic-Year Scope
+
+All operational data in `admin-web` is scoped from the academic year selected in the shared application context. Follow the mandatory implementation and review rule in [`admin-web/AGENTS.md`](admin-web/AGENTS.md) for every new or changed admin feature.
+
 See [docs/screen-flow.md](docs/screen-flow.md) for full screen flow and [docs/business_model.md](docs/business_model.md) for business model.
 
 ### Grades Simulation Mode

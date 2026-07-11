@@ -6,5 +6,7 @@ public record ScheduleDto(
     Long id, Long timetableId, Integer timetableVersion,
     Long assignmentId, Long classId, String className, Long subjectId, String subjectName, String subjectCode,
     Long teacherId, String teacherName, Long semesterId, String semesterName,
-    Integer dayOfWeek, String dayOfWeekName, Integer period, String room, Shift shift
+    Integer dayOfWeek, String dayOfWeekName,
+    Long periodId, String periodName, Integer period,
+    Long shiftId, String shiftName, String room, Shift shift
 ) {}

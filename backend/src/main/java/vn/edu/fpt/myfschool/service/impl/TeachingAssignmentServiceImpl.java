@@ -158,7 +158,10 @@ public class TeachingAssignmentServiceImpl implements TeachingAssignmentService 
             assignment.getSubject().getId(), assignment.getSubject().getName(), assignment.getSubject().getCode(),
             assignment.getTeacher().getId(), assignment.getTeacher().getUser().getName(),
             timetable.getSemester().getId(), timetable.getSemester().getName(),
-            item.getDayOfWeek(), dayName(item.getDayOfWeek()), item.getPeriod(), item.getRoom(), item.getShift());
+            item.getDayOfWeek(), dayName(item.getDayOfWeek()),
+            item.getPeriodRef().getId(), item.getPeriodRef().getName(), item.getPeriodRef().getOrder(),
+            item.getPeriodRef().getShift().getId(), item.getPeriodRef().getShift().getName(),
+            item.getRoom(), item.getShift());
     }
 
     private String dayName(Integer day) {

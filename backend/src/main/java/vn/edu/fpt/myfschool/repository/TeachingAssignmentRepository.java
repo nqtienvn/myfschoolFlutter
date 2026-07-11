@@ -9,6 +9,7 @@ import vn.edu.fpt.myfschool.entity.TeachingAssignment;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 @Repository
 public interface TeachingAssignmentRepository extends JpaRepository<TeachingAssignment, Long> {
@@ -35,4 +36,9 @@ public interface TeachingAssignmentRepository extends JpaRepository<TeachingAssi
     boolean existsByTeacherIdAndSubjectIdAndStatus(Long teacherId, Long subjectId, AssignmentStatus status);
 
     void deleteByClsId(Long classId);
+
+    @Query("SELECT CASE WHEN COUNT(ta) > 0 THEN true ELSE false END FROM TeachingAssignment ta " +
+           "WHERE ta.cls.academicYear.id = :academicYearId AND ta.subject.id IN :subjectIds")
+    boolean existsInAcademicYearBySubjectIds(@Param("academicYearId") Long academicYearId,
+                                              @Param("subjectIds") Collection<Long> subjectIds);
 }

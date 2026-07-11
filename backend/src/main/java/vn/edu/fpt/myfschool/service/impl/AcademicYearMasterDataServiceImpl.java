@@ -26,6 +26,8 @@ public class AcademicYearMasterDataServiceImpl implements AcademicYearMasterData
     private final AcademicYearSubjectRepository yearSubjectRepository;
     private final AcademicYearShiftRepository yearShiftRepository;
     private final AcademicYearPeriodRepository yearPeriodRepository;
+    private final ScheduleRepository scheduleRepository;
+    private final TeachingAssignmentRepository teachingAssignmentRepository;
 
     @Override @Transactional(readOnly = true)
     public AcademicYearMasterDataConfigDto get(Long yearId) {
@@ -48,10 +50,37 @@ public class AcademicYearMasterDataServiceImpl implements AcademicYearMasterData
         if (periods.stream().anyMatch(period -> !request.shiftIds().contains(period.getShift().getId()))) {
             throw new ConflictException("Tiết học phải thuộc ca học đã chọn");
         }
+        validateRemovals(yearId, request);
         syncSubjects(year, subjects);
         syncShifts(year, shifts);
         syncPeriods(year, periods);
         return get(yearId);
+    }
+
+    private void validateRemovals(Long yearId, UpdateAcademicYearMasterDataRequest request) {
+        Set<Long> removedSubjectIds = removedIds(
+            yearSubjectRepository.findByAcademicYearId(yearId).stream().map(item -> item.getSubject().getId()).toList(),
+            request.subjectIds());
+        if (!removedSubjectIds.isEmpty() && teachingAssignmentRepository.existsInAcademicYearBySubjectIds(yearId, removedSubjectIds)) {
+            throw new ConflictException("Không thể bỏ môn học đang được phân công trong năm học");
+        }
+        Set<Long> removedPeriodIds = removedIds(
+            yearPeriodRepository.findByAcademicYearId(yearId).stream().map(item -> item.getPeriod().getId()).toList(),
+            request.periodIds());
+        if (!removedPeriodIds.isEmpty() && scheduleRepository.existsInAcademicYearByPeriodIds(yearId, removedPeriodIds)) {
+            throw new ConflictException("Không thể bỏ tiết học đang được dùng trong thời khóa biểu của năm học");
+        }
+        Set<Long> removedShiftIds = removedIds(
+            yearShiftRepository.findByAcademicYearId(yearId).stream().map(item -> item.getShift().getId()).toList(),
+            request.shiftIds());
+        if (!removedShiftIds.isEmpty() && scheduleRepository.existsInAcademicYearByShiftIds(yearId, removedShiftIds)) {
+            throw new ConflictException("Không thể bỏ buổi học đang được dùng trong thời khóa biểu của năm học");
+        }
+    }
+
+    private Set<Long> removedIds(List<Long> currentIds, List<Long> requestedIds) {
+        Set<Long> requested = Set.copyOf(requestedIds);
+        return currentIds.stream().filter(id -> !requested.contains(id)).collect(Collectors.toSet());
     }
 
     private void syncSubjects(AcademicYear year, List<Subject> requested) {
