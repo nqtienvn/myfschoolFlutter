@@ -23,7 +23,6 @@ export function createScheduleSlot(data: {
   assignmentId: number;
   dayOfWeek: number;
   period: number;
-  room?: string;
   shift: 'MORNING' | 'AFTERNOON';
 }) {
   return apiFetch('/schedules', { method: 'POST', body: JSON.stringify(data) }) as Promise<ScheduleSlotItem>;

@@ -12,10 +12,13 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/announcements_create_scr
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_stats_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_tuition_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
-
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 
 class HomeTeacher extends StatefulWidget {
-  const HomeTeacher({super.key});
+  const HomeTeacher({super.key, required this.authService});
+
+  final AuthService authService;
 
   @override
   State<HomeTeacher> createState() => _HomeTeacherState();
@@ -34,7 +37,11 @@ class _HomeTeacherState extends State<HomeTeacher> {
               child: SharedHeader(
                 avatarWidget: const CircleAvatar(
                   backgroundColor: AppColors.primarySoft,
-                  child: Icon(Icons.co_present, color: AppColors.fptOrange, size: 20),
+                  child: Icon(
+                    Icons.co_present,
+                    color: AppColors.fptOrange,
+                    size: 20,
+                  ),
                 ),
               ),
             ),
@@ -42,183 +49,207 @@ class _HomeTeacherState extends State<HomeTeacher> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
                 children: [
-
-            // Teacher Profile / Role Summary Card
-            AppCard(
-              padding: 20,
-              gradient: const LinearGradient(
-                colors: [
-                  AppColors.fptOrange,
-                  Color(0xFFFF8533),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
+                  // Teacher Profile / Role Summary Card
+                  AppCard(
+                    padding: 20,
+                    gradient: const LinearGradient(
+                      colors: [AppColors.fptOrange, Color(0xFFFF8533)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    child: const Icon(Icons.co_present, color: Colors.white, size: 26),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'GVCN Lớp 12A',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.co_present,
+                            color: Colors.white,
+                            size: 26,
+                          ),
                         ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Môn dạy: PRM393 - SE1913 • FPT Schools',
-                          style: TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w500),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text(
+                                'GVCN Lớp 12A',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Môn dạy: PRM393 - SE1913 • FPT Schools',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.xs),
+
+                  const SizedBox(height: 24),
+
+                  // Grid of Features
+                  const SectionHeader(title: 'Chức năng giảng dạy & điều hành'),
+                  Builder(
+                    builder: (context) {
+                      final total = mockStudents.length;
+                      final paid = mockStudents.where((student) {
+                        final unpaid = student.tuitionBills
+                            .where((bill) => bill.status == 'Chưa đóng')
+                            .fold(0, (sum, bill) => sum + bill.amount);
+                        return unpaid == 0;
+                      }).length;
+                      final unpaidCount = total - paid;
+
+                      return GridView.count(
+                        crossAxisCount: 2,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: AppSpacing.md,
+                        crossAxisSpacing: AppSpacing.md,
+                        childAspectRatio: 1.4,
+                        children: [
+                          _FeatureButton(
+                            title: 'Lớp được phân công',
+                            icon: Icons.groups_2_outlined,
+                            color: AppColors.blue,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const AssignedClassesScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'Điểm danh lớp',
+                            icon: Icons.fact_check_outlined,
+                            color: AppColors.green,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) =>
+                                      const TeacherAttendanceScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'Duyệt đơn xin nghỉ',
+                            icon: Icons.assignment_turned_in_outlined,
+                            color: AppColors.warning,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) =>
+                                      const TeacherLeaveRequestsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'Nhập & Upload điểm',
+                            icon: Icons.grid_on_outlined,
+                            color: AppColors.blue,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const GradesWebScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'Gửi thông báo lớp',
+                            icon: Icons.campaign_outlined,
+                            color: AppColors.fptOrange,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) =>
+                                      const AnnouncementsCreateScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'Thống kê lớp học',
+                            icon: Icons.auto_graph_outlined,
+                            color: AppColors.teal,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const TeacherStatsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'QL Học phí',
+                            icon: Icons.request_quote_outlined,
+                            color: AppColors.fptOrange,
+                            badgeCount: unpaidCount > 0 ? unpaidCount : null,
+                            onTap: () {
+                              Navigator.of(context)
+                                  .push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          const TeacherTuitionScreen(),
+                                    ),
+                                  )
+                                  .then((_) => setState(() {}));
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'Lịch dạy',
+                            icon: Icons.calendar_month,
+                            color: AppColors.teal,
+                            onTap: () {
+                              final session =
+                                  widget.authService.currentSession!;
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => ScheduleScreen(
+                                    service: ScheduleService(
+                                      apiClient: ScheduleApiClient(
+                                        backend: BackendApiClient(),
+                                      ),
+                                      token: session.token,
+                                    ),
+                                    mode: ScheduleViewMode.teacher,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-
-            const SizedBox(height: 24),
-
-            // Grid of Features
-            const SectionHeader(title: 'Chức năng giảng dạy & điều hành'),
-            Builder(
-              builder: (context) {
-                final total = mockStudents.length;
-                final paid = mockStudents.where((student) {
-                  final unpaid = student.tuitionBills
-                      .where((bill) => bill.status == 'Chưa đóng')
-                      .fold(0, (sum, bill) => sum + bill.amount);
-                  return unpaid == 0;
-                }).length;
-                final unpaidCount = total - paid;
-
-                return GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: AppSpacing.md,
-                  crossAxisSpacing: AppSpacing.md,
-                  childAspectRatio: 1.4,
-                  children: [
-                    _FeatureButton(
-                      title: 'Lớp được phân công',
-                      icon: Icons.groups_2_outlined,
-                      color: AppColors.blue,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const AssignedClassesScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _FeatureButton(
-                      title: 'Điểm danh lớp',
-                      icon: Icons.fact_check_outlined,
-                      color: AppColors.green,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const TeacherAttendanceScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _FeatureButton(
-                      title: 'Duyệt đơn xin nghỉ',
-                      icon: Icons.assignment_turned_in_outlined,
-                      color: AppColors.warning,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const TeacherLeaveRequestsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _FeatureButton(
-                      title: 'Nhập & Upload điểm',
-                      icon: Icons.grid_on_outlined,
-                      color: AppColors.blue,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const GradesWebScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _FeatureButton(
-                      title: 'Gửi thông báo lớp',
-                      icon: Icons.campaign_outlined,
-                      color: AppColors.fptOrange,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const AnnouncementsCreateScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _FeatureButton(
-                      title: 'Thống kê lớp học',
-                      icon: Icons.auto_graph_outlined,
-                      color: AppColors.teal,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const TeacherStatsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _FeatureButton(
-                      title: 'QL Học phí',
-                      icon: Icons.request_quote_outlined,
-                      color: AppColors.fptOrange,
-                      badgeCount: unpaidCount > 0 ? unpaidCount : null,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const TeacherTuitionScreen(),
-                          ),
-                        ).then((_) => setState(() {}));
-                      },
-                    ),
-                    _FeatureButton(
-                      title: 'Lịch dạy',
-                      icon: Icons.calendar_month,
-                      color: AppColors.teal,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const ScheduleScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                );
-              },
             ),
           ],
         ),
       ),
-    ],
-  ),
-),
-);
-}
+    );
+  }
 }
 
 class _FeatureButton extends StatelessWidget {

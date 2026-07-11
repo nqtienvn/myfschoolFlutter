@@ -57,7 +57,6 @@ public class ScheduleImportServiceImpl implements ScheduleImportService {
                 String assignmentIdStr = row.get("assignmentId");
                 String dayOfWeekStr = row.get("dayOfWeek");
                 String periodStr = row.get("period");
-                String room = row.getOrDefault("room", "").trim();
                 String shiftStr = row.getOrDefault("shift", "MORNING").trim();
 
                 if (assignmentIdStr == null || assignmentIdStr.trim().isEmpty()) {
@@ -93,7 +92,7 @@ public class ScheduleImportServiceImpl implements ScheduleImportService {
                 schedule.setAssignment(ta);
                 schedule.setDayOfWeek(dayOfWeek);
                 schedule.setPeriod(period);
-                schedule.setRoom(room);
+                schedule.setRoom(timetable.getCls().getName());
                 schedule.setShift(shift);
                 scheduleRepository.save(schedule);
 

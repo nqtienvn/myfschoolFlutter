@@ -8,3 +8,4 @@ export 'grade_analytics.dart';
 export 'student.dart';
 export 'student_summary.dart';
 export 'user.dart';
+export 'school_schedule.dart';

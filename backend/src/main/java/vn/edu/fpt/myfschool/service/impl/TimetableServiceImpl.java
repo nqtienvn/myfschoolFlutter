@@ -79,7 +79,7 @@ public class TimetableServiceImpl implements TimetableService {
                 slot.setDayOfWeek(old.getDayOfWeek());
                 slot.setPeriod(old.getPeriod());
                 slot.setPeriodRef(old.getPeriodRef());
-                slot.setRoom(old.getRoom());
+                slot.setRoom(cls.getName());
                 slot.setShift(old.getShift());
                 scheduleRepository.save(slot);
             }

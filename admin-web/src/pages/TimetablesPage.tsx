@@ -19,7 +19,7 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
   const [slots, setSlots] = useState<ScheduleSlotItem[]>([]);
   const [draftId, setDraftId] = useState<number | null>(null);
   const [effectiveFrom, setEffectiveFrom] = useState('');
-  const [slotForm, setSlotForm] = useState({ assignmentId: '', dayOfWeek: '2', period: '1', room: '' });
+  const [slotForm, setSlotForm] = useState({ assignmentId: '', dayOfWeek: '2', period: '1' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -75,10 +75,10 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
     try {
       const period = Number(slotForm.period);
       await createScheduleSlot({ timetableId: draftId, assignmentId: Number(slotForm.assignmentId),
-        dayOfWeek: Number(slotForm.dayOfWeek), period, room: slotForm.room,
+        dayOfWeek: Number(slotForm.dayOfWeek), period,
         shift: period <= 5 ? 'MORNING' : 'AFTERNOON' });
       setSlots(await getTimetableSlots(draftId));
-      setSlotForm(current => ({ ...current, assignmentId: '', room: '' }));
+      setSlotForm(current => ({ ...current, assignmentId: '' }));
     } catch (cause: any) { setError(cause.message || 'Không thể thêm tiết học.'); }
     finally { setLoading(false); }
   }
@@ -132,7 +132,6 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
         <div className="form-group"><label>Môn học · Giáo viên</label><select value={slotForm.assignmentId} onChange={event => setSlotForm(current => ({ ...current, assignmentId: event.target.value }))}><option value="">Chọn phân công</option>{assignments.map(item => <option key={item.id} value={item.id}>{item.subjectName} · {item.teacherName}</option>)}</select></div>
         <div className="form-group"><label>Thứ</label><select value={slotForm.dayOfWeek} onChange={event => setSlotForm(current => ({ ...current, dayOfWeek: event.target.value }))}>{[2,3,4,5,6,7,1].map(day => <option key={day} value={day}>{day === 1 ? 'Chủ nhật' : `Thứ ${day}`}</option>)}</select></div>
         <div className="form-group"><label>Tiết</label><select value={slotForm.period} onChange={event => setSlotForm(current => ({ ...current, period: event.target.value }))}>{Array.from({ length: 10 }, (_, index) => index + 1).map(period => <option key={period}>{period}</option>)}</select></div>
-        <div className="form-group"><label>Phòng</label><input value={slotForm.room} onChange={event => setSlotForm(current => ({ ...current, room: event.target.value }))} /></div>
         <button type="button" disabled={!slotForm.assignmentId || loading} onClick={addSlot}>Thêm tiết</button>
       </div>
       <div className="table-responsive"><table><thead><tr><th>Thứ</th><th>Tiết</th><th>Môn học</th><th>Giáo viên</th><th>Phòng</th><th></th></tr></thead><tbody>

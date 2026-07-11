@@ -10,10 +10,13 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/forms_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/tuition_payment_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_bottom_sheet.dart';
-
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 
 class HomeStudent extends StatefulWidget {
-  const HomeStudent({super.key});
+  const HomeStudent({super.key, required this.authService});
+
+  final AuthService authService;
 
   @override
   State<HomeStudent> createState() => _HomeStudentState();
@@ -31,8 +34,12 @@ class _HomeStudentState extends State<HomeStudent> {
 
     final tuitionNotifs = unpaidSum > 0
         ? _student.notifications
-            .where((n) => n.tag == 'Học phí' || n.title.toLowerCase().contains('học phí'))
-            .toList()
+              .where(
+                (n) =>
+                    n.tag == 'Học phí' ||
+                    n.title.toLowerCase().contains('học phí'),
+              )
+              .toList()
         : <ParentNotification>[];
     final hasTuitionNotifs = tuitionNotifs.isNotEmpty;
 
@@ -43,7 +50,11 @@ class _HomeStudentState extends State<HomeStudent> {
         children: [
           const Text(
             'Thông tin & Cảnh báo học phí',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.ink,
+            ),
           ),
           const SizedBox(height: 16),
           Container(
@@ -57,7 +68,9 @@ class _HomeStudentState extends State<HomeStudent> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isPaid ? 'ĐÃ HOÀN THÀNH HỌC PHÍ' : 'CÒN KHOẢN HỌC PHÍ CHƯA ĐÓNG',
+                  isPaid
+                      ? 'ĐÃ HOÀN THÀNH HỌC PHÍ'
+                      : 'CÒN KHOẢN HỌC PHÍ CHƯA ĐÓNG',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -69,7 +82,11 @@ class _HomeStudentState extends State<HomeStudent> {
                   isPaid
                       ? 'Học sinh ${_student.name} đã hoàn thành đầy đủ nghĩa vụ học phí. Cảm ơn bạn!'
                       : 'Bạn còn chưa thanh toán học phí kì Fall 2026.\nTổng số tiền còn thiếu: ${unpaidSum.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]}.")} đ.\nHạn nộp: 30/06/2026.',
-                  style: const TextStyle(fontSize: 13, color: AppColors.ink, height: 1.4),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.ink,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -81,19 +98,27 @@ class _HomeStudentState extends State<HomeStudent> {
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => TuitionPaymentScreen(student: _student),
-                    ),
-                  ).then((_) => setState(() {}));
+                  Navigator.of(context)
+                      .push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              TuitionPaymentScreen(student: _student),
+                        ),
+                      )
+                      .then((_) => setState(() {}));
                 },
                 icon: const Icon(Icons.account_balance_wallet_outlined),
-                label: const Text('Đóng học phí', style: TextStyle(fontWeight: FontWeight.bold)),
+                label: const Text(
+                  'Đóng học phí',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.fptOrange,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
@@ -134,133 +159,158 @@ class _HomeStudentState extends State<HomeStudent> {
                   // Student profile summary card
                   AppCard(
                     padding: 20,
-              gradient: const LinearGradient(
-                colors: [
-                  AppColors.green,
-                  Color(0xFF66BB6A),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
+                    gradient: const LinearGradient(
+                      colors: [AppColors.green, Color(0xFF66BB6A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    child: const Icon(Icons.school, color: Colors.white, size: 26),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Text(
-                          _student.name,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white),
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.school,
+                            color: Colors.white,
+                            size: 26,
+                          ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Lớp ${_student.className} • Mã HS: ${_student.studentCode} • FPT Schools',
-                          style: const TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w500),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _student.name,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Lớp ${_student.className} • Mã HS: ${_student.studentCode} • FPT Schools',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 24),
+
+                  // Learning Utilities Grid
+                  const SectionHeader(title: 'Tiện ích học tập cá nhân'),
+                  Builder(
+                    builder: (context) {
+                      final unpaidSum = _student.tuitionBills
+                          .where((bill) => bill.status == 'Chưa đóng')
+                          .fold(0, (sum, bill) => sum + bill.amount);
+                      return GridView.count(
+                        crossAxisCount: 2,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: AppSpacing.md,
+                        crossAxisSpacing: AppSpacing.md,
+                        childAspectRatio: 1.4,
+                        children: [
+                          _FeatureButton(
+                            title: 'Thời khóa biểu',
+                            icon: Icons.calendar_month,
+                            iconColor: AppColors.fptOrange,
+                            iconBgColor: AppColors.primarySoft,
+                            onTap: () {
+                              final session =
+                                  widget.authService.currentSession!;
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => ScheduleScreen(
+                                    service: ScheduleService(
+                                      apiClient: ScheduleApiClient(
+                                        backend: BackendApiClient(),
+                                      ),
+                                      token: session.token,
+                                    ),
+                                    mode: ScheduleViewMode.student,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'Bảng điểm',
+                            icon: Icons.school,
+                            iconColor: AppColors.blue,
+                            iconBgColor: AppColors.blueSoft,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const GradesScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'Chuyên cần',
+                            icon: Icons.check_circle,
+                            iconColor: AppColors.teal,
+                            iconBgColor: AppColors.tealSoft,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => StudentAttendanceScreen(
+                                    student: _student,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'Học phí',
+                            icon: Icons.account_balance_wallet_outlined,
+                            iconColor: unpaidSum > 0
+                                ? AppColors.danger
+                                : AppColors.success,
+                            iconBgColor: unpaidSum > 0
+                                ? AppColors.dangerSoft
+                                : AppColors.successSoft,
+                            onTap: () => _showStudentTuitionAlertSheet(context),
+                          ),
+                          _FeatureButton(
+                            title: 'Đơn từ & Biểu mẫu',
+                            icon: Icons.description_outlined,
+                            iconColor: AppColors.blue,
+                            iconBgColor: AppColors.blueSoft,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const FormsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: 24),
-
-            // Learning Utilities Grid
-            const SectionHeader(title: 'Tiện ích học tập cá nhân'),
-            Builder(
-              builder: (context) {
-                final unpaidSum = _student.tuitionBills
-                    .where((bill) => bill.status == 'Chưa đóng')
-                    .fold(0, (sum, bill) => sum + bill.amount);
-                return GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: AppSpacing.md,
-                  crossAxisSpacing: AppSpacing.md,
-                  childAspectRatio: 1.4,
-                  children: [
-                    _FeatureButton(
-                      title: 'Thời khóa biểu',
-                      icon: Icons.calendar_month,
-                      iconColor: AppColors.fptOrange,
-                      iconBgColor: AppColors.primarySoft,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const ScheduleScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _FeatureButton(
-                      title: 'Bảng điểm',
-                      icon: Icons.school,
-                      iconColor: AppColors.blue,
-                      iconBgColor: AppColors.blueSoft,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const GradesScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _FeatureButton(
-                      title: 'Chuyên cần',
-                      icon: Icons.check_circle,
-                      iconColor: AppColors.teal,
-                      iconBgColor: AppColors.tealSoft,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => StudentAttendanceScreen(student: _student),
-                          ),
-                        );
-                      },
-                    ),
-                    _FeatureButton(
-                      title: 'Học phí',
-                      icon: Icons.account_balance_wallet_outlined,
-                      iconColor: unpaidSum > 0 ? AppColors.danger : AppColors.success,
-                      iconBgColor: unpaidSum > 0 ? AppColors.dangerSoft : AppColors.successSoft,
-                      onTap: () => _showStudentTuitionAlertSheet(context),
-                    ),
-                    _FeatureButton(
-                      title: 'Đơn từ & Biểu mẫu',
-                      icon: Icons.description_outlined,
-                      iconColor: AppColors.blue,
-                      iconBgColor: AppColors.blueSoft,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const FormsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                );
-              },
             ),
           ],
         ),
       ),
-    ],
-  ),
-),
-);
-}
+    );
+  }
 }
 
 class _FeatureButton extends StatelessWidget {

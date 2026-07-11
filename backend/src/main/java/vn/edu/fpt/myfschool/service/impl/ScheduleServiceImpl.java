@@ -7,7 +7,9 @@ import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
 import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.enums.TimetableStatus;
+import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
+import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.repository.*;
@@ -27,6 +29,9 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final ClassRepository classRepository;
     private final TeacherRepository teacherRepository;
     private final SemesterRepository semesterRepository;
+    private final StudentRepository studentRepository;
+    private final ParentRepository parentRepository;
+    private final StudentGuardianRepository studentGuardianRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -59,6 +64,36 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public ClassScheduleDto getStudentSchedule(Long studentId, Long userId, LocalDate date) {
+        Student student = studentRepository.findById(studentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Student", "id", studentId));
+        Parent parent = parentRepository.findByUserId(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Parent", "userId", userId));
+        if (!studentGuardianRepository.existsByStudentIdAndGuardianId(studentId, parent.getId())) {
+            throw new ForbiddenException("Phụ huynh không có quyền xem thời khóa biểu của học sinh này");
+        }
+        return getScheduleForStudent(student, currentSemester(), date);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ClassScheduleDto getMySchedule(Long userId, UserRole role, LocalDate date) {
+        Semester semester = currentSemester();
+        if (role == UserRole.STUDENT) {
+            Student student = studentRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Student", "userId", userId));
+            return getScheduleForStudent(student, semester, date);
+        }
+        if (role == UserRole.TEACHER) {
+            Teacher teacher = teacherRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher", "userId", userId));
+            return getTeacherSchedule(teacher.getId(), semester.getId(), date);
+        }
+        throw new ForbiddenException("Vai trò không được phép xem thời khóa biểu cá nhân");
+    }
+
+    @Override
     public ScheduleDto createSchedule(ScheduleRequest request) {
         Timetable timetable = timetableRepository.findById(request.timetableId())
             .orElseThrow(() -> new ResourceNotFoundException("Timetable", "id", request.timetableId()));
@@ -83,7 +118,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         schedule.setAssignment(assignment);
         schedule.setDayOfWeek(request.dayOfWeek());
         schedule.setPeriod(request.period());
-        schedule.setRoom(request.room());
+        schedule.setRoom(timetable.getCls().getName());
         schedule.setShift(request.shift());
         return toDto(scheduleRepository.save(schedule));
     }
@@ -130,6 +165,19 @@ public class ScheduleServiceImpl implements ScheduleService {
         }
         return timetableRepository.findFirstByClsIdAndSemesterIdAndStatusOrderByVersionDesc(
             classId, semesterId, TimetableStatus.ACTIVE).orElse(null);
+    }
+
+    private Semester currentSemester() {
+        return semesterRepository.findByIsCurrentTrue()
+            .orElseThrow(() -> new ResourceNotFoundException("Semester", "isCurrent", true));
+    }
+
+    private ClassScheduleDto getScheduleForStudent(Student student, Semester semester, LocalDate date) {
+        SchoolClass cls = student.getCurrentClass();
+        if (cls == null) {
+            throw new ConflictException("Học sinh chưa được xếp lớp");
+        }
+        return getClassSchedule(cls.getId(), semester.getId(), date);
     }
 
     private ClassScheduleDto buildSchedule(Long ownerId, String ownerName, Semester semester,

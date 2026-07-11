@@ -19,6 +19,7 @@ import vn.edu.fpt.myfschool.common.dto.ClassScheduleDto;
 import vn.edu.fpt.myfschool.common.dto.ScheduleDto;
 import vn.edu.fpt.myfschool.common.dto.ScheduleRequest;
 import vn.edu.fpt.myfschool.common.enums.Shift;
+import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.ScheduleService;
 
 import java.util.List;
@@ -33,7 +34,7 @@ public class ScheduleController {
     private final ScheduleService scheduleService;
 
     @GetMapping("/class")
-    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "TKB lớp")
     public ResponseEntity<ApiResponse<ClassScheduleDto>> getClassSchedule(
             @RequestParam Long classId, @RequestParam Long semesterId,
@@ -41,8 +42,27 @@ public class ScheduleController {
         return ResponseEntity.ok(ApiResponse.success(scheduleService.getClassSchedule(classId, semesterId, date)));
     }
 
+    @GetMapping("/student/{studentId}")
+    @PreAuthorize("hasRole('PARENT')")
+    @Operation(summary = "TKB của học sinh do phụ huynh quản lý")
+    public ResponseEntity<ApiResponse<ClassScheduleDto>> getStudentSchedule(
+            @PathVariable Long studentId,
+            @RequestParam(required = false) LocalDate date) {
+        return ResponseEntity.ok(ApiResponse.success(
+            scheduleService.getStudentSchedule(studentId, SecurityUtil.getCurrentUserId(), date)));
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('STUDENT', 'TEACHER')")
+    @Operation(summary = "TKB của học sinh hoặc lịch dạy của giáo viên đang đăng nhập")
+    public ResponseEntity<ApiResponse<ClassScheduleDto>> getMySchedule(
+            @RequestParam(required = false) LocalDate date) {
+        return ResponseEntity.ok(ApiResponse.success(scheduleService.getMySchedule(
+            SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole(), date)));
+    }
+
     @GetMapping("/teacher")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "TKB giáo viên")
     public ResponseEntity<ApiResponse<ClassScheduleDto>> getTeacherSchedule(
             @RequestParam Long teacherId, @RequestParam Long semesterId,

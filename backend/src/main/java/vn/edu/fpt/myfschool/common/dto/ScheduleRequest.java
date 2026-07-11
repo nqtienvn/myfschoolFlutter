@@ -7,5 +7,5 @@ public record ScheduleRequest(
     @NotNull Long timetableId,
     @NotNull Long assignmentId,
     @NotNull @Min(1) @Max(7) Integer dayOfWeek, @NotNull @Min(1) @Max(10) Integer period,
-    String room, @NotNull Shift shift
+    @NotNull Shift shift
 ) {}

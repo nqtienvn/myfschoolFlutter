@@ -8,7 +8,12 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen_hocsinh.dart
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/messages_screen.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key, this.actor = AppActor.parent, this.authService, this.chatService});
+  const AppShell({
+    super.key,
+    this.actor = AppActor.parent,
+    this.authService,
+    this.chatService,
+  });
 
   final AppActor actor;
   final AuthService? authService;
@@ -33,36 +38,44 @@ class _AppShellState extends State<AppShell> {
       case AppActor.parent:
         return HomeParent(authService: widget.authService!);
       case AppActor.teacher:
-        return const HomeTeacher();
+        return HomeTeacher(authService: widget.authService!);
       case AppActor.student:
-        return const HomeStudent();
+        return HomeStudent(authService: widget.authService!);
     }
   }
 
   Widget _buildTabNavigator(int index) {
-  return Navigator(
-    key: _navigatorKeys[index],
-    onGenerateInitialRoutes: (navigator, initialRoute) {
-      return [
-        MaterialPageRoute<void>(
-          builder: (context) {
-            switch (index) {
-              case 0: return _homeForActor();
-              case 1: return ConversationsScreen(actor: widget.actor, chatService: widget.chatService!);
-              case 2: return AnnouncementsScreen(actor: widget.actor);
-              case 3: return AccountProfileScreen(
-                actor: widget.actor,
-                authService: widget.authService,
-                chatService: widget.chatService,
-              );
-              default: return const Scaffold();
-            }
-          },
-        ),
-      ];
-    },
-  );
-}
+    return Navigator(
+      key: _navigatorKeys[index],
+      onGenerateInitialRoutes: (navigator, initialRoute) {
+        return [
+          MaterialPageRoute<void>(
+            builder: (context) {
+              switch (index) {
+                case 0:
+                  return _homeForActor();
+                case 1:
+                  return ConversationsScreen(
+                    actor: widget.actor,
+                    chatService: widget.chatService!,
+                  );
+                case 2:
+                  return AnnouncementsScreen(actor: widget.actor);
+                case 3:
+                  return AccountProfileScreen(
+                    actor: widget.actor,
+                    authService: widget.authService,
+                    chatService: widget.chatService,
+                  );
+                default:
+                  return const Scaffold();
+              }
+            },
+          ),
+        ];
+      },
+    );
+  }
 
   void _selectTab(int index) {
     if (_selectedIndex == index) {
@@ -124,7 +137,6 @@ class _AppShellState extends State<AppShell> {
             ],
           ),
         ),
-
       ),
     );
   }

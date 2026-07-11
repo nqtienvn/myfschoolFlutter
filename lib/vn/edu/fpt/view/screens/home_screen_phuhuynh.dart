@@ -10,7 +10,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/tuition_payment_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_bottom_sheet.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
-
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 
 class HomeParent extends StatefulWidget {
   const HomeParent({super.key, required this.authService});
@@ -48,27 +48,39 @@ class _HomeParentState extends State<HomeParent> {
   }
 
   List<StudentSnapshot> get _students {
-    const colors = [AppColors.fptOrange, AppColors.blue, AppColors.teal, AppColors.green];
-    return widget.authService.currentSession?.children.asMap().entries.map((entry) {
-          final child = entry.value;
-          return StudentSnapshot.linked(
-            name: child.name,
-            studentCode: child.studentCode,
-            className: child.className ?? 'Chưa xếp lớp',
-            school: child.schoolName ?? 'FPT Schools',
-            linkStatus: child.status == 'ACTIVE' ? 'Đang học' : child.status,
-            avatarColor: colors[entry.key % colors.length],
-            dateOfBirth: child.dateOfBirth,
-            gender: child.gender,
-            address: child.address,
-            email: child.email,
-            academicYearName: child.academicYearName,
-          );
-        }).toList(growable: false) ??
+    const colors = [
+      AppColors.fptOrange,
+      AppColors.blue,
+      AppColors.teal,
+      AppColors.green,
+    ];
+    return widget.authService.currentSession?.children
+            .asMap()
+            .entries
+            .map((entry) {
+              final child = entry.value;
+              return StudentSnapshot.linked(
+                name: child.name,
+                studentCode: child.studentCode,
+                className: child.className ?? 'Chưa xếp lớp',
+                school: child.schoolName ?? 'FPT Schools',
+                linkStatus: child.status == 'ACTIVE'
+                    ? 'Đang học'
+                    : child.status,
+                avatarColor: colors[entry.key % colors.length],
+                dateOfBirth: child.dateOfBirth,
+                gender: child.gender,
+                address: child.address,
+                email: child.email,
+                academicYearName: child.academicYearName,
+              );
+            })
+            .toList(growable: false) ??
         const [];
   }
 
-  StudentSnapshot get _student => _students[widget.authService.selectedChildIndex];
+  StudentSnapshot get _student =>
+      _students[widget.authService.selectedChildIndex];
 
   void _showTuitionNotificationsSheet(BuildContext context) {
     final unpaidSum = _student.tuitionBills
@@ -77,8 +89,12 @@ class _HomeParentState extends State<HomeParent> {
 
     final tuitionNotifs = unpaidSum > 0
         ? _student.notifications
-            .where((n) => n.tag == 'Học phí' || n.title.toLowerCase().contains('học phí'))
-            .toList()
+              .where(
+                (n) =>
+                    n.tag == 'Học phí' ||
+                    n.title.toLowerCase().contains('học phí'),
+              )
+              .toList()
         : <ParentNotification>[];
 
     showAppBottomSheet(
@@ -88,7 +104,11 @@ class _HomeParentState extends State<HomeParent> {
         children: [
           const Text(
             'Thông báo học phí',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.ink,
+            ),
           ),
           const SizedBox(height: 12),
           if (tuitionNotifs.isEmpty)
@@ -114,7 +134,9 @@ class _HomeParentState extends State<HomeParent> {
                     color: AppColors.surface,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: AppColors.line.withValues(alpha: 0.5)),
+                      side: BorderSide(
+                        color: AppColors.line.withValues(alpha: 0.5),
+                      ),
                     ),
                     elevation: 0,
                     child: Padding(
@@ -124,12 +146,20 @@ class _HomeParentState extends State<HomeParent> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.warning_amber_rounded, color: n.color, size: 20),
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                color: n.color,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   n.title,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.ink),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: AppColors.ink,
+                                  ),
                                 ),
                               ),
                             ],
@@ -137,7 +167,11 @@ class _HomeParentState extends State<HomeParent> {
                           const SizedBox(height: 8),
                           Text(
                             n.body,
-                            style: const TextStyle(fontSize: 12.5, color: AppColors.muted, height: 1.4),
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              color: AppColors.muted,
+                              height: 1.4,
+                            ),
                           ),
                         ],
                       ),
@@ -153,19 +187,27 @@ class _HomeParentState extends State<HomeParent> {
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => TuitionPaymentScreen(student: _student),
-                    ),
-                  ).then((_) => setState(() {}));
+                  Navigator.of(context)
+                      .push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              TuitionPaymentScreen(student: _student),
+                        ),
+                      )
+                      .then((_) => setState(() {}));
                 },
                 icon: const Icon(Icons.account_balance_wallet_outlined),
-                label: const Text('Đóng học phí', style: TextStyle(fontWeight: FontWeight.bold)),
+                label: const Text(
+                  'Đóng học phí',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.fptOrange,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
@@ -188,7 +230,10 @@ class _HomeParentState extends State<HomeParent> {
               child: Text(
                 'Tài khoản phụ huynh chưa được liên kết với học sinh nào.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: AppColors.muted,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -228,27 +273,37 @@ class _HomeParentState extends State<HomeParent> {
                       itemCount: students.length,
                       itemBuilder: (context, index) {
                         final s = students[index];
-                        final isSelected = index == widget.authService.selectedChildIndex;
+                        final isSelected =
+                            index == widget.authService.selectedChildIndex;
                         return Padding(
                           padding: const EdgeInsets.only(right: AppSpacing.sm),
                           child: GestureDetector(
                             onTap: () => widget.authService.selectChild(index),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
-                                color: isSelected ? AppColors.primarySoft : AppColors.surface,
+                                color: isSelected
+                                    ? AppColors.primarySoft
+                                    : AppColors.surface,
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: isSelected ? AppColors.fptOrange : AppColors.line.withValues(alpha: 0.6),
+                                  color: isSelected
+                                      ? AppColors.fptOrange
+                                      : AppColors.line.withValues(alpha: 0.6),
                                   width: 1.5,
                                 ),
                                 boxShadow: isSelected
                                     ? [
                                         BoxShadow(
-                                          color: AppColors.fptOrange.withValues(alpha: 0.1),
+                                          color: AppColors.fptOrange.withValues(
+                                            alpha: 0.1,
+                                          ),
                                           blurRadius: 8,
                                           offset: const Offset(0, 4),
-                                        )
+                                        ),
                                       ]
                                     : null,
                               ),
@@ -256,7 +311,9 @@ class _HomeParentState extends State<HomeParent> {
                                 children: [
                                   CircleAvatar(
                                     radius: 12,
-                                    backgroundColor: s.avatarColor.withValues(alpha: 0.12),
+                                    backgroundColor: s.avatarColor.withValues(
+                                      alpha: 0.12,
+                                    ),
                                     child: Text(
                                       s.shortName,
                                       style: TextStyle(
@@ -270,8 +327,12 @@ class _HomeParentState extends State<HomeParent> {
                                   Text(
                                     s.name,
                                     style: TextStyle(
-                                      color: isSelected ? AppColors.fptOrange : AppColors.ink,
-                                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                      color: isSelected
+                                          ? AppColors.fptOrange
+                                          : AppColors.ink,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w800
+                                          : FontWeight.w600,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -293,8 +354,12 @@ class _HomeParentState extends State<HomeParent> {
 
                       final tuitionNotifsCount = unpaidSum > 0
                           ? _student.notifications
-                              .where((n) => n.tag == 'Học phí' || n.title.toLowerCase().contains('học phí'))
-                              .length
+                                .where(
+                                  (n) =>
+                                      n.tag == 'Học phí' ||
+                                      n.title.toLowerCase().contains('học phí'),
+                                )
+                                .length
                           : 0;
 
                       return GridView.count(
@@ -311,9 +376,22 @@ class _HomeParentState extends State<HomeParent> {
                             iconColor: AppColors.fptOrange,
                             iconBgColor: AppColors.primarySoft,
                             onTap: () {
+                              final session =
+                                  widget.authService.currentSession!;
+                              final child = widget.authService.selectedChild!;
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => ScheduleScreen(student: _student),
+                                  builder: (_) => ScheduleScreen(
+                                    service: ScheduleService(
+                                      apiClient: ScheduleApiClient(
+                                        backend: BackendApiClient(),
+                                      ),
+                                      token: session.token,
+                                    ),
+                                    mode: ScheduleViewMode.student,
+                                    studentId: child.id,
+                                    studentName: child.name,
+                                  ),
                                 ),
                               );
                             },
@@ -326,7 +404,8 @@ class _HomeParentState extends State<HomeParent> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => GradesScreen(student: _student),
+                                  builder: (_) =>
+                                      GradesScreen(student: _student),
                                 ),
                               );
                             },
@@ -339,7 +418,9 @@ class _HomeParentState extends State<HomeParent> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => StudentAttendanceScreen(student: _student),
+                                  builder: (_) => StudentAttendanceScreen(
+                                    student: _student,
+                                  ),
                                 ),
                               );
                             },
@@ -352,7 +433,8 @@ class _HomeParentState extends State<HomeParent> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => LeaveRequestListScreen(student: _student),
+                                  builder: (_) =>
+                                      LeaveRequestListScreen(student: _student),
                                 ),
                               );
                             },
@@ -363,7 +445,8 @@ class _HomeParentState extends State<HomeParent> {
                             iconColor: AppColors.warning,
                             iconBgColor: AppColors.warningSoft,
                             showDot: tuitionNotifsCount > 0,
-                            onTap: () => _showTuitionNotificationsSheet(context),
+                            onTap: () =>
+                                _showTuitionNotificationsSheet(context),
                           ),
                         ],
                       );
@@ -420,7 +503,10 @@ class _FeatureButton extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 10,
+                ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
