@@ -289,6 +289,37 @@ class ScheduleIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void publish_new_version_can_replace_current_timetable_on_same_effective_date() throws Exception {
+        String token = loginAsAdmin();
+        long version1 = createDraft(token, "2026-09-01", null);
+        mockMvc.perform(post("/api/schedules")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content(schedJson(version1, 2, 1, "MORNING")))
+            .andExpect(status().isOk());
+        publish(token, version1, "2026-09-01");
+
+        long version2 = createDraft(token, "2026-09-01", version1);
+        publish(token, version2, "2026-09-01");
+
+        mockMvc.perform(get("/api/schedules/class")
+                .header("Authorization", authHeader(token))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", testSemester.getId().toString())
+                .param("date", "2026-09-01"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.timetableVersion").value(2));
+
+        mockMvc.perform(get("/api/timetables")
+                .header("Authorization", authHeader(token))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[?(@.version == 1)].status").value("ARCHIVED"))
+            .andExpect(jsonPath("$.data[?(@.version == 1)].effectiveTo").value("2026-09-01"))
+            .andExpect(jsonPath("$.data[?(@.version == 2)].status").value("ACTIVE"));
+    }
+
+    @Test
     void publish_new_version_keeps_old_schedule_by_effective_date() throws Exception {
         String token = loginAsAdmin();
         long version1 = createDraft(token, "2026-09-01", null);

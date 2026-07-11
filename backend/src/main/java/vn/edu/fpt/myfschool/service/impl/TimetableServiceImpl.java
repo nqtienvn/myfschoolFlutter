@@ -149,11 +149,12 @@ public class TimetableServiceImpl implements TimetableService {
 
         timetableRepository.findFirstByClsIdAndSemesterIdAndStatusOrderByVersionDesc(
             timetable.getCls().getId(), timetable.getSemester().getId(), TimetableStatus.ACTIVE).ifPresent(current -> {
-                if (!effectiveFrom.isAfter(current.getEffectiveFrom())) {
-                    throw new ConflictException("Ngày áp dụng bản mới phải sau ngày áp dụng thời khóa biểu hiện tại");
+                if (effectiveFrom.isBefore(current.getEffectiveFrom())) {
+                    throw new ConflictException("Ngày áp dụng bản mới không được trước ngày áp dụng thời khóa biểu hiện tại");
                 }
                 current.setStatus(TimetableStatus.ARCHIVED);
-                current.setEffectiveTo(effectiveFrom.minusDays(1));
+                current.setEffectiveTo(effectiveFrom.isEqual(current.getEffectiveFrom())
+                    ? effectiveFrom : effectiveFrom.minusDays(1));
                 timetableRepository.save(current);
             });
 
