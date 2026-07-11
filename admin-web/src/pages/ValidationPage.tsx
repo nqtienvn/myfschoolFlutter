@@ -30,7 +30,7 @@ export default function ValidationPage({ academicYearId, onNavigate }: Props) {
   return (
     <div className="page-stack">
       <section className="page-heading">
-        <div><span className="eyebrow">Bước 8</span><h1>Kiểm tra dữ liệu</h1><p>Hệ thống kiểm tra dữ liệu bắt buộc trước khi cho phép ACTIVE.</p></div>
+        <div><span className="eyebrow">Bước 6</span><h1>Kiểm tra dữ liệu</h1><p>Hệ thống kiểm tra dữ liệu bắt buộc trước khi cho phép ACTIVE.</p></div>
         <button className="secondary-button" onClick={validate} disabled={!academicYearId || loading}>{loading ? 'Đang kiểm tra…' : 'Kiểm tra lại'}</button>
       </section>
       {!academicYearId && <div className="notice warning">Hãy chọn năm học cần cấu hình ở thanh phía trên.</div>}

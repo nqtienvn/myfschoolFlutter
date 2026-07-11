@@ -65,7 +65,7 @@ export default function AssignmentsPage({ selectedYearId }: { selectedYearId?: s
   }
 
   return <div className="page-stack">
-    <div className="page-heading"><div><span className="eyebrow">Bước 6</span><h1>Phân công giảng dạy</h1><p>Mỗi lớp chỉ có một giáo viên phụ trách một môn trong suốt năm học.</p></div></div>
+    <div className="page-heading"><div><span className="eyebrow">Bước 5</span><h1>Phân công giảng dạy</h1><p>Mỗi lớp chỉ có một giáo viên phụ trách một môn trong suốt năm học.</p></div></div>
     {!selectedYearId && <div className="notice warning">Chọn năm học ở thanh phía trên.</div>}
     {error && <div className="notice error">{error}</div>}{message && <div className="notice success">{message}</div>}
     <div className="form-inline">

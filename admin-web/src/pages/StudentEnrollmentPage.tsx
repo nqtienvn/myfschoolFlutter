@@ -100,7 +100,7 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
 
   return <div className="page-stack student-enrollment-page">
     <header className="page-heading enrollment-heading">
-      <div><span className="eyebrow">Bước 5 · Tài khoản người dùng</span><h1>Thêm học sinh & phụ huynh</h1><p>Tạo hai tài khoản, liên kết gia đình và xếp lớp trong một luồng duy nhất.</p></div>
+      <div><span className="eyebrow">Bước 4 · Tài khoản người dùng</span><h1>Thêm học sinh & phụ huynh</h1><p>Tạo hai tài khoản, liên kết gia đình và xếp lớp trong một luồng duy nhất.</p></div>
       <div className="enrollment-steps" aria-label="Quy trình gồm 3 bước">
         <span><b>1</b> Chọn lớp</span><i>→</i><span><b>2</b> Học sinh</span><i>→</i><span><b>3</b> Phụ huynh</span>
       </div>

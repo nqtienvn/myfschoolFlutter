@@ -111,7 +111,7 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
   }
 
   return <div className="page-stack">
-    <div className="page-heading"><div><span className="eyebrow">Bước 7 · Tùy chọn</span><h1>Thời khóa biểu</h1><p>Có thể tạo bất kỳ lúc nào; không ảnh hưởng điều kiện kích hoạt năm học hoặc học kỳ.</p></div></div>
+    <div className="page-heading"><div><span className="eyebrow">Phân hệ thời khóa biểu</span><h1>Thời khóa biểu</h1><p>Có thể tạo bất kỳ lúc nào; không ảnh hưởng điều kiện kích hoạt năm học hoặc học kỳ.</p></div></div>
     {(!selectedYearId || !selectedSemesterId) && <div className="notice warning">Chọn năm học và học kỳ ở thanh phía trên.</div>}
     {error && <div className="notice error">{error}</div>}{message && <div className="notice success">{message}</div>}
     <div className="form-inline">

@@ -40,7 +40,7 @@ export default function ActivationPage({ academicYearId, academicYearStatus, onC
 
   return (
     <div className="page-stack">
-      <section className="page-heading"><div><span className="eyebrow">Bước 9</span><h1>Kích hoạt năm học</h1><p>Đây là bước cuối cùng của quy trình thiết lập.</p></div></section>
+      <section className="page-heading"><div><span className="eyebrow">Bước 7</span><h1>Kích hoạt năm học</h1><p>Đây là bước cuối cùng của quy trình thiết lập.</p></div></section>
       {error && <div className="notice error">{error}</div>}
       {message && <div className="notice success">{message}</div>}
       {academicYearStatus === 'ACTIVE' && <div className="notice success">Năm học này đã được kích hoạt.</div>}

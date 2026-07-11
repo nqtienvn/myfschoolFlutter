@@ -7,7 +7,6 @@ import ClassesPage from './pages/ClassesPage';
 import StudentEnrollmentPage from './pages/StudentEnrollmentPage';
 import LoginPage from './pages/LoginPage';
 import MasterDataPage from './pages/MasterDataPage';
-import SetupWizardPage from './pages/SetupWizardPage';
 import UsersPage from './pages/UsersPage';
 import ValidationPage from './pages/ValidationPage';
 import ActivationPage from './pages/ActivationPage';
@@ -40,23 +39,29 @@ const STATUS_LABELS: Record<string, string> = {
   COMPLETED: 'ĐÃ HOÀN THÀNH',
 };
 
-const STEPS = [
-  { key: 'years', number: 1, label: 'Khởi tạo năm học' },
-  { key: 'master-data', number: 2, label: 'Cấu hình danh mục' },
-  { key: 'teachers', number: 3, label: 'Quản lý giáo viên' },
-  { key: 'classes', number: 4, label: 'Sinh lớp học' },
-  { key: 'students', number: 5, label: 'Thêm học sinh & PH' },
-  { key: 'assignments', number: 6, label: 'Phân công giảng dạy' },
-  { key: 'timetables', number: 7, label: 'Thời khóa biểu' },
-  { key: 'validation', number: 8, label: 'Kiểm tra dữ liệu' },
-  { key: 'activation', number: 9, label: 'Kích hoạt năm học' },
+const CONFIG_TABS = [
+  { key: 'years', label: 'Năm học' },
+  { key: 'master-data', label: 'Danh mục' },
+  { key: 'classes', label: 'Lớp học' },
+  { key: 'students', label: 'Học sinh & phụ huynh' },
+  { key: 'assignments', label: 'Phân công giảng dạy' },
+  { key: 'validation', label: 'Kiểm tra dữ liệu' },
+  { key: 'activation', label: 'Kích hoạt năm học' },
 ] as const;
 
-type PageKey = 'workflow' | typeof STEPS[number]['key'];
+const MODULES = [
+  { key: 'configuration', number: '01', label: 'Cấu hình năm học' },
+  { key: 'teachers', number: '02', label: 'Quản lý giáo viên' },
+  { key: 'timetables', number: '03', label: 'Thời khóa biểu' },
+] as const;
+
+type ConfigTabKey = typeof CONFIG_TABS[number]['key'];
+type ModuleKey = typeof MODULES[number]['key'];
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(isAdminLoggedIn());
-  const [page, setPage] = useState<PageKey>('workflow');
+  const [module, setModule] = useState<ModuleKey>('configuration');
+  const [configTab, setConfigTab] = useState<ConfigTabKey>('years');
   const [years, setYears] = useState<AcademicYearItem[]>([]);
   const [semesters, setSemesters] = useState<SemesterItem[]>([]);
   const [yearId, setYearId] = useState('');
@@ -113,9 +118,11 @@ export default function App() {
 
   if (!loggedIn) return <LoginPage onLogin={() => setLoggedIn(true)} />;
 
-  const goTo = (key: string) => setPage(key as PageKey);
-  const pages: Record<PageKey, React.ReactNode> = {
-    workflow: <SetupWizardPage onNavigate={goTo} selectedYear={selectedYear} />,
+  const goToConfigTab = (key: string) => {
+    setModule('configuration');
+    setConfigTab(key as ConfigTabKey);
+  };
+  const configPages: Record<ConfigTabKey, React.ReactNode> = {
     years: (
       <MasterDataPage
         initialTab="academic-years"
@@ -130,39 +137,43 @@ export default function App() {
         onYearCreated={() => refreshYears(yearId)}
       />
     ),
-    teachers: <UsersPage />,
     classes: <ClassesPage selectedYearId={yearId} selectedSemesterId={semesterId} classEditable={selectedYear?.status === 'DRAFT'} homeroomEditable={selectedYear?.status !== 'COMPLETED'} />,
     students: <StudentEnrollmentPage selectedYearId={yearId} editable={selectedYear?.status !== 'COMPLETED'} />,
     assignments: <AssignmentsPage selectedYearId={yearId} />,
-    timetables: <TimetablesPage selectedYearId={yearId} selectedSemesterId={semesterId} />,
-    validation: <ValidationPage academicYearId={yearId} onNavigate={goTo} />,
+    validation: <ValidationPage academicYearId={yearId} onNavigate={goToConfigTab} />,
     activation: (
       <ActivationPage
         academicYearId={yearId}
         academicYearStatus={selectedYear?.status}
         onChanged={() => Promise.all([refreshYears(yearId), refreshSemesters(yearId)]).then(() => undefined)}
-        onNavigate={goTo}
+        onNavigate={goToConfigTab}
       />
     ),
   };
 
+  const content = module === 'teachers'
+    ? <UsersPage />
+    : module === 'timetables'
+      ? <TimetablesPage selectedYearId={yearId} selectedSemesterId={semesterId} />
+      : configPages[configTab];
+
   return (
     <div className="app-shell">
       <aside className="workflow-sidebar">
-        <button className="brand" onClick={() => setPage('workflow')}>
+        <button className="brand" onClick={() => setModule('configuration')}>
           <span className="brand-mark">MF</span>
           <span><strong>MyFschool</strong><small>Thiết lập năm học</small></span>
         </button>
-        <div className="workflow-nav-label">Quy trình Admin</div>
+        <div className="workflow-nav-label">Phân hệ quản trị</div>
         <nav className="workflow-nav">
-          {STEPS.map(step => (
+          {MODULES.map(item => (
             <button
-              key={step.key}
-              className={page === step.key ? 'active' : ''}
-              onClick={() => setPage(step.key)}
+              key={item.key}
+              className={module === item.key ? 'active' : ''}
+              onClick={() => setModule(item.key)}
             >
-              <span>{step.number}</span>
-              {step.label}
+              <span>{item.number}</span>
+              {item.label}
             </button>
           ))}
         </nav>
@@ -182,7 +193,7 @@ export default function App() {
               ))}
             </select>
           </div>
-          {page !== 'assignments' && <div>
+          {(module !== 'configuration' || configTab !== 'assignments') && <div>
             <p>Học kỳ</p>
             <select value={semesterId} onChange={event => setSemesterId(event.target.value)} disabled={!yearId}>
               <option value="">Chưa có học kỳ</option>
@@ -194,10 +205,19 @@ export default function App() {
           <div className={`year-state state-${selectedYear?.status?.toLowerCase() || 'none'}`}>
             <span>Trạng thái</span>
             <strong>{selectedYear?.status ? STATUS_LABELS[selectedYear.status] : 'CHƯA KHỞI TẠO'}</strong>
-            <small>{page === 'assignments' ? 'Phân công áp dụng toàn năm' : selectedSemester?.name || 'Chọn năm học để bắt đầu'}</small>
+            <small>{module === 'configuration' && configTab === 'assignments' ? 'Phân công áp dụng toàn năm' : selectedSemester?.name || 'Chọn năm học để bắt đầu'}</small>
           </div>
         </header>
-        <main className="page-content">{pages[page]}</main>
+        {module === 'configuration' && (
+          <nav className="configuration-tabs" aria-label="Các bước cấu hình năm học">
+            {CONFIG_TABS.map((tab, index) => (
+              <button key={tab.key} className={configTab === tab.key ? 'active' : ''} onClick={() => setConfigTab(tab.key)}>
+                <span>{index + 1}</span>{tab.label}
+              </button>
+            ))}
+          </nav>
+        )}
+        <main className="page-content">{content}</main>
       </section>
     </div>
   );

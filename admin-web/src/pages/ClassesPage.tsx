@@ -95,7 +95,7 @@ export default function ClassesPage({ selectedYearId, classEditable = true, home
 
   return (
     <div className="page-stack">
-      <section className="page-heading"><div><span className="eyebrow">Bước 4</span><h1>Sinh lớp & gán GVCN</h1></div></section>
+      <section className="page-heading"><div><span className="eyebrow">Bước 3</span><h1>Sinh lớp & gán GVCN</h1></div></section>
       {!selectedYearId && <div className="notice warning">Chọn năm học DRAFT ở thanh trên.</div>}
       {!classEditable && homeroomEditable && selectedYearId && <div className="notice warning">Danh sách lớp đã bị khóa. GVCN vẫn có thể thay đổi cho đến khi năm học hoàn tất.</div>}
       {!homeroomEditable && selectedYearId && <div className="notice warning">Năm học đã hoàn tất; danh sách lớp và GVCN đã bị khóa.</div>}

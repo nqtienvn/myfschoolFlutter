@@ -93,7 +93,7 @@ export default function UsersPage() {
 
   return (
     <div className="page-stack">
-      <div className="page-heading"><div><span className="eyebrow">Bước 3</span><h1>Quản lý giáo viên</h1></div></div>
+      <div className="page-heading"><div><span className="eyebrow">Phân hệ giáo viên</span><h1>Quản lý giáo viên</h1></div></div>
       {error && <div className="notice error">{error}</div>}
       {message && <div className="notice success">{message}</div>}
 
