@@ -46,6 +46,16 @@ public class Announcement extends BaseEntity {
     @Column(name = "sender_type", nullable = false, length = 20)
     private String senderType = "SUBJECT_TEACHER";
 
+    @Column(name = "recipient_scope", nullable = false, length = 20)
+    private String recipientScope = "CLASSES";
+
+    @Column(name = "teacher_audience", length = 20)
+    private String teacherAudience;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_subject_id")
+    private Subject recipientSubject;
+
     @Column(nullable = false, length = 500)
     private String title;
 

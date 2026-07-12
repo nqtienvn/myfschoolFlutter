@@ -88,7 +88,8 @@ public class AnnouncementController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AnnouncementDto>> broadcast(@Valid @RequestBody AdminAnnouncementRequest request) {
         return ResponseEntity.ok(ApiResponse.success(announcementService.createAdminAnnouncement(request.title(),
-                request.body(), request.academicYearId(), SecurityUtil.getCurrentUserId())));
+                request.body(), request.academicYearId(), request.recipientScope(), request.targetRole(),
+                request.classIds(), request.teacherAudience(), request.subjectId(), SecurityUtil.getCurrentUserId())));
     }
 
     @GetMapping("/mine")

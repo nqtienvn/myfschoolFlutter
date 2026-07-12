@@ -16,7 +16,10 @@ public interface AnnouncementService {
     void deleteAnnouncement(Long id, Long userId, UserRole role);
     List<AnnouncementDto> getAdminAnnouncements(Long academicYearId, String status);
     AnnouncementDto review(Long id, boolean approve, String reason, Long adminUserId);
-    AnnouncementDto createAdminAnnouncement(String title, String body, Long academicYearId, Long adminUserId);
+    AnnouncementDto createAdminAnnouncement(String title, String body, Long academicYearId,
+                                             String recipientScope, TargetRole targetRole,
+                                             List<Long> classIds, String teacherAudience,
+                                             Long subjectId, Long adminUserId);
     List<Map<String, Object>> getEligibleClasses(Long academicYearId, Long teacherUserId);
 
     List<AnnouncementDto> getMyAnnouncements(Long teacherUserId);

@@ -5,6 +5,8 @@ export interface AnnouncementItem {
   id: number; title: string; body: string; targetRole: 'PARENT' | 'STUDENT' | 'ALL';
   teacherName: string; classNames: string[]; createdAt: string;
   approvalStatus: AnnouncementStatus; rejectionReason?: string; senderType: string;
+  recipientScope: 'SCHOOL' | 'CLASSES' | 'TEACHERS'; teacherAudience?: 'ALL' | 'SUBJECT' | 'HOMEROOM';
+  subjectId?: number; subjectName?: string;
 }
 
 export const getAnnouncements = (academicYearId: string, status?: string) =>
@@ -15,7 +17,13 @@ export const reviewAnnouncement = (id: number, approve: boolean, reason?: string
 
 export const deleteAnnouncement = (id: number) => apiFetch(`/announcements/${id}`, { method: 'DELETE' });
 
-export const broadcastAnnouncement = (academicYearId: string, title: string, body: string) =>
+export interface AdminAnnouncementPayload {
+  academicYearId: number; title: string; body: string;
+  recipientScope: 'SCHOOL' | 'CLASSES' | 'TEACHERS';
+  targetRole?: 'PARENT' | 'STUDENT' | 'ALL'; classIds?: number[];
+  teacherAudience?: 'ALL' | 'SUBJECT' | 'HOMEROOM'; subjectId?: number;
+}
+export const broadcastAnnouncement = (payload: AdminAnnouncementPayload) =>
   apiFetch('/announcements/admin/broadcast', {
-    method: 'POST', body: JSON.stringify({ academicYearId: Number(academicYearId), title, body }),
+    method: 'POST', body: JSON.stringify(payload),
   });
