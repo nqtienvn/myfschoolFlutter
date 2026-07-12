@@ -12,9 +12,3 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
-
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
-    baseline-version: 11
-    locations: classpath:db/migration
