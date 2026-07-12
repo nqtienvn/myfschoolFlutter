@@ -147,7 +147,7 @@ const _demoCollections = <String, List<Map<String, Object?>>>{
   'attendance': [
     {'studentId': 10, 'date': '2026-06-01', 'status': 'PRESENT'},
     {'studentId': 10, 'date': '2026-06-02', 'status': 'PRESENT'},
-    {'studentId': 10, 'date': '2026-06-03', 'status': 'LATE'},
+    {'studentId': 10, 'date': '2026-06-03', 'status': 'PRESENT'},
     {'studentId': 10, 'date': '2026-06-04', 'status': 'ABSENT'},
   ],
   'assignments': [

@@ -34,6 +34,10 @@ class BackendApiClient {
     return _send('PUT', path, token: token, body: body);
   }
 
+  Future<Object?> deleteData(String path, {String? token, Object? body}) {
+    return _send('DELETE', path, token: token, body: body);
+  }
+
   Uri wsUri(String path, {required String token}) {
     return baseUri.replace(
       scheme: baseUri.scheme == 'https' ? 'wss' : 'ws',

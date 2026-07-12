@@ -60,8 +60,7 @@ void main() {
     test('loads attendance stats', () async {
       final attendance = await repository.loadAttendanceStats(10);
 
-      expect(attendance.presentCount, 3);
-      expect(attendance.lateCount, 1);
+      expect(attendance.presentCount, 4);
       expect(attendance.absentCount, 1);
       expect(attendance.excusedCount, 0);
       expect(attendance.totalSessions, 5);

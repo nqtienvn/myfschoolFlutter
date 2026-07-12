@@ -14,6 +14,8 @@ export 'client/chat_api_client.dart';
 export 'client/fake_api.dart';
 export 'client/schedule_api_client.dart';
 export 'client/notification_api_client.dart';
+export 'client/leave_request_api_client.dart';
+export 'client/attendance_api_client.dart';
 export 'exception/backend_api_exception.dart';
 export 'exception/fake_api_exception.dart';
 export 'exception/parse_exception.dart';
