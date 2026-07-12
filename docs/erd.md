@@ -592,7 +592,7 @@ Tối ưu hiệu năng (index, partition) và dễ scale.
 │ leave_request_id │ BIGINT FK → leave_requests NULL   │
 │ date             │ DATE NOT NULL                     │
 │ shift            │ ENUM: MORNING, AFTERNOON          │
-│ status           │ ENUM: PRESENT, LATE,              │
+│ status           │ ENUM: PRESENT,                    │
 │                  │   ABSENT_WITH_LEAVE,              │
 │                  │   ABSENT_WITHOUT_LEAVE            │
 │ created_at       │ TIMESTAMP DEFAULT CURRENT         │

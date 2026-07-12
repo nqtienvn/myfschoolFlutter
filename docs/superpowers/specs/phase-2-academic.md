@@ -508,7 +508,7 @@ public class Attendance extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private AttendanceStatus status;
-    // PRESENT | LATE | ABSENT_WITH_LEAVE | ABSENT_WITHOUT_LEAVE
+    // PRESENT | ABSENT_WITH_LEAVE | ABSENT_WITHOUT_LEAVE
 }
 ```
 
@@ -567,9 +567,8 @@ public record AttendanceStatsDto(
     String studentName,
     Long semesterId,
     String semesterName,
-    int totalDays,
-    int presentDays,
-    int lateDays,
+    int totalSessions,
+    int presentSessions,
     int absentWithLeave,
     int absentWithoutLeave,
     double attendanceRate   //百分比
@@ -680,7 +679,7 @@ public class AttendanceService {
         // 1. Verify access (parent→guardian or student→self)
         // 2. Load semester date range
         // 3. Load all attendance records in range
-        // 4. Calculate stats (present, late, absent counts + rate)
+        // 4. Calculate stats (present and absent counts + rate)
         // 5. Return AttendanceLogDto
     }
 
@@ -706,11 +705,11 @@ public class AttendanceService {
 
 **Business Rules — Attendance:**
 - 1 record per student per date per shift (UNIQUE constraint)
-- Status: PRESENT, LATE, ABSENT_WITH_LEAVE, ABSENT_WITHOUT_LEAVE
+- Status: PRESENT, ABSENT_WITH_LEAVE, ABSENT_WITHOUT_LEAVE
 - teacher_id = người thực hiện điểm danh
 - Khi GV approve đơn nghỉ → auto-update attendance sang ABSENT_WITH_LEAVE
 - Attendance stats tính theo semester date range
-- Attendance rate = (present + late) / total_days × 100%
+- Attendance rate = present / total_days × 100%
 
 ---
 

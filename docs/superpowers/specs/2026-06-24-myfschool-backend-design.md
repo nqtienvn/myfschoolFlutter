@@ -340,7 +340,7 @@ public enum UserStatus {
 }
 
 public enum AttendanceStatus {
-    PRESENT, LATE, ABSENT_WITH_LEAVE, ABSENT_WITHOUT_LEAVE
+    PRESENT, ABSENT_WITH_LEAVE, ABSENT_WITHOUT_LEAVE
 }
 
 public enum LeaveShift {

@@ -28,7 +28,7 @@ Toàn bộ logic nghiệp vụ của ứng dụng được mô phỏng trực ti
 * **Lưới tiện ích tinh gọn (2x2 Grid Layout):** Để tối ưu trải nghiệm và loại bỏ các thành phần rườm rà, lưới tiện ích của phụ huynh chỉ tập trung vào 4 tính năng cốt lõi:
   1. **Thời khóa biểu:** Xem lịch học và lịch thi hàng ngày của con.
   2. **Bảng điểm:** Xem điểm chi tiết từng môn học (Toán, Anh, Tin) kèm nhận xét và xu hướng tăng trưởng.
-  3. **Chuyên cần:** Xem chi tiết lịch sử đi học (Có mặt, Đi muộn, Vắng có phép/không phép).
+  3. **Chuyên cần:** Xem chi tiết lịch sử đi học (Có mặt, Vắng có phép/không phép).
   4. **Đơn từ:** Tạo đơn nghỉ phép trực tuyến cho con và theo dõi trạng thái phê duyệt.
 * *(Ghi chú: Đã loại bỏ hoàn toàn các tiện ích "Sự kiện & CLB" và "Dịch vụ khác" để phụ huynh tập trung vào giám sát học tập).*
 
@@ -37,7 +37,7 @@ Toàn bộ logic nghiệp vụ của ứng dụng được mô phỏng trực ti
 * **Lưới tiện ích học tập (2x2 Grid Layout):** Tập trung vào trải nghiệm học tập và sinh hoạt cá nhân của học sinh lớp 12:
   1. **Thời khóa biểu:** Lịch học và phòng học cụ thể.
   2. **Bảng điểm:** Theo dõi điểm số cá nhân để chủ động cải thiện.
-  3. **Chuyên cần:** Tự giám sát tình trạng đi muộn hoặc vắng của bản thân.
+  3. **Chuyên cần:** Tự giám sát tình trạng có mặt hoặc vắng của bản thân.
   4. **Sự kiện & CLB:** Xem và đăng ký tham gia các hoạt động ngoại khóa, câu lạc bộ trong trường.
 * *(Ghi chú: Đã loại bỏ nút "Dịch vụ khác" để giao diện đạt sự cân đối tuyệt đối 2x2).*
 
@@ -45,7 +45,7 @@ Toàn bộ logic nghiệp vụ của ứng dụng được mô phỏng trực ti
 * **Giao diện trang chủ:** Fixed Header hiển thị vai trò chủ nhiệm và luồng inbox. Thẻ cam (Orange Card) tóm tắt lớp giảng dạy và môn phụ trách.
 * **Giao diện tiện ích điều hành (3x2 Grid Layout):** Hỗ trợ 6 tác vụ giảng dạy thiết thực:
   1. **Lớp được phân công:** Xem danh sách học sinh và thông tin liên hệ.
-  2. **Điểm danh lớp:** Giao diện điểm danh nhanh học sinh theo ngày.
+  2. **Điểm danh lớp:** Điểm danh theo từng buổi sáng/chiều có lịch học. Giáo viên chỉ điểm danh trong ngày; sửa sau khi đã lưu phải gửi Admin phê duyệt.
   3. **Duyệt đơn xin nghỉ:** Phê duyệt hoặc Từ chối đơn xin nghỉ phép gửi từ Phụ huynh.
   4. **Nhập & Upload điểm:** Nhập điểm trực tiếp hoặc import hàng loạt qua tệp Excel.
   5. **Gửi thông báo lớp:** Soạn thông báo kèm cờ bắt buộc xác nhận từ phụ huynh.

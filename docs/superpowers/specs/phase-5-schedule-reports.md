@@ -343,9 +343,8 @@ public record DashboardStatsDto(
 
 public record DashboardStudentStatsDto(
     double attendanceRate,
-    int presentDays,
+    int presentSessions,
     int absentDays,
-    int lateDays,
     BigDecimal currentGpa,
     String academicAbility,
     String conduct,
@@ -466,7 +465,6 @@ public record ClassStatsDto(
     // Attendance stats
     double overallAttendanceRate,
     int totalPresent,
-    int totalLate,
     int totalAbsent,
     // Grade distribution
     double averageGpa,

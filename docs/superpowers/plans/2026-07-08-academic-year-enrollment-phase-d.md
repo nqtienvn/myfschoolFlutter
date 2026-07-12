@@ -7,12 +7,12 @@
 **Architecture:**
 ```
 AttendanceSession ───┬─── AttendanceDetail (HS A: PRESENT)
-  classId            ├─── AttendanceDetail (HS B: LATE)
+  classId            ├─── AttendanceDetail (HS B: ABSENT_WITH_LEAVE)
   teacherId          ├─── AttendanceDetail (HS C: ABSENT)
   date               └─── ...
   shift
   scheduleId (opt.)
-  total/present/late/absent
+  total/present/absent
 ```
 
 **Tech Stack:** Spring Boot 3.4.5, Spring Data JPA, Java 21, React 19, TypeScript, Vite. No new dependency.
@@ -98,7 +98,6 @@ public class AttendanceSession extends BaseEntity {
     private Integer present = 0;
 
     @Column(nullable = false)
-    private Integer late = 0;
 
     @Column(nullable = false)
     private Integer absent = 0;
@@ -193,7 +192,7 @@ public record AttendanceSessionDto(
     Long teacherId, String teacherName,
     LocalDate date, Shift shift,
     Long scheduleId,
-    Integer total, Integer present, Integer late, Integer absent,
+    Integer total, Integer present, Integer absent,
     Boolean isClosed,
     List<AttendanceDetailDto> details
 ) {}
@@ -291,7 +290,6 @@ public class AttendanceSessionServiceImpl implements AttendanceSessionService {
         // 5. Cập nhật counts
         session.setTotal(students.size());
         session.setPresent(students.size());
-        session.setLate(0);
         session.setAbsent(0);
         sessionRepository.save(session);
 
@@ -334,16 +332,14 @@ public class AttendanceSessionServiceImpl implements AttendanceSessionService {
 
     private void recalculateCounts(AttendanceSession session) {
         List<AttendanceDetail> details = detailRepository.findBySessionId(session.getId());
-        int present = 0, late = 0, absent = 0;
+        int present = 0, absent = 0;
         for (AttendanceDetail d : details) {
             switch (d.getStatus()) {
                 case PRESENT -> present++;
-                case LATE -> late++;
                 default -> absent++;
             }
         }
         session.setPresent(present);
-        session.setLate(late);
         session.setAbsent(absent);
         sessionRepository.save(session);
     }
@@ -423,7 +419,7 @@ public class AttendanceSessionController {
 // Features:
 // 1. Chọn lớp, ngày, buổi (sáng/chiều) → load session
 // 2. Nếu chưa có session → nút "Bắt đầu điểm danh"
-// 3. Hiển thị danh sách HS với dropdown status (PRESENT/LATE/ABSENT_WITH_LEAVE/ABSENT_WITHOUT_LEAVE)
+// 3. Hiển thị danh sách HS với dropdown status (PRESENT/ABSENT_WITH_LEAVE/ABSENT_WITHOUT_LEAVE)
 // 4. Nút "Lưu" → batch update
 // 5. Nút "Kết thúc" → close session
 // 6. Thống kê: Có mặt / Muộn / Vắng
@@ -442,7 +438,7 @@ public class AttendanceSessionController {
 ### AttendanceSessionIntegrationTest.java
 ```java
 // Test: tạo session → tự động tạo detail cho 3 HS mẫu
-// Test: update 2 HS thành LATE + ABSENT → counts update
+// Test: update 2 HS thành ABSENT_WITH_LEAVE + ABSENT_WITHOUT_LEAVE → counts update
 // Test: tạo session trùng → conflict
 // Test: close session → không cho update nữa
 ```

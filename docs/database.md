@@ -389,7 +389,7 @@ CREATE TABLE attendance (
   leave_request_id BIGINT UNSIGNED NULL COMMENT 'Link đơn nghỉ (optional)',
   date             DATE NOT NULL,
   shift            ENUM('MORNING','AFTERNOON') NOT NULL,
-  status           ENUM('PRESENT','LATE','ABSENT_WITH_LEAVE','ABSENT_WITHOUT_LEAVE') NOT NULL,
+  status           ENUM('PRESENT','ABSENT_WITH_LEAVE','ABSENT_WITHOUT_LEAVE') NOT NULL,
   created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -406,6 +406,12 @@ CREATE TABLE attendance (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Chuyên cần (điểm danh)';
 ```
+
+Mỗi bản ghi tương ứng một học sinh trong một **buổi học**. Chỉ tạo điểm danh khi
+lớp có `schedule` trong thời khóa biểu hiệu lực của ngày và buổi tương ứng.
+Sau lần lưu đầu tiên, thay đổi của giáo viên được lưu vào
+`attendance_correction_requests` ở trạng thái `PENDING`; bảng `attendance` chỉ
+được cập nhật sau khi Admin duyệt.
 
 #### `leave_requests`
 
@@ -932,7 +938,7 @@ INSERT INTO semester_results (student_id, semester_id, class_id, gpa, `rank`, ho
 INSERT INTO attendance (student_id, class_id, teacher_id, date, shift, status) VALUES
 (1, 1, 1, '2026-06-20', 'MORNING', 'PRESENT'),
 (1, 1, 1, '2026-06-20', 'AFTERNOON', 'PRESENT'),
-(2, 1, 1, '2026-06-20', 'MORNING', 'LATE'),
+(2, 1, 1, '2026-06-20', 'MORNING', 'PRESENT'),
 (2, 1, 1, '2026-06-20', 'AFTERNOON', 'PRESENT'),
 (3, 3, 1, '2026-06-20', 'MORNING', 'ABSENT_WITH_LEAVE'),
 (3, 3, 1, '2026-06-20', 'AFTERNOON', 'ABSENT_WITH_LEAVE');
