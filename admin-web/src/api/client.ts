@@ -1,5 +1,14 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
+function resolveApiUrl(path: string): string {
+  const base = API_BASE.replace(/\/+$/, '');
+  let normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  if (base.endsWith('/api') && normalizedPath.startsWith('/api/')) {
+    normalizedPath = normalizedPath.slice(4);
+  }
+  return `${base}${normalizedPath}`;
+}
+
 export function getToken(): string | null {
   return localStorage.getItem('admin_token');
 }
@@ -22,7 +31,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   }
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(resolveApiUrl(path), {
     ...options,
     headers,
     cache: 'no-store',
