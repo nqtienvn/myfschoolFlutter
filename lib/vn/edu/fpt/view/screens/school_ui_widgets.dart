@@ -16,31 +16,32 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final titleWidget = Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+        color: AppColors.ink,
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.only(top: 18, bottom: 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.ink,
-              ),
+      child: actionLabel == null
+          ? titleWidget
+          : Row(
+              children: [
+                Expanded(child: titleWidget),
+                TextButton(
+                  onPressed: onAction ?? () {},
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: AppColors.blue,
+                  ),
+                  child: Text(actionLabel!),
+                ),
+              ],
             ),
-          ),
-          if (actionLabel != null)
-            TextButton(
-              onPressed: onAction ?? () {},
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                foregroundColor: AppColors.blue,
-              ),
-              child: Text(actionLabel!),
-            ),
-        ],
-      ),
     );
   }
 }
