@@ -58,6 +58,13 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public NotificationDto createNotification(Long userId, String title, String body, String tag) {
+        return createNotification(userId, title, body, tag, null, null);
+    }
+
+    @Override
+    public NotificationDto createNotification(
+            Long userId, String title, String body, String tag,
+            Long relatedId, String relatedType) {
         Notification n = new Notification();
         User user = new User();
         user.setId(userId);
@@ -65,6 +72,8 @@ public class NotificationServiceImpl implements NotificationService {
         n.setTitle(title);
         n.setBody(body);
         n.setTag(tag);
+        n.setRelatedId(relatedId);
+        n.setRelatedType(relatedType);
         n.setIsRead(false);
         NotificationDto saved = toDto(notificationRepository.save(n));
         Runnable push = () -> pushRealtime(userId, saved);
@@ -94,7 +103,12 @@ public class NotificationServiceImpl implements NotificationService {
 
     private NotificationDto toDto(Notification n) {
         return new NotificationDto(n.getId(), n.getTitle(), n.getBody(), n.getTag(),
-            n.getIsRead(), n.getTuitionBill() != null ? n.getTuitionBill().getId() : null,
-            "SYSTEM", n.getCreatedAt());
+            n.getIsRead(), n.getRelatedId() != null
+                ? n.getRelatedId()
+                : (n.getTuitionBill() != null ? n.getTuitionBill().getId() : null),
+            n.getRelatedType() != null
+                ? n.getRelatedType()
+                : (n.getTuitionBill() != null ? "TUITION_BILL" : "SYSTEM"),
+            n.getCreatedAt());
     }
 }

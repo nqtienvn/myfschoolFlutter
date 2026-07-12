@@ -14,4 +14,8 @@ public interface NotificationService {
     void markAllAsRead(Long userId);
 
     NotificationDto createNotification(Long userId, String title, String body, String tag);
+
+    NotificationDto createNotification(
+        Long userId, String title, String body, String tag,
+        Long relatedId, String relatedType);
 }

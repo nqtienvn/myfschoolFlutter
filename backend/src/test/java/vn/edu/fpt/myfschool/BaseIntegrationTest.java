@@ -60,6 +60,7 @@ public abstract class BaseIntegrationTest {
     @Autowired protected PeriodRepository periodRepository;
     @Autowired protected AcademicYearShiftRepository academicYearShiftRepository;
     @Autowired protected AcademicYearPeriodRepository academicYearPeriodRepository;
+    @Autowired protected HomeroomAssignmentRepository homeroomAssignmentRepository;
     @Autowired protected ConversationRepository conversationRepository;
     @Autowired protected ConversationParticipantRepository conversationParticipantRepository;
     @Autowired protected MessageRepository messageRepository;

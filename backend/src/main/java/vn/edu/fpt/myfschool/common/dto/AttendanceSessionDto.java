@@ -8,7 +8,7 @@ public record AttendanceSessionDto(
     Long teacherId, String teacherName,
     java.time.LocalDate date, vn.edu.fpt.myfschool.common.enums.Shift shift,
     Long scheduleId,
-    Integer total, Integer present, Integer late, Integer absent,
+    Integer total, Integer present, Integer absent,
     Boolean isClosed,
     List<AttendanceDetailDto> details
 ) {}

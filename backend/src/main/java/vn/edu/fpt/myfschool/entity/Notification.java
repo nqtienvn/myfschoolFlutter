@@ -35,6 +35,12 @@ public class Notification extends BaseEntity {
     @Column(length = 50)
     private String tag;
 
+    @Column(name = "related_id")
+    private Long relatedId;
+
+    @Column(name = "related_type", length = 50)
+    private String relatedType;
+
     @Column(nullable = false)
     private Boolean isRead = false;
 }

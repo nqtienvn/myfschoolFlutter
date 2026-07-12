@@ -53,9 +53,6 @@ public class AttendanceSession extends BaseEntity {
     private Integer present = 0;
 
     @Column(nullable = false)
-    private Integer late = 0;
-
-    @Column(nullable = false)
     private Integer absent = 0;
 
     @Column(nullable = false)

@@ -10,6 +10,7 @@ import vn.edu.fpt.myfschool.entity.Student;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDate;
 
 @Repository
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
@@ -19,4 +20,12 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
 
     @Query("SELECT e.student FROM Enrollment e WHERE e.cls.id = :classId AND e.academicYear.id = :academicYearId AND e.status = 'ACTIVE'")
     List<Student> findActiveStudentsByClassAndYear(@Param("classId") Long classId, @Param("academicYearId") Long academicYearId);
+
+    @Query("SELECT e FROM Enrollment e WHERE e.student.id = :studentId " +
+           "AND e.academicYear.startDate <= :dateFrom AND e.academicYear.endDate >= :dateTo " +
+           "AND e.status = 'ACTIVE'")
+    List<Enrollment> findActiveForStudentAndDateRange(
+        @Param("studentId") Long studentId,
+        @Param("dateFrom") LocalDate dateFrom,
+        @Param("dateTo") LocalDate dateTo);
 }

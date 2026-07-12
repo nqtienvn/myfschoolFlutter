@@ -43,6 +43,11 @@ public class LeaveRequest extends BaseEntity {
     private SchoolClass cls;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "academic_year_id", nullable = false,
+                foreignKey = @ForeignKey(name = "fk_lr_academic_year"))
+    private AcademicYear academicYear;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by",
                 foreignKey = @ForeignKey(name = "fk_lr_teacher"))
     private Teacher approvedBy;

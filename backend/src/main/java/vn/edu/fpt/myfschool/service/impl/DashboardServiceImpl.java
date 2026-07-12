@@ -32,25 +32,23 @@ public class DashboardServiceImpl implements DashboardService {
             .orElse(null);
         if (sem == null) return null;
 
-        long presentDays = attendanceRepository.countByStudentIdAndStatusAndDateBetween(
+        long presentSessions = attendanceRepository.countByStudentIdAndStatusAndDateBetween(
             student.getId(), AttendanceStatus.PRESENT, sem.getStartDate(), sem.getEndDate());
-        long lateDays = attendanceRepository.countByStudentIdAndStatusAndDateBetween(
-            student.getId(), AttendanceStatus.LATE, sem.getStartDate(), sem.getEndDate());
         long absentWithLeave = attendanceRepository.countByStudentIdAndStatusAndDateBetween(
             student.getId(), AttendanceStatus.ABSENT_WITH_LEAVE, sem.getStartDate(), sem.getEndDate());
         long absentWithoutLeave = attendanceRepository.countByStudentIdAndStatusAndDateBetween(
             student.getId(), AttendanceStatus.ABSENT_WITHOUT_LEAVE, sem.getStartDate(), sem.getEndDate());
 
-        long totalSessions = presentDays + lateDays + absentWithLeave + absentWithoutLeave;
-        long attendedSessions = presentDays + lateDays;
-        long absentDays = absentWithLeave + absentWithoutLeave;
+        long totalSessions = presentSessions + absentWithLeave + absentWithoutLeave;
+        long attendedSessions = presentSessions;
+        long absentSessions = absentWithLeave + absentWithoutLeave;
         double rate = totalSessions > 0 ? (double) attendedSessions / totalSessions * 100 : 0;
         rate = Math.round(rate * 10.0) / 10.0;
 
         SemesterResult sr = semesterResultRepository.findByStudentIdAndSemesterId(student.getId(), sem.getId()).orElse(null);
         return new DashboardStudentStatsDto(student.getId(), student.getUser().getName(),
             student.getStudentCode(), student.getCurrentClass() != null ? student.getCurrentClass().getName() : "",
-            rate, (int) presentDays, (int) absentDays, (int) lateDays,
+            rate, (int) presentSessions, (int) absentSessions,
             sr != null ? sr.getGpa() : null, sr != null ? sr.getAcademicAbility() : null,
             sr != null ? sr.getConduct() : null, sr != null ? sr.getRank() : null);
     }

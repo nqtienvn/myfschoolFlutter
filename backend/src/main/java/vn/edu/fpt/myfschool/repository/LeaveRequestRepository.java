@@ -32,4 +32,10 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
 
     @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.student.id = :studentId AND lr.status = 'PENDING' AND lr.dateFrom <= :dateTo AND lr.dateTo >= :dateFrom")
     long countOverlappingPending(@Param("studentId") Long studentId, @Param("dateFrom") LocalDate dateFrom, @Param("dateTo") LocalDate dateTo);
+
+    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.cls.id = :classId " +
+           "AND lr.status = 'APPROVED' AND lr.dateFrom <= :date AND lr.dateTo >= :date")
+    List<LeaveRequest> findApprovedByClassAndDate(
+        @Param("classId") Long classId,
+        @Param("date") LocalDate date);
 }

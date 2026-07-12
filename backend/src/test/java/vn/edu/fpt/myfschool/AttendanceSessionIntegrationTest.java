@@ -55,7 +55,7 @@ class AttendanceSessionIntegrationTest extends BaseIntegrationTest {
 
         String updateBody = "{\"sessionId\":" + sessionId
             + ",\"entries\":["
-            + "{\"studentId\":" + testStudent1.getId() + ",\"status\":\"LATE\",\"note\":\"đến muộn\"},"
+            + "{\"studentId\":" + testStudent1.getId() + ",\"status\":\"ABSENT_WITH_LEAVE\",\"note\":\"\"},"
             + "{\"studentId\":" + testStudent2.getId() + ",\"status\":\"ABSENT_WITHOUT_LEAVE\",\"note\":\"\"}"
             + "]}";
 
@@ -74,8 +74,7 @@ class AttendanceSessionIntegrationTest extends BaseIntegrationTest {
                 .param("shift", "MORNING"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[0].present").value(1))
-            .andExpect(jsonPath("$.data[0].late").value(1))
-            .andExpect(jsonPath("$.data[0].absent").value(1));
+            .andExpect(jsonPath("$.data[0].absent").value(2));
     }
 
     @Test
@@ -125,7 +124,7 @@ class AttendanceSessionIntegrationTest extends BaseIntegrationTest {
 
         // Update after close → should fail
         String updateBody = "{\"sessionId\":" + sessionId
-            + ",\"entries\":[{\"studentId\":" + testStudent1.getId() + ",\"status\":\"LATE\",\"note\":\"\"}]}";
+            + ",\"entries\":[{\"studentId\":" + testStudent1.getId() + ",\"status\":\"PRESENT\",\"note\":\"\"}]}";
 
         mockMvc.perform(put("/api/attendance-sessions/" + sessionId + "/details")
                 .header("Authorization", authHeader(token))

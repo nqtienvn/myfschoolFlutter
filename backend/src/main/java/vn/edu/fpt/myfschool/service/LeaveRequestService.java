@@ -8,7 +8,7 @@ import java.util.List;
 public interface LeaveRequestService {
     LeaveRequestDto createLeaveRequest(CreateLeaveRequestRequest request, Long parentUserId);
 
-    List<LeaveRequestDto> getParentLeaveRequests(Long parentUserId);
+    List<LeaveRequestDto> getParentLeaveRequests(Long parentUserId, Long studentId);
 
     List<LeaveRequestDto> getStudentLeaveRequests(Long studentUserId);
 

@@ -75,7 +75,6 @@ public class AttendanceSessionServiceImpl implements AttendanceSessionService {
 
         session.setTotal(students.size());
         session.setPresent(students.size());
-        session.setLate(0);
         session.setAbsent(0);
         sessionRepository.save(session);
 
@@ -122,16 +121,14 @@ public class AttendanceSessionServiceImpl implements AttendanceSessionService {
 
     private void recalculateCounts(AttendanceSession session) {
         List<AttendanceDetail> details = detailRepository.findBySessionId(session.getId());
-        int present = 0, late = 0, absent = 0;
+        int present = 0, absent = 0;
         for (AttendanceDetail d : details) {
             switch (d.getStatus()) {
                 case PRESENT -> present++;
-                case LATE -> late++;
                 default -> absent++;
             }
         }
         session.setPresent(present);
-        session.setLate(late);
         session.setAbsent(absent);
         sessionRepository.save(session);
     }
@@ -145,7 +142,7 @@ public class AttendanceSessionServiceImpl implements AttendanceSessionService {
             s.getTeacher().getId(), s.getTeacher().getUser().getName(),
             s.getDate(), s.getShift(),
             s.getSchedule() != null ? s.getSchedule().getId() : null,
-            s.getTotal(), s.getPresent(), s.getLate(), s.getAbsent(),
+            s.getTotal(), s.getPresent(), s.getAbsent(),
             s.getIsClosed(), detailDtos);
     }
 

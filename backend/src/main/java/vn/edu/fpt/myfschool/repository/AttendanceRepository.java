@@ -20,6 +20,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
     List<Attendance> findByStudentIdOrderByDateDesc(Long studentId);
 
+    List<Attendance> findByClsIdAndDateBetween(Long classId, LocalDate startDate, LocalDate endDate);
+
     Optional<Attendance> findByStudentIdAndDateAndShift(Long studentId, LocalDate date, Shift shift);
 
     @Query("SELECT a.status, COUNT(a) FROM Attendance a WHERE a.student.id = :studentId AND a.date BETWEEN :startDate AND :endDate GROUP BY a.status")

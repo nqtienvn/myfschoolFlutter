@@ -4,6 +4,6 @@ import java.math.BigDecimal;
 
 public record DashboardStudentStatsDto(
     Long studentId, String studentName, String studentCode, String className,
-    double attendanceRate, int presentDays, int absentDays, int lateDays,
+    double attendanceRate, int presentSessions, int absentSessions,
     BigDecimal currentGpa, String academicAbility, String conduct, Integer classRank
 ) {}
