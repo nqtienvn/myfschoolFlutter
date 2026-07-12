@@ -13,6 +13,7 @@ import ActivationPage from './pages/ActivationPage';
 import TimetablesPage from './pages/TimetablesPage';
 import StudentsAttendancePage from './pages/StudentsAttendancePage';
 import GradesManagementPage from './pages/GradesManagementPage';
+import GradeConfigurationPage from './pages/GradeConfigurationPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import { getAnnouncements as getAdminAnnouncements } from './api/announcement';
 
@@ -45,6 +46,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const CONFIG_TABS = [
   { key: 'years', icon: 'calendar', label: 'Năm học' },
+  { key: 'grade-config', icon: 'grade', label: 'Cấu hình đầu điểm' },
   { key: 'master-data', icon: 'catalog', label: 'Danh mục' },
   { key: 'classes', icon: 'school', label: 'Lớp học' },
   { key: 'students', icon: 'family', label: 'Học sinh & phụ huynh' },
@@ -180,6 +182,7 @@ export default function App() {
         onYearCreated={() => refreshYears(yearId)}
       />
     ),
+    'grade-config': <GradeConfigurationPage />,
     'master-data': (
       <MasterDataPage
         initialTab="catalogs"
