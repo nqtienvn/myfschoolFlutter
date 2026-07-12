@@ -25,8 +25,7 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
     private final SemesterResultRepository semesterResultRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final GradeRepository gradeRepository;
-    private final AttendanceSessionRepository attendanceSessionRepository;
-    private final AttendanceDetailRepository attendanceDetailRepository;
+    private final AttendanceRepository attendanceRepository;
     private final ClassRepository classRepository;
     private final SemesterRepository semesterRepository;
     // Phase E: GradeBook dependencies
@@ -47,10 +46,9 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
         int processed = 0, updated = 0, skipped = 0;
         List<String> warnings = new ArrayList<>();
 
-        // Preload attendance session IDs for conduct calculation
-        List<AttendanceSession> sessions = attendanceSessionRepository
+        // Attendance records are the single source of truth for conduct.
+        List<Attendance> attendanceRecords = attendanceRepository
             .findByClsIdAndDateBetween(classId, semester.getStartDate(), semester.getEndDate());
-        List<Long> sessionIds = sessions.stream().map(AttendanceSession::getId).toList();
 
         // Calculate GPA for each student
         List<StudentGPA> studentGPAs = new ArrayList<>();
@@ -86,7 +84,7 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
             result.setRank(rank);
             result.setHonor(calculateHonor(sg.gpa()));
             result.setAcademicAbility(calculateAcademicAbility(sg.gpa()));
-            result.setConduct(calculateConduct(sg.student().getId(), sessionIds));
+            result.setConduct(calculateConduct(sg.student().getId(), attendanceRecords));
             semesterResultRepository.save(result);
             updated++;
         }
@@ -182,16 +180,16 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
      * Tính hạnh kiểm từ tỷ lệ vắng không phép trong học kỳ.
      * < 5%: Tốt | 5-15%: Khá | 15-30%: Trung bình | ≥ 30%: Yếu
      */
-    private String calculateConduct(Long studentId, List<Long> sessionIds) {
-        if (sessionIds.isEmpty()) return "Tốt";
-
-        long totalRecords = attendanceDetailRepository
-            .countByStudentIdAndSessionIdIn(studentId, sessionIds);
+    private String calculateConduct(Long studentId, List<Attendance> attendanceRecords) {
+        long totalRecords = attendanceRecords.stream()
+            .filter(record -> record.getStudent().getId().equals(studentId))
+            .count();
         if (totalRecords == 0) return "Tốt";
 
-        long absentWithoutLeave = attendanceDetailRepository
-            .countByStudentIdAndStatusAndSessionIdIn(
-                studentId, AttendanceStatus.ABSENT_WITHOUT_LEAVE, sessionIds);
+        long absentWithoutLeave = attendanceRecords.stream()
+            .filter(record -> record.getStudent().getId().equals(studentId))
+            .filter(record -> record.getStatus() == AttendanceStatus.ABSENT_WITHOUT_LEAVE)
+            .count();
 
         double absentRate = (double) absentWithoutLeave / totalRecords * 100.0;
 
