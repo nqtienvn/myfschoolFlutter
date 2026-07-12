@@ -17,6 +17,7 @@ import vn.edu.fpt.myfschool.common.dto.SchoolShiftDto;
 import vn.edu.fpt.myfschool.service.MasterDataService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/master-data")
@@ -40,6 +41,14 @@ public class MasterDataController {
     public ResponseEntity<ApiResponse<List<PeriodDto>>> getPeriods(
             @RequestParam(required = false) Long shiftId) {
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách tiết học thành công", masterDataService.getPeriods(shiftId)));
+    }
+
+    @PostMapping("/initialize")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Khởi tạo danh mục ca, tiết và môn học mặc định")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> initialize() {
+        return ResponseEntity.ok(ApiResponse.success(
+            "Khởi tạo danh mục dùng chung thành công", masterDataService.initialize()));
     }
 
 }
