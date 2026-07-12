@@ -22,6 +22,8 @@ import vn.edu.fpt.myfschool.common.dto.UpdateAcademicYearStatusRequest;
 import vn.edu.fpt.myfschool.service.AcademicYearService;
 import vn.edu.fpt.myfschool.service.AcademicYearReadinessService;
 import vn.edu.fpt.myfschool.common.dto.AcademicYearReadinessDto;
+import vn.edu.fpt.myfschool.common.dto.AvailableAcademicYearDto;
+import vn.edu.fpt.myfschool.service.AvailableAcademicPeriodService;
 
 import java.util.List;
 
@@ -33,6 +35,14 @@ public class AcademicYearController {
 
     private final AcademicYearService academicYearService;
     private final AcademicYearReadinessService readinessService;
+    private final AvailableAcademicPeriodService availableAcademicPeriodService;
+
+    @GetMapping("/available")
+    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @Operation(summary = "Các năm học và học kỳ tài khoản được phép xem")
+    public ResponseEntity<ApiResponse<List<AvailableAcademicYearDto>>> available() {
+        return ResponseEntity.ok(ApiResponse.success(availableAcademicPeriodService.getAvailablePeriods()));
+    }
 
     @GetMapping("/{id}/readiness")
     @PreAuthorize("hasRole('ADMIN')")

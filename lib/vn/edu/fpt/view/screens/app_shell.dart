@@ -10,6 +10,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen_giaovien.dar
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen_phuhuynh.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen_hocsinh.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/messages_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({
@@ -33,6 +34,7 @@ class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
   late final List<GlobalKey<NavigatorState>> _navigatorKeys;
   NotificationService? _notificationService;
+  AcademicPeriodController? _academicPeriodController;
 
   @override
   void initState() {
@@ -43,6 +45,10 @@ class _AppShellState extends State<AppShell> {
         widget.authService?.currentSession ??
         widget.chatService?.session;
     final chatService = widget.chatService;
+    if (session != null) {
+      _academicPeriodController = AcademicPeriodController(token: session.token);
+      unawaited(_academicPeriodController!.load());
+    }
     if (session != null && chatService != null) {
       _notificationService = NotificationService(
         apiClient: NotificationApiClient(backend: BackendApiClient()),
@@ -56,6 +62,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void dispose() {
     _notificationService?.dispose();
+    _academicPeriodController?.dispose();
     super.dispose();
   }
 
@@ -122,7 +129,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
+    final shell = PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
@@ -174,5 +181,9 @@ class _AppShellState extends State<AppShell> {
         ),
       ),
     );
+    final periodController = _academicPeriodController;
+    return periodController == null
+        ? shell
+        : AcademicPeriodScope(controller: periodController, child: shell);
   }
 }

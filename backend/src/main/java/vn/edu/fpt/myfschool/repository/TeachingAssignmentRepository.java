@@ -13,6 +13,8 @@ import java.util.Collection;
 
 @Repository
 public interface TeachingAssignmentRepository extends JpaRepository<TeachingAssignment, Long> {
+    @Query("SELECT DISTINCT ta.cls.academicYear.id FROM TeachingAssignment ta WHERE ta.teacher.user.id = :userId")
+    List<Long> findAcademicYearIdsByTeacherUserId(@Param("userId") Long userId);
 
     List<TeachingAssignment> findByClsIdAndStatus(Long classId, AssignmentStatus status);
 

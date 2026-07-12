@@ -11,6 +11,8 @@ import java.time.LocalDate;
 
 @Repository
 public interface HomeroomAssignmentRepository extends JpaRepository<HomeroomAssignment, Long> {
+    @Query("SELECT DISTINCT ha.academicYear.id FROM HomeroomAssignment ha WHERE ha.teacher.user.id = :userId")
+    List<Long> findAcademicYearIdsByTeacherUserId(@Param("userId") Long userId);
 
     List<HomeroomAssignment> findByClsIdAndAcademicYearId(Long classId, Long academicYearId);
 

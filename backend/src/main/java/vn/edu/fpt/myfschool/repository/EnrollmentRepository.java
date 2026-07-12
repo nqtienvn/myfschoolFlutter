@@ -14,6 +14,12 @@ import java.time.LocalDate;
 
 @Repository
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
+    @Query("SELECT DISTINCT e.academicYear.id FROM Enrollment e WHERE e.student.user.id = :userId")
+    List<Long> findAcademicYearIdsByStudentUserId(@Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT e.academicYear.id FROM Enrollment e, StudentGuardian sg " +
+           "WHERE sg.student = e.student AND sg.guardian.user.id = :userId")
+    List<Long> findAcademicYearIdsByParentUserId(@Param("userId") Long userId);
     List<Enrollment> findByStudentId(Long studentId);
     Optional<Enrollment> findByStudentIdAndAcademicYearIdAndStatus(Long studentId, Long academicYearId, EnrollmentStatus status);
     List<Enrollment> findByClsIdAndAcademicYearIdAndStatus(Long classId, Long academicYearId, EnrollmentStatus status);

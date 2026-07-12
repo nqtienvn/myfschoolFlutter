@@ -41,7 +41,6 @@ class _HomeTeacherState extends State<HomeTeacher> {
     super.initState();
     widget.notificationService?.addListener(_onNotificationChanged);
     _loadTeacherClass();
-    _loadPendingLeaveCount();
   }
 
   @override
@@ -94,6 +93,7 @@ class _HomeTeacherState extends State<HomeTeacher> {
         _employeeCode = teacherProfile?['employeeCode'] as String? ?? session.accountCode;
         _loadingClass = false;
       });
+      if (_classId != null) await _loadPendingLeaveCount();
     } catch (e) {
       _setNullClass(widget.authService.currentSession?.userName, widget.authService.currentSession?.accountCode);
     }
@@ -266,6 +266,7 @@ class _HomeTeacherState extends State<HomeTeacher> {
                             badgeCount: _pendingLeaveCount > 0
                                 ? _pendingLeaveCount
                                 : null,
+                            enabled: !_loadingClass && _classId != null,
                             onTap: () {
                               final session =
                                   widget.authService.currentSession!;
@@ -321,6 +322,7 @@ class _HomeTeacherState extends State<HomeTeacher> {
                             icon: Icons.request_quote_outlined,
                             color: AppColors.fptOrange,
                             badgeCount: unpaidCount > 0 ? unpaidCount : null,
+                            enabled: !_loadingClass && _classId != null,
                             onTap: () {
                               Navigator.of(context)
                                   .push(
@@ -353,6 +355,7 @@ class _FeatureButton extends StatelessWidget {
     required this.color,
     required this.onTap,
     this.badgeCount,
+    this.enabled = true,
   });
 
   final String title;
@@ -360,17 +363,20 @@ class _FeatureButton extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
   final int? badgeCount;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      padding: 0,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
+    return Opacity(
+      opacity: enabled ? 1 : 0.42,
+      child: AppCard(
+        padding: 0,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               child: Column(
@@ -427,7 +433,8 @@ class _FeatureButton extends StatelessWidget {
                   ),
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );

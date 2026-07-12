@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
@@ -398,6 +399,7 @@ class SharedHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final periodController = AcademicPeriodScope.maybeOf(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Row(
@@ -440,8 +442,76 @@ class SharedHeader extends StatelessWidget {
               ),
             ),
           ),
+          if (periodController != null)
+            _AcademicPeriodPicker(controller: periodController),
           if (actions != null) ...actions!,
         ],
+      ),
+    );
+  }
+}
+
+class _AcademicPeriodPicker extends StatelessWidget {
+  const _AcademicPeriodPicker({required this.controller});
+
+  final AcademicPeriodController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.isLoading) {
+      return const SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    final selected = controller.selected;
+    if (selected == null) return const SizedBox.shrink();
+    return PopupMenuButton<AcademicPeriod>(
+      tooltip: 'Chọn năm học và học kỳ',
+      initialValue: selected,
+      onSelected: controller.select,
+      itemBuilder: (_) => controller.periods
+          .map(
+            (period) => PopupMenuItem<AcademicPeriod>(
+              value: period,
+              child: Row(
+                children: [
+                  if (period == selected)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: Icon(Icons.check, size: 18),
+                    ),
+                  Text(period.label),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 145),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.calendar_month_outlined, size: 16),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                selected.label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down, size: 18),
+          ],
+        ),
       ),
     );
   }
