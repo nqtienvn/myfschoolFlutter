@@ -6,7 +6,7 @@ import 'backend_api_client.dart';
 
 class LeaveRequestApiClient {
   const LeaveRequestApiClient({required BackendApiClient backend})
-      : _backend = backend;
+    : _backend = backend;
 
   final BackendApiClient _backend;
 
@@ -45,33 +45,42 @@ class LeaveRequestApiClient {
       query: {'studentId': studentId?.toString()},
     );
     if (data is! List) {
-      throw const ParseException('Dữ liệu danh sách đơn xin nghỉ phải là dạng mảng.');
+      throw const ParseException(
+        'Dữ liệu danh sách đơn xin nghỉ phải là dạng mảng.',
+      );
     }
-    return data
-        .map((item) {
-          if (item is! Map<String, dynamic>) {
-            throw const ParseException('Thông tin đơn xin nghỉ không đúng định dạng.');
-          }
-          return _parseLeaveRequest(item);
-        })
-        .toList();
+    return data.map((item) {
+      if (item is! Map<String, dynamic>) {
+        throw const ParseException(
+          'Thông tin đơn xin nghỉ không đúng định dạng.',
+        );
+      }
+      return _parseLeaveRequest(item);
+    }).toList();
   }
 
   Future<List<Map<String, dynamic>>> getPendingLeaveRequests({
     required String token,
+  }) => _getTeacherRequests(token: token, path: '/api/leave-requests/pending');
+
+  Future<List<Map<String, dynamic>>> getReviewedLeaveRequests({
+    required String token,
+  }) => _getTeacherRequests(token: token, path: '/api/leave-requests/reviewed');
+
+  Future<List<Map<String, dynamic>>> _getTeacherRequests({
+    required String token,
+    required String path,
   }) async {
-    final data = await _backend.getData('/api/leave-requests/pending', token: token);
+    final data = await _backend.getData(path, token: token);
     if (data is! List) {
-      throw const ParseException('Dữ liệu đơn chờ duyệt phải là dạng mảng.');
+      throw const ParseException('Dữ liệu đơn xin nghỉ phải là dạng mảng.');
     }
-    return data
-        .map((item) {
-          if (item is! Map<String, dynamic>) {
-            throw const ParseException('Đơn chờ duyệt không hợp lệ.');
-          }
-          return item;
-        })
-        .toList();
+    return data.map((item) {
+      if (item is! Map<String, dynamic>) {
+        throw const ParseException('Đơn xin nghỉ không hợp lệ.');
+      }
+      return item;
+    }).toList();
   }
 
   Future<void> approveRequest({required String token, required int id}) async {
@@ -114,7 +123,8 @@ class LeaveRequestApiClient {
     final response = json['response'] as String? ?? '';
     final studentName = json['studentName'] as String? ?? '';
 
-    final dateDisplay = 'Nghỉ: $dateFrom${dateFrom != dateTo ? ' đến $dateTo' : ''}';
+    final dateDisplay =
+        'Nghỉ: $dateFrom${dateFrom != dateTo ? ' đến $dateTo' : ''}';
     final title = 'Đơn nghỉ học của $studentName';
 
     return LeaveRequest(
@@ -123,10 +133,14 @@ class LeaveRequestApiClient {
       title: title,
       date: dateDisplay,
       reason: reason,
-      status: status == 'APPROVED' ? 'Approved' : (status == 'REJECTED' ? 'Rejected' : 'Pending'),
+      status: status == 'APPROVED'
+          ? 'Approved'
+          : (status == 'REJECTED' ? 'Rejected' : 'Pending'),
       statusColor: _statusColor(status),
       statusBackground: _statusBg(status),
-      note: response.isNotEmpty ? response : (status == 'PENDING' ? 'Đang chờ cô chủ nhiệm phản hồi.' : ''),
+      note: response.isNotEmpty
+          ? response
+          : (status == 'PENDING' ? 'Đang chờ cô chủ nhiệm phản hồi.' : ''),
     );
   }
 
