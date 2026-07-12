@@ -86,6 +86,21 @@ class ConversationIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void admin_can_broadcast_announcement_without_teacher() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(post("/api/announcements/admin/broadcast")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"Thong bao toan truong\",\"body\":\"Noi dung\",\"academicYearId\":"
+                        + testAcademicYear.getId() + "}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.senderType").value("ADMIN"))
+            .andExpect(jsonPath("$.data.teacherId").doesNotExist());
+    }
+
+    @Test
     void create_announcement_parent_forbidden() throws Exception {
         String token = loginAsParent();
 
