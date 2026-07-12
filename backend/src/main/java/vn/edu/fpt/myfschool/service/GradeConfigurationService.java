@@ -8,4 +8,5 @@ public interface GradeConfigurationService {
     GradeConfigDto createTemplate(CreateGradeConfigTemplateRequest request);
     GradeConfigDto getYearConfig(Long academicYearId);
     void copyToYear(Long academicYearId, Long templateId, List<GradeConfigItemRequest> inlineItems);
+    GradeConfigDto applyTemplateToYear(Long academicYearId, Long templateId);
 }

@@ -8,6 +8,7 @@ import vn.edu.fpt.myfschool.common.exception.*;
 import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.repository.*;
 import vn.edu.fpt.myfschool.service.GradeConfigurationService;
+import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
 import java.util.*;
 
 @Service @RequiredArgsConstructor @Transactional
@@ -44,6 +45,16 @@ public class GradeConfigurationServiceImpl implements GradeConfigurationService 
         AcademicYearGradeConfig config = new AcademicYearGradeConfig(); config.setAcademicYear(year); config.setSourceTemplate(source);
         for (GradeConfigItemRequest input : inputs) { AcademicYearGradeConfigItem item=new AcademicYearGradeConfigItem(); copy(input,item); item.setConfig(config); config.getItems().add(item); }
         yearConfigRepository.save(config);
+    }
+
+    @Override public GradeConfigDto applyTemplateToYear(Long academicYearId, Long templateId) {
+        AcademicYear year = yearRepository.findById(academicYearId)
+            .orElseThrow(() -> new ResourceNotFoundException("AcademicYear", "id", academicYearId));
+        if (year.getStatus() == AcademicYearStatus.COMPLETED) {
+            throw new ConflictException("Không thể áp dụng cấu hình điểm cho năm học đã hoàn tất");
+        }
+        copyToYear(academicYearId, templateId, null);
+        return getYearConfig(academicYearId);
     }
 
     private void validate(List<GradeConfigItemRequest> items) {

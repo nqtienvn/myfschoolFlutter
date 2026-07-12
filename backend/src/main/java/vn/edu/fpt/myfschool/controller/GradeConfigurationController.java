@@ -16,4 +16,8 @@ public class GradeConfigurationController {
     @GetMapping("/templates") public ResponseEntity<ApiResponse<List<GradeConfigDto>>> templates(){return ResponseEntity.ok(ApiResponse.success(service.listTemplates()));}
     @PostMapping("/templates") public ResponseEntity<ApiResponse<GradeConfigDto>> create(@Valid @RequestBody CreateGradeConfigTemplateRequest request){return ResponseEntity.ok(ApiResponse.success("Đã tạo mẫu cấu hình",service.createTemplate(request)));}
     @GetMapping("/academic-years/{yearId}") public ResponseEntity<ApiResponse<GradeConfigDto>> year(@PathVariable Long yearId){return ResponseEntity.ok(ApiResponse.success(service.getYearConfig(yearId)));}
+    @PostMapping("/academic-years/{yearId}/templates/{templateId}") public ResponseEntity<ApiResponse<GradeConfigDto>> apply(
+            @PathVariable Long yearId, @PathVariable Long templateId) {
+        return ResponseEntity.ok(ApiResponse.success("Đã áp dụng cấu hình đầu điểm cho năm học", service.applyTemplateToYear(yearId, templateId)));
+    }
 }

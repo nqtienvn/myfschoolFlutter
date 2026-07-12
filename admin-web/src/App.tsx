@@ -182,7 +182,7 @@ export default function App() {
         onYearCreated={() => refreshYears(yearId)}
       />
     ),
-    'grade-config': <GradeConfigurationPage />,
+    'grade-config': <GradeConfigurationPage selectedYearId={yearId} selectedYearStatus={selectedYear?.status} />,
     'master-data': (
       <MasterDataPage
         initialTab="catalogs"

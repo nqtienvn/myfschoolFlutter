@@ -7,3 +7,4 @@ export interface GradeConfig { id: number; name: string; version: number; academ
 export const getGradeTemplates = () => apiFetch('/grade-configurations/templates') as Promise<GradeConfig[]>;
 export const getYearGradeConfig = (yearId: string | number) => apiFetch(`/grade-configurations/academic-years/${yearId}`) as Promise<GradeConfig>;
 export const createGradeTemplate = (name: string, items: GradeConfigItem[]) => apiFetch('/grade-configurations/templates', { method: 'POST', body: JSON.stringify({ name, items }) }) as Promise<GradeConfig>;
+export const applyGradeTemplateToYear = (yearId: string | number, templateId: number) => apiFetch(`/grade-configurations/academic-years/${yearId}/templates/${templateId}`, { method: 'POST' }) as Promise<GradeConfig>;
