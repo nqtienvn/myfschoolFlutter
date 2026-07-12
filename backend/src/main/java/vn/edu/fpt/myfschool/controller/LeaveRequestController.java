@@ -60,6 +60,14 @@ public class LeaveRequestController {
                 leaveRequestService.getPendingLeaveRequests(SecurityUtil.getCurrentUserId())));
     }
 
+    @GetMapping("/reviewed")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Đơn đã xử lý trong năm học đang hoạt động")
+    public ResponseEntity<ApiResponse<List<LeaveRequestDto>>> getReviewedRequests() {
+        return ResponseEntity.ok(ApiResponse.success(
+                leaveRequestService.getReviewedLeaveRequests(SecurityUtil.getCurrentUserId())));
+    }
+
     @GetMapping("/class")
     @PreAuthorize("hasRole('TEACHER')")
     @Operation(summary = "Đơn theo lớp")

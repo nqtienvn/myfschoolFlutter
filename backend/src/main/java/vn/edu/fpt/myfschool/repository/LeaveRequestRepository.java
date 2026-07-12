@@ -22,9 +22,17 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     List<LeaveRequest> findByClassIdAndStatusOrderByCreatedAtDesc(@Param("classId") Long classId,
                                                                    @Param("status") LeaveStatus status);
 
-    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.cls.id IN :classIds AND lr.status = :status ORDER BY lr.createdAt DESC")
+    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.cls.id IN :classIds " +
+           "AND lr.academicYear.status = 'ACTIVE' AND lr.status = :status ORDER BY lr.createdAt DESC")
     List<LeaveRequest> findByClassIdsAndStatusOrderByCreatedAtDesc(@Param("classIds") List<Long> classIds,
                                                                     @Param("status") LeaveStatus status);
+
+    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.cls.id IN :classIds " +
+           "AND lr.academicYear.status = 'ACTIVE' AND lr.status IN :statuses " +
+           "ORDER BY lr.approvedAt DESC, lr.createdAt DESC")
+    List<LeaveRequest> findReviewedInActiveYear(
+        @Param("classIds") List<Long> classIds,
+        @Param("statuses") List<LeaveStatus> statuses);
 
     @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.cls.id IN :classIds AND lr.status = :status")
     long countByClassIdsAndStatus(@Param("classIds") List<Long> classIds,

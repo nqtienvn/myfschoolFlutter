@@ -14,6 +14,8 @@ public interface LeaveRequestService {
 
     List<LeaveRequestDto> getPendingLeaveRequests(Long teacherUserId);
 
+    List<LeaveRequestDto> getReviewedLeaveRequests(Long teacherUserId);
+
     List<LeaveRequestDto> getClassLeaveRequests(Long classId, LeaveStatus status, Long teacherUserId);
 
     LeaveRequestDto approveLeaveRequest(Long leaveRequestId, String response, Long teacherUserId);

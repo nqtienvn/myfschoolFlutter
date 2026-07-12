@@ -32,11 +32,17 @@ public interface HomeroomAssignmentRepository extends JpaRepository<HomeroomAssi
 
     @Query("SELECT ha FROM HomeroomAssignment ha " +
            "WHERE ha.teacher.id = :teacherId " +
+           "AND ha.academicYear.status = 'ACTIVE' " +
            "AND ha.academicYear.startDate <= :date AND ha.academicYear.endDate >= :date " +
            "AND ha.effectiveFrom <= :date AND (ha.effectiveTo IS NULL OR ha.effectiveTo >= :date)")
     List<HomeroomAssignment> findActiveByTeacherAndDate(
         @Param("teacherId") Long teacherId,
         @Param("date") LocalDate date);
+
+    @Query("SELECT ha FROM HomeroomAssignment ha " +
+           "WHERE ha.teacher.id = :teacherId AND ha.academicYear.status = 'ACTIVE'")
+    List<HomeroomAssignment> findByTeacherInActiveAcademicYear(
+        @Param("teacherId") Long teacherId);
 
     @Query("SELECT COUNT(ha) > 0 FROM HomeroomAssignment ha " +
            "WHERE ha.teacher.id = :teacherId AND ha.cls.id = :classId " +

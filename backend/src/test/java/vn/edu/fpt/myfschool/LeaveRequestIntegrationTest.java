@@ -91,6 +91,14 @@ class LeaveRequestIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", authHeader(teacherToken)))
             .andExpect(status().isOk());
 
+        mockMvc.perform(get("/api/leave-requests/reviewed")
+                .header("Authorization", authHeader(teacherToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[?(@.id == " + leaveId + ")].status")
+                .value(hasItem("APPROVED")))
+            .andExpect(jsonPath("$.data[?(@.id == " + leaveId + ")].academicYearId")
+                .value(hasItem(testAcademicYear.getId().intValue())));
+
         mockMvc.perform(get("/api/attendance/daily")
                 .header("Authorization", authHeader(teacherToken))
                 .param("classId", testClass.getId().toString())

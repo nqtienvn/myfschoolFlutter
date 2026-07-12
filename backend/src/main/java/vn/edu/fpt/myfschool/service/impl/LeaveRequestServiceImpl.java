@@ -128,10 +128,22 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
     @Override
     public List<LeaveRequestDto> getPendingLeaveRequests(Long teacherUserId) {
         Teacher teacher = requireTeacher(teacherUserId);
-        List<Long> classIds = getTeacherClassIds(teacher, LocalDate.now());
+        List<Long> classIds = getTeacherClassIds(teacher);
         if (classIds.isEmpty()) return List.of();
 
         return leaveRequestRepository.findByClassIdsAndStatusOrderByCreatedAtDesc(classIds, LeaveStatus.PENDING)
+            .stream().map(this::toDto).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<LeaveRequestDto> getReviewedLeaveRequests(Long teacherUserId) {
+        Teacher teacher = requireTeacher(teacherUserId);
+        List<Long> classIds = getTeacherClassIds(teacher);
+        if (classIds.isEmpty()) return List.of();
+
+        return leaveRequestRepository.findReviewedInActiveYear(
+                classIds, List.of(LeaveStatus.APPROVED, LeaveStatus.REJECTED))
             .stream().map(this::toDto).collect(Collectors.toList());
     }
 
@@ -238,7 +250,7 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
     @Override
     public long getPendingCount(Long teacherUserId) {
         Teacher teacher = requireTeacher(teacherUserId);
-        List<Long> classIds = getTeacherClassIds(teacher, LocalDate.now());
+        List<Long> classIds = getTeacherClassIds(teacher);
         return classIds.isEmpty() ? 0 : leaveRequestRepository.countByClassIdsAndStatus(classIds, LeaveStatus.PENDING);
     }
 
@@ -313,8 +325,8 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         return request.getDateFrom();
     }
 
-    private List<Long> getTeacherClassIds(Teacher teacher, LocalDate date) {
-        return homeroomAssignmentRepository.findActiveByTeacherAndDate(teacher.getId(), date)
+    private List<Long> getTeacherClassIds(Teacher teacher) {
+        return homeroomAssignmentRepository.findByTeacherInActiveAcademicYear(teacher.getId())
             .stream().map(assignment -> assignment.getCls().getId()).distinct().toList();
     }
 
