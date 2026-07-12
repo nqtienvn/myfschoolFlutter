@@ -8,14 +8,14 @@ export interface AnnouncementItem {
 }
 
 export const getAnnouncements = (academicYearId: string, status?: string) =>
-  apiFetch(`/api/announcements/admin?academicYearId=${academicYearId}${status ? `&status=${status}` : ''}`) as Promise<AnnouncementItem[]>;
+  apiFetch(`/announcements/admin?academicYearId=${academicYearId}${status ? `&status=${status}` : ''}`) as Promise<AnnouncementItem[]>;
 
 export const reviewAnnouncement = (id: number, approve: boolean, reason?: string) =>
-  apiFetch(`/api/announcements/${id}/review`, { method: 'PUT', body: JSON.stringify({ approve, reason }) });
+  apiFetch(`/announcements/${id}/review`, { method: 'PUT', body: JSON.stringify({ approve, reason }) });
 
-export const deleteAnnouncement = (id: number) => apiFetch(`/api/announcements/${id}`, { method: 'DELETE' });
+export const deleteAnnouncement = (id: number) => apiFetch(`/announcements/${id}`, { method: 'DELETE' });
 
 export const broadcastAnnouncement = (academicYearId: string, title: string, body: string) =>
-  apiFetch('/api/announcements/admin/broadcast', {
+  apiFetch('/announcements/admin/broadcast', {
     method: 'POST', body: JSON.stringify({ academicYearId: Number(academicYearId), title, body }),
   });
