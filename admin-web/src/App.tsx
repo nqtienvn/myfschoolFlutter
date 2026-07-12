@@ -11,6 +11,7 @@ import UsersPage from './pages/UsersPage';
 import ValidationPage from './pages/ValidationPage';
 import ActivationPage from './pages/ActivationPage';
 import TimetablesPage from './pages/TimetablesPage';
+import StudentsAttendancePage from './pages/StudentsAttendancePage';
 
 export interface AcademicYearItem {
   id: number;
@@ -52,6 +53,7 @@ const CONFIG_TABS = [
 const MODULES = [
   { key: 'configuration', icon: 'settings', label: 'Cấu hình năm học' },
   { key: 'teachers', icon: 'teacher', label: 'Quản lý giáo viên' },
+  { key: 'students-attendance', icon: 'family', label: 'Quản lý điểm danh' },
   { key: 'timetables', icon: 'timetable', label: 'Thời khóa biểu' },
 ] as const;
 
@@ -176,6 +178,7 @@ export default function App() {
       <ActivationPage
         academicYearId={yearId}
         academicYearStatus={selectedYear?.status}
+
         onChanged={() => Promise.all([refreshYears(yearId), refreshSemesters(yearId)]).then(() => undefined)}
         onNavigate={goToConfigTab}
       />
@@ -184,9 +187,11 @@ export default function App() {
 
   const content = module === 'teachers'
     ? <UsersPage />
-    : module === 'timetables'
-      ? <TimetablesPage selectedYearId={yearId} selectedSemesterId={semesterId} />
-      : configPages[configTab];
+    : module === 'students-attendance'
+      ? <StudentsAttendancePage selectedYearId={yearId} selectedSemesterId={semesterId} />
+      : module === 'timetables'
+        ? <TimetablesPage selectedYearId={yearId} selectedSemesterId={semesterId} />
+        : configPages[configTab];
 
   return (
     <div className={`app-shell ${sidebarOpen ? 'sidebar-is-open' : ''}`}>
