@@ -60,8 +60,9 @@ class _HomeTeacherState extends State<HomeTeacher> {
     final session = widget.authService.currentSession;
     if (session == null) return;
     try {
-      final count = await LeaveRequestApiClient(backend: BackendApiClient())
-          .getPendingCount(token: session.token);
+      final count = await LeaveRequestApiClient(
+        backend: BackendApiClient(),
+      ).getPendingCount(token: session.token);
       if (mounted) setState(() => _pendingLeaveCount = count);
     } catch (_) {
       // Không chặn trang chủ nếu badge chưa tải được.
@@ -78,24 +79,29 @@ class _HomeTeacherState extends State<HomeTeacher> {
       }
 
       final backend = BackendApiClient();
-      final profile = await backend.getData(
-        '/api/user/profile',
-        token: session.token,
-      ) as Map<String, dynamic>?;
-      final context = await AttendanceApiClient(backend: backend)
-          .getHomeroomContext(token: session.token);
-      final teacherProfile = profile?['teacherProfile'] as Map<String, dynamic>?;
+      final profile =
+          await backend.getData('/api/user/profile', token: session.token)
+              as Map<String, dynamic>?;
+      final context = await AttendanceApiClient(
+        backend: backend,
+      ).getHomeroomContext(token: session.token);
+      final teacherProfile =
+          profile?['teacherProfile'] as Map<String, dynamic>?;
       if (!mounted) return;
       setState(() {
         _classId = context['classId'] as int?;
         _className = context['className'] as String?;
         _teacherName = profile?['name'] as String? ?? session.userName;
-        _employeeCode = teacherProfile?['employeeCode'] as String? ?? session.accountCode;
+        _employeeCode =
+            teacherProfile?['employeeCode'] as String? ?? session.accountCode;
         _loadingClass = false;
       });
       if (_classId != null) await _loadPendingLeaveCount();
     } catch (e) {
-      _setNullClass(widget.authService.currentSession?.userName, widget.authService.currentSession?.accountCode);
+      _setNullClass(
+        widget.authService.currentSession?.userName,
+        widget.authService.currentSession?.accountCode,
+      );
     }
   }
 
@@ -164,7 +170,9 @@ class _HomeTeacherState extends State<HomeTeacher> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _loadingClass ? 'Đang tải thông tin...' : 'GVCN ${_className ?? 'Chưa xếp lớp'}',
+                                _loadingClass
+                                    ? 'Đang tải thông tin...'
+                                    : 'GVCN ${_className ?? 'Chưa xếp lớp'}',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w900,
@@ -173,7 +181,9 @@ class _HomeTeacherState extends State<HomeTeacher> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                _loadingClass ? '...' : 'Mã GV: ${_employeeCode ?? ''} • ${_teacherName ?? ''}',
+                                _loadingClass
+                                    ? '...'
+                                    : 'Mã GV: ${_employeeCode ?? ''} • ${_teacherName ?? ''}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.white70,
@@ -242,7 +252,9 @@ class _HomeTeacherState extends State<HomeTeacher> {
                                 if (_loadingClass) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Đang tải dữ liệu lớp học, vui lòng đợi...'),
+                                      content: Text(
+                                        'Đang tải dữ liệu lớp học, vui lòng đợi...',
+                                      ),
                                       behavior: SnackBarBehavior.floating,
                                     ),
                                   );
@@ -259,27 +271,31 @@ class _HomeTeacherState extends State<HomeTeacher> {
                                 );
                               },
                             ),
-                          _FeatureButton(
-                            title: 'Duyệt đơn xin nghỉ',
-                            icon: Icons.assignment_turned_in_outlined,
-                            color: AppColors.warning,
-                            badgeCount: _pendingLeaveCount > 0
-                                ? _pendingLeaveCount
-                                : null,
-                            enabled: !_loadingClass && _classId != null,
-                            onTap: () {
-                              final session =
-                                  widget.authService.currentSession!;
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => TeacherLeaveRequestsScreen(
-                                    token: session.token,
-                                    notificationService: widget.notificationService,
-                                  ),
-                                ),
-                              ).then((_) => _loadPendingLeaveCount());
-                            },
-                          ),
+                          if (_classId != null)
+                            _FeatureButton(
+                              title: 'Duyệt đơn xin nghỉ',
+                              icon: Icons.assignment_turned_in_outlined,
+                              color: AppColors.warning,
+                              badgeCount: _pendingLeaveCount > 0
+                                  ? _pendingLeaveCount
+                                  : null,
+                              onTap: () {
+                                final session =
+                                    widget.authService.currentSession!;
+                                Navigator.of(context)
+                                    .push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            TeacherLeaveRequestsScreen(
+                                              token: session.token,
+                                              notificationService:
+                                                  widget.notificationService,
+                                            ),
+                                      ),
+                                    )
+                                    .then((_) => _loadPendingLeaveCount());
+                              },
+                            ),
                           _FeatureButton(
                             title: 'Nhập & Upload điểm',
                             icon: Icons.grid_on_outlined,
@@ -317,23 +333,23 @@ class _HomeTeacherState extends State<HomeTeacher> {
                               );
                             },
                           ),
-                          _FeatureButton(
-                            title: 'QL Học phí',
-                            icon: Icons.request_quote_outlined,
-                            color: AppColors.fptOrange,
-                            badgeCount: unpaidCount > 0 ? unpaidCount : null,
-                            enabled: !_loadingClass && _classId != null,
-                            onTap: () {
-                              Navigator.of(context)
-                                  .push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) =>
-                                          const TeacherTuitionScreen(),
-                                    ),
-                                  )
-                                  .then((_) => setState(() {}));
-                            },
-                          ),
+                          if (_classId != null)
+                            _FeatureButton(
+                              title: 'QL Học phí',
+                              icon: Icons.request_quote_outlined,
+                              color: AppColors.fptOrange,
+                              badgeCount: unpaidCount > 0 ? unpaidCount : null,
+                              onTap: () {
+                                Navigator.of(context)
+                                    .push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            const TeacherTuitionScreen(),
+                                      ),
+                                    )
+                                    .then((_) => setState(() {}));
+                              },
+                            ),
                         ],
                       );
                     },
@@ -355,7 +371,6 @@ class _FeatureButton extends StatelessWidget {
     required this.color,
     required this.onTap,
     this.badgeCount,
-    this.enabled = true,
   });
 
   final String title;
@@ -363,20 +378,17 @@ class _FeatureButton extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
   final int? badgeCount;
-  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: enabled ? 1 : 0.42,
-      child: AppCard(
-        padding: 0,
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
+    return AppCard(
+      padding: 0,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               child: Column(
@@ -433,8 +445,7 @@ class _FeatureButton extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );

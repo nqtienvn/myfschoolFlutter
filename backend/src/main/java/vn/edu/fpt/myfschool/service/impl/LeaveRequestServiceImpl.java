@@ -326,8 +326,12 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
     }
 
     private List<Long> getTeacherClassIds(Teacher teacher) {
-        return homeroomAssignmentRepository.findByTeacherInActiveAcademicYear(teacher.getId())
+        List<Long> classIds = homeroomAssignmentRepository.findByTeacherInActiveAcademicYear(teacher.getId())
             .stream().map(assignment -> assignment.getCls().getId()).distinct().toList();
+        if (classIds.isEmpty()) {
+            throw new ForbiddenException("Chỉ giáo viên chủ nhiệm mới được truy cập chức năng duyệt đơn xin nghỉ");
+        }
+        return classIds;
     }
 
     private void assertTeacherCanAccessClass(Teacher teacher, Long classId, LocalDate date) {

@@ -18,6 +18,9 @@ public interface HomeroomAssignmentRepository extends JpaRepository<HomeroomAssi
 
     List<HomeroomAssignment> findByTeacherIdAndAcademicYearId(Long teacherId, Long academicYearId);
 
+    boolean existsByTeacherIdAndClsIdAndAcademicYearId(
+        Long teacherId, Long classId, Long academicYearId);
+
     @Query("SELECT ha FROM HomeroomAssignment ha " +
            "WHERE ha.cls.id = :classId AND ha.academicYear.id = :academicYearId " +
            "AND (ha.effectiveTo IS NULL OR ha.effectiveTo > CURRENT_DATE)")

@@ -10,9 +10,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.enums.BillStatus;
+import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
+import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
+import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.repository.*;
 
 import java.util.List;
@@ -27,6 +30,8 @@ public class TuitionBillServiceImpl implements TuitionBillService {
     private final StudentRepository studentRepository;
     private final ClassRepository classRepository;
     private final SemesterRepository semesterRepository;
+    private final TeacherRepository teacherRepository;
+    private final HomeroomAssignmentRepository homeroomAssignmentRepository;
 
     @Override
     public TuitionBillDto createTuitionBill(TuitionBillRequest request) {
@@ -64,6 +69,16 @@ public class TuitionBillServiceImpl implements TuitionBillService {
     @Transactional(readOnly = true)
     @Override
     public List<TuitionBillDto> getClassBills(Long classId, Long semesterId, BillStatus status) {
+        if (SecurityUtil.getCurrentUserRole() == UserRole.TEACHER) {
+            var teacher = teacherRepository.findByUserId(SecurityUtil.getCurrentUserId())
+                .orElseThrow(() -> new ForbiddenException("Tài khoản không có hồ sơ giáo viên"));
+            SchoolClass cls = classRepository.findById(classId)
+                .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
+            if (!homeroomAssignmentRepository.existsByTeacherIdAndClsIdAndAcademicYearId(
+                    teacher.getId(), classId, cls.getAcademicYear().getId())) {
+                throw new ForbiddenException("Chỉ giáo viên chủ nhiệm mới được xem và quản lý học phí của lớp");
+            }
+        }
         if (status != null) {
             return tuitionBillRepository.findByClassIdAndSemesterIdAndStatus(classId, semesterId, status)
                 .stream().map(this::toDto).collect(Collectors.toList());

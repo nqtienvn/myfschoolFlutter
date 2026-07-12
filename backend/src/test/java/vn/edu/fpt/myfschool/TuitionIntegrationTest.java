@@ -1,12 +1,24 @@
 package vn.edu.fpt.myfschool;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.http.MediaType;
+import vn.edu.fpt.myfschool.entity.HomeroomAssignment;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class TuitionIntegrationTest extends BaseIntegrationTest {
+
+    @BeforeEach
+    void assignHomeroomTeacher() {
+        HomeroomAssignment assignment = new HomeroomAssignment();
+        assignment.setCls(testClass);
+        assignment.setTeacher(testTeacher);
+        assignment.setAcademicYear(testAcademicYear);
+        assignment.setEffectiveFrom(testAcademicYear.getStartDate());
+        homeroomAssignmentRepository.save(assignment);
+    }
 
     private String billJson(Long studentId, Long classId, Long semesterId, String name, long amount) {
         return "{\"studentId\":" + studentId + ",\"classId\":" + classId + ",\"semesterId\":" + semesterId
@@ -86,6 +98,18 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data").isArray())
             .andExpect(jsonPath("$.data[0].status").value("UNPAID"));
+    }
+
+    @Test
+    void non_homeroom_teacher_cannot_view_class_bills() throws Exception {
+        homeroomAssignmentRepository.deleteAll();
+        String teacherToken = loginAsTeacher();
+
+        mockMvc.perform(get("/api/tuition/bills/class")
+                .header("Authorization", authHeader(teacherToken))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isForbidden());
     }
 
     @Test

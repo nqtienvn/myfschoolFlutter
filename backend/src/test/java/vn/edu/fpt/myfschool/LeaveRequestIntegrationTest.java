@@ -179,6 +179,20 @@ class LeaveRequestIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void non_homeroom_teacher_cannot_access_leave_review_endpoints() throws Exception {
+        homeroomAssignmentRepository.deleteAll();
+        String token = loginAsTeacher();
+
+        mockMvc.perform(get("/api/leave-requests/pending")
+                .header("Authorization", authHeader(token)))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/leave-requests/pending-count")
+                .header("Authorization", authHeader(token)))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
     void create_overlapping_pending_request_fails() throws Exception {
         String token = loginAsParent();
 
