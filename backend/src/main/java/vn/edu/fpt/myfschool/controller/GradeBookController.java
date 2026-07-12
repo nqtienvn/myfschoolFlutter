@@ -66,4 +66,10 @@ public class GradeBookController {
         gradeBookService.changeStatus(id, status);
         return ResponseEntity.ok(ApiResponse.success("Đã cập nhật trạng thái bảng điểm", null));
     }
+
+    @PostMapping("/{id}/calculate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<vn.edu.fpt.myfschool.common.dto.GradeCalculationDto>>> calculate(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success("Đã tính điểm trung bình môn", gradeBookService.calculateSubjectAverages(id)));
+    }
 }

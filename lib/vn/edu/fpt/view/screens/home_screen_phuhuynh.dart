@@ -405,8 +405,16 @@ class _HomeParentState extends State<HomeParent> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      GradesScreen(student: _student),
+                                  builder: (_) => GradesScreen(
+                                    token: widget
+                                        .authService
+                                        .currentSession!
+                                        .token,
+                                    studentId:
+                                        widget.authService.selectedChild!.id,
+                                    studentName:
+                                        widget.authService.selectedChild!.name,
+                                  ),
                                 ),
                               );
                             },
@@ -421,7 +429,10 @@ class _HomeParentState extends State<HomeParent> {
                                 MaterialPageRoute<void>(
                                   builder: (_) => StudentAttendanceScreen(
                                     student: _student,
-                                    token: widget.authService.currentSession!.token,
+                                    token: widget
+                                        .authService
+                                        .currentSession!
+                                        .token,
                                   ),
                                 ),
                               );
@@ -433,14 +444,14 @@ class _HomeParentState extends State<HomeParent> {
                             iconColor: AppColors.danger,
                             iconBgColor: AppColors.dangerSoft,
                             onTap: () {
-                              final session = widget.authService.currentSession!;
+                              final session =
+                                  widget.authService.currentSession!;
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      LeaveRequestListScreen(
-                                        student: _student,
-                                        token: session.token,
-                                      ),
+                                  builder: (_) => LeaveRequestListScreen(
+                                    student: _student,
+                                    token: session.token,
+                                  ),
                                 ),
                               );
                             },

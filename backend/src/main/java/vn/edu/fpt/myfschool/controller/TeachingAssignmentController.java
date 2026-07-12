@@ -95,4 +95,10 @@ public class TeachingAssignmentController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Khôi phục thành công", teachingAssignmentService.reactivate(id)));
     }
+
+    @GetMapping("/mine")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<ApiResponse<List<TeachingAssignmentDto>>> mine(@RequestParam Long academicYearId) {
+        return ResponseEntity.ok(ApiResponse.success(teachingAssignmentService.listMine(academicYearId)));
+    }
 }

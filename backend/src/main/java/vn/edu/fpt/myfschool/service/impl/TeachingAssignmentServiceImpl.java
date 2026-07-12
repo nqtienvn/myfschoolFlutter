@@ -13,6 +13,7 @@ import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.repository.*;
 import vn.edu.fpt.myfschool.service.TeachingAssignmentService;
+import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -172,4 +173,11 @@ public class TeachingAssignmentServiceImpl implements TeachingAssignmentService 
     }
 
     private record Resolved(SchoolClass cls, Subject subject, Teacher teacher) {}
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TeachingAssignmentDto> listMine(Long academicYearId) {
+        return assignmentRepository.findActiveByTeacherUserAndYear(SecurityUtil.getCurrentUserId(), academicYearId)
+            .stream().map(this::toDto).toList();
+    }
 }

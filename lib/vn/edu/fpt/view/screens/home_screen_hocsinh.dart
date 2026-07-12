@@ -254,7 +254,16 @@ class _HomeStudentState extends State<HomeStudent> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => const GradesScreen(),
+                                  builder: (_) => GradesScreen(
+                                    token: widget
+                                        .authService
+                                        .currentSession!
+                                        .token,
+                                    studentName: widget
+                                        .authService
+                                        .currentSession!
+                                        .userName,
+                                  ),
                                 ),
                               );
                             },
@@ -265,7 +274,8 @@ class _HomeStudentState extends State<HomeStudent> {
                             iconColor: AppColors.teal,
                             iconBgColor: AppColors.tealSoft,
                             onTap: () {
-                              final session = widget.authService.currentSession!;
+                              final session =
+                                  widget.authService.currentSession!;
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => StudentAttendanceScreen(

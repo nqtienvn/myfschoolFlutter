@@ -3,3 +3,5 @@ export const getGradeBook = (classId:number,subjectId:number,semesterId:number) 
 export const getGradeBookStudents = (bookId:number) => apiFetch(`/grade-books/${bookId}/students`);
 export const updateScores = (gradeItemId:number, entries:any[], reason:string) => apiFetch('/grade-books/scores',{method:'PUT',body:JSON.stringify({gradeItemId,entries,reason})});
 export const changeGradeBookStatus = (bookId:number,status:'PUBLISHED'|'LOCKED') => apiFetch(`/grade-books/${bookId}/status/${status}`,{method:'POST'});
+export const calculateSubjectAverages = (bookId:number) => apiFetch(`/grade-books/${bookId}/calculate`,{method:'POST'});
+export const calculateSemesterResults = (classId:number,semesterId:number) => apiFetch('/semester-results/calculate',{method:'POST',body:JSON.stringify({classId,semesterId})});

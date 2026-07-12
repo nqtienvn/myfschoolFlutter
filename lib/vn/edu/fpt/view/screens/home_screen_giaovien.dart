@@ -303,7 +303,12 @@ class _HomeTeacherState extends State<HomeTeacher> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => const GradesWebScreen(),
+                                  builder: (_) => GradesWebScreen(
+                                    token: widget
+                                        .authService
+                                        .currentSession!
+                                        .token,
+                                  ),
                                 ),
                               );
                             },
@@ -316,7 +321,10 @@ class _HomeTeacherState extends State<HomeTeacher> {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => AnnouncementsCreateScreen(
-                                    token: widget.authService.currentSession!.token,
+                                    token: widget
+                                        .authService
+                                        .currentSession!
+                                        .token,
                                   ),
                                 ),
                               );

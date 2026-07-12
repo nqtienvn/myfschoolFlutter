@@ -14,6 +14,7 @@ export 'client/schedule_api_client.dart';
 export 'client/notification_api_client.dart';
 export 'client/leave_request_api_client.dart';
 export 'client/attendance_api_client.dart';
+export 'client/gradebook_api_client.dart';
 export 'exception/backend_api_exception.dart';
 export 'exception/parse_exception.dart';
 export 'exception/student_not_found_exception.dart';
