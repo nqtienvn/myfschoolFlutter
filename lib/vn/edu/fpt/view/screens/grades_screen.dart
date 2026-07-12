@@ -203,6 +203,8 @@ class _GradesScreenState extends State<GradesScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  _GradeFormulaCard(subjects: subjects),
+                  const SizedBox(height: 12),
                   if (subjects.isEmpty)
                     const Card(
                       child: Padding(
@@ -327,6 +329,66 @@ class _GradesScreenState extends State<GradesScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _GradeFormulaCard extends StatelessWidget {
+  const _GradeFormulaCard({required this.subjects});
+  final List<Map<String, dynamic>> subjects;
+
+  @override
+  Widget build(BuildContext context) {
+    final configured = <String, Map<String, dynamic>>{};
+    for (final subject in subjects) {
+      for (final score in (subject['scores'] as List<dynamic>? ?? const [])) {
+        if (score is Map<String, dynamic>) {
+          configured['${score['name']}-${score['weight']}'] = score;
+        }
+      }
+    }
+    final terms = configured.values
+        .map((score) => '${score['name']} × ${score['weight']}')
+        .join(' + ');
+    final weights = configured.values.fold<int>(
+      0,
+      (sum, score) => sum + (score['weight'] as num).toInt(),
+    );
+    return Card(
+      child: ExpansionTile(
+        leading: const Icon(Icons.calculate_outlined, color: AppColors.blue),
+        title: const Text(
+          'Cách hệ thống tính điểm',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        subtitle: const Text('Nhấn để xem công thức đang áp dụng'),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children: [
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Điểm trung bình môn = Tổng (điểm × hệ số) / Tổng hệ số. Kết quả được làm tròn 1 chữ số thập phân.',
+            ),
+          ),
+          if (configured.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Theo cấu hình hiện tại: ($terms) / $weights',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Điểm trung bình học kỳ = Tổng điểm trung bình các môn / số môn có điểm. Admin thực hiện tính và công bố trước khi bảng điểm hiển thị tại đây.',
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

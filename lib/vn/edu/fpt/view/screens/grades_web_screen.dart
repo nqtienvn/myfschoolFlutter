@@ -259,6 +259,49 @@ class _GradesWebScreenState extends State<GradesWebScreen> {
                       },
                     ),
                   const SizedBox(height: 16),
+                  if (book != null) ...[
+                    Card(
+                      child: ExpansionTile(
+                        leading: const Icon(
+                          Icons.calculate_outlined,
+                          color: AppColors.blue,
+                        ),
+                        title: const Text(
+                          'Cách hệ thống tính điểm',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        subtitle: const Text('Nhấn để xem công thức'),
+                        childrenPadding: const EdgeInsets.fromLTRB(
+                          16,
+                          0,
+                          16,
+                          16,
+                        ),
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'ĐTB môn ${assignment?['subjectName']} = Tổng (điểm × hệ số) / Tổng hệ số. Hệ thống làm tròn 1 chữ số thập phân.',
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              (book!['items'] as List)
+                                  .whereType<Map<String, dynamic>>()
+                                  .map((i) => '${i['name']} × ${i['weight']}')
+                                  .join(' + '),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   if (assignments.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(32),
