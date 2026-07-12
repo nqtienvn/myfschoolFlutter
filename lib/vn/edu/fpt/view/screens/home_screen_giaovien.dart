@@ -315,8 +315,9 @@ class _HomeTeacherState extends State<HomeTeacher> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      const AnnouncementsCreateScreen(),
+                                  builder: (_) => AnnouncementsCreateScreen(
+                                    token: widget.authService.currentSession!.token,
+                                  ),
                                 ),
                               );
                             },

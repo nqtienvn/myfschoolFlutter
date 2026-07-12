@@ -12,15 +12,17 @@ import java.util.List;
 @Repository
 public interface AnnouncementRepository extends JpaRepository<Announcement, Long> {
     List<Announcement> findByTeacherIdOrderByCreatedAtDesc(Long teacherId);
+    List<Announcement> findByAcademicYearIdOrderByCreatedAtDesc(Long academicYearId);
+    List<Announcement> findByAcademicYearIdAndApprovalStatusOrderByCreatedAtDesc(Long academicYearId, String approvalStatus);
 
     @Query("SELECT DISTINCT a FROM Announcement a JOIN a.announcementClasses ac " +
-           "WHERE ac.cls.id IN :classIds AND a.targetRole IN :targetRoles " +
+           "WHERE ac.cls.id IN :classIds AND a.targetRole IN :targetRoles AND a.approvalStatus = 'APPROVED' " +
            "ORDER BY a.createdAt DESC")
     List<Announcement> findByClassesAndTargetRoles(@Param("classIds") List<Long> classIds,
                                                     @Param("targetRoles") List<TargetRole> targetRoles);
 
     @Query("SELECT COUNT(DISTINCT a) FROM Announcement a JOIN a.announcementClasses ac " +
-           "WHERE ac.cls.id IN :classIds AND a.targetRole IN :targetRoles " +
+           "WHERE ac.cls.id IN :classIds AND a.targetRole IN :targetRoles AND a.approvalStatus = 'APPROVED' " +
            "AND a.id NOT IN (SELECT ar.announcement.id FROM AnnouncementRead ar WHERE ar.user.id = :userId)")
     long countUnread(@Param("classIds") List<Long> classIds,
                      @Param("targetRoles") List<TargetRole> targetRoles,

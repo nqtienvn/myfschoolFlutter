@@ -25,9 +25,26 @@ import java.util.List;
 public class Announcement extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "teacher_id", nullable = false,
+    @JoinColumn(name = "teacher_id",
                 foreignKey = @ForeignKey(name = "fk_ann_teacher"))
     private Teacher teacher;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_user_id", nullable = false)
+    private User sender;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "academic_year_id", nullable = false)
+    private AcademicYear academicYear;
+
+    @Column(name = "approval_status", nullable = false, length = 20)
+    private String approvalStatus = "PENDING";
+
+    @Column(name = "rejection_reason", length = 1000)
+    private String rejectionReason;
+
+    @Column(name = "sender_type", nullable = false, length = 20)
+    private String senderType = "SUBJECT_TEACHER";
 
     @Column(nullable = false, length = 500)
     private String title;

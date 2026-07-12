@@ -5,10 +5,19 @@ import vn.edu.fpt.myfschool.common.enums.TargetRole;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 
 import java.util.List;
+import java.util.Map;
 
 public interface AnnouncementService {
     AnnouncementDto createAnnouncement(String title, String body, TargetRole targetRole,
-                                               boolean requiresReply, List<Long> classIds, Long teacherUserId);
+                                               boolean requiresReply, Long academicYearId, List<Long> classIds, Long teacherUserId);
+
+    AnnouncementDto updateAnnouncement(Long id, String title, String body, TargetRole targetRole,
+                                       Long academicYearId, List<Long> classIds, Long userId);
+    void deleteAnnouncement(Long id, Long userId, UserRole role);
+    List<AnnouncementDto> getAdminAnnouncements(Long academicYearId, String status);
+    AnnouncementDto review(Long id, boolean approve, String reason, Long adminUserId);
+    AnnouncementDto createAdminAnnouncement(String title, String body, Long academicYearId, Long adminUserId);
+    List<Map<String, Object>> getEligibleClasses(Long academicYearId, Long teacherUserId);
 
     List<AnnouncementDto> getMyAnnouncements(Long teacherUserId);
 

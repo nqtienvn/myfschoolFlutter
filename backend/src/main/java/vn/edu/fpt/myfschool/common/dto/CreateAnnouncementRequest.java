@@ -6,6 +6,6 @@ import vn.edu.fpt.myfschool.common.enums.TargetRole;
 
 public record CreateAnnouncementRequest(
     @NotBlank @Size(max = 500) String title, @NotBlank String body,
-    @NotNull TargetRole targetRole, Boolean requiresReply,
+    @NotNull TargetRole targetRole, Boolean requiresReply, Long academicYearId,
     @NotEmpty List<Long> classIds
 ) {}

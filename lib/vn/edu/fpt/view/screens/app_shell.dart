@@ -46,7 +46,9 @@ class _AppShellState extends State<AppShell> {
         widget.chatService?.session;
     final chatService = widget.chatService;
     if (session != null) {
-      _academicPeriodController = AcademicPeriodController(token: session.token);
+      _academicPeriodController = AcademicPeriodController(
+        token: session.token,
+      );
       unawaited(_academicPeriodController!.load());
     }
     if (session != null && chatService != null) {
@@ -99,9 +101,10 @@ class _AppShellState extends State<AppShell> {
                   return AnnouncementsScreen(
                     actor: widget.actor,
                     service: _notificationService!,
-                    token: widget.session?.token
-                        ?? widget.authService?.currentSession?.token
-                        ?? widget.chatService?.session?.token,
+                    token:
+                        widget.session?.token ??
+                        widget.authService?.currentSession?.token ??
+                        widget.chatService?.session?.token,
                   );
                 case 3:
                   return AccountProfileScreen(
@@ -120,6 +123,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _selectTab(int index) {
+    if (index == 2) unawaited(_notificationService?.markAllAsRead());
     if (_selectedIndex == index) {
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
     } else {
@@ -152,31 +156,34 @@ class _AppShellState extends State<AppShell> {
         ),
         bottomNavigationBar: SafeArea(
           top: false,
-          child: BottomNavigationBar(
-            currentIndex: _selectedIndex,
-            onTap: _selectTab,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home_outlined),
-                activeIcon: Icon(Icons.home),
-                label: 'Trang chủ',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.chat_bubble_outline),
-                activeIcon: Icon(Icons.chat_bubble),
-                label: 'Tin nhắn',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.mail_outline),
-                activeIcon: Icon(Icons.mail),
-                label: 'Thông báo',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.account_circle_outlined),
-                activeIcon: Icon(Icons.account_circle),
-                label: 'Tài khoản',
-              ),
-            ],
+          child: AnimatedBuilder(
+            animation: _notificationService ?? Listenable.merge(const []),
+            builder: (context, _) => BottomNavigationBar(
+              currentIndex: _selectedIndex,
+              onTap: _selectTab,
+              items: [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_outlined),
+                  activeIcon: Icon(Icons.home),
+                  label: 'Trang chủ',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.chat_bubble_outline),
+                  activeIcon: Icon(Icons.chat_bubble),
+                  label: 'Tin nhắn',
+                ),
+                BottomNavigationBarItem(
+                  icon: _notificationIcon(Icons.mail_outline),
+                  activeIcon: _notificationIcon(Icons.mail),
+                  label: 'Thông báo',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.account_circle_outlined),
+                  activeIcon: Icon(Icons.account_circle),
+                  label: 'Tài khoản',
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -185,5 +192,14 @@ class _AppShellState extends State<AppShell> {
     return periodController == null
         ? shell
         : AcademicPeriodScope(controller: periodController, child: shell);
+  }
+
+  Widget _notificationIcon(IconData icon) {
+    final count = _notificationService?.unreadCount ?? 0;
+    return Badge(
+      isLabelVisible: count > 0,
+      label: Text(count > 99 ? '99+' : '$count'),
+      child: Icon(icon),
+    );
   }
 }

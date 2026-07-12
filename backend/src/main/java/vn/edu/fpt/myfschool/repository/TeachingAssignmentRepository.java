@@ -27,6 +27,11 @@ public interface TeachingAssignmentRepository extends JpaRepository<TeachingAssi
     @Query("SELECT DISTINCT ta.cls.id FROM TeachingAssignment ta WHERE ta.teacher.id = :teacherId AND ta.status = 'ACTIVE'")
     List<Long> findActiveClassIdsByTeacherId(@Param("teacherId") Long teacherId);
 
+    @Query("SELECT DISTINCT ta.cls.id FROM TeachingAssignment ta WHERE ta.teacher.id = :teacherId " +
+           "AND ta.cls.academicYear.id = :academicYearId AND ta.status = 'ACTIVE'")
+    List<Long> findActiveClassIdsByTeacherAndYear(@Param("teacherId") Long teacherId,
+                                                  @Param("academicYearId") Long academicYearId);
+
     @Query("SELECT ta FROM TeachingAssignment ta " +
            "WHERE ta.cls.academicYear.id = :academicYearId " +
            "AND ta.status = 'ACTIVE'")

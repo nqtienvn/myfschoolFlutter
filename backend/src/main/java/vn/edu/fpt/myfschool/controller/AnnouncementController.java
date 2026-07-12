@@ -7,20 +7,25 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.myfschool.common.dto.AnnouncementDto;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
 import vn.edu.fpt.myfschool.common.dto.CreateAnnouncementRequest;
+import vn.edu.fpt.myfschool.common.dto.ReviewAnnouncementRequest;
+import vn.edu.fpt.myfschool.common.dto.AdminAnnouncementRequest;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.AnnouncementService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/announcements")
@@ -30,6 +35,13 @@ public class AnnouncementController {
 
     private final AnnouncementService announcementService;
 
+    @GetMapping("/eligible-classes")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> eligibleClasses(@RequestParam Long academicYearId) {
+        return ResponseEntity.ok(ApiResponse.success(announcementService.getEligibleClasses(
+                academicYearId, SecurityUtil.getCurrentUserId())));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('TEACHER')")
     @Operation(summary = "Tạo thông báo")
@@ -38,7 +50,45 @@ public class AnnouncementController {
         return ResponseEntity.ok(ApiResponse.success("Tạo thông báo thành công",
                 announcementService.createAnnouncement(request.title(), request.body(),
                         request.targetRole(), request.requiresReply() != null ? request.requiresReply() : false,
-                        request.classIds(), SecurityUtil.getCurrentUserId())));
+                        request.academicYearId(), request.classIds(), SecurityUtil.getCurrentUserId())));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<ApiResponse<AnnouncementDto>> update(@PathVariable Long id,
+            @Valid @RequestBody CreateAnnouncementRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(announcementService.updateAnnouncement(id,
+                request.title(), request.body(), request.targetRole(), request.academicYearId(),
+                request.classIds(), SecurityUtil.getCurrentUserId())));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+        announcementService.deleteAnnouncement(id, SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole());
+        return ResponseEntity.ok(ApiResponse.success("Đã xóa thông báo", null));
+    }
+
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<AnnouncementDto>>> adminList(
+            @RequestParam Long academicYearId, @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(ApiResponse.success(announcementService.getAdminAnnouncements(academicYearId, status)));
+    }
+
+    @PutMapping("/{id}/review")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AnnouncementDto>> review(@PathVariable Long id,
+            @RequestBody ReviewAnnouncementRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(announcementService.review(id, request.approve(),
+                request.reason(), SecurityUtil.getCurrentUserId())));
+    }
+
+    @PostMapping("/admin/broadcast")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AnnouncementDto>> broadcast(@Valid @RequestBody AdminAnnouncementRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(announcementService.createAdminAnnouncement(request.title(),
+                request.body(), request.academicYearId(), SecurityUtil.getCurrentUserId())));
     }
 
     @GetMapping("/mine")

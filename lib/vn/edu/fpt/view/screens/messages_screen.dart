@@ -244,6 +244,22 @@ class AnnouncementsScreen extends StatelessWidget {
   ) async {
     await service.markAsRead(item.id);
     if (!context.mounted) return;
+    if (item.relatedType == 'ANNOUNCEMENT') {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(item.title),
+          content: SingleChildScrollView(child: Text(item.message)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Đóng'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     if (actor == AppActor.teacher &&
         item.relatedType == 'LEAVE_REQUEST' &&
         token != null) {

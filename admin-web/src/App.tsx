@@ -12,6 +12,8 @@ import ValidationPage from './pages/ValidationPage';
 import ActivationPage from './pages/ActivationPage';
 import TimetablesPage from './pages/TimetablesPage';
 import StudentsAttendancePage from './pages/StudentsAttendancePage';
+import AnnouncementsPage from './pages/AnnouncementsPage';
+import { getAnnouncements as getAdminAnnouncements } from './api/announcement';
 
 export interface AcademicYearItem {
   id: number;
@@ -55,6 +57,7 @@ const MODULES = [
   { key: 'teachers', icon: 'teacher', label: 'Quản lý giáo viên' },
   { key: 'students-attendance', icon: 'family', label: 'Quản lý điểm danh' },
   { key: 'timetables', icon: 'timetable', label: 'Thời khóa biểu' },
+  { key: 'announcements', icon: 'bell', label: 'Thông báo' },
 ] as const;
 
 type ConfigTabKey = typeof CONFIG_TABS[number]['key'];
@@ -66,6 +69,7 @@ function NavIcon({ name }: { name: IconName }) {
     settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V20h-3v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7.08 15a1.7 1.7 0 0 0-1.55-1H5.4v-3h.13a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1-1.55V4.7h3v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.12 2.12-.06.06A1.7 1.7 0 0 0 19.4 10a1.7 1.7 0 0 0 1.55 1h.09v3h-.09a1.7 1.7 0 0 0-1.55 1Z"/></>,
     teacher: <><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-1.5A4.5 4.5 0 0 1 8 14h2a4.5 4.5 0 0 1 4.5 4.5V20M15 5h6v8h-5M17 8h2M17 10.5h2"/></>,
     timetable: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M7 14h2M11 14h2M15 14h2M7 17.5h2M11 17.5h2"/></>,
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 14h3M8 17h6"/></>,
     catalog: <><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></>,
     school: <><path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M6 12.5V18h12v-5.5M9 20v-4h6v4"/></>,
@@ -87,6 +91,7 @@ export default function App() {
   const [yearId, setYearId] = useState('');
   const [semesterId, setSemesterId] = useState('');
   const [loadingContext, setLoadingContext] = useState(false);
+  const [pendingAnnouncements, setPendingAnnouncements] = useState(0);
 
   async function refreshYears(preferredYearId?: string) {
     setLoadingContext(true);
@@ -125,6 +130,16 @@ export default function App() {
 
   useEffect(() => {
     refreshSemesters(yearId);
+  }, [yearId]);
+
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      if (!yearId) { setPendingAnnouncements(0); return; }
+      try { const rows = await getAdminAnnouncements(yearId, 'PENDING'); if (active) setPendingAnnouncements(rows.length); } catch { /* retry on next poll */ }
+    };
+    void refresh(); const timer = window.setInterval(refresh, 15000);
+    return () => { active = false; window.clearInterval(timer); };
   }, [yearId]);
 
   useEffect(() => {
@@ -191,6 +206,8 @@ export default function App() {
       ? <StudentsAttendancePage selectedYearId={yearId} selectedSemesterId={semesterId} />
       : module === 'timetables'
         ? <TimetablesPage selectedYearId={yearId} selectedSemesterId={semesterId} />
+        : module === 'announcements'
+          ? <AnnouncementsPage selectedYearId={yearId} />
         : configPages[configTab];
 
   return (
@@ -211,7 +228,7 @@ export default function App() {
               title={item.label}
             >
               <span className="module-icon"><NavIcon name={item.icon} /></span>
-              <span className="module-label">{item.label}</span>
+              <span className="module-label">{item.label}{item.key === 'announcements' && pendingAnnouncements > 0 ? ` (${pendingAnnouncements})` : ''}</span>
             </button>
           ))}
         </nav>
