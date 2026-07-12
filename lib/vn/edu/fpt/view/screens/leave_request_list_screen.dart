@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
@@ -8,21 +9,82 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
 
 class LeaveRequestListScreen extends StatefulWidget {
-  const LeaveRequestListScreen({super.key, required this.student});
+  const LeaveRequestListScreen({
+    super.key,
+    required this.student,
+    required this.token,
+  });
 
   final StudentSnapshot student;
+  final String token;
 
   @override
   State<LeaveRequestListScreen> createState() => _LeaveRequestListScreenState();
 }
-
 class _LeaveRequestListScreenState extends State<LeaveRequestListScreen> {
-  late List<LeaveRequest> _requests;
+  late final LeaveRequestApiClient _apiClient;
+  List<LeaveRequest> _requests = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _requests = List.from(widget.student.leaveRequests);
+    _apiClient = LeaveRequestApiClient(backend: BackendApiClient());
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final studentId = widget.student.id;
+      if (studentId == null) {
+        throw StateError('Không xác định được học sinh cần xem đơn.');
+      }
+      final studentRequests = await _apiClient.getMyLeaveRequests(
+        token: widget.token,
+        studentId: studentId,
+      );
+
+      setState(() {
+        _requests = studentRequests;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _cancel(LeaveRequest request) async {
+    if (request.id == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hủy đơn xin nghỉ?'),
+        content: const Text('Bạn chỉ có thể hủy đơn khi giáo viên chưa xử lý.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Không')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Hủy đơn')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _apiClient.cancelRequest(token: widget.token, id: request.id!);
+      await _loadData();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString().replaceAll('Exception: ', ''))),
+      );
+    }
   }
 
   @override
@@ -31,50 +93,88 @@ class _LeaveRequestListScreenState extends State<LeaveRequestListScreen> {
       backgroundColor: AppColors.background,
       appBar: const OrangeTopBar(title: 'Đơn xin nghỉ học'),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          children: [
-            PrimaryButton(
-              label: 'Tạo đơn xin nghỉ',
-              icon: Icons.add_circle_outline,
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(context);
-                final newRequest = await navigator.push<LeaveRequest?>(
-                  MaterialPageRoute<LeaveRequest?>(
-                    builder: (_) => LeaveRequestCreateScreen(student: widget.student),
-                  ),
-                );
-                if (newRequest != null) {
-                  setState(() {
-                    _requests.insert(0, newRequest);
-                  });
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Tạo đơn nghỉ học thành công!'),
-                      behavior: SnackBarBehavior.floating,
+        child: RefreshIndicator(
+          onRefresh: _loadData,
+          child: ListView(
+            padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              PrimaryButton(
+                label: 'Tạo đơn xin nghỉ',
+                icon: Icons.add_circle_outline,
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  final navigator = Navigator.of(context);
+                  final newRequest = await navigator.push<LeaveRequest?>(
+                    MaterialPageRoute<LeaveRequest?>(
+                      builder: (_) => LeaveRequestCreateScreen(
+                        student: widget.student,
+                        token: widget.token,
+                      ),
                     ),
                   );
-                }
-              },
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            const SectionHeader(title: 'Lịch sử đơn xin nghỉ'),
-            if (_requests.isEmpty)
-              const AppCard(
-                child: Center(
-                  child: Text(
-                    'Chưa có đơn xin nghỉ học nào.',
-                    style: TextStyle(color: AppColors.muted),
+                  if (newRequest != null) {
+                    setState(() {
+                      _requests.insert(0, newRequest);
+                    });
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Tạo đơn nghỉ học thành công!'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const SectionHeader(title: 'Lịch sử đơn xin nghỉ'),
+                  TextButton.icon(
+                    onPressed: _loadData,
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Tải lại'),
                   ),
-                ),
-              )
-            else
-              for (final request in _requests) ...[
-                _LeaveRequestTile(request: request),
-                const SizedBox(height: AppSpacing.sm),
-              ],
-          ],
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              if (_isLoading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.all(AppSpacing.lg),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (_errorMessage != null)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
+                    child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger)),
+                  ),
+                )
+              else if (_requests.isEmpty)
+                const AppCard(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsetsDirectional.all(AppSpacing.lg),
+                      child: Text(
+                        'Chưa có đơn xin nghỉ học nào.',
+                        style: TextStyle(color: AppColors.muted),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                for (final request in _requests) ...[
+                  _LeaveRequestTile(
+                    request: request,
+                    onCancel: request.status == 'Pending' ? () => _cancel(request) : null,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+            ],
+          ),
         ),
       ),
     );
@@ -82,12 +182,18 @@ class _LeaveRequestListScreenState extends State<LeaveRequestListScreen> {
 }
 
 class _LeaveRequestTile extends StatelessWidget {
-  const _LeaveRequestTile({required this.request});
+  const _LeaveRequestTile({required this.request, this.onCancel});
 
   final LeaveRequest request;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
+    String displayStatus = request.status;
+    if (request.status == 'Approved') displayStatus = 'Đã duyệt';
+    if (request.status == 'Rejected') displayStatus = 'Từ chối';
+    if (request.status == 'Pending') displayStatus = 'Chờ duyệt';
+
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,7 +211,7 @@ class _LeaveRequestTile extends StatelessWidget {
                 ),
               ),
               StatusPill(
-                label: request.status,
+                label: displayStatus,
                 foreground: request.statusColor,
                 background: request.statusBackground,
                 compact: true,
@@ -138,6 +244,17 @@ class _LeaveRequestTile extends StatelessWidget {
                 fontSize: 12,
                 color: AppColors.muted,
                 fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+          if (onCancel != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: onCancel,
+                icon: const Icon(Icons.cancel_outlined, size: 16),
+                label: const Text('Hủy đơn'),
               ),
             ),
           ],

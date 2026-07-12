@@ -3,6 +3,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 
 class StudentSnapshot {
   StudentSnapshot({
+    this.id,
     required this.name,
     required this.shortName,
     required this.className,
@@ -32,6 +33,7 @@ class StudentSnapshot {
   });
 
   factory StudentSnapshot.linked({
+    required int id,
     required String name,
     required String studentCode,
     required String className,
@@ -51,6 +53,7 @@ class StudentSnapshot {
             ? parts.first.substring(0, 1).toUpperCase()
             : '${parts[parts.length - 2][0]}${parts.last[0]}'.toUpperCase();
     return StudentSnapshot(
+      id: id,
       name: name,
       shortName: shortName,
       className: className,
@@ -80,6 +83,7 @@ class StudentSnapshot {
     );
   }
 
+  final int? id;
   final String name;
   final String shortName;
   final String className;
@@ -160,6 +164,8 @@ class ScheduleItem {
 
 class LeaveRequest {
   const LeaveRequest({
+    this.id,
+    this.studentId,
     required this.title,
     required this.date,
     required this.reason,
@@ -169,6 +175,8 @@ class LeaveRequest {
     required this.note,
   });
 
+  final int? id;
+  final int? studentId;
   final String title;
   final String date;
   final String reason;
@@ -256,6 +264,7 @@ final List<TuitionAlert> mockTeacherTuitionAlerts = [
 
 final mockStudents = [
   StudentSnapshot(
+    id: 1,
     name: 'Nguyễn Minh An',
     shortName: 'MA',
     className: '12A1',
@@ -426,6 +435,7 @@ final mockStudents = [
     ],
   ),
   StudentSnapshot(
+    id: 2,
     name: 'Nguyễn Minh Bảo',
     shortName: 'MB',
     className: '10B2',
@@ -439,7 +449,7 @@ final mockStudents = [
     unreadNotifications: 1,
     pendingLeaveRequests: 0,
     aiSummary:
-        'Minh Bảo có 2 lần đi muộn trong tháng, điểm Khoa học ổn định. AI gợi ý phụ huynh xem lại lịch xe đưa đón buổi sáng.',
+        'Minh Bảo có chuyên cần ổn định trong tháng. AI gợi ý phụ huynh tiếp tục theo dõi lịch học hằng ngày.',
     avatarColor: AppColors.blue,
     subjects: [
       SubjectScore(

@@ -60,6 +60,7 @@ class _HomeParentState extends State<HomeParent> {
             .map((entry) {
               final child = entry.value;
               return StudentSnapshot.linked(
+                id: child.id,
                 name: child.name,
                 studentCode: child.studentCode,
                 className: child.className ?? 'Chưa xếp lớp',
@@ -420,6 +421,7 @@ class _HomeParentState extends State<HomeParent> {
                                 MaterialPageRoute<void>(
                                   builder: (_) => StudentAttendanceScreen(
                                     student: _student,
+                                    token: widget.authService.currentSession!.token,
                                   ),
                                 ),
                               );
@@ -431,10 +433,14 @@ class _HomeParentState extends State<HomeParent> {
                             iconColor: AppColors.danger,
                             iconBgColor: AppColors.dangerSoft,
                             onTap: () {
+                              final session = widget.authService.currentSession!;
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) =>
-                                      LeaveRequestListScreen(student: _student),
+                                      LeaveRequestListScreen(
+                                        student: _student,
+                                        token: session.token,
+                                      ),
                                 ),
                               );
                             },

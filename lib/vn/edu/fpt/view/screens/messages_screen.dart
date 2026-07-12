@@ -11,6 +11,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/login_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/user_search_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_profile_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_leave_requests_screen.dart';
 
 class ConversationsScreen extends StatelessWidget {
   const ConversationsScreen({
@@ -230,10 +231,32 @@ class AnnouncementsScreen extends StatelessWidget {
     super.key,
     this.actor = AppActor.parent,
     required this.service,
+    this.token,
   });
 
   final AppActor actor;
   final NotificationService service;
+  final String? token;
+
+  Future<void> _openNotification(
+    BuildContext context,
+    domain.AppNotification item,
+  ) async {
+    await service.markAsRead(item.id);
+    if (!context.mounted) return;
+    if (actor == AppActor.teacher &&
+        item.relatedType == 'LEAVE_REQUEST' &&
+        token != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => TeacherLeaveRequestsScreen(
+            token: token!,
+            notificationService: service,
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -319,7 +342,7 @@ class AnnouncementsScreen extends StatelessWidget {
         final item = service.notifications[index - 1];
         return _NotificationCard(
           item: item,
-          onTap: () => service.markAsRead(item.id),
+          onTap: () => _openNotification(context, item),
         );
       },
     );
@@ -868,6 +891,7 @@ class _ParentChildrenCard extends StatelessWidget {
       AppColors.green,
     ];
     return StudentSnapshot.linked(
+      id: child.id,
       name: child.name,
       studentCode: child.studentCode,
       className: child.className ?? 'Chưa xếp lớp',

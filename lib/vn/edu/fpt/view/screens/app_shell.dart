@@ -64,7 +64,10 @@ class _AppShellState extends State<AppShell> {
       case AppActor.parent:
         return HomeParent(authService: widget.authService!);
       case AppActor.teacher:
-        return HomeTeacher(authService: widget.authService!);
+        return HomeTeacher(
+          authService: widget.authService!,
+          notificationService: _notificationService,
+        );
       case AppActor.student:
         return HomeStudent(authService: widget.authService!);
     }
@@ -89,6 +92,9 @@ class _AppShellState extends State<AppShell> {
                   return AnnouncementsScreen(
                     actor: widget.actor,
                     service: _notificationService!,
+                    token: widget.session?.token
+                        ?? widget.authService?.currentSession?.token
+                        ?? widget.chatService?.session?.token,
                   );
                 case 3:
                   return AccountProfileScreen(

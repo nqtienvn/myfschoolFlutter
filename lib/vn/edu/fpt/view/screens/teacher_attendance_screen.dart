@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
@@ -6,96 +7,402 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/primary_bu
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 
 class TeacherAttendanceScreen extends StatefulWidget {
-  const TeacherAttendanceScreen({super.key});
+  const TeacherAttendanceScreen({
+    super.key,
+    required this.token,
+  });
+
+  final String token;
 
   @override
   State<TeacherAttendanceScreen> createState() => _TeacherAttendanceScreenState();
 }
 
 class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
-  final List<_AttendanceRoster> _roster = [
-    _AttendanceRoster(name: 'Nguyễn Minh An', code: '12A-01', status: 'Có mặt'),
-    _AttendanceRoster(name: 'Trần Hoàng Nam', code: '12A-07', status: 'Muộn'),
-    _AttendanceRoster(name: 'Lê Bảo Châu', code: '12A-18', status: 'Vắng có phép'),
-    _AttendanceRoster(name: 'Phạm Gia Huy', code: '12A-31', status: 'Vắng không phép'),
-  ];
+  late final AttendanceApiClient _apiClient;
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<_StudentAttendanceState> _students = [];
+  int? _classId;
+  String _className = 'Lớp chủ nhiệm';
+  List<String> _shifts = const [];
+  String? _selectedShift;
+  bool _isSubmitted = false;
+  bool _canEdit = true;
+  bool _isEditing = false;
+  int _scheduledPeriods = 0;
+  bool _correctionPending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _apiClient = AttendanceApiClient(backend: BackendApiClient());
+    _loadContextAndData();
+  }
+
+  Future<void> _loadContextAndData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final todayStr = _todayDateString();
+      final contextData = await _apiClient.getHomeroomContext(
+        token: widget.token,
+        date: todayStr,
+      );
+      final shifts = (contextData['shifts'] as List? ?? const [])
+          .whereType<String>()
+          .toList(growable: false);
+      if (shifts.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _classId = contextData['classId'] as int;
+          _className = contextData['className'] as String? ?? 'Lớp chủ nhiệm';
+          _shifts = const [];
+          _selectedShift = null;
+          _students = [];
+          _isLoading = false;
+        });
+        return;
+      }
+      final selectedShift = _selectedShift != null && shifts.contains(_selectedShift)
+          ? _selectedShift!
+          : (shifts.contains('MORNING') ? 'MORNING' : shifts.first);
+      _classId = contextData['classId'] as int;
+      _className = contextData['className'] as String? ?? 'Lớp chủ nhiệm';
+      _shifts = shifts;
+      _selectedShift = selectedShift;
+      await _loadDailyData();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadDailyData() async {
+    final classId = _classId;
+    final selectedShift = _selectedShift;
+    if (classId == null || selectedShift == null) return;
+    try {
+      final todayStr = _todayDateString();
+      final data = await _apiClient.getDailyAttendance(
+        token: widget.token,
+        classId: classId,
+        date: todayStr,
+        shift: selectedShift,
+      );
+
+      final entries = data['students'] as List? ?? [];
+      final list = entries.map((e) {
+        final map = e as Map<String, dynamic>;
+        final studentId = map['studentId'] as int;
+        final name = map['studentName'] as String;
+        final code = map['studentCode'] as String;
+        // Nếu chưa điểm danh (status = null), mặc định là 'PRESENT'
+        final status = map['status'] as String? ?? 'PRESENT';
+        return _StudentAttendanceState(
+          studentId: studentId,
+          name: name,
+          code: code,
+          status: status,
+          hasApprovedLeave: map['hasApprovedLeave'] == true,
+        );
+      }).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _students = list;
+        _isSubmitted = data['submitted'] == true;
+        _canEdit = data['canEdit'] == true;
+        _scheduledPeriods = data['scheduledPeriods'] as int? ?? 0;
+        _correctionPending = data['correctionPending'] == true;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    final classId = _classId;
+    final selectedShift = _selectedShift;
+    if (classId == null || selectedShift == null) return;
+    setState(() => _isLoading = true);
+    try {
+      final todayStr = _todayDateString();
+      final entriesJson = _students.map((s) => {
+        'studentId': s.studentId,
+        'status': s.status,
+      }).toList();
+
+      if (_isSubmitted) {
+        await _apiClient.requestAttendanceCorrection(
+          token: widget.token,
+          classId: classId,
+          date: todayStr,
+          shift: selectedShift,
+          entries: entriesJson,
+        );
+      } else {
+        await _apiClient.submitAttendance(
+          token: widget.token,
+          classId: classId,
+          date: todayStr,
+          shift: selectedShift,
+          entries: entriesJson,
+        );
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_isSubmitted
+                ? 'Đã gửi yêu cầu sửa điểm danh để Admin duyệt.'
+                : 'Lưu điểm danh thành công!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        await _loadDailyData();
+        if (mounted) setState(() => _isEditing = false);
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _todayDateString() {
+    final now = DateTime.now();
+    return '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+  }
+
+  String _todayDisplay() {
+    final now = DateTime.now();
+    const weekdays = ['Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy', 'Chủ nhật'];
+    return '${weekdays[now.weekday - 1]}, '
+        '${now.day.toString().padLeft(2, '0')}/'
+        '${now.month.toString().padLeft(2, '0')}/${now.year}';
+  }
 
   @override
   Widget build(BuildContext context) {
-    int present = _roster.where((r) => r.status == 'Có mặt').length;
-    int late = _roster.where((r) => r.status == 'Muộn').length;
-    int absent = _roster.where((r) => r.status.contains('Vắng')).length;
+    int present = _students.where((r) => r.status == 'PRESENT').length;
+    int absent = _students.where((r) => r.status.contains('ABSENT')).length;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const OrangeTopBar(title: 'Điểm danh lớp'),
+      appBar: OrangeTopBar(title: 'Điểm danh: $_className'),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          children: [
-            // Stats Panel
-            AppCard(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _StatColumn(label: 'Có mặt', value: '$present', color: AppColors.green),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(_errorMessage!, style: const TextStyle(color: AppColors.danger), textAlign: TextAlign.center),
+                          const SizedBox(height: AppSpacing.md),
+                          ElevatedButton(onPressed: _loadContextAndData, child: const Text('Thử lại')),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    children: [
+                      AppCard(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today_outlined, color: AppColors.fptOrange),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(_todayDisplay(), style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink)),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    _shifts.isEmpty
+                                        ? 'Hôm nay lớp không có lịch học'
+                                        : '$_scheduledPeriods tiết trong buổi đã chọn',
+                                    style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      if (_shifts.isEmpty)
+                        const AppCard(
+                          child: Padding(
+                            padding: EdgeInsets.all(AppSpacing.md),
+                            child: Text(
+                              'Không cần điểm danh vì lớp không có tiết học trong thời khóa biểu hôm nay.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        )
+                      else ...[
+                      if (_isSubmitted)
+                        AppCard(
+                          backgroundColor: AppColors.greenSoft,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle, color: AppColors.green),
+                              const SizedBox(width: AppSpacing.md),
+                              const Expanded(
+                                child: Text('Đã điểm danh buổi này', style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.green)),
+                              ),
+                              if (_canEdit && !_isEditing && !_correctionPending)
+                                TextButton.icon(
+                                  onPressed: () => setState(() => _isEditing = true),
+                                  icon: const Icon(Icons.edit_outlined, size: 18),
+                                  label: const Text('Sửa điểm danh'),
+                                ),
+                            ],
+                          ),
+                        ),
+                      if (_correctionPending) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        const AppCard(
+                          backgroundColor: AppColors.warningSoft,
+                          child: Row(
+                            children: [
+                              Icon(Icons.hourglass_top_rounded, color: AppColors.warning),
+                              SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Text(
+                                  'Yêu cầu sửa điểm danh đang chờ Admin duyệt. Dữ liệu hiện tại chưa thay đổi.',
+                                  style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.warning),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (_isSubmitted) const SizedBox(height: AppSpacing.md),
+                      // Stats Panel
+                      AppCard(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _StatColumn(label: 'Có mặt', value: '$present', color: AppColors.green),
+                            ),
+                            Container(width: 1, height: 35, color: AppColors.line),
+                            Expanded(
+                              child: _StatColumn(label: 'Vắng mặt', value: '$absent', color: AppColors.danger),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      if (_shifts.length > 1) ...[
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          children: _shifts.map((shift) {
+                            final selected = shift == _selectedShift;
+                            return ChoiceChip(
+                              label: Text(shift == 'MORNING' ? 'Buổi sáng' : 'Buổi chiều'),
+                              selected: selected,
+                              onSelected: selected
+                                  ? null
+                                  : (_) async {
+                                      setState(() {
+                                        _selectedShift = shift;
+                                        _isLoading = true;
+                                      });
+                                      await _loadDailyData();
+                                    },
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          SectionHeader(title: 'Danh sách học sinh (${_students.length})'),
+                          TextButton.icon(
+                            onPressed: _loadDailyData,
+                            icon: const Icon(Icons.refresh, size: 16),
+                            label: const Text('Tải lại'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      if (_students.isEmpty)
+                        const AppCard(
+                          child: Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(AppSpacing.lg),
+                              child: Text('Lớp không có học sinh nào.', style: TextStyle(color: AppColors.muted)),
+                            ),
+                          ),
+                        )
+                      else
+                        for (int i = 0; i < _students.length; i++) ...[
+                          _RosterTile(
+                            student: _students[i],
+                            onToggleAbsent: _isSubmitted && !_isEditing ? null : () {
+                              setState(() {
+                                final currentStatus = _students[i].status;
+                                if (currentStatus.contains('ABSENT')) {
+                                  _students[i].status = 'PRESENT';
+                                } else {
+                                  // Mặc định vắng không phép, nếu có đơn thì chuyển vắng có phép
+                                  _students[i].status = 'ABSENT_WITHOUT_LEAVE';
+                                }
+                              });
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                        ],
+                      const SizedBox(height: AppSpacing.lg),
+                      PrimaryButton(
+                        label: _isSubmitted ? 'Lưu thay đổi điểm danh' : 'Lưu điểm danh lớp',
+                        icon: Icons.save_outlined,
+                        onPressed: (!_canEdit || _correctionPending || (_isSubmitted && !_isEditing)) ? null : _submit,
+                      ),
+                      ],
+                    ],
                   ),
-                  Container(width: 1, height: 35, color: AppColors.line),
-                  Expanded(
-                    child: _StatColumn(label: 'Muộn', value: '$late', color: AppColors.warning),
-                  ),
-                  Container(width: 1, height: 35, color: AppColors.line),
-                  Expanded(
-                    child: _StatColumn(label: 'Vắng', value: '$absent', color: AppColors.danger),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            const SectionHeader(title: 'Danh sách lớp 12A'),
-            const SizedBox(height: AppSpacing.xs),
-            for (int i = 0; i < _roster.length; i++) ...[
-              _RosterTile(
-                roster: _roster[i],
-                onStatusChanged: (newStatus) {
-                  setState(() {
-                    _roster[i].status = newStatus;
-                  });
-                },
-              ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-            const SizedBox(height: AppSpacing.lg),
-            PrimaryButton(
-              label: 'Lưu & Gửi phụ huynh',
-              icon: Icons.send_outlined,
-              onPressed: () {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Lưu điểm danh và gửi thông báo thành công!'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
       ),
     );
   }
 }
 
-class _AttendanceRoster {
-  _AttendanceRoster({
+class _StudentAttendanceState {
+  _StudentAttendanceState({
+    required this.studentId,
     required this.name,
     required this.code,
     required this.status,
+    required this.hasApprovedLeave,
   });
 
+  final int studentId;
   final String name;
   final String code;
   String status;
+  final bool hasApprovedLeave;
 }
 
 class _StatColumn extends StatelessWidget {
@@ -115,12 +422,12 @@ class _StatColumn extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           value,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: color),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: color),
         ),
       ],
     );
@@ -129,62 +436,93 @@ class _StatColumn extends StatelessWidget {
 
 class _RosterTile extends StatelessWidget {
   const _RosterTile({
-    required this.roster,
-    required this.onStatusChanged,
+    required this.student,
+    required this.onToggleAbsent,
   });
 
-  final _AttendanceRoster roster;
-  final ValueChanged<String> onStatusChanged;
+  final _StudentAttendanceState student;
+  final VoidCallback? onToggleAbsent;
 
   @override
   Widget build(BuildContext context) {
+    final isAbsent = student.status.contains('ABSENT');
+    final isAbsentWithLeave = student.status == 'ABSENT_WITH_LEAVE'
+        || (isAbsent && student.hasApprovedLeave);
+
     return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  student.name,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.ink),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      student.code,
+                      style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.bold),
+                    ),
+                    if (isAbsent || student.hasApprovedLeave) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isAbsentWithLeave ? AppColors.blueSoft : AppColors.dangerSoft,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          student.hasApprovedLeave && !isAbsent
+                              ? 'Có đơn đã duyệt'
+                              : (isAbsentWithLeave ? 'Nghỉ có phép' : 'Nghỉ không phép'),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isAbsentWithLeave ? AppColors.blue : AppColors.danger,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Chỉ hiện duy nhất nút vắng
+          // Nếu bấm vắng, nút vắng đổi sang màu đỏ nổi bật
+          // Nếu không bấm, nghĩa là học sinh đó có mặt
+          Column(
             children: [
-              Text(
-                roster.name,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.ink),
-              ),
-              Text(
-                roster.code,
-                style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.bold),
+              OutlinedButton(
+                onPressed: onToggleAbsent,
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: isAbsent
+                      ? (isAbsentWithLeave ? AppColors.blue.withValues(alpha: 0.12) : AppColors.danger.withValues(alpha: 0.12))
+                      : Colors.transparent,
+                  side: BorderSide(
+                    color: isAbsent
+                        ? (isAbsentWithLeave ? AppColors.blue : AppColors.danger)
+                        : AppColors.muted.withValues(alpha: 0.4),
+                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+                child: Text(
+                  'Vắng',
+                  style: TextStyle(
+                    color: isAbsent
+                        ? (isAbsentWithLeave ? AppColors.blue : AppColors.danger)
+                        : AppColors.muted,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ],
-          ),
-          const Divider(height: AppSpacing.lg),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: ['Có mặt', 'Muộn', 'Vắng phép', 'Vắng không phép'].map((statusOption) {
-              String currentMatch = roster.status;
-              if (currentMatch == 'Vắng có phép' && statusOption == 'Vắng phép') currentMatch = 'Vắng phép';
-              if (currentMatch == 'Vắng không phép' && statusOption == 'Vắng không phép') currentMatch = 'Vắng không phép';
-              
-              String statusKey = statusOption;
-              if (statusOption == 'Vắng phép') statusKey = 'Vắng có phép';
-              if (statusOption == 'Vắng không phép') statusKey = 'Vắng không phép';
-
-              final isSelected = roster.status == statusKey;
-              Color activeColor = AppColors.fptOrange;
-              if (statusOption == 'Có mặt') activeColor = AppColors.green;
-              if (statusOption == 'Muộn') activeColor = AppColors.warning;
-              if (statusOption.contains('Vắng')) activeColor = AppColors.danger;
-
-              return ChoiceChip(
-                label: Text(statusOption),
-                selected: isSelected,
-                onSelected: (_) => onStatusChanged(statusKey),
-                selectedColor: activeColor.withValues(alpha: 0.12),
-                labelStyle: TextStyle(
-                  color: isSelected ? activeColor : AppColors.ink,
-                  fontSize: 10,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                ),
-              );
-            }).toList(),
           ),
         ],
       ),

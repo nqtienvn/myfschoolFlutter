@@ -1,45 +1,226 @@
 import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 
 class TeacherLeaveRequestsScreen extends StatefulWidget {
-  const TeacherLeaveRequestsScreen({super.key});
+  const TeacherLeaveRequestsScreen({
+    super.key,
+    required this.token,
+    this.notificationService,
+  });
+
+  final String token;
+  final NotificationService? notificationService;
 
   @override
   State<TeacherLeaveRequestsScreen> createState() => _TeacherLeaveRequestsScreenState();
 }
 
 class _TeacherLeaveRequestsScreenState extends State<TeacherLeaveRequestsScreen> {
-  final List<_PendingLeaveRequest> _pendingRequests = [
-    _PendingLeaveRequest(
-      studentName: 'Trần Hoàng Nam',
-      period: '16/06/2026 | Tiết 2-4',
-      reason: 'Khám sức khỏe định kỳ, có giấy hẹn đính kèm',
-    ),
-    _PendingLeaveRequest(
-      studentName: 'Lê Bảo Châu',
-      period: '17/06/2026 | Cả ngày',
-      reason: 'Gia đình có việc riêng đột xuất',
-    ),
-    _PendingLeaveRequest(
-      studentName: 'Phạm Gia Huy',
-      period: '18/06/2026 | Buổi sáng',
-      reason: 'Sốt nhẹ, xin nghỉ theo dõi thêm',
-    ),
-  ];
+  late final LeaveRequestApiClient _apiClient;
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<Map<String, dynamic>> _pendingRequests = [];
+  int? _lastLeaveNotificationId;
 
-  void _handleAction(int index, String action) {
+  @override
+  void initState() {
+    super.initState();
+    _apiClient = LeaveRequestApiClient(backend: BackendApiClient());
+    widget.notificationService?.addListener(_onNotificationChanged);
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    widget.notificationService?.removeListener(_onNotificationChanged);
+    super.dispose();
+  }
+
+  void _onNotificationChanged() {
+    final leaveNotifications = widget.notificationService?.notifications
+        .where((item) => item.relatedType == 'LEAVE_REQUEST')
+        .toList(growable: false);
+    if (leaveNotifications == null || leaveNotifications.isEmpty) return;
+    final newestId = leaveNotifications.first.id;
+    if (_lastLeaveNotificationId == newestId) return;
+    _lastLeaveNotificationId = newestId;
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
     setState(() {
-      _pendingRequests.removeAt(index);
+      _isLoading = true;
+      _errorMessage = null;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Đã $action đơn xin nghỉ học thành công!'),
-        behavior: SnackBarBehavior.floating,
+
+    try {
+      final list = await _apiClient.getPendingLeaveRequests(token: widget.token);
+      setState(() {
+        _pendingRequests = list;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _approve(int index, int id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Duyệt đơn xin nghỉ?'),
+        content: const Text('Đơn sẽ được chuyển sang trạng thái đã duyệt và phụ huynh, học sinh sẽ nhận thông báo.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Duyệt')),
+        ],
       ),
     );
+    if (confirmed != true) return;
+    setState(() => _isLoading = true);
+    try {
+      await _apiClient.approveRequest(token: widget.token, id: id);
+      setState(() {
+        _pendingRequests.removeAt(index);
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã phê duyệt đơn xin nghỉ thành công!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _showDetail(int index) {
+    final request = _pendingRequests[index];
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: AppSpacing.lg,
+            right: AppSpacing.lg,
+            top: AppSpacing.lg,
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom + AppSpacing.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                request['studentName'] as String? ?? 'Học sinh',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text('Lớp ${request['className'] ?? ''} • ${request['dateFrom']} → ${request['dateTo']}'),
+              const Divider(height: AppSpacing.xl),
+              const Text('Lý do', style: TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: AppSpacing.xs),
+              Text(request['reason'] as String? ?? ''),
+              const SizedBox(height: AppSpacing.xl),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _reject(index, request['id'] as int);
+                      },
+                      child: const Text('Từ chối'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _approve(index, request['id'] as int);
+                      },
+                      child: const Text('Phê duyệt'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _reject(int index, int id) async {
+    final reasonController = TextEditingController();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Từ chối đơn xin nghỉ học'),
+        content: TextField(
+          controller: reasonController,
+          decoration: const InputDecoration(
+            hintText: 'Nhập lý do từ chối...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: Colors.white),
+            child: const Text('Từ chối'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _apiClient.rejectRequest(
+        token: widget.token,
+        id: id,
+        response: reasonController.text.trim(),
+      );
+      setState(() {
+        _pendingRequests.removeAt(index);
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã từ chối đơn xin nghỉ học!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -48,45 +229,64 @@ class _TeacherLeaveRequestsScreenState extends State<TeacherLeaveRequestsScreen>
       backgroundColor: AppColors.background,
       appBar: const OrangeTopBar(title: 'Duyệt đơn xin nghỉ'),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          children: [
-            const SectionHeader(title: 'Danh sách đơn chờ duyệt'),
-            if (_pendingRequests.isEmpty)
-              const AppCard(
-                child: Center(
-                  child: Text(
-                    'Không còn đơn xin nghỉ nào chờ duyệt.',
-                    style: TextStyle(color: AppColors.muted),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(_errorMessage!, style: const TextStyle(color: AppColors.danger), textAlign: TextAlign.center),
+                          const SizedBox(height: AppSpacing.md),
+                          ElevatedButton(onPressed: _loadData, child: const Text('Thử lại')),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const SectionHeader(title: 'Danh sách đơn chờ duyệt'),
+                          TextButton.icon(
+                            onPressed: _loadData,
+                            icon: const Icon(Icons.refresh, size: 16),
+                            label: const Text('Tải lại'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      if (_pendingRequests.isEmpty)
+                        const AppCard(
+                          child: Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(AppSpacing.lg),
+                              child: Text(
+                                'Không còn đơn xin nghỉ nào chờ duyệt.',
+                                style: TextStyle(color: AppColors.muted),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        for (int i = 0; i < _pendingRequests.length; i++) ...[
+                          _TeacherLeaveTile(
+                            request: _pendingRequests[i],
+                            onTap: () => _showDetail(i),
+                            onApprove: () => _approve(i, _pendingRequests[i]['id'] as int),
+                            onReject: () => _reject(i, _pendingRequests[i]['id'] as int),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                        ],
+                    ],
                   ),
-                ),
-              )
-            else
-              for (int i = 0; i < _pendingRequests.length; i++) ...[
-                _TeacherLeaveTile(
-                  request: _pendingRequests[i],
-                  onApprove: () => _handleAction(i, 'duyệt'),
-                  onReject: () => _handleAction(i, 'từ chối'),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-              ],
-          ],
-        ),
       ),
     );
   }
-}
-
-class _PendingLeaveRequest {
-  const _PendingLeaveRequest({
-    required this.studentName,
-    required this.period,
-    required this.reason,
-  });
-
-  final String studentName;
-  final String period;
-  final String reason;
 }
 
 class _TeacherLeaveTile extends StatelessWidget {
@@ -94,27 +294,45 @@ class _TeacherLeaveTile extends StatelessWidget {
     required this.request,
     required this.onApprove,
     required this.onReject,
+    required this.onTap,
   });
 
-  final _PendingLeaveRequest request;
+  final Map<String, dynamic> request;
   final VoidCallback onApprove;
   final VoidCallback onReject;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
+    final studentName = request['studentName'] as String? ?? 'Học sinh';
+    final dateFrom = request['dateFrom'] as String? ?? '';
+    final dateTo = request['dateTo'] as String? ?? '';
+    final shift = request['shift'] as String? ?? 'FULL_DAY';
+    final reason = request['reason'] as String? ?? '';
+
+    String periodDisplay = 'Từ $dateFrom đến $dateTo';
+    if (dateFrom == dateTo) {
+      periodDisplay = dateFrom;
+    }
+    String shiftLabel = 'Cả ngày';
+    if (shift == 'MORNING') shiftLabel = 'Buổi sáng';
+    if (shift == 'AFTERNOON') shiftLabel = 'Buổi chiều';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AppCard(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                request.studentName,
+                studentName,
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.ink),
               ),
               StatusPill(
-                label: 'Pending',
+                label: 'Chờ duyệt',
                 foreground: AppColors.warning,
                 background: AppColors.warningSoft,
                 compact: true,
@@ -123,12 +341,12 @@ class _TeacherLeaveTile extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            request.period,
+            '$periodDisplay • $shiftLabel',
             style: const TextStyle(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.bold),
           ),
           const Divider(height: AppSpacing.lg),
           Text(
-            'Lý do: ${request.reason}',
+            'Lý do: $reason',
             style: const TextStyle(fontSize: 13, color: AppColors.ink, height: 1.3),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -162,6 +380,7 @@ class _TeacherLeaveTile extends StatelessWidget {
             ],
           ),
         ],
+        ),
       ),
     );
   }

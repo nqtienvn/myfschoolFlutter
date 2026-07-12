@@ -15,15 +15,102 @@ import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 
 class HomeTeacher extends StatefulWidget {
-  const HomeTeacher({super.key, required this.authService});
+  const HomeTeacher({
+    super.key,
+    required this.authService,
+    this.notificationService,
+  });
 
   final AuthService authService;
+  final NotificationService? notificationService;
 
   @override
   State<HomeTeacher> createState() => _HomeTeacherState();
 }
 
 class _HomeTeacherState extends State<HomeTeacher> {
+  bool _loadingClass = true;
+  int? _classId;
+  String? _className;
+  String? _teacherName;
+  String? _employeeCode;
+  int _pendingLeaveCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.notificationService?.addListener(_onNotificationChanged);
+    _loadTeacherClass();
+    _loadPendingLeaveCount();
+  }
+
+  @override
+  void dispose() {
+    widget.notificationService?.removeListener(_onNotificationChanged);
+    super.dispose();
+  }
+
+  void _onNotificationChanged() {
+    final notifications = widget.notificationService?.notifications ?? const [];
+    if (notifications.any((item) => item.relatedType == 'LEAVE_REQUEST')) {
+      _loadPendingLeaveCount();
+    }
+  }
+
+  Future<void> _loadPendingLeaveCount() async {
+    final session = widget.authService.currentSession;
+    if (session == null) return;
+    try {
+      final count = await LeaveRequestApiClient(backend: BackendApiClient())
+          .getPendingCount(token: session.token);
+      if (mounted) setState(() => _pendingLeaveCount = count);
+    } catch (_) {
+      // Không chặn trang chủ nếu badge chưa tải được.
+    }
+  }
+
+  Future<void> _loadTeacherClass() async {
+    setState(() => _loadingClass = true);
+    try {
+      final session = widget.authService.currentSession;
+      if (session == null) {
+        setState(() => _loadingClass = false);
+        return;
+      }
+
+      final backend = BackendApiClient();
+      final profile = await backend.getData(
+        '/api/user/profile',
+        token: session.token,
+      ) as Map<String, dynamic>?;
+      final context = await AttendanceApiClient(backend: backend)
+          .getHomeroomContext(token: session.token);
+      final teacherProfile = profile?['teacherProfile'] as Map<String, dynamic>?;
+      if (!mounted) return;
+      setState(() {
+        _classId = context['classId'] as int?;
+        _className = context['className'] as String?;
+        _teacherName = profile?['name'] as String? ?? session.userName;
+        _employeeCode = teacherProfile?['employeeCode'] as String? ?? session.accountCode;
+        _loadingClass = false;
+      });
+    } catch (e) {
+      _setNullClass(widget.authService.currentSession?.userName, widget.authService.currentSession?.accountCode);
+    }
+  }
+
+  void _setNullClass(String? teacherName, String? employeeCode) {
+    if (mounted) {
+      setState(() {
+        _classId = null;
+        _className = null;
+        _teacherName = teacherName;
+        _employeeCode = employeeCode;
+        _loadingClass = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -75,19 +162,19 @@ class _HomeTeacherState extends State<HomeTeacher> {
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text(
-                                'GVCN Lớp 12A',
-                                style: TextStyle(
+                                _loadingClass ? 'Đang tải thông tin...' : 'GVCN ${_className ?? 'Chưa xếp lớp'}',
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w900,
                                   color: Colors.white,
                                 ),
                               ),
-                              SizedBox(height: 2),
+                              const SizedBox(height: 2),
                               Text(
-                                'Môn dạy: PRM393 - SE1913 • FPT Schools',
-                                style: TextStyle(
+                                _loadingClass ? '...' : 'Mã GV: ${_employeeCode ?? ''} • ${_teacherName ?? ''}',
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.white70,
                                   fontWeight: FontWeight.w500,
@@ -146,30 +233,50 @@ class _HomeTeacherState extends State<HomeTeacher> {
                               );
                             },
                           ),
-                          _FeatureButton(
-                            title: 'Điểm danh lớp',
-                            icon: Icons.fact_check_outlined,
-                            color: AppColors.green,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      const TeacherAttendanceScreen(),
-                                ),
-                              );
-                            },
-                          ),
+                          if (_classId != null)
+                            _FeatureButton(
+                              title: 'Điểm danh lớp',
+                              icon: Icons.fact_check_outlined,
+                              color: AppColors.green,
+                              onTap: () {
+                                if (_loadingClass) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Đang tải dữ liệu lớp học, vui lòng đợi...'),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                  return;
+                                }
+                                final session =
+                                    widget.authService.currentSession!;
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => TeacherAttendanceScreen(
+                                      token: session.token,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           _FeatureButton(
                             title: 'Duyệt đơn xin nghỉ',
                             icon: Icons.assignment_turned_in_outlined,
                             color: AppColors.warning,
+                            badgeCount: _pendingLeaveCount > 0
+                                ? _pendingLeaveCount
+                                : null,
                             onTap: () {
+                              final session =
+                                  widget.authService.currentSession!;
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      const TeacherLeaveRequestsScreen(),
+                                  builder: (_) => TeacherLeaveRequestsScreen(
+                                    token: session.token,
+                                    notificationService: widget.notificationService,
+                                  ),
                                 ),
-                              );
+                              ).then((_) => _loadPendingLeaveCount());
                             },
                           ),
                           _FeatureButton(

@@ -266,10 +266,13 @@ class _HomeStudentState extends State<HomeStudent> {
                             iconColor: AppColors.teal,
                             iconBgColor: AppColors.tealSoft,
                             onTap: () {
+                              final session = widget.authService.currentSession!;
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => StudentAttendanceScreen(
                                     student: _student,
+                                    token: session.token,
+                                    viewAsStudent: true,
                                   ),
                                 ),
                               );
