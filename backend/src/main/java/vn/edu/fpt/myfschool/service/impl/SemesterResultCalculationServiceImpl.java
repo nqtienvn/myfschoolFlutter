@@ -24,7 +24,6 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
 
     private final SemesterResultRepository semesterResultRepository;
     private final EnrollmentRepository enrollmentRepository;
-    private final GradeRepository gradeRepository;
     private final AttendanceRepository attendanceRepository;
     private final ClassRepository classRepository;
     private final SemesterRepository semesterRepository;
@@ -98,15 +97,8 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
      * Điểm TB từng môn (GradeBook) = Σ(score × weight) / Σ(weight)
      */
     private BigDecimal calculateGPA(Long studentId, Long classId, Long semesterId) {
-        // Try GradeBook first (Phase E)
         List<GradeBook> gradeBooks = gradeBookRepository.findByClsIdAndSemesterId(classId, semesterId);
-        if (!gradeBooks.isEmpty()) {
-            BigDecimal gpa = calculateGPAFromGradeBook(studentId, gradeBooks);
-            if (gpa != null) return gpa;
-        }
-
-        // Fallback: Grade entity (legacy)
-        return calculateGPAFromLegacyGrade(studentId, semesterId);
+        return calculateGPAFromGradeBook(studentId, gradeBooks);
     }
 
     private BigDecimal calculateGPAFromGradeBook(Long studentId, List<GradeBook> gradeBooks) {
@@ -141,22 +133,6 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
 
         if (subjectCount == 0) return null;
         return subjectSum.divide(BigDecimal.valueOf(subjectCount), 2, RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal calculateGPAFromLegacyGrade(Long studentId, Long semesterId) {
-        List<Grade> grades = gradeRepository.findByStudentIdAndSemesterId(studentId, semesterId);
-        if (grades.isEmpty()) return null;
-
-        BigDecimal sum = BigDecimal.ZERO;
-        int count = 0;
-        for (Grade g : grades) {
-            if (g.getAverage() != null) {
-                sum = sum.add(g.getAverage());
-                count++;
-            }
-        }
-        if (count == 0) return null;
-        return sum.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP);
     }
 
     /**

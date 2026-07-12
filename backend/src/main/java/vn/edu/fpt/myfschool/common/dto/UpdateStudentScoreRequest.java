@@ -5,5 +5,6 @@ import java.util.List;
 
 public record UpdateStudentScoreRequest(
     @NotNull Long gradeItemId,
-    @NotNull List<UpdateScoreEntry> entries
+    @NotNull List<UpdateScoreEntry> entries,
+    String reason
 ) {}

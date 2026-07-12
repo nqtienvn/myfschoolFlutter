@@ -10,6 +10,10 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import vn.edu.fpt.myfschool.common.enums.AssessmentType;
+import vn.edu.fpt.myfschool.common.enums.GradeEntryRole;
 
 @Entity
 @Table(name = "grade_items",
@@ -35,4 +39,22 @@ public class GradeItem extends BaseEntity {
 
     @Column(name = "display_order", nullable = false)
     private Integer order = 0;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "config_item_id")
+    private AcademicYearGradeConfigItem configItem;
+
+    @Column(length = 50)
+    private String code;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private GradeEntryRole entryRole = GradeEntryRole.ADMIN;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private AssessmentType assessmentType = AssessmentType.SCORE;
+
+    @Column(nullable = false)
+    private Boolean requiredEntry = true;
 }

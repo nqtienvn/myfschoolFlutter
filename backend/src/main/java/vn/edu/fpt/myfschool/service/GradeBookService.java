@@ -7,9 +7,8 @@ import java.util.List;
 public interface GradeBookService {
     GradeBookDto getByClassSubjectSemester(Long classId, Long subjectId, Long semesterId);
     GradeBookDto getOrCreate(Long classId, Long subjectId, Long semesterId);
-    GradeItemDto addItem(Long gradeBookId, String name, Integer weight, Integer order);
     List<StudentScoreDto> updateScores(UpdateStudentScoreRequest request);
     BigDecimal calculateAverage(Long studentId, Long gradeBookId);
-    void finalize(Long gradeBookId);
+    void changeStatus(Long gradeBookId, vn.edu.fpt.myfschool.common.enums.GradeBookStatus status);
     List<StudentScoreDto> getStudentScores(Long gradeBookId);
 }

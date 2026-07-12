@@ -1,5 +1,3 @@
-import '../api/client/fake_api.dart';
-import '../api/dto/grade_dto.dart';
 import '../api/dto/student_dto.dart';
 import '../api/exception/student_not_found_exception.dart';
 import '../models/models.dart';
@@ -9,17 +7,9 @@ typedef JsonCollectionLoader =
 
 class SchoolRepository {
   final JsonCollectionLoader _collectionLoader;
-  final FakeApiClient? _apiClient;
 
   const SchoolRepository.fromJsonLoader(JsonCollectionLoader loadCollection)
-    : _collectionLoader = loadCollection,
-      _apiClient = null;
-
-  const SchoolRepository.fromApiClient({
-    required JsonCollectionLoader loadCollection,
-    required FakeApiClient apiClient,
-  }) : _collectionLoader = loadCollection,
-       _apiClient = apiClient;
+    : _collectionLoader = loadCollection;
 
   factory SchoolRepository.demo() {
     return const SchoolRepository.fromJsonLoader(_loadDemoCollection);
@@ -34,29 +24,35 @@ class SchoolRepository {
     return StudentDto.fromJson(matches.first).toDomain();
   }
 
-  Future<List<Grade>> loadGrades(int studentId) async {
-    final items = await _collectionLoader('grades');
-    return items
-        .where((item) => item['studentId'] == studentId)
-        .map((item) => GradeDto.fromJson(item).toDomain())
+  Future<List<SubjectTranscript>> loadTranscript(int studentId) async {
+    final rows = await _collectionLoader('transcripts');
+    return rows
+        .where((row) => row['studentId'] == studentId)
+        .map(_parseTranscript)
         .toList();
   }
 
-  Future<List<Grade>> getGrades({required int studentId}) async {
-    final client = _apiClient;
-    if (client == null) {
-      return loadGrades(studentId);
+  SubjectTranscript _parseTranscript(Map<String, dynamic> row) {
+    final columns = (row['columns'] as List).map((raw) {
+      final item = raw as Map<String, dynamic>;
+      return GradeColumn(
+        id: item['id'] as int,
+        code: item['code'] as String,
+        name: item['name'] as String,
+        weight: item['weight'] as int,
+        entryRole: GradeEntryRole.values.byName(item['entryRole'] as String),
+      );
+    }).toList();
+    final values = <int, double?>{};
+    for (final entry in (row['scores'] as Map<String, dynamic>).entries) {
+      values[int.parse(entry.key)] = (entry.value as num?)?.toDouble();
     }
-
-    final response = await client.getGradesResponse(studentId: studentId);
-    final data = response['data'] as Map<String, dynamic>;
-    final items = data['items'] as List<dynamic>;
-
-    return items
-        .map(
-          (item) => GradeDto.fromJson(item as Map<String, dynamic>).toDomain(),
-        )
-        .toList();
+    return SubjectTranscript(
+      subjectName: row['subjectName'] as String,
+      columns: columns,
+      scores: values,
+      average: (row['average'] as num?)?.toDouble(),
+    );
   }
 
   Future<AttendanceStats> loadAttendanceStats(int studentId) async {
@@ -124,24 +120,28 @@ const _demoCollections = <String, List<Map<String, Object?>>>{
       'avatarUrl': null,
     },
   ],
-  'grades': [
+  'transcripts': [
     {
       'studentId': 10,
-      'id': 101,
       'subjectName': 'Toan',
-      'value': 8.5,
-      'weight': 1,
-      'createdAt': '2026-06-01T08:30:00Z',
-      'comment': null,
-    },
-    {
-      'studentId': 10,
-      'id': 102,
-      'subjectName': 'Van',
-      'value': 7.5,
-      'weight': 2,
-      'createdAt': '2026-06-03T08:30:00Z',
-      'comment': 'Can on them bai hinh',
+      'columns': [
+        {
+          'id': 1,
+          'code': 'TX_1',
+          'name': 'Thuong xuyen',
+          'weight': 1,
+          'entryRole': 'subjectTeacher',
+        },
+        {
+          'id': 2,
+          'code': 'GK_1',
+          'name': 'Giua ky',
+          'weight': 2,
+          'entryRole': 'admin',
+        },
+      ],
+      'scores': {'1': 8.0, '2': 8.3},
+      'average': 8.2,
     },
   ],
   'attendance': [

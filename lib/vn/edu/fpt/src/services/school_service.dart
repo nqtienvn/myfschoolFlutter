@@ -8,7 +8,7 @@ class SchoolService {
 
   Future<StudentSummary> buildSummary(int studentId) async {
     final studentFuture = repository.loadStudent(studentId);
-    final gradesFuture = repository.loadGrades(studentId);
+    final transcriptFuture = repository.loadTranscript(studentId);
     final attendanceFuture = repository.loadAttendanceStats(studentId);
     final unreadFuture = repository.loadUnreadAnnouncementCount(studentId);
     final missingHomeworkFuture = repository.loadMissingHomeworkCount(
@@ -16,14 +16,14 @@ class SchoolService {
     );
 
     final student = await studentFuture;
-    final grades = await gradesFuture;
+    final transcript = await transcriptFuture;
     final attendance = await attendanceFuture;
     final unreadCount = await unreadFuture;
     final missingHomework = await missingHomeworkFuture;
 
     return StudentSummary(
       student: student,
-      grades: grades,
+      transcript: transcript,
       attendance: attendance,
       unreadAnnouncementCount: unreadCount,
       missingHomeworkCount: missingHomework,

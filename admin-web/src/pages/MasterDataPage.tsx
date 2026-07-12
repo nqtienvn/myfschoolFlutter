@@ -4,6 +4,7 @@ import { getAcademicYearMasterData, updateAcademicYearMasterData } from '../api/
 import { getPeriods, getShifts } from '../api/masterData';
 import { createSubject, deleteSubject, getSubjects } from '../api/subject';
 import { getSemesters } from '../api/semester';
+import type { GradeConfigItem } from '../api/gradeConfiguration';
 
 type TabKey = 'academic-years' | 'catalogs';
 interface Props { initialTab?: TabKey; selectedYearId?: string; selectedYearStatus?: string; onYearCreated?: () => void; }
@@ -38,6 +39,11 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [gradeItems, setGradeItems] = useState<GradeConfigItem[]>([
+    { code: 'TX', displayName: 'Thường xuyên', weight: 1, quantity: 2, entryRole: 'SUBJECT_TEACHER', assessmentType: 'SCORE', requiredEntry: true, displayOrder: 0 },
+    { code: 'GK', displayName: 'Giữa kỳ', weight: 2, quantity: 1, entryRole: 'ADMIN', assessmentType: 'SCORE', requiredEntry: true, displayOrder: 1 },
+    { code: 'CK', displayName: 'Cuối kỳ', weight: 3, quantity: 1, entryRole: 'ADMIN', assessmentType: 'SCORE', requiredEntry: true, displayOrder: 2 },
+  ]);
 
   async function loadYears() {
     const [yearData, semesterData] = await Promise.all([getAcademicYears(), getSemesters()]);
@@ -70,10 +76,11 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
     const startYear = Number(startDate.slice(0, 4));
     const endYear = Number(endDate.slice(0, 4));
     if (endYear !== startYear + 1) return setError(`Ngày kết thúc phải thuộc năm ${startYear + 1}.`);
+    if (!editingId && gradeItems.length === 0) return setError('Phải cấu hình ít nhất một đầu điểm trước khi tạo năm học.');
     setSaving(true); setError(''); setMessage('');
     try {
       if (editingId) await updateAcademicYear(editingId, { startDate, endDate });
-      else await createAcademicYear({ startDate, endDate });
+      else await createAcademicYear({ startDate, endDate, gradeConfigItems: gradeItems.map((item, index) => ({ ...item, displayOrder: index })) });
       setMessage(editingId ? 'Đã cập nhật năm học.' : 'Đã tạo năm học và tự sinh hai học kỳ.');
       setEditingId(null); setStartDate(''); setEndDate('');
       await loadYears(); onYearCreated?.();
@@ -145,7 +152,15 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
             ))}
             {years.length === 0 && <tr><td colSpan={hasDraftYears ? 5 : 4}>Chưa có năm học.</td></tr>}
           </tbody></table></div>
-          <aside className="master-data-side"><div className="master-data-form-card"><h3>{editingId ? 'Sửa năm học DRAFT' : 'Tạo năm học'}</h3><div className="form-group"><label>Ngày bắt đầu</label><input type="date" value={startDate} onChange={e => changeStartDate(e.target.value)} /></div><div className="form-group"><label>Ngày kết thúc</label><input type="date" value={endDate} min={endDateMin} max={endDateMax} disabled={!startDate} onChange={e => setEndDate(e.target.value)} /><small className="input-desc">{nextYear ? `Chỉ chọn ngày trong năm ${nextYear}.` : 'Chọn ngày bắt đầu trước.'}</small></div><button onClick={saveYear} disabled={saving}>{saving ? 'Đang lưu…' : editingId ? 'Lưu thay đổi' : 'Tạo năm học'}</button>{editingId && <button className="secondary-button" onClick={() => { setEditingId(null); setStartDate(''); setEndDate(''); }}>Hủy</button>}<small className="input-desc">Năm học chỉ kéo dài qua hai năm liên tiếp; hệ thống tự tạo Học kỳ 1 và Học kỳ 2.</small></div></aside>
+          <aside className="master-data-side"><div className="master-data-form-card">
+            <h3>{editingId ? 'Sửa năm học DRAFT' : 'Tạo năm học'}</h3>
+            <div className="form-group"><label>Ngày bắt đầu</label><input type="date" value={startDate} onChange={e => changeStartDate(e.target.value)} /></div>
+            <div className="form-group"><label>Ngày kết thúc</label><input type="date" value={endDate} min={endDateMin} max={endDateMax} disabled={!startDate} onChange={e => setEndDate(e.target.value)} /><small className="input-desc">{nextYear ? `Chỉ chọn ngày trong năm ${nextYear}.` : 'Chọn ngày bắt đầu trước.'}</small></div>
+            {!editingId && <GradeConfigEditor items={gradeItems} onChange={setGradeItems} />}
+            <button onClick={saveYear} disabled={saving}>{saving ? 'Đang lưu…' : editingId ? 'Lưu thay đổi' : 'Tạo năm học'}</button>
+            {editingId && <button className="secondary-button" onClick={() => { setEditingId(null); setStartDate(''); setEndDate(''); }}>Hủy</button>}
+            <small className="input-desc">Năm học chỉ được tạo sau khi cấu hình đầu điểm hợp lệ.</small>
+          </div></aside>
         </div>
       ) : (
         <>
@@ -247,6 +262,24 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
 
 function Catalog({ title, items, selected, onToggle, onDelete, readOnly = false }: { title: string; items: CatalogItem[]; selected: number[]; onToggle?: (id: number) => void; onDelete?: (id: number) => void; readOnly?: boolean }) {
   return <section className="step-card" style={{ display: 'block' }}><h3 style={{ marginTop: 0 }}>{title}</h3><div style={{ display: 'grid', gap: 8 }}>{items.map(item => <label key={item.id} style={{ display: 'flex', gap: 9, alignItems: 'center', fontSize: 13 }}><input type="checkbox" checked={selected.includes(item.id)} disabled={readOnly} onChange={() => onToggle?.(item.id)} /><span style={{ flex: 1 }}><strong>{item.name}</strong>{item.code && <small style={{ display: 'block', color: '#687386' }}>{item.code}{item.shiftName ? ` · ${item.shiftName}` : ''}</small>}</span>{onDelete && <button className="danger" onClick={(event) => { event.preventDefault(); onDelete(item.id); }}>Xóa</button>}</label>)}{items.length === 0 && <span className="input-desc">Chưa có dữ liệu.</span>}</div></section>;
+}
+
+function GradeConfigEditor({ items, onChange }: { items: GradeConfigItem[]; onChange: (items: GradeConfigItem[]) => void }) {
+  const update = (index: number, patch: Partial<GradeConfigItem>) => onChange(items.map((item, i) => i === index ? { ...item, ...patch } : item));
+  return <section style={{ borderTop: '1px solid var(--line)', marginTop: 16, paddingTop: 16 }}>
+    <h4 style={{ margin: '0 0 8px' }}>Cấu hình đầu điểm</h4>
+    <small className="input-desc">Giáo viên bộ môn chỉ nhập các đầu điểm được cấp quyền; giữa kỳ và cuối kỳ mặc định do admin nhập.</small>
+    <div style={{ display: 'grid', gap: 10, margin: '12px 0' }}>{items.map((item, index) => <div key={`${item.code}-${index}`} style={{ border: '1px solid var(--line)', borderRadius: 8, padding: 10 }}>
+      <input aria-label="Tên đầu điểm" value={item.displayName} onChange={e => update(index, { displayName: e.target.value })} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+        <label className="form-group">Hệ số<input type="number" min={1} value={item.weight} onChange={e => update(index, { weight: Number(e.target.value) })} /></label>
+        <label className="form-group">Số lượng<input type="number" min={1} value={item.quantity} onChange={e => update(index, { quantity: Number(e.target.value) })} /></label>
+      </div>
+      <label className="form-group">Người nhập<select value={item.entryRole} onChange={e => update(index, { entryRole: e.target.value as GradeConfigItem['entryRole'] })}><option value="SUBJECT_TEACHER">Giáo viên bộ môn</option><option value="ADMIN">Admin/nhà trường</option><option value="SUBJECT_TEACHER_AND_ADMIN">Giáo viên và admin</option></select></label>
+      <button className="danger" type="button" onClick={() => onChange(items.filter((_, i) => i !== index))}>Xóa đầu điểm</button>
+    </div>)}</div>
+    <button className="secondary-button" type="button" onClick={() => onChange([...items, { code: `D${items.length + 1}`, displayName: 'Đầu điểm mới', weight: 1, quantity: 1, entryRole: 'SUBJECT_TEACHER', assessmentType: 'SCORE', requiredEntry: true, displayOrder: items.length }])}>+ Thêm đầu điểm</button>
+  </section>;
 }
 
 function ShiftPeriodCatalog({ shifts, periods, selectedShiftIds, selectedPeriodIds, onToggleShift, onTogglePeriod }: {

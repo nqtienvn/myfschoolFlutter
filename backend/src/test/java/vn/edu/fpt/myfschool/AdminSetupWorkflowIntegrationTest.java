@@ -33,7 +33,7 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
         String token = loginAsAdmin();
         String yearResponse = mockMvc.perform(post("/api/academic-years")
                 .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"startDate\":\"2040-08-01\",\"endDate\":\"2041-05-31\"}"))
+                .content(academicYearBody("2040-08-01", "2041-05-31")))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         long yearId = objectMapper.readTree(yearResponse).path("data").path("id").asLong();
 
@@ -63,7 +63,7 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
         String token = loginAsAdmin();
         String yearResponse = mockMvc.perform(post("/api/academic-years")
                 .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"startDate\":\"2042-08-01\",\"endDate\":\"2043-05-31\"}"))
+                .content(academicYearBody("2042-08-01", "2043-05-31")))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         long yearId = objectMapper.readTree(yearResponse).path("data").path("id").asLong();
 
@@ -118,7 +118,7 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
 
         String yearResponse = mockMvc.perform(post("/api/academic-years")
                 .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"startDate\":\"2032-08-01\",\"endDate\":\"2033-05-31\"}"))
+                .content(academicYearBody("2032-08-01", "2033-05-31")))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         long yearId = objectMapper.readTree(yearResponse).path("data").path("id").asLong();
         var semesters = semesterRepository.findByAcademicYearIdOrderByOrderAsc(yearId);
@@ -187,7 +187,7 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
 
         String yearResponse = mockMvc.perform(post("/api/academic-years")
                 .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"startDate\":\"2034-08-01\",\"endDate\":\"2035-05-31\"}"))
+                .content(academicYearBody("2034-08-01", "2035-05-31")))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         long yearId = objectMapper.readTree(yearResponse).path("data").path("id").asLong();
 

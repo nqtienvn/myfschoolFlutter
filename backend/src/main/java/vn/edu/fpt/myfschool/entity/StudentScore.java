@@ -12,6 +12,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "student_scores",
@@ -43,4 +44,10 @@ public class StudentScore extends BaseEntity {
     private Boolean isCommentBased = false;
 
     private String comment;
+
+    private LocalDateTime publishedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "entered_by")
+    private User enteredBy;
 }

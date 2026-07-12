@@ -19,7 +19,7 @@ Future<String> buildSchoolCliReport({
   final repository = schoolService.repository;
 
   final student = await repository.loadStudent(studentId);
-  final grades = await repository.loadGrades(studentId);
+  final transcript = await repository.loadTranscript(studentId);
   final attendance = await repository.loadAttendanceStats(studentId);
   final missingHomework = await repository.loadMissingHomeworkCount(studentId);
   final unreadAnnouncements = await repository.loadUnreadAnnouncementCount(
@@ -34,12 +34,11 @@ Future<String> buildSchoolCliReport({
     ..writeln('====================')
     ..writeln('Student: ${student.fullName} (${student.code})')
     ..writeln('Status: ${student.status}')
-    ..writeln('Grades: ${grades.length}');
+    ..writeln('Subjects: ${transcript.length}');
 
-  for (final grade in grades) {
+  for (final subject in transcript) {
     buffer.writeln(
-      '- ${grade.subjectName}: ${grade.value.toStringAsFixed(1)} '
-      '(weight ${grade.weight.toStringAsFixed(1)})',
+      '- ${subject.subjectName}: ${subject.average?.toStringAsFixed(1) ?? 'chưa đủ điểm'}',
     );
   }
 
@@ -50,10 +49,6 @@ Future<String> buildSchoolCliReport({
     ..writeln('Missing homework: $missingHomework')
     ..writeln('Unread announcements: $unreadAnnouncements')
     ..writeln('Average grade: ${summary.averageGrade.toStringAsFixed(2)}')
-    ..writeln(
-      'Weighted average grade: '
-      '${summary.weightedAverageGrade.toStringAsFixed(2)}',
-    )
     ..writeln('Needs attention: ${summary.needsAttention}')
     ..writeln(
       'First notification: '

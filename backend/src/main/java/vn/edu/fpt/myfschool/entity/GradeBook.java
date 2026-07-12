@@ -15,6 +15,9 @@ import lombok.EqualsAndHashCode;
 
 import java.util.ArrayList;
 import java.util.List;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import vn.edu.fpt.myfschool.common.enums.GradeBookStatus;
 
 @Entity
 @Table(name = "grade_books",
@@ -41,6 +44,10 @@ public class GradeBook extends BaseEntity {
 
     @Column(nullable = false)
     private Boolean isFinalized = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private GradeBookStatus status = GradeBookStatus.DRAFT;
 
     @OneToMany(mappedBy = "gradeBook", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<GradeItem> items = new ArrayList<>();

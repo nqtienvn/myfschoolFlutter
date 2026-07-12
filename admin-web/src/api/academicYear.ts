@@ -9,6 +9,13 @@ export async function createAcademicYear(
     {
       startDate: string;
       endDate: string;
+      gradeConfigTemplateId?: number;
+      gradeConfigItems?: Array<{
+        code: string; displayName: string; weight: number; quantity: number;
+        entryRole: 'SUBJECT_TEACHER' | 'ADMIN' | 'SUBJECT_TEACHER_AND_ADMIN';
+        assessmentType: 'SCORE' | 'PASS_FAIL' | 'COMMENT';
+        requiredEntry: boolean; displayOrder: number;
+      }>;
     }) {
 
   return apiFetch('/academic-years', {

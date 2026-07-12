@@ -140,6 +140,7 @@ GV selects multiple classes (M:N via `announcement_classes`). `target_role` filt
 | `docs/screen-flow.md` | Detailed screen flows for all 3 actors |
 | `docs/erd.md` | Entity-Relationship Diagram (27 tables) |
 | `docs/database.md` | Full MySQL schema, indexes, stored procedures, sample data |
+| `docs/grades.md` | Cấu hình đầu điểm động, phân quyền, công thức và API bảng điểm |
 
 ## Current State (as of 2026-06-24)
 

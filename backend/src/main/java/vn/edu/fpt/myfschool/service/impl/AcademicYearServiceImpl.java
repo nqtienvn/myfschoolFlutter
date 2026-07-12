@@ -26,6 +26,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional
 public class AcademicYearServiceImpl implements AcademicYearService {
+    private final vn.edu.fpt.myfschool.service.GradeConfigurationService gradeConfigurationService;
 
     private final AcademicYearRepository academicYearRepository;
     private final SemesterRepository semesterRepository;
@@ -52,6 +53,7 @@ public class AcademicYearServiceImpl implements AcademicYearService {
         year.setStatus(AcademicYearStatus.DRAFT);
         AcademicYear saved = academicYearRepository.save(year);
         createDefaultSemesters(saved);
+        gradeConfigurationService.copyToYear(saved.getId(), request.gradeConfigTemplateId(), request.gradeConfigItems());
         return toDto(saved);
     }
 

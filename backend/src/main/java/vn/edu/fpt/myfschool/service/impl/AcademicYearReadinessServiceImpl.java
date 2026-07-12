@@ -27,6 +27,7 @@ public class AcademicYearReadinessServiceImpl implements AcademicYearReadinessSe
     private final AcademicYearSubjectRepository yearSubjectRepository;
     private final AcademicYearShiftRepository yearShiftRepository;
     private final AcademicYearPeriodRepository yearPeriodRepository;
+    private final AcademicYearGradeConfigRepository gradeConfigRepository;
 
     @Override
     public AcademicYearReadinessDto check(Long yearId) {
@@ -36,6 +37,11 @@ public class AcademicYearReadinessServiceImpl implements AcademicYearReadinessSe
             && !yearShiftRepository.findByAcademicYearId(yearId).isEmpty()
             && !yearPeriodRepository.findByAcademicYearId(yearId).isEmpty();
         checks.add(check("MASTER_DATA", "Danh mục áp dụng", masterReady, masterReady ? "Đã chọn môn, ca và tiết học." : "Phải chọn ít nhất một môn, ca và tiết học."));
+
+        boolean gradeConfigReady = gradeConfigRepository.findByAcademicYearId(yearId)
+            .map(config -> "VALIDATED".equals(config.getStatus()) && !config.getItems().isEmpty()).orElse(false);
+        checks.add(check("GRADE_CONFIG", "Cấu hình đầu điểm", gradeConfigReady,
+            gradeConfigReady ? "Cấu hình đầu điểm đã được xác thực." : "Phải cấu hình đầu điểm trước khi kích hoạt năm học."));
 
         List<SchoolClass> classes = classRepository.findByAcademicYearId(yearId);
         checks.add(check("CLASSES", "Danh sách lớp", !classes.isEmpty(), classes.isEmpty() ? "Chưa có lớp học." : "Có " + classes.size() + " lớp học."));

@@ -11,6 +11,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.enums.*;
 import vn.edu.fpt.myfschool.entity.AcademicYear;
+import vn.edu.fpt.myfschool.entity.AcademicYearGradeConfig;
+import vn.edu.fpt.myfschool.entity.AcademicYearGradeConfigItem;
 import vn.edu.fpt.myfschool.entity.AcademicYearPeriod;
 import vn.edu.fpt.myfschool.entity.AcademicYearShift;
 import vn.edu.fpt.myfschool.entity.Enrollment;
@@ -60,6 +62,8 @@ public abstract class BaseIntegrationTest {
     @Autowired protected PeriodRepository periodRepository;
     @Autowired protected AcademicYearShiftRepository academicYearShiftRepository;
     @Autowired protected AcademicYearPeriodRepository academicYearPeriodRepository;
+    @Autowired protected AcademicYearSubjectRepository academicYearSubjectRepository;
+    @Autowired protected AcademicYearGradeConfigRepository academicYearGradeConfigRepository;
     @Autowired protected HomeroomAssignmentRepository homeroomAssignmentRepository;
     @Autowired protected ConversationRepository conversationRepository;
     @Autowired protected ConversationParticipantRepository conversationParticipantRepository;
@@ -131,6 +135,13 @@ public abstract class BaseIntegrationTest {
         testSubject.setName("Toán");
         testSubject.setCode("TOAN12");
         testSubject = subjectRepository.save(testSubject);
+
+        AcademicYearGradeConfig gradeConfig = new AcademicYearGradeConfig();
+        gradeConfig.setAcademicYear(testAcademicYear);
+        addGradeConfigItem(gradeConfig, "TX", "Thường xuyên", 1, 2, GradeEntryRole.SUBJECT_TEACHER, 0);
+        addGradeConfigItem(gradeConfig, "GK", "Giữa kỳ", 2, 1, GradeEntryRole.ADMIN, 1);
+        addGradeConfigItem(gradeConfig, "CK", "Cuối kỳ", 3, 1, GradeEntryRole.ADMIN, 2);
+        academicYearGradeConfigRepository.save(gradeConfig);
 
         Subject subject2 = new Subject();
         subject2.setName("Văn");
@@ -245,6 +256,14 @@ public abstract class BaseIntegrationTest {
         academicYearShiftRepository.save(applied);
     }
 
+    private void addGradeConfigItem(AcademicYearGradeConfig config, String code, String name,
+                                    int weight, int quantity, GradeEntryRole role, int order) {
+        AcademicYearGradeConfigItem item = new AcademicYearGradeConfigItem();
+        item.setConfig(config); item.setCode(code); item.setDisplayName(name); item.setWeight(weight);
+        item.setQuantity(quantity); item.setEntryRole(role); item.setAssessmentType(AssessmentType.SCORE);
+        item.setRequiredEntry(true); item.setDisplayOrder(order); config.getItems().add(item);
+    }
+
     protected String registerUser(String phone, String password, String name, String role,
                                    String studentCode) throws Exception {
         StringBuilder sb = new StringBuilder();
@@ -282,6 +301,13 @@ public abstract class BaseIntegrationTest {
 
     protected String authHeader(String token) {
         return "Bearer " + token;
+    }
+
+    protected String academicYearBody(String startDate, String endDate) {
+        return "{\"startDate\":\"" + startDate + "\",\"endDate\":\"" + endDate + "\",\"gradeConfigItems\":["
+            + "{\"code\":\"TX\",\"displayName\":\"Thường xuyên\",\"weight\":1,\"quantity\":2,\"entryRole\":\"SUBJECT_TEACHER\",\"assessmentType\":\"SCORE\",\"requiredEntry\":true,\"displayOrder\":0},"
+            + "{\"code\":\"GK\",\"displayName\":\"Giữa kỳ\",\"weight\":2,\"quantity\":1,\"entryRole\":\"ADMIN\",\"assessmentType\":\"SCORE\",\"requiredEntry\":true,\"displayOrder\":1},"
+            + "{\"code\":\"CK\",\"displayName\":\"Cuối kỳ\",\"weight\":3,\"quantity\":1,\"entryRole\":\"ADMIN\",\"assessmentType\":\"SCORE\",\"requiredEntry\":true,\"displayOrder\":2}]}";
     }
 
     protected String loginAsTeacher() throws Exception {

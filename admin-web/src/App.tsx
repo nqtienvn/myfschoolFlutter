@@ -12,6 +12,7 @@ import ValidationPage from './pages/ValidationPage';
 import ActivationPage from './pages/ActivationPage';
 import TimetablesPage from './pages/TimetablesPage';
 import StudentsAttendancePage from './pages/StudentsAttendancePage';
+import GradesManagementPage from './pages/GradesManagementPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import { getAnnouncements as getAdminAnnouncements } from './api/announcement';
 
@@ -56,6 +57,7 @@ const MODULES = [
   { key: 'configuration', icon: 'settings', label: 'Cấu hình năm học' },
   { key: 'teachers', icon: 'teacher', label: 'Quản lý giáo viên' },
   { key: 'students-attendance', icon: 'family', label: 'Quản lý điểm danh' },
+  { key: 'grades', icon: 'grade', label: 'Quản lý điểm' },
   { key: 'timetables', icon: 'timetable', label: 'Thời khóa biểu' },
   { key: 'announcements', icon: 'bell', label: 'Thông báo' },
 ] as const;
@@ -77,6 +79,7 @@ function NavIcon({ name }: { name: IconName }) {
     assignment: <><path d="M4 19.5V6.8A2.8 2.8 0 0 1 6.8 4H20v15.5H6.5A2.5 2.5 0 0 0 4 22"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M9 9h7M9 12h5"/></>,
     checklist: <><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 9 1.5 1.5L12 8M14 9h2M8 15l1.5 1.5L12 14M14 15h2"/></>,
     power: <><path d="M12 3v9"/><path d="M7.1 6.2a8 8 0 1 0 9.8 0"/></>,
+    grade: <><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></>,
   };
   return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
@@ -204,6 +207,8 @@ export default function App() {
     ? <UsersPage />
     : module === 'students-attendance'
       ? <StudentsAttendancePage selectedYearId={yearId} selectedSemesterId={semesterId} />
+      : module === 'grades'
+        ? <GradesManagementPage selectedYearId={yearId} selectedSemesterId={semesterId} />
       : module === 'timetables'
         ? <TimetablesPage selectedYearId={yearId} selectedSemesterId={semesterId} />
         : module === 'announcements'

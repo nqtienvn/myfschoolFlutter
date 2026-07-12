@@ -41,18 +41,6 @@ public class GradeBookController {
                 gradeBookService.getOrCreate(classId, subjectId, semesterId)));
     }
 
-    @PostMapping("/{id}/items")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Them cot diem (GradeItem)")
-    public ResponseEntity<ApiResponse<GradeItemDto>> addItem(
-            @PathVariable Long id, @RequestBody Map<String, Object> body) {
-        String name = (String) body.get("name");
-        Integer weight = (Integer) body.get("weight");
-        Integer order = body.get("order") != null ? (Integer) body.get("order") : null;
-        return ResponseEntity.ok(ApiResponse.success(
-                "Them cot diem thanh cong", gradeBookService.addItem(id, name, weight, order)));
-    }
-
     @PutMapping("/scores")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Cap nhat diem hang loat")
@@ -70,11 +58,12 @@ public class GradeBookController {
                 gradeBookService.getStudentScores(id)));
     }
 
-    @PostMapping("/{id}/finalize")
+    @PostMapping("/{id}/status/{status}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Lock gradebook (khong cho sua)")
-    public ResponseEntity<ApiResponse<Void>> finalizeBook(@PathVariable Long id) {
-        gradeBookService.finalize(id);
-        return ResponseEntity.ok(ApiResponse.success("Da khoa bang diem", null));
+    @Operation(summary = "Công bố hoặc khóa bảng điểm")
+    public ResponseEntity<ApiResponse<Void>> changeStatus(@PathVariable Long id,
+            @PathVariable vn.edu.fpt.myfschool.common.enums.GradeBookStatus status) {
+        gradeBookService.changeStatus(id, status);
+        return ResponseEntity.ok(ApiResponse.success("Đã cập nhật trạng thái bảng điểm", null));
     }
 }

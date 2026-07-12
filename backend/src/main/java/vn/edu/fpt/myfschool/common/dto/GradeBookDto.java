@@ -8,5 +8,6 @@ public record GradeBookDto(
     Long subjectId, String subjectName,
     Long semesterId, String semesterName,
     Boolean isFinalized,
+    vn.edu.fpt.myfschool.common.enums.GradeBookStatus status,
     List<GradeItemDto> items
 ) {}
