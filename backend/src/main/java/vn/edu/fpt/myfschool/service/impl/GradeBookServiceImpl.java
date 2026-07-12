@@ -81,7 +81,20 @@ public class GradeBookServiceImpl implements GradeBookService {
 
     @Override @Transactional(readOnly=true) public List<GradeCalculationDto> calculateSubjectAverages(Long id){if(SecurityUtil.getCurrentUserRole()!=UserRole.ADMIN)throw new UnauthorizedException("Chỉ admin được tính điểm trung bình");GradeBook book=books.findById(id).orElseThrow(()->new ResourceNotFoundException("GradeBook","id",id));requireComplete(book);return enrollments.findActiveStudentsByClassAndYear(book.getCls().getId(),book.getCls().getAcademicYear().getId()).stream().map(student->new GradeCalculationDto(student.getId(),student.getUser().getName(),calculateAverage(student.getId(),id))).toList();}
 
-    private void requireComplete(GradeBook book){long students=enrollments.findActiveStudentsByClassAndYear(book.getCls().getId(),book.getCls().getAcademicYear().getId()).size();long required=items.findByGradeBookIdOrderByOrderAsc(book.getId()).stream().filter(GradeItem::getRequiredEntry).count();long completed=scores.findByGradeItemGradeBookId(book.getId()).stream().filter(s->Boolean.TRUE.equals(s.getIsGraded())).count();if(completed<students*required)throw new ConflictException("Chưa nhập đủ các đầu điểm bắt buộc");}
+    private void requireComplete(GradeBook book){
+        List<Student> students=enrollments.findActiveStudentsByClassAndYear(book.getCls().getId(),book.getCls().getAcademicYear().getId());
+        List<GradeItem> requiredItems=items.findByGradeBookIdOrderByOrderAsc(book.getId()).stream().filter(GradeItem::getRequiredEntry).toList();
+        List<String> missing=new ArrayList<>();
+        for(Student student:students)for(GradeItem item:requiredItems){
+            StudentScore score=scores.findByGradeItemIdAndStudentId(item.getId(),student.getId()).orElse(null);
+            if(score==null||score.getScore()==null||!Boolean.TRUE.equals(score.getIsGraded()))missing.add(student.getStudentCode()+" - "+student.getUser().getName()+" - "+item.getName());
+        }
+        if(!missing.isEmpty()){
+            String details=missing.stream().limit(10).collect(java.util.stream.Collectors.joining(", "));
+            if(missing.size()>10)details+=", ... và "+(missing.size()-10)+" điểm khác";
+            throw new ConflictException("Không thể tính điểm vì còn "+missing.size()+" điểm bắt buộc chưa nhập: "+details);
+        }
+    }
     private void authorizeEntry(GradeItem item){UserRole role=SecurityUtil.getCurrentUserRole();boolean allowed=role==UserRole.ADMIN&&(item.getEntryRole()==GradeEntryRole.ADMIN||item.getEntryRole()==GradeEntryRole.SUBJECT_TEACHER_AND_ADMIN);if(role==UserRole.TEACHER){authorizeAssignment(item.getGradeBook().getCls(),item.getGradeBook().getSubject());allowed=item.getEntryRole()==GradeEntryRole.SUBJECT_TEACHER||item.getEntryRole()==GradeEntryRole.SUBJECT_TEACHER_AND_ADMIN;}if(!allowed)throw new UnauthorizedException("Tài khoản không có quyền nhập đầu điểm này");}
     private void authorizeAssignment(SchoolClass cls,Subject subject){if(SecurityUtil.getCurrentUserRole()==UserRole.ADMIN)return;if(SecurityUtil.getCurrentUserRole()!=UserRole.TEACHER)throw new UnauthorizedException("Không có quyền truy cập bảng điểm");Teacher teacher=teachers.findByUserId(SecurityUtil.getCurrentUserId()).orElseThrow(()->new UnauthorizedException("Không tìm thấy hồ sơ giáo viên"));TeachingAssignment assignment=assignments.findByClsIdAndSubjectId(cls.getId(),subject.getId()).orElseThrow(()->new UnauthorizedException("Giáo viên chưa được phân công lớp/môn này"));if(!assignment.getTeacher().getId().equals(teacher.getId())||assignment.getStatus()!=AssignmentStatus.ACTIVE)throw new UnauthorizedException("Giáo viên chưa được phân công lớp/môn này");}
     private void authorizeRead(GradeBook b){authorizeAssignment(b.getCls(),b.getSubject());}

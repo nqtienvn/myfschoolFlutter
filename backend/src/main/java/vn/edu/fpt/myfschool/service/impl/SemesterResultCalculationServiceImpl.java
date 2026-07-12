@@ -7,6 +7,7 @@ import vn.edu.fpt.myfschool.common.dto.CalculateSemesterResultResponse;
 import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
 import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
+import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.repository.*;
 import vn.edu.fpt.myfschool.service.SemesterResultCalculationService;
@@ -38,9 +39,14 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
         Semester semester = semesterRepository.findById(semesterId)
             .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+        if (!semester.getAcademicYear().getId().equals(cls.getAcademicYear().getId())) {
+            throw new ConflictException("Học kỳ không thuộc năm học của lớp đã chọn");
+        }
 
         List<Enrollment> enrollments = enrollmentRepository
             .findByClsIdAndAcademicYearIdAndStatus(classId, cls.getAcademicYear().getId(), EnrollmentStatus.ACTIVE);
+
+        validateScoresBeforeCalculation(cls, semester, enrollments);
 
         int processed = 0, updated = 0, skipped = 0;
         List<String> warnings = new ArrayList<>();
@@ -89,6 +95,27 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
         }
 
         return new CalculateSemesterResultResponse(processed, updated, skipped, warnings);
+    }
+
+    private void validateScoresBeforeCalculation(SchoolClass cls, Semester semester, List<Enrollment> enrollments) {
+        List<GradeBook> books = gradeBookRepository.findByClsIdAndSemesterId(cls.getId(), semester.getId());
+        if (books.isEmpty()) throw new ConflictException("Không thể tính kết quả học kỳ vì lớp chưa có sổ điểm môn học");
+        List<String> missing = new ArrayList<>();
+        for (GradeBook book : books) {
+            List<GradeItem> requiredItems = gradeItemRepository.findByGradeBookIdOrderByOrderAsc(book.getId())
+                .stream().filter(GradeItem::getRequiredEntry).toList();
+            for (Enrollment enrollment : enrollments) for (GradeItem item : requiredItems) {
+                Student student = enrollment.getStudent();
+                StudentScore score = studentScoreRepository.findByGradeItemIdAndStudentId(item.getId(), student.getId()).orElse(null);
+                if (score == null || score.getScore() == null || !Boolean.TRUE.equals(score.getIsGraded()))
+                    missing.add(student.getStudentCode() + " - " + book.getSubject().getName() + " - " + item.getName());
+            }
+        }
+        if (!missing.isEmpty()) {
+            String details = missing.stream().limit(10).collect(java.util.stream.Collectors.joining(", "));
+            if (missing.size() > 10) details += ", ... và " + (missing.size() - 10) + " điểm khác";
+            throw new ConflictException("Không thể tính kết quả học kỳ vì còn " + missing.size() + " điểm bắt buộc chưa nhập: " + details);
+        }
     }
 
     /**
