@@ -103,8 +103,8 @@ export default function App() {
       const sorted = [...(data || [])].sort((a, b) => b.id - a.id);
       setYears(sorted);
       const selected = sorted.find(y => String(y.id) === (preferredYearId || yearId))
-        || sorted.find(y => y.status === 'DRAFT')
         || sorted.find(y => y.status === 'ACTIVE')
+        || sorted.find(y => y.status === 'DRAFT')
         || sorted[0];
       setYearId(selected ? String(selected.id) : '');
     } finally {
