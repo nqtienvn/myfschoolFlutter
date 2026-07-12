@@ -7,7 +7,6 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/attendance_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/forms_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/tuition_payment_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_bottom_sheet.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
@@ -288,19 +287,6 @@ class _HomeStudentState extends State<HomeStudent> {
                                 ? AppColors.dangerSoft
                                 : AppColors.successSoft,
                             onTap: () => _showStudentTuitionAlertSheet(context),
-                          ),
-                          _FeatureButton(
-                            title: 'Đơn từ & Biểu mẫu',
-                            icon: Icons.description_outlined,
-                            iconColor: AppColors.blue,
-                            iconBgColor: AppColors.blueSoft,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const FormsScreen(),
-                                ),
-                              );
-                            },
                           ),
                         ],
                       );
