@@ -22,6 +22,7 @@ export default function UsersPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingSubjects, setEditingSubjects] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
@@ -69,6 +70,7 @@ export default function UsersPage() {
     try {
       const created = await createTeacherAccount({ ...form, subjectIds });
       setForm(emptyForm); setSubjectIds([]);
+      setShowForm(false);
       setMessage(`Đã tạo giáo viên ${created.employeeCode}. Giáo viên phải đổi mật khẩu ở lần đăng nhập đầu tiên.`);
       await load();
     } catch (cause: any) {
@@ -93,11 +95,11 @@ export default function UsersPage() {
 
   return (
     <div className="page-stack">
-      <div className="page-heading"><div><span className="eyebrow">Phân hệ giáo viên</span><h1>Quản lý giáo viên</h1></div></div>
+      <div className="page-heading"><div><span className="eyebrow">Phân hệ giáo viên</span><h1>Quản lý giáo viên</h1></div><div className="page-heading-actions"><button type="button" onClick={() => setShowForm(v => !v)}>{showForm ? '✕ Đóng' : '＋ Tạo giáo viên'}</button></div></div>
       {error && <div className="notice error">{error}</div>}
       {message && <div className="notice success">{message}</div>}
 
-      <form className="teacher-create-form" onSubmit={create}>
+      {showForm && <form className="teacher-create-form" onSubmit={create}>
         <div className="teacher-form-heading">
           <div><span className="teacher-form-index">01</span><div><h2>Thông tin giáo viên</h2></div></div>
           <span className="teacher-required-note">* Thông tin bắt buộc</span>
@@ -129,8 +131,9 @@ export default function UsersPage() {
 
         <div className="teacher-form-footer">
           <button disabled={loading}>{loading ? 'Đang tạo…' : 'Tạo giáo viên'}</button>
+          <button type="button" className="secondary-button" onClick={() => { setShowForm(false); setForm(emptyForm); setSubjectIds([]); }}>Đóng</button>
         </div>
-      </form>
+      </form>}
 
       <div className="filters">
         <div className="form-group"><label>Tìm kiếm</label><input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder="Tìm theo Tên, SĐT, Mã GV" /></div>

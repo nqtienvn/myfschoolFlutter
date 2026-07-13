@@ -34,6 +34,8 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [showYearForm, setShowYearForm] = useState(false);
+  const [showSubjectForm, setShowSubjectForm] = useState(false);
   const [subjectName, setSubjectName] = useState('');
   const [subjectCode, setSubjectCode] = useState('');
   const [message, setMessage] = useState('');
@@ -82,6 +84,7 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
       else await createAcademicYear({ startDate, endDate, gradeConfigTemplateId: Number(gradeConfigTemplateId) });
       setMessage(editingId ? 'Đã cập nhật năm học.' : 'Đã tạo năm học và tự sinh hai học kỳ.');
       setEditingId(null); setStartDate(''); setEndDate('');
+      if (!editingId) setShowYearForm(false);
       await loadYears(); onYearCreated?.();
     } catch (cause: any) { setError(cause.message || 'Không thể lưu năm học.'); }
     finally { setSaving(false); }
@@ -92,7 +95,7 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
     if (!subjectName.trim() || !subjectCode.trim()) return setError('Nhập đủ tên và mã môn học.');
     try {
       await createSubject({ name: subjectName.trim(), code: subjectCode.trim().toUpperCase() });
-      setSubjectName(''); setSubjectCode(''); await loadCatalogs(); setMessage('Đã thêm môn học.');
+      setSubjectName(''); setSubjectCode(''); setShowSubjectForm(false); await loadCatalogs(); setMessage('Đã thêm môn học.');
     } catch (cause: any) { setError(cause.message || 'Không thể thêm môn học.'); }
   }
 
@@ -139,6 +142,10 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
     <div className="page-stack">
       <section className="page-heading">
         <div><span className="eyebrow">Bước {tab === 'academic-years' ? '1' : '2'}</span><h1>{tab === 'academic-years' ? 'Năm học & học kỳ' : 'Danh mục nền tảng'}</h1></div>
+        <div className="page-heading-actions">
+          {tab === 'academic-years' && <button onClick={() => setShowYearForm(v => !v)}>{showYearForm ? '✕ Đóng' : '＋ Tạo năm học'}</button>}
+          {tab === 'catalogs' && <button onClick={() => setShowSubjectForm(v => !v)}>{showSubjectForm ? '✕ Đóng' : '＋ Thêm môn học'}</button>}
+        </div>
       </section>
       {error && <div className="notice error">{error}</div>}
       {message && <div className="notice success">{message}</div>}
@@ -151,22 +158,22 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
             ))}
             {years.length === 0 && <tr><td colSpan={hasDraftYears ? 5 : 4}>Chưa có năm học.</td></tr>}
           </tbody></table></div>
-          <aside className="master-data-side"><div className="master-data-form-card">
+          {(showYearForm || editingId) && <aside className="master-data-side"><div className="master-data-form-card">
             <h3>{editingId ? 'Sửa năm học DRAFT' : 'Tạo năm học'}</h3>
             <div className="form-group"><label>Ngày bắt đầu</label><input type="date" value={startDate} onChange={e => changeStartDate(e.target.value)} /></div>
             <div className="form-group"><label>Ngày kết thúc</label><input type="date" value={endDate} min={endDateMin} max={endDateMax} disabled={!startDate} onChange={e => setEndDate(e.target.value)} /><small className="input-desc">{nextYear ? `Chỉ chọn ngày trong năm ${nextYear}.` : 'Chọn ngày bắt đầu trước.'}</small></div>
             {!editingId && <label className="form-group">Mẫu cấu hình đầu điểm<select value={gradeConfigTemplateId} onChange={e => setGradeConfigTemplateId(e.target.value)}><option value="">Chưa có mẫu cấu hình</option>{gradeTemplates.map(template => <option key={template.id} value={template.id}>{template.name} · v{template.version}</option>)}</select><small className="input-desc">Quản lý mẫu tại tab “Cấu hình đầu điểm”.</small></label>}
             <button onClick={saveYear} disabled={saving || (!editingId && !gradeConfigTemplateId)}>{saving ? 'Đang lưu…' : editingId ? 'Lưu thay đổi' : 'Tạo năm học'}</button>
-            {editingId && <button className="secondary-button" onClick={() => { setEditingId(null); setStartDate(''); setEndDate(''); }}>Hủy</button>}
+            <button type="button" className="secondary-button" onClick={() => { setEditingId(null); setStartDate(''); setEndDate(''); setShowYearForm(false); }}>Đóng</button>
             <small className="input-desc">Năm học chỉ được tạo sau khi cấu hình đầu điểm hợp lệ.</small>
-          </div></aside>
+          </div></aside>}
         </div>
       ) : (
         <>
           {!selectedYearId && <div className="notice warning">Chọn năm học ở thanh trên để đánh dấu danh mục áp dụng.</div>}
           {selectedYearId && selectedYearStatus === 'ACTIVE' && <div className="notice warning">Năm học đang hoạt động. Các thay đổi môn, ca và tiết sẽ áp dụng ngay sau khi lưu.</div>}
           {selectedYearId && selectedYearStatus === 'COMPLETED' && <div className="notice warning">Cấu hình của năm học đã hoàn tất và bị khóa.</div>}
-          <section className="form-grid" style={{ gridTemplateColumns: '2.5fr 1fr auto', alignItems: 'end' }}>
+          {showSubjectForm && <section className="form-grid" style={{ gridTemplateColumns: '2.5fr 1fr auto auto', alignItems: 'end' }}>
             <div className="form-group">
               <label>Tên môn học mới</label>
               <input value={subjectName} onChange={e => setSubjectName(e.target.value)} placeholder="Ví dụ: Toán" />
@@ -178,7 +185,8 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
             <button onClick={addSubject} style={{ height: 39, minHeight: 39, whiteSpace: 'nowrap' }}>
               Thêm môn
             </button>
-          </section>
+            <button type="button" className="secondary-button" onClick={() => { setShowSubjectForm(false); setSubjectName(''); setSubjectCode(''); }} style={{ height: 39, minHeight: 39 }}>Đóng</button>
+          </section>}
           <div className="step-grid">
             <Catalog title="Môn áp dụng" items={subjects} selected={subjectIds} onToggle={id => toggle(subjectIds, id, setSubjectIds)} onDelete={id => {
               const item = subjects.find(s => s.id === id);

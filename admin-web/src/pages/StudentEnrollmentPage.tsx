@@ -27,6 +27,7 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
   const [accountClassId, setAccountClassId] = useState('');
   const [accounts, setAccounts] = useState<StudentAccountByClass[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [error, setError] = useState('');
 
@@ -89,6 +90,7 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
         relationship: form.relationship as CreateStudentEnrollmentRequest['relationship'],
       });
       setResult(data);
+      setShowForm(false);
       setAccountGrade(formGrade);
       if (accountClassId === createdClassId) await loadAccounts(createdClassId);
       else setAccountClassId(createdClassId);
@@ -101,8 +103,8 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
   return <div className="page-stack student-enrollment-page">
     <header className="page-heading enrollment-heading">
       <div><span className="eyebrow">Bước 4 · Tài khoản người dùng</span><h1>Thêm học sinh & phụ huynh</h1><p>Tạo hai tài khoản, liên kết gia đình và xếp lớp trong một luồng duy nhất.</p></div>
-      <div className="enrollment-steps" aria-label="Quy trình gồm 3 bước">
-        <span><b>1</b> Chọn lớp</span><i>→</i><span><b>2</b> Học sinh</span><i>→</i><span><b>3</b> Phụ huynh</span>
+      <div className="page-heading-actions">
+        <button type="button" onClick={() => setShowForm(v => !v)}>{showForm ? '✕ Đóng' : '＋ Thêm học sinh'}</button>
       </div>
     </header>
 
@@ -119,7 +121,7 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
       </div>
     </section>}
 
-    <form className="enrollment-form" onSubmit={submit}>
+    {showForm && <form className="enrollment-form" onSubmit={submit}>
       <section className="enrollment-class-step">
         <div className="enrollment-section-heading"><span>1</span><div><h2>Chọn lớp tiếp nhận</h2><p>Học sinh sẽ được ghi danh vào lớp này trong năm học đang chọn.</p></div></div>
         <div className="enrollment-class-fields">
@@ -158,9 +160,12 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
 
       <footer className="enrollment-form-footer">
         <div className="password-note"><span>i</span><p>Mật khẩu mặc định <strong>12345678</strong><small>Tài khoản mới phải đổi mật khẩu trong lần đăng nhập đầu tiên.</small></p></div>
-        <button disabled={loading || !selectedYearId || !editable || !form.classId}>{loading ? 'Đang tạo tài khoản...' : 'Tạo tài khoản & xếp lớp'}</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button disabled={loading || !selectedYearId || !editable || !form.classId}>{loading ? 'Đang tạo tài khoản...' : 'Tạo tài khoản & xếp lớp'}</button>
+          <button type="button" className="secondary-button" onClick={() => setShowForm(false)}>Đóng</button>
+        </div>
       </footer>
-    </form>
+    </form>}
 
     <section className="account-directory">
       <div className="account-directory-heading">
