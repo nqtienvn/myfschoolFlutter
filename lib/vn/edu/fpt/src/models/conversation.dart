@@ -3,13 +3,11 @@ class ChatParticipant {
     required this.userId,
     required this.name,
     required this.role,
-    this.avatar,
   });
 
   final int userId;
   final String name;
   final String role;
-  final String? avatar;
 }
 
 class Conversation {

@@ -11,11 +11,11 @@ class StudentProfileScreen extends StatelessWidget {
   final StudentSnapshot student;
 
   String get _genderLabel => switch (student.gender) {
-        'MALE' => 'Nam',
-        'FEMALE' => 'Nữ',
-        'OTHER' => 'Khác',
-        _ => 'Chưa cập nhật',
-      };
+    'MALE' => 'Nam',
+    'FEMALE' => 'Nữ',
+    'OTHER' => 'Khác',
+    _ => 'Chưa cập nhật',
+  };
 
   String get _dateOfBirth {
     final value = student.dateOfBirth;
@@ -37,19 +37,6 @@ class StudentProfileScreen extends StatelessWidget {
             AppCard(
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 36,
-                    backgroundColor: student.avatarColor.withValues(alpha: 0.12),
-                    child: Text(
-                      student.shortName,
-                      style: TextStyle(
-                        color: student.avatarColor,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
                   Text(
                     student.name,
                     style: const TextStyle(
@@ -86,9 +73,19 @@ class StudentProfileScreen extends StatelessWidget {
                   const Divider(height: AppSpacing.lg),
                   _ProfileRow(label: 'Giới tính', value: _genderLabel),
                   const Divider(height: AppSpacing.lg),
-                  _ProfileRow(label: 'Địa chỉ', value: student.address?.isNotEmpty == true ? student.address! : 'Chưa cập nhật'),
+                  _ProfileRow(
+                    label: 'Địa chỉ',
+                    value: student.address?.isNotEmpty == true
+                        ? student.address!
+                        : 'Chưa cập nhật',
+                  ),
                   const Divider(height: AppSpacing.lg),
-                  _ProfileRow(label: 'Email', value: student.email?.isNotEmpty == true ? student.email! : 'Chưa cập nhật'),
+                  _ProfileRow(
+                    label: 'Email',
+                    value: student.email?.isNotEmpty == true
+                        ? student.email!
+                        : 'Chưa cập nhật',
+                  ),
                 ],
               ),
             ),
@@ -108,9 +105,16 @@ class StudentProfileScreen extends StatelessWidget {
                         : 'Chưa cập nhật',
                   ),
                   const Divider(height: AppSpacing.lg),
-                  _ProfileRow(label: 'GV Chủ nhiệm', value: student.homeroomTeacher),
+                  _ProfileRow(
+                    label: 'GV Chủ nhiệm',
+                    value: student.homeroomTeacher,
+                  ),
                   const Divider(height: AppSpacing.lg),
-                  _ProfileRow(label: 'SĐT Giáo viên', value: student.homeroomPhone, isPhone: true),
+                  _ProfileRow(
+                    label: 'SĐT Giáo viên',
+                    value: student.homeroomPhone,
+                    isPhone: true,
+                  ),
                 ],
               ),
             ),

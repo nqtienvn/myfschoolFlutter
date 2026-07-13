@@ -28,9 +28,6 @@ public class User extends BaseEntity {
     @Column(length = 255)
     private String email;
 
-    @Column(length = 500)
-    private String avatar;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserRole role;  // PARENT | STUDENT | TEACHER
@@ -191,7 +188,6 @@ public record ChangePasswordRequest(
 public record UpdateProfileRequest(
     @Size(max = 100) String name,
     @Email String email,
-    String avatar,
     // Parent-specific
     String address,
     String occupation
@@ -222,7 +218,6 @@ public record UserDto(
     String phone,
     String name,
     String email,
-    String avatar,
     UserRole role,
     UserStatus status,
     LocalDateTime createdAt,
@@ -269,8 +264,7 @@ public record StudentSummaryDto(
     Long id,
     String name,
     String studentCode,
-    String className,
-    String avatar
+    String className
 ) {}
 ```
 
@@ -404,7 +398,7 @@ public class AuthService {
     public void changePassword(Long userId, ChangePasswordRequest request) { ... }
 
     // --- Update Profile ---
-    // 1. Update name, email, avatar on User
+    // 1. Update name and email on User
     // 2. If PARENT: update address, occupation
     // 3. Save
     public UserDto updateProfile(Long userId, UpdateProfileRequest request) { ... }
@@ -854,8 +848,7 @@ public record TeacherSummaryDto(
     Long id,
     String name,
     String employeeCode,
-    String department,
-    String avatar
+    String department
 ) {}
 ```
 

@@ -58,8 +58,12 @@ class ChatMessage {
 }
 
 class ChatDetailScreen extends StatefulWidget {
-  const ChatDetailScreen({super.key, this.thread, this.conversation, this.chatService})
-      : assert(thread != null || conversation != null);
+  const ChatDetailScreen({
+    super.key,
+    this.thread,
+    this.conversation,
+    this.chatService,
+  }) : assert(thread != null || conversation != null);
 
   final ChatThread? thread;
   final domain.Conversation? conversation;
@@ -84,14 +88,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _messages = thread == null
         ? <ChatMessage>[]
         : thread.initialMessages.isNotEmpty
-            ? List<ChatMessage>.of(thread.initialMessages)
-            : [
-                ChatMessage(
-                  text: thread.lastMessage,
-                  time: thread.time,
-                  isMine: false,
-                ),
-              ];
+        ? List<ChatMessage>.of(thread.initialMessages)
+        : [
+            ChatMessage(
+              text: thread.lastMessage,
+              time: thread.time,
+              isMine: false,
+            ),
+          ];
     final conversation = widget.conversation;
     if (conversation != null) {
       widget.chatService?.openConversation(conversation.id);
@@ -104,12 +108,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final conversation = widget.conversation;
     final service = widget.chatService;
     if (conversation == null || service == null) return;
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       _loadOlderMessages(conversation.id, service);
     }
   }
 
-  Future<void> _loadOlderMessages(int conversationId, ChatService service) async {
+  Future<void> _loadOlderMessages(
+    int conversationId,
+    ChatService service,
+  ) async {
     setState(() => _isLoadingOlder = true);
     try {
       await Future.wait([
@@ -139,12 +147,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final service = widget.chatService;
     if (conversation == null || service == null || value.trim().isEmpty) return;
     final now = DateTime.now();
-    if (_lastTypingStart == null || now.difference(_lastTypingStart!) > const Duration(seconds: 2)) {
+    if (_lastTypingStart == null ||
+        now.difference(_lastTypingStart!) > const Duration(seconds: 2)) {
       _lastTypingStart = now;
       service.sendTypingStart(conversation.id);
     }
     _typingStopTimer?.cancel();
-    _typingStopTimer = Timer(const Duration(seconds: 3), () => service.sendTypingStop(conversation.id));
+    _typingStopTimer = Timer(
+      const Duration(seconds: 3),
+      () => service.sendTypingStop(conversation.id),
+    );
   }
 
   void _sendMessage() {
@@ -190,13 +202,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 if (service.typingConversationIds.contains(conversation.id))
                   const Padding(
                     padding: EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: Text('Đang nhập...', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                    child: Text(
+                      'Đang nhập...',
+                      style: TextStyle(color: AppColors.muted, fontSize: 12),
+                    ),
                   ),
                 Expanded(
                   child: ListView.builder(
                     controller: _scrollController,
                     reverse: true,
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.lg),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.sm,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                    ),
                     itemCount: messages.length + (_isLoadingOlder ? 1 : 0),
                     itemBuilder: (context, index) {
                       if (_isLoadingOlder && index == messages.length) {
@@ -206,7 +226,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             child: SizedBox(
                               width: 24,
                               height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.fptOrange),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.fptOrange,
+                              ),
                             ),
                           ),
                         );
@@ -214,12 +237,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       final reversedIndex = messages.length - 1 - index;
                       return _DomainMessageBubble(
                         message: messages[reversedIndex],
-                        onRetry: () => service.retryMessage(messages[reversedIndex].clientMessageId),
+                        onRetry: () => service.retryMessage(
+                          messages[reversedIndex].clientMessageId,
+                        ),
                       );
                     },
                   ),
                 ),
-                _MessageComposer(controller: _controller, onSend: _sendMessage, onChanged: _handleTyping),
+                _MessageComposer(
+                  controller: _controller,
+                  onSend: _sendMessage,
+                  onChanged: _handleTyping,
+                ),
               ],
             ),
           );
@@ -255,7 +284,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               },
             ),
           ),
-          _MessageComposer(controller: _controller, onSend: _sendMessage, onChanged: (_) {}),
+          _MessageComposer(
+            controller: _controller,
+            onSend: _sendMessage,
+            onChanged: (_) {},
+          ),
         ],
       ),
     );
@@ -273,23 +306,37 @@ class _DomainContactHeader extends StatelessWidget {
     final name = participant?.name ?? 'Hội thoại #${conversation.id}';
     final subtitle = conversation.isOnline ? 'Đang online' : 'Tin nhắn';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
       child: AppCard(
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: AppColors.fptOrange.withValues(alpha: 0.12),
-              child: const Icon(Icons.person, color: AppColors.fptOrange),
-            ),
-            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.ink)),
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.ink,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.muted,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -317,12 +364,6 @@ class _ContactHeader extends StatelessWidget {
       child: AppCard(
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: thread.accentColor.withValues(alpha: 0.12),
-              child: Icon(Icons.person, color: thread.accentColor),
-            ),
-            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -346,7 +387,9 @@ class _ContactHeader extends StatelessWidget {
                         StatusPill(
                           label: thread.tag!,
                           foreground: thread.accentColor,
-                          background: thread.accentColor.withValues(alpha: 0.12),
+                          background: thread.accentColor.withValues(
+                            alpha: 0.12,
+                          ),
                           compact: true,
                         ),
                       ],
@@ -384,18 +427,27 @@ class _DomainMessageBubble extends StatelessWidget {
     final isMine = message.isMine;
     final bubbleColor = isMine ? AppColors.fptOrange : AppColors.surface;
     final textColor = isMine ? Colors.white : AppColors.ink;
-    final timeColor = isMine ? Colors.white.withValues(alpha: 0.78) : AppColors.quiet;
+    final timeColor = isMine
+        ? Colors.white.withValues(alpha: 0.78)
+        : AppColors.quiet;
     final status = chatStatusLabel(message.status.name);
 
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.74),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.74,
+        ),
         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: bubbleColor,
-          border: isMine ? null : Border.all(color: AppColors.line.withValues(alpha: 0.8)),
+          border: isMine
+              ? null
+              : Border.all(color: AppColors.line.withValues(alpha: 0.8)),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(18),
             topRight: const Radius.circular(18),
@@ -406,12 +458,22 @@ class _DomainMessageBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(message.content, style: TextStyle(fontSize: 13.5, color: textColor, height: 1.35)),
+            Text(
+              message.content,
+              style: TextStyle(fontSize: 13.5, color: textColor, height: 1.35),
+            ),
             const SizedBox(height: AppSpacing.xs),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(status, style: TextStyle(fontSize: 10.5, color: timeColor, fontWeight: FontWeight.w600)),
+                Text(
+                  status,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: timeColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 if (message.status == domain.ChatMessageStatus.failed) ...[
                   const SizedBox(width: AppSpacing.xs),
                   GestureDetector(
@@ -439,17 +501,26 @@ class _MessageBubble extends StatelessWidget {
     final isMine = message.isMine;
     final bubbleColor = isMine ? AppColors.fptOrange : AppColors.surface;
     final textColor = isMine ? Colors.white : AppColors.ink;
-    final timeColor = isMine ? Colors.white.withValues(alpha: 0.78) : AppColors.quiet;
+    final timeColor = isMine
+        ? Colors.white.withValues(alpha: 0.78)
+        : AppColors.quiet;
 
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.74),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.74,
+        ),
         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: bubbleColor,
-          border: isMine ? null : Border.all(color: AppColors.line.withValues(alpha: 0.8)),
+          border: isMine
+              ? null
+              : Border.all(color: AppColors.line.withValues(alpha: 0.8)),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(18),
             topRight: const Radius.circular(18),
@@ -458,7 +529,9 @@ class _MessageBubble extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: (isMine ? AppColors.fptOrange : AppColors.ink).withValues(alpha: 0.06),
+              color: (isMine ? AppColors.fptOrange : AppColors.ink).withValues(
+                alpha: 0.06,
+              ),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -476,12 +549,20 @@ class _MessageBubble extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (!isMine) ...[
-                  Icon(Icons.circle, size: 6, color: accentColor.withValues(alpha: 0.65)),
+                  Icon(
+                    Icons.circle,
+                    size: 6,
+                    color: accentColor.withValues(alpha: 0.65),
+                  ),
                   const SizedBox(width: AppSpacing.xs),
                 ],
                 Text(
                   message.time,
-                  style: TextStyle(fontSize: 10.5, color: timeColor, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: timeColor,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -493,7 +574,11 @@ class _MessageBubble extends StatelessWidget {
 }
 
 class _MessageComposer extends StatelessWidget {
-  const _MessageComposer({required this.controller, required this.onSend, required this.onChanged});
+  const _MessageComposer({
+    required this.controller,
+    required this.onSend,
+    required this.onChanged,
+  });
 
   final TextEditingController controller;
   final VoidCallback onSend;
@@ -553,9 +638,15 @@ class _MessageComposer extends StatelessWidget {
               width: 46,
               height: 46,
               child: IconButton.filled(
-                style: IconButton.styleFrom(backgroundColor: AppColors.fptOrange),
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.fptOrange,
+                ),
                 onPressed: onSend,
-                icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                icon: const Icon(
+                  Icons.send_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ),
           ],

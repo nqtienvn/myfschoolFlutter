@@ -58,22 +58,23 @@ class _TeacherMessageTile extends StatelessWidget {
             return AlertDialog(
               title: Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: msg.color.withValues(alpha: 0.12),
-                    child: Icon(Icons.person, color: msg.color),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           msg.teacher,
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                         Text(
                           msg.role,
-                          style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.muted,
+                          ),
                         ),
                       ],
                     ),
@@ -86,7 +87,11 @@ class _TeacherMessageTile extends StatelessWidget {
                 children: [
                   const Text(
                     'Tin nhắn cuối:',
-                    style: TextStyle(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.muted,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Container(
@@ -107,7 +112,10 @@ class _TeacherMessageTile extends StatelessWidget {
                       labelText: 'Trả lời nhanh giáo viên',
                       hintText: 'Nhập câu trả lời...',
                       suffixIcon: IconButton(
-                        icon: const Icon(Icons.send, color: AppColors.fptOrange),
+                        icon: const Icon(
+                          Icons.send,
+                          color: AppColors.fptOrange,
+                        ),
                         onPressed: () {
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -136,11 +144,6 @@ class _TeacherMessageTile extends StatelessWidget {
       child: AppCard(
         child: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: msg.color.withValues(alpha: 0.12),
-              child: Icon(Icons.person, color: msg.color),
-            ),
-            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,7 +186,9 @@ class _TeacherMessageTile extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.ink,
-                      fontWeight: msg.unread ? FontWeight.w800 : FontWeight.w500,
+                      fontWeight: msg.unread
+                          ? FontWeight.w800
+                          : FontWeight.w500,
                     ),
                   ),
                 ],

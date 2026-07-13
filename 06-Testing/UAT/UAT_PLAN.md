@@ -24,9 +24,9 @@
 | Mã UAT | Kịch bản kiểm thử (Scenario) | Kết quả mong đợi | Kết quả | Ghi chú |
 | :--- | :--- | :--- | :---: | :--- |
 | **UAT-CHAT-001** | Đăng nhập và mở màn hình "Tin nhắn" (Tab 1) | Thấy danh sách các cuộc hội thoại hiện có, hiển thị tên Giáo viên và tin nhắn cuối cùng kèm thời gian. | ⬜ | |
-| **UAT-CHAT-002** | Xem chấm xanh hoạt động (Presence) | Thấy chấm xanh online bên cạnh avatar Giáo viên nếu Giáo viên cũng đang mở app. | ⬜ | |
+| **UAT-CHAT-002** | Xem chấm xanh hoạt động (Presence) | Thấy chấm xanh online bên cạnh tên Giáo viên nếu Giáo viên cũng đang mở app. | ⬜ | |
 | **UAT-CHAT-003** | Gửi tin nhắn mới cho Giáo viên | Tin nhắn hiển thị bong bóng bên phải. Trạng thái dưới tin nhắn chuyển nhanh: `Đang gửi` ──► `Đã gửi` (trong vòng <200ms). | ⬜ | Happy Path |
-| **UAT-CHAT-004** | Theo dõi trạng thái đã xem (Read Receipt) | Khi Giáo viên mở màn hình xem, trạng thái tin nhắn đổi thành `Đã xem` (hiển thị avatar nhỏ của Giáo viên dưới bóng tin nhắn). | ⬜ | |
+| **UAT-CHAT-004** | Theo dõi trạng thái đã xem (Read Receipt) | Khi Giáo viên mở màn hình xem, trạng thái tin nhắn đổi thành `Đã xem` (hiển thị 2 check xanh dưới bóng tin nhắn). | ⬜ | |
 | **UAT-CHAT-005** | Nhận tin nhắn trả lời và mark read | Nhận tin nhắn mới lập tức (realtime) từ Giáo viên, badge unread count tự động cập nhật. Khi mở ra xem, server nhận tin báo đã xem thành công. | ⬜ | |
 | **UAT-CHAT-006** | Mất mạng đột ngột và kết nối lại (Offline Sync) | Tắt wifi/mạng khi Giáo viên gửi tin nhắn. Khi bật lại mạng, app tự động sync và hiển thị đầy đủ tin nhắn đã bỏ lỡ theo đúng sequence (`serverSeq`). | ⬜ | Resilience |
 
@@ -62,4 +62,4 @@
 2. **✅ Trải nghiệm thời gian thực**: Tin nhắn phải được gửi và nhận tức thời (<300ms trên môi trường mạng thông thường).
 3. **✅ Khả năng chịu lỗi (Offline resilience)**: Khi mất mạng và kết nối lại, tin nhắn tuyệt đối không bị trùng lặp (trùng `clientMessageId`) và không bị mất (sync theo `serverSeq`).
 4. **✅ An toàn bảo mật**: Kịch bản chặn người ngoài xem trộm/gửi trộm tin nhắn (`NOT_CONVERSATION_MEMBER`) phải được thực thi triệt để trên backend.
-5. **✅ Trạng thái chính xác**: Đồng bộ trạng thái đọc/nhận tin (đồng hồ -> 1 check -> 2 check -> avatar) hoạt động ổn định giữa các thiết bị.
+5. **✅ Trạng thái chính xác**: Đồng bộ trạng thái đọc/nhận tin (đồng hồ -> 1 check -> 2 check xám -> 2 check xanh) hoạt động ổn định giữa các thiết bị.

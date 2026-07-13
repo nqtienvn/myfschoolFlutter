@@ -7,6 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.service.TimetableService;
+import vn.edu.fpt.myfschool.service.TimetableGenerationService;
 
 import java.util.List;
 
@@ -15,6 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TimetableController {
     private final TimetableService timetableService;
+    private final TimetableGenerationService timetableGenerationService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
@@ -33,6 +35,15 @@ public class TimetableController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<TimetableDto>> create(@Valid @RequestBody CreateTimetableRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Đã tạo thời khóa biểu nháp", timetableService.createDraft(request)));
+    }
+
+    @PostMapping("/auto-generate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AutoGenerateTimetableResult>> autoGenerate(
+            @Valid @RequestBody AutoGenerateTimetableRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+            "Đã tự động tạo thời khóa biểu nháp",
+            timetableGenerationService.generate(request)));
     }
 
     @PostMapping("/{id}/publish")

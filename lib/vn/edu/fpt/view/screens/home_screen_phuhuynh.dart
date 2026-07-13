@@ -48,17 +48,8 @@ class _HomeParentState extends State<HomeParent> {
   }
 
   List<StudentSnapshot> get _students {
-    const colors = [
-      AppColors.fptOrange,
-      AppColors.blue,
-      AppColors.teal,
-      AppColors.green,
-    ];
     return widget.authService.currentSession?.children
-            .asMap()
-            .entries
-            .map((entry) {
-              final child = entry.value;
+            .map((child) {
               return StudentSnapshot.linked(
                 id: child.id,
                 name: child.name,
@@ -68,7 +59,6 @@ class _HomeParentState extends State<HomeParent> {
                 linkStatus: child.status == 'ACTIVE'
                     ? 'Đang học'
                     : child.status,
-                avatarColor: colors[entry.key % colors.length],
                 dateOfBirth: child.dateOfBirth,
                 gender: child.gender,
                 address: child.address,
@@ -248,19 +238,7 @@ class _HomeParentState extends State<HomeParent> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: SharedHeader(
-                avatarWidget: CircleAvatar(
-                  backgroundColor: _student.avatarColor.withValues(alpha: 0.12),
-                  child: Text(
-                    _student.shortName,
-                    style: TextStyle(
-                      color: _student.avatarColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
+              child: const SharedHeader(),
             ),
             Expanded(
               child: ListView(
@@ -310,21 +288,6 @@ class _HomeParentState extends State<HomeParent> {
                               ),
                               child: Row(
                                 children: [
-                                  CircleAvatar(
-                                    radius: 12,
-                                    backgroundColor: s.avatarColor.withValues(
-                                      alpha: 0.12,
-                                    ),
-                                    child: Text(
-                                      s.shortName,
-                                      style: TextStyle(
-                                        color: s.avatarColor,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.sm),
                                   Text(
                                     s.name,
                                     style: TextStyle(

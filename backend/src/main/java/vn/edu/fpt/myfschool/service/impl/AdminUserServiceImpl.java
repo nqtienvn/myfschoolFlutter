@@ -10,7 +10,12 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.AdminUserDto;
 import vn.edu.fpt.myfschool.common.dto.CreateTeacherAccountRequest;
 import vn.edu.fpt.myfschool.common.dto.SubjectDto;
+import vn.edu.fpt.myfschool.common.dto.TeacherAccountCredentialDto;
+import vn.edu.fpt.myfschool.common.dto.TeacherHomeroomDto;
+import vn.edu.fpt.myfschool.common.dto.TeacherManagementSummaryDto;
 import vn.edu.fpt.myfschool.common.dto.TeacherSummaryDto;
+import vn.edu.fpt.myfschool.common.dto.TeacherYearAssignmentDto;
+import vn.edu.fpt.myfschool.common.dto.UpdateTeacherProfileRequest;
 import vn.edu.fpt.myfschool.common.dto.UpdateTeacherSubjectsRequest;
 import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
@@ -20,78 +25,104 @@ import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.entity.Subject;
 import vn.edu.fpt.myfschool.entity.Teacher;
+import vn.edu.fpt.myfschool.entity.TeachingAssignment;
 import vn.edu.fpt.myfschool.entity.User;
+import vn.edu.fpt.myfschool.repository.AcademicYearRepository;
+import vn.edu.fpt.myfschool.repository.HomeroomAssignmentRepository;
 import vn.edu.fpt.myfschool.repository.SubjectRepository;
 import vn.edu.fpt.myfschool.repository.TeacherRepository;
 import vn.edu.fpt.myfschool.repository.TeachingAssignmentRepository;
 import vn.edu.fpt.myfschool.repository.UserRepository;
 import vn.edu.fpt.myfschool.service.AdminUserService;
 
+import java.security.SecureRandom;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service("adminUserService")
 @RequiredArgsConstructor
 @Transactional
 public class AdminUserServiceImpl implements AdminUserService {
 
-    private static final String DEFAULT_TEACHER_PASSWORD = "12345678";
+    private static final int TEMPORARY_PASSWORD_LENGTH = 12;
+    private static final String UPPERCASE = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private static final String LOWERCASE = "abcdefghijkmnopqrstuvwxyz";
+    private static final String DIGITS = "23456789";
+    private static final String SPECIAL = "@#%";
+    private static final String PASSWORD_ALPHABET = UPPERCASE + LOWERCASE + DIGITS + SPECIAL;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
     private final TeacherRepository teacherRepository;
     private final SubjectRepository subjectRepository;
     private final TeachingAssignmentRepository teachingAssignmentRepository;
+    private final HomeroomAssignmentRepository homeroomAssignmentRepository;
+    private final AcademicYearRepository academicYearRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     @Override
     public Page<AdminUserDto> listUsers(UserRole role, UserStatus status, String keyword, int page, int size) {
-        String query = keyword == null || keyword.isBlank() ? null : keyword.trim();
-        int safePage = Math.max(page, 0);
-        int safeSize = Math.max(1, Math.min(size, 100));
+        String query = normalizeKeyword(keyword);
         PageRequest pageable = PageRequest.of(
-            safePage,
-            safeSize,
-            Sort.by(Sort.Direction.DESC, "createdAt")
-        );
+                Math.max(page, 0),
+                Math.max(1, Math.min(size, 100)),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
         return userRepository.searchAdminUsers(role, status, query, pageable).map(this::toDto);
     }
 
     @Transactional(readOnly = true)
     @Override
-    public Page<TeacherSummaryDto> listTeachers(UserStatus status, String keyword, Long subjectId, int page, int size) {
-        String query = keyword == null || keyword.isBlank() ? null : keyword.trim();
-        int safePage = Math.max(page, 0);
-        int safeSize = Math.max(1, Math.min(size, 100));
-        PageRequest pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "id"));
-        return teacherRepository.searchTeachers(status, query, subjectId, pageable).map(this::toTeacherSummaryDto);
+    public Page<TeacherSummaryDto> listTeachers(UserStatus status, String keyword, Long subjectId,
+                                                Long academicYearId, int page, int size) {
+        validateAcademicYear(academicYearId);
+        PageRequest pageable = PageRequest.of(
+                Math.max(page, 0),
+                Math.max(1, Math.min(size, 100)),
+                Sort.by(Sort.Direction.DESC, "id"));
+        return teacherRepository.searchTeachers(status, normalizeKeyword(keyword), subjectId, pageable)
+                .map(teacher -> toTeacherSummaryDto(teacher, academicYearId));
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public TeacherManagementSummaryDto getTeacherSummary(Long academicYearId) {
+        validateAcademicYear(academicYearId);
+        long total = teacherRepository.count();
+        long active = teacherRepository.countByUserStatus(UserStatus.ACTIVE);
+        long locked = teacherRepository.countByUserStatus(UserStatus.LOCKED);
+        if (academicYearId == null) {
+            return new TeacherManagementSummaryDto(total, active, locked, 0, 0);
+        }
+
+        Set<Long> unassignedTeacherIds = new HashSet<>(teacherRepository.findIdsByUserStatus(UserStatus.ACTIVE));
+        unassignedTeacherIds.removeAll(teachingAssignmentRepository.findActiveTeacherIdsByYear(academicYearId));
+        long homeroom = new HashSet<>(homeroomAssignmentRepository.findTeacherIdsByYear(academicYearId)).size();
+        return new TeacherManagementSummaryDto(total, active, locked, unassignedTeacherIds.size(), homeroom);
     }
 
     @Override
     public AdminUserDto updateUserStatus(Long userId, UserStatus status) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         user.setStatus(status);
-        user = userRepository.save(user);
-        return toDto(user);
+        return toDto(userRepository.save(user));
     }
 
     @Override
-    public TeacherSummaryDto createTeacherAccount(CreateTeacherAccountRequest request) {
+    public TeacherAccountCredentialDto createTeacherAccount(CreateTeacherAccountRequest request) {
         String phone = request.phone().trim();
-        String email = request.email() == null || request.email().isBlank() ? null : request.email().trim();
+        String email = normalizeEmail(request.email());
         List<Subject> subjects = loadSubjects(request.subjectIds());
-        if (userRepository.existsByPhone(phone)) {
-            throw new ConflictException("Số điện thoại đã được đăng ký");
-        }
-        if (email != null && userRepository.existsByEmail(email)) {
-            throw new ConflictException("Email giáo viên đã tồn tại");
-        }
+        ensureUniqueContact(phone, email, null);
 
+        String temporaryPassword = generateTemporaryPassword();
         User user = new User();
         user.setPhone(phone);
-        user.setPassword(passwordEncoder.encode(DEFAULT_TEACHER_PASSWORD));
+        user.setPassword(passwordEncoder.encode(temporaryPassword));
         user.setName(request.name().trim());
         user.setEmail(email);
         user.setRole(UserRole.TEACHER);
@@ -105,26 +136,87 @@ public class AdminUserServiceImpl implements AdminUserService {
         teacher.setSubjects(new HashSet<>(subjects));
         teacher = teacherRepository.save(teacher);
 
-        return toTeacherSummaryDto(teacher);
+        return new TeacherAccountCredentialDto(toTeacherSummaryDto(teacher, null), temporaryPassword);
+    }
+
+    @Override
+    public TeacherSummaryDto updateTeacherProfile(Long teacherId, UpdateTeacherProfileRequest request,
+                                                   Long academicYearId) {
+        validateAcademicYear(academicYearId);
+        Teacher teacher = findTeacher(teacherId);
+        User user = teacher.getUser();
+        String phone = request.phone().trim();
+        String email = normalizeEmail(request.email());
+        ensureUniqueContact(phone, email, user.getId());
+
+        user.setName(request.name().trim());
+        user.setPhone(phone);
+        user.setEmail(email);
+        userRepository.save(user);
+        return toTeacherSummaryDto(teacher, academicYearId);
     }
 
     @Override
     public TeacherSummaryDto updateTeacherSubjects(Long teacherId, UpdateTeacherSubjectsRequest request) {
-        Teacher teacher = teacherRepository.findById(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException("Teacher", "id", teacherId));
+        Teacher teacher = findTeacher(teacherId);
         List<Subject> subjects = loadSubjects(request.subjectIds());
         Set<Long> nextIds = new HashSet<>(request.subjectIds());
 
-        for (Subject subject : teacher.getSubjects()) {
-            if (!nextIds.contains(subject.getId())
-                    && teachingAssignmentRepository.existsByTeacherIdAndSubjectIdAndStatus(
-                            teacherId, subject.getId(), AssignmentStatus.ACTIVE)) {
-                throw new ConflictException("Không thể gỡ môn đang có phân công active");
-            }
+        List<TeachingAssignment> conflicts = teachingAssignmentRepository
+                .findByTeacherIdAndStatus(teacherId, AssignmentStatus.ACTIVE).stream()
+                .filter(assignment -> !nextIds.contains(assignment.getSubject().getId()))
+                .toList();
+        if (!conflicts.isEmpty()) {
+            String details = conflicts.stream()
+                    .collect(Collectors.groupingBy(
+                            TeachingAssignment::getSubject,
+                            Collectors.mapping(assignment -> assignment.getCls().getName(), Collectors.toSet())))
+                    .entrySet().stream()
+                    .map(entry -> entry.getKey().getName() + " (lớp " + String.join(", ", entry.getValue()) + ")")
+                    .sorted()
+                    .collect(Collectors.joining("; "));
+            throw new ConflictException("Không thể gỡ môn đang có phân công: " + details);
         }
 
         teacher.setSubjects(new HashSet<>(subjects));
-        return toTeacherSummaryDto(teacherRepository.save(teacher));
+        return toTeacherSummaryDto(teacherRepository.save(teacher), null);
+    }
+
+    @Override
+    public TeacherAccountCredentialDto resetTeacherPassword(Long teacherId) {
+        Teacher teacher = findTeacher(teacherId);
+        String temporaryPassword = generateTemporaryPassword();
+        User user = teacher.getUser();
+        user.setPassword(passwordEncoder.encode(temporaryPassword));
+        user.setMustChangePassword(true);
+        userRepository.save(user);
+        return new TeacherAccountCredentialDto(toTeacherSummaryDto(teacher, null), temporaryPassword);
+    }
+
+    private Teacher findTeacher(Long teacherId) {
+        return teacherRepository.findById(teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher", "id", teacherId));
+    }
+
+    private void validateAcademicYear(Long academicYearId) {
+        if (academicYearId != null && !academicYearRepository.existsById(academicYearId)) {
+            throw new ResourceNotFoundException("AcademicYear", "id", academicYearId);
+        }
+    }
+
+    private void ensureUniqueContact(String phone, String email, Long excludedUserId) {
+        boolean duplicatePhone = excludedUserId == null
+                ? userRepository.existsByPhone(phone)
+                : userRepository.existsByPhoneAndIdNot(phone, excludedUserId);
+        if (duplicatePhone) {
+            throw new ConflictException("Số điện thoại đã được đăng ký");
+        }
+        boolean duplicateEmail = email != null && (excludedUserId == null
+                ? userRepository.existsByEmail(email)
+                : userRepository.existsByEmailAndIdNot(email, excludedUserId));
+        if (duplicateEmail) {
+            throw new ConflictException("Email giáo viên đã tồn tại");
+        }
     }
 
     private List<Subject> loadSubjects(List<Long> subjectIds) {
@@ -139,17 +231,67 @@ public class AdminUserServiceImpl implements AdminUserService {
         return subjects;
     }
 
-    private AdminUserDto toDto(User user) {
-        return new AdminUserDto(
-            user.getId(), user.getPhone(), user.getName(), user.getEmail(),
-            user.getRole(), user.getStatus(), user.getCreatedAt());
+    private String generateTemporaryPassword() {
+        char[] password = new char[TEMPORARY_PASSWORD_LENGTH];
+        password[0] = randomCharacter(UPPERCASE);
+        password[1] = randomCharacter(LOWERCASE);
+        password[2] = randomCharacter(DIGITS);
+        password[3] = randomCharacter(SPECIAL);
+        for (int index = 4; index < password.length; index++) {
+            password[index] = randomCharacter(PASSWORD_ALPHABET);
+        }
+        for (int index = password.length - 1; index > 0; index--) {
+            int swapIndex = SECURE_RANDOM.nextInt(index + 1);
+            char value = password[index];
+            password[index] = password[swapIndex];
+            password[swapIndex] = value;
+        }
+        return new String(password);
     }
 
-    private TeacherSummaryDto toTeacherSummaryDto(Teacher teacher) {
+    private char randomCharacter(String characters) {
+        return characters.charAt(SECURE_RANDOM.nextInt(characters.length()));
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return keyword == null || keyword.isBlank() ? null : keyword.trim();
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null || email.isBlank() ? null : email.trim();
+    }
+
+    private AdminUserDto toDto(User user) {
+        return new AdminUserDto(
+                user.getId(), user.getPhone(), user.getName(), user.getEmail(),
+                user.getRole(), user.getStatus(), user.getCreatedAt());
+    }
+
+    private TeacherSummaryDto toTeacherSummaryDto(Teacher teacher, Long academicYearId) {
         User user = teacher.getUser();
         List<SubjectDto> subjects = teacher.getSubjects().stream()
-                .map(s -> new SubjectDto(s.getId(), s.getName(), s.getCode()))
+                .sorted(Comparator.comparing(Subject::getName))
+                .map(subject -> new SubjectDto(subject.getId(), subject.getName(), subject.getCode()))
                 .toList();
+        List<TeacherYearAssignmentDto> assignments = academicYearId == null
+                ? List.of()
+                : teachingAssignmentRepository.findActiveByTeacherAndYear(teacher.getId(), academicYearId).stream()
+                        .map(assignment -> new TeacherYearAssignmentDto(
+                                assignment.getId(),
+                                assignment.getCls().getId(),
+                                assignment.getCls().getName(),
+                                assignment.getSubject().getId(),
+                                assignment.getSubject().getName(),
+                                assignment.getSubject().getCode()))
+                        .toList();
+        List<TeacherHomeroomDto> homerooms = academicYearId == null
+                ? List.of()
+                : homeroomAssignmentRepository.findByTeacherIdAndAcademicYearId(teacher.getId(), academicYearId).stream()
+                        .map(assignment -> new TeacherHomeroomDto(
+                                assignment.getId(),
+                                assignment.getCls().getId(),
+                                assignment.getCls().getName()))
+                        .toList();
         return new TeacherSummaryDto(
                 teacher.getId(),
                 user.getId(),
@@ -158,7 +300,8 @@ public class AdminUserServiceImpl implements AdminUserService {
                 user.getEmail(),
                 user.getStatus(),
                 teacher.getEmployeeCode(),
-                user.getAvatar(),
-                subjects);
+                subjects,
+                assignments,
+                homerooms);
     }
 }

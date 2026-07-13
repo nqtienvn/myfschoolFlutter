@@ -259,10 +259,7 @@ class ApprovalPreview extends StatelessWidget {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                backgroundColor: spec.color.withValues(alpha: 0.12),
-                child: Icon(spec.icon, color: spec.color),
-              ),
+              Icon(spec.icon, color: spec.color),
               const SizedBox(width: 10),
               const Expanded(
                 child: Column(

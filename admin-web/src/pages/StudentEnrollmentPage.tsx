@@ -102,13 +102,13 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
 
   return <div className="page-stack student-enrollment-page">
     <header className="page-heading enrollment-heading">
-      <div><span className="eyebrow">Bước 4 · Tài khoản người dùng</span><h1>Thêm học sinh & phụ huynh</h1><p>Tạo hai tài khoản, liên kết gia đình và xếp lớp trong một luồng duy nhất.</p></div>
+      <div><span className="eyebrow">Tài khoản người dùng</span><h1>Quản lý phụ huynh, học sinh</h1><p>Tạo tài khoản, liên kết gia đình và xếp lớp trong một luồng duy nhất.</p></div>
       <div className="page-heading-actions">
         <button type="button" onClick={() => setShowForm(v => !v)}>{showForm ? '✕ Đóng' : '＋ Thêm học sinh'}</button>
       </div>
     </header>
 
-    {!selectedYearId && <div className="notice warning">Chọn năm học DRAFT ở thanh phía trên để bắt đầu.</div>}
+    {!selectedYearId && <div className="notice warning">Chọn năm học ở thanh phía trên để bắt đầu.</div>}
     {!editable && selectedYearId && <div className="notice warning">Năm học đã hoàn tất nên không thể tạo tài khoản mới.</div>}
     {error && <div className="notice error" role="alert">{error}</div>}
 
@@ -183,16 +183,19 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
       {accountClassId && loadingAccounts && <div className="account-empty"><span className="loading-dot">•••</span><strong>Đang tải danh sách tài khoản</strong></div>}
       {accountClassId && !loadingAccounts && accounts.length === 0 && <div className="account-empty"><span>0</span><strong>Lớp chưa có học sinh</strong><p>Hãy sử dụng biểu mẫu phía trên để thêm học sinh đầu tiên.</p></div>}
       {accountClassId && !loadingAccounts && accounts.length > 0 && <div className="table-responsive account-table-wrap"><table className="account-table">
-        <thead><tr><th>STT</th><th>Học sinh</th><th>Tài khoản học sinh</th><th>Phụ huynh & tài khoản đăng nhập</th></tr></thead>
-        <tbody>{accounts.map((student, index) => <tr key={student.studentId}>
-          <td><span className="row-number">{index + 1}</span></td>
-          <td><div className="student-identity"><span>{student.studentName.trim().charAt(0).toUpperCase()}</span><div><strong>{student.studentName}</strong><small>{student.studentCode}</small></div></div></td>
-          <td><div className="credential-pair"><span><small>Tài khoản</small><b className="login-chip">{student.studentUsername}</b></span><span><small>Mật khẩu</small><b className="login-chip password-chip">{student.studentInitialPassword || 'Đã đổi'}</b></span></div></td>
-          <td>{student.guardians.length > 0 ? <div className="guardian-list">{student.guardians.map(guardian => <div className="guardian-account" key={guardian.parentId}>
-            <div><strong>{guardian.parentName}</strong><small>{relationshipLabels[guardian.relationship]}{guardian.parentEmail ? ` · ${guardian.parentEmail}` : ''}</small></div>
-            <div className="credential-pair guardian-credentials"><span><small>Tài khoản</small><b className="login-chip parent-login">{guardian.parentUsername}</b></span><span><small>Mật khẩu</small><b className="login-chip password-chip">{guardian.parentInitialPassword || 'Đã đổi'}</b></span></div>
-          </div>)}</div> : <span className="muted-text">Chưa có phụ huynh</span>}</td>
-        </tr>)}</tbody>
+        <thead><tr><th>Tên học sinh</th><th>Tài khoản học sinh</th><th>Mật khẩu học sinh</th><th>Tên phụ huynh</th><th>Tài khoản phụ huynh</th><th>Mật khẩu phụ huynh</th><th>Quan hệ với học sinh</th></tr></thead>
+        <tbody>{accounts.flatMap(student => {
+          const guardians: Array<StudentAccountByClass['guardians'][number] | null> = student.guardians.length > 0 ? student.guardians : [null];
+          return guardians.map(guardian => <tr key={`${student.studentId}-${guardian?.parentId || 'none'}`}>
+            <td><strong>{student.studentName}</strong><small className="account-secondary-text">{student.studentCode}</small></td>
+            <td><b className="login-chip">{student.studentUsername}</b></td>
+            <td><b className="login-chip password-chip">{student.studentInitialPassword || 'Đã đổi'}</b></td>
+            <td>{guardian ? <strong>{guardian.parentName}</strong> : <span className="muted-text">Chưa có phụ huynh</span>}</td>
+            <td>{guardian ? <b className="login-chip">{guardian.parentUsername}</b> : '—'}</td>
+            <td>{guardian ? <b className="login-chip password-chip">{guardian.parentInitialPassword || 'Đã đổi'}</b> : '—'}</td>
+            <td>{guardian ? relationshipLabels[guardian.relationship] : '—'}</td>
+          </tr>);
+        })}</tbody>
       </table></div>}
     </section>
   </div>;

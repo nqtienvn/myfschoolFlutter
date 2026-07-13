@@ -110,9 +110,14 @@ class FlowStep extends StatelessWidget {
       children: [
         Column(
           children: [
-            CircleAvatar(
-              radius: 14,
-              backgroundColor: color.withValues(alpha: 0.14),
+            Container(
+              width: 28,
+              height: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Text(
                 '$index',
                 style: TextStyle(

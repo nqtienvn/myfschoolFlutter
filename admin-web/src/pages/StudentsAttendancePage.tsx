@@ -33,11 +33,11 @@ export default function StudentsAttendancePage({
   const [loadingClasses, setLoadingClasses] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
   const [dailyDate, setDailyDate] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [dailyRows, setDailyRows] = useState<AdminAttendanceDay[]>([]);
   const [corrections, setCorrections] = useState<AttendanceCorrectionRequest[]>([]);
   const [dailyLoading, setDailyLoading] = useState(false);
+  const [showDailyForm, setShowDailyForm] = useState(false);
   const [savingKey, setSavingKey] = useState('');
   const [draftCounts, setDraftCounts] = useState<Record<string, {
     presentCount: number;
@@ -164,17 +164,6 @@ export default function StudentsAttendancePage({
       });
   }, [selectedClassId, selectedSemesterId, selectedYearId]);
 
-  // Lọc học sinh theo ô tìm kiếm
-  const filteredSummary = useMemo(() => {
-    return summaryList.filter((item) => {
-      const q = searchQuery.toLowerCase().trim();
-      if (!q) return true;
-      return (
-        item.studentName.toLowerCase().includes(q) ||
-        item.studentCode.toLowerCase().includes(q)
-      );
-    });
-  }, [summaryList, searchQuery]);
 
   // Tính toán dữ liệu tổng quan (Stats cards)
   const totalStudents = summaryList.length;
@@ -220,12 +209,17 @@ export default function StudentsAttendancePage({
             Theo dõi số buổi nghỉ của học sinh theo từng học kỳ. Mỗi buổi sáng và chiều được thống kê riêng theo thời khóa biểu.
           </p>
         </div>
+        <div className="page-heading-actions">
+          <button type="button" onClick={() => setShowDailyForm(v => !v)}>
+            {showDailyForm ? '✕ Đóng' : '＋ Cập nhật điểm danh'}
+          </button>
+        </div>
       </header>
 
-      <section className="panel" style={{ padding: '20px', border: '1px solid #e5e7eb', borderRadius: '12px', background: '#fff' }}>
+      {showDailyForm && <section className="panel" style={{ padding: '20px', border: '1px solid #e5e7eb', borderRadius: '12px', background: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', marginBottom: '16px' }}>
           <div>
-            <h2 style={{ margin: 0 }}>Điểm danh theo ngày</h2>
+            <h2 style={{ margin: 0 }}>Cập nhật điểm danh</h2>
             <p style={{ margin: '6px 0 0', color: '#6b7280' }}>
               Chỉ hiển thị lớp và buổi có tiết học trong thời khóa biểu. Mỗi buổi sáng/chiều được tính riêng.
             </p>
@@ -291,7 +285,10 @@ export default function StudentsAttendancePage({
             </table>
           </div>
         )}
-      </section>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+          <button type="button" className="secondary-button" onClick={() => setShowDailyForm(false)}>Đóng</button>
+        </div>
+      </section>}
 
       {/* Điều kiện cảnh báo nếu chưa chọn năm học/học kỳ */}
       {!selectedYearId && (
@@ -338,15 +335,6 @@ export default function StudentsAttendancePage({
               </select>
             </div>
 
-            <div className="form-group" style={{ margin: 0, marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
-              <input
-                type="text"
-                placeholder="Tìm học sinh theo tên/mã..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #d1d5db', width: '260px' }}
-              />
-            </div>
           </div>
 
           {/* Thống kê Tổng quan (Stats cards) */}
@@ -405,7 +393,7 @@ export default function StudentsAttendancePage({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredSummary.map((item, index) => (
+                  {summaryList.map((item, index) => (
                     <tr
                       key={item.studentId}
                       style={{

@@ -343,9 +343,15 @@ class OrangeTopBar extends StatelessWidget implements PreferredSizeWidget {
           color: AppColors.ink,
         ),
       ),
-      leading: Navigator.canPop(context) && !(ModalRoute.of(context)?.isFirst ?? true)
+      leading:
+          Navigator.canPop(context) &&
+              !(ModalRoute.of(context)?.isFirst ?? true)
           ? IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.fptOrange, size: 20),
+              icon: const Icon(
+                Icons.arrow_back_ios_new,
+                color: AppColors.fptOrange,
+                size: 20,
+              ),
               onPressed: () => Navigator.pop(context),
             )
           : null,
@@ -377,9 +383,7 @@ class OrangeTopBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
       ],
-      shape: const Border(
-        bottom: BorderSide(color: AppColors.line, width: 1),
-      ),
+      shape: const Border(bottom: BorderSide(color: AppColors.line, width: 1)),
     );
   }
 
@@ -388,13 +392,8 @@ class OrangeTopBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 class SharedHeader extends StatelessWidget {
-  const SharedHeader({
-    super.key,
-    required this.avatarWidget,
-    this.actions,
-  });
+  const SharedHeader({super.key, this.actions});
 
-  final Widget avatarWidget;
   final List<Widget>? actions;
 
   @override
@@ -404,21 +403,6 @@ class SharedHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.fptOrange, width: 1.5),
-            ),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.background,
-              child: ClipOval(
-                child: avatarWidget,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: RichText(
               text: TextSpan(
@@ -506,7 +490,10 @@ class _AcademicPeriodPicker extends StatelessWidget {
                 selected.label,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             const Icon(Icons.arrow_drop_down, size: 18),

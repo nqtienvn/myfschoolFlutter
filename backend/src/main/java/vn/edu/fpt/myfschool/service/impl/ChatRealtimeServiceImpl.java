@@ -96,7 +96,6 @@ public class ChatRealtimeServiceImpl implements ChatRealtimeService {
                 recipientMsg.put("conversationId", saved.conversationId());
                 recipientMsg.put("senderId", saved.senderId());
                 recipientMsg.put("senderName", saved.senderName());
-                recipientMsg.put("senderAvatar", saved.senderAvatar());
                 recipientMsg.put("messageType", saved.messageType());
                 recipientMsg.put("content", saved.content());
                 recipientMsg.put("serverSeq", saved.serverSeq());

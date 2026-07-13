@@ -7,13 +7,11 @@ interface Props {
 
 const steps = [
   ['years', 'Khởi tạo năm học', 'Tạo năm học ở trạng thái DRAFT; hệ thống tự sinh Học kỳ 1 và Học kỳ 2.'],
+  ['grade-config', 'Cấu hình đầu điểm', 'Thiết lập mẫu điểm, hệ số và công thức tính kết quả học tập.'],
   ['master-data', 'Cấu hình danh mục', 'Chọn môn học, ca học và tiết học áp dụng cho năm học.'],
-  ['teachers', 'Quản lý giáo viên', 'Tạo hồ sơ giáo viên dùng nhiều năm và khai báo môn phụ trách.'],
   ['classes', 'Sinh lớp hàng loạt', 'Sinh lớp theo khối, ký hiệu và số lượng; sau đó gán giáo viên chủ nhiệm.'],
-  ['students', 'Thêm học sinh & phụ huynh', 'Tạo thủ công tài khoản, liên kết phụ huynh và xếp lớp.'],
   ['assignments', 'Phân công giảng dạy', 'Mỗi lớp và môn chỉ có một giáo viên phụ trách trong năm học.'],
-  ['timetables', 'Thời khóa biểu (tùy chọn)', 'Có thể tạo và phát hành trước hoặc sau khi kích hoạt năm học.'],
-  ['validation', 'Kiểm tra dữ liệu', 'Xác nhận lớp có GVCN, học sinh và phân công môn trước khi mở năm học.'],
+  ['validation', 'Kiểm tra dữ liệu', 'Xác nhận lớp có GVCN và phân công môn trước khi mở năm học.'],
   ['activation', 'Kích hoạt năm học', 'Chỉ kích hoạt khi mọi kiểm tra đạt; cấu hình quan trọng sẽ được khóa.'],
 ] as const;
 
@@ -30,7 +28,7 @@ export default function SetupWizardPage({ onNavigate, selectedYear }: Props) {
       <section className="page-hero">
         <div>
           <span className="eyebrow">Quy trình chuẩn BA</span>
-          <h1>Thiết lập năm học theo 9 bước</h1>
+          <h1>Thiết lập năm học theo 7 bước</h1>
           <p>Thực hiện lần lượt để dữ liệu nhất quán và đủ điều kiện kích hoạt.</p>
         </div>
         <div className="hero-context">

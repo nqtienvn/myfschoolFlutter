@@ -152,7 +152,6 @@ public class AuthServiceImpl implements AuthService {
                             s.getGender(),
                             s.getAddress(),
                             s.getUser().getEmail(),
-                            s.getUser().getAvatar(),
                             s.getUser().getStatus()))
                         .collect(Collectors.toList());
                     parentDto = new ParentDto(parent.getId(), parent.getAddress(), parent.getOccupation(), childSummaries);
@@ -179,7 +178,7 @@ public class AuthServiceImpl implements AuthService {
 
         return new UserDto(
             user.getId(), user.getPhone(), user.getName(), user.getEmail(),
-            user.getAvatar(), user.getRole(), user.getStatus(), user.getCreatedAt(), user.getMustChangePassword(),
+            user.getRole(), user.getStatus(), user.getCreatedAt(), user.getMustChangePassword(),
             parentDto, studentDto, teacherDto);
     }
 
@@ -210,7 +209,6 @@ public class AuthServiceImpl implements AuthService {
             }
             user.setEmail(email);
         }
-        if (request.avatar() != null) user.setAvatar(request.avatar());
         userRepository.save(user);
 
         if (user.getRole() == UserRole.PARENT) {

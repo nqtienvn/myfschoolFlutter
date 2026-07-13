@@ -126,16 +126,7 @@ class _HomeTeacherState extends State<HomeTeacher> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: SharedHeader(
-                avatarWidget: const CircleAvatar(
-                  backgroundColor: AppColors.primarySoft,
-                  child: Icon(
-                    Icons.co_present,
-                    color: AppColors.fptOrange,
-                    size: 20,
-                  ),
-                ),
-              ),
+              child: const SharedHeader(),
             ),
             Expanded(
               child: ListView(

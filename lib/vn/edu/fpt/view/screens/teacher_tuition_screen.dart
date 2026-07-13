@@ -49,14 +49,14 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
   void _sendReminder(StudentSnapshot student) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Đã gửi nhắc nhở học phí đến phụ huynh học sinh ${student.name}!'),
+        content: Text(
+          'Đã gửi nhắc nhở học phí đến phụ huynh học sinh ${student.name}!',
+        ),
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.fptOrange,
       ),
     );
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -76,11 +76,19 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
                 children: [
                   const Text(
                     'Trạng thái đóng phí lớp',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.ink),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.ink,
+                    ),
                   ),
                   Text(
                     'Đã đóng: $paidCount / $totalStudents',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.muted),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.muted,
+                    ),
                   ),
                 ],
               ),
@@ -97,9 +105,14 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
                       onTap: () => setState(() => _selectedFilter = filter),
                       child: Container(
                         margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: _selectedFilter == filter ? AppColors.primarySoft : AppColors.surface,
+                          color: _selectedFilter == filter
+                              ? AppColors.primarySoft
+                              : AppColors.surface,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: _selectedFilter == filter
@@ -112,7 +125,9 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: _selectedFilter == filter ? AppColors.fptOrange : AppColors.ink,
+                            color: _selectedFilter == filter
+                                ? AppColors.fptOrange
+                                : AppColors.ink,
                           ),
                         ),
                       ),
@@ -125,7 +140,10 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
             // Student list dạng Single Line phẳng
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
                 itemCount: filteredStudents.length,
                 itemBuilder: (context, index) {
                   final student = filteredStudents[index];
@@ -135,32 +153,23 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
                   final isPaid = unpaid == 0;
 
                   return Semantics(
-                    label: 'Học sinh: ${student.name}. Trạng thái học phí: ${isPaid ? 'Đã đóng đủ' : 'Chưa đóng'}.',
+                    label:
+                        'Học sinh: ${student.name}. Trạng thái học phí: ${isPaid ? 'Đã đóng đủ' : 'Chưa đóng'}.',
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.line.withValues(alpha: 0.4)),
+                        border: Border.all(
+                          color: AppColors.line.withValues(alpha: 0.4),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          // Avatar nhỏ gọn
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundColor: student.avatarColor.withValues(alpha: 0.12),
-                            child: Text(
-                              student.shortName,
-                              style: TextStyle(
-                                color: student.avatarColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-
                           // Tên học sinh
                           Expanded(
                             child: Text(
@@ -175,9 +184,14 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
 
                           // Trạng thái (Đã đóng / Chưa đóng)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              color: isPaid ? AppColors.successSoft : AppColors.dangerSoft,
+                              color: isPaid
+                                  ? AppColors.successSoft
+                                  : AppColors.dangerSoft,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -185,7 +199,9 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: isPaid ? AppColors.success : AppColors.danger,
+                                color: isPaid
+                                    ? AppColors.success
+                                    : AppColors.danger,
                               ),
                             ),
                           ),
@@ -194,7 +210,8 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
                           if (!isPaid) ...[
                             const SizedBox(width: 12),
                             Semantics(
-                              label: 'Nhấn để gửi nhắc nhở nộp tiền học phí cho phụ huynh học sinh ${student.name}',
+                              label:
+                                  'Nhấn để gửi nhắc nhở nộp tiền học phí cho phụ huynh học sinh ${student.name}',
                               button: true,
                               child: IconButton(
                                 onPressed: () => _sendReminder(student),
@@ -202,7 +219,10 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
                                 color: AppColors.fptOrange,
                                 iconSize: 20,
                                 padding: const EdgeInsets.all(10),
-                                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                                constraints: const BoxConstraints(
+                                  minWidth: 44,
+                                  minHeight: 44,
+                                ),
                                 tooltip: 'Nhắc đóng học phí',
                               ),
                             ),

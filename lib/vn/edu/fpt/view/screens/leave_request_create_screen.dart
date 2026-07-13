@@ -19,7 +19,8 @@ class LeaveRequestCreateScreen extends StatefulWidget {
   final String token;
 
   @override
-  State<LeaveRequestCreateScreen> createState() => _LeaveRequestCreateScreenState();
+  State<LeaveRequestCreateScreen> createState() =>
+      _LeaveRequestCreateScreenState();
 }
 
 class _LeaveRequestCreateScreenState extends State<LeaveRequestCreateScreen> {
@@ -152,19 +153,6 @@ class _LeaveRequestCreateScreenState extends State<LeaveRequestCreateScreen> {
                           const SizedBox(height: AppSpacing.sm),
                           Row(
                             children: [
-                              CircleAvatar(
-                                radius: 20,
-                                backgroundColor: widget.student.avatarColor.withValues(alpha: 0.12),
-                                child: Text(
-                                  widget.student.shortName,
-                                  style: TextStyle(
-                                    color: widget.student.avatarColor,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.md),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,9 +200,13 @@ class _LeaveRequestCreateScreenState extends State<LeaveRequestCreateScreen> {
                             onTap: _pickDateRange,
                             decoration: InputDecoration(
                               hintText: 'Chọn ngày hoặc khoảng ngày xin nghỉ',
-                              prefixIcon: const Icon(Icons.calendar_today_outlined),
+                              prefixIcon: const Icon(
+                                Icons.calendar_today_outlined,
+                              ),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.md,
+                                ),
                               ),
                             ),
                           ),
@@ -229,27 +221,39 @@ class _LeaveRequestCreateScreenState extends State<LeaveRequestCreateScreen> {
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           Row(
-                            children: ['Cả ngày', 'Buổi sáng', 'Buổi chiều'].map((session) {
-                              final isSelected = _selectedSession == session;
-                              return Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsetsDirectional.symmetric(horizontal: 4),
-                                  child: ChoiceChip(
-                                    label: Text(session),
-                                    selected: isSelected,
-                                    onSelected: (_) {
-                                      setState(() => _selectedSession = session);
-                                    },
-                                    selectedColor: AppColors.primarySoft,
-                                    labelStyle: TextStyle(
-                                      color: isSelected ? AppColors.fptOrange : AppColors.ink,
-                                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                      fontSize: 12,
+                            children: ['Cả ngày', 'Buổi sáng', 'Buổi chiều']
+                                .map((session) {
+                                  final isSelected =
+                                      _selectedSession == session;
+                                  return Expanded(
+                                    child: Padding(
+                                      padding:
+                                          const EdgeInsetsDirectional.symmetric(
+                                            horizontal: 4,
+                                          ),
+                                      child: ChoiceChip(
+                                        label: Text(session),
+                                        selected: isSelected,
+                                        onSelected: (_) {
+                                          setState(
+                                            () => _selectedSession = session,
+                                          );
+                                        },
+                                        selectedColor: AppColors.primarySoft,
+                                        labelStyle: TextStyle(
+                                          color: isSelected
+                                              ? AppColors.fptOrange
+                                              : AppColors.ink,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w800
+                                              : FontWeight.w600,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
+                                  );
+                                })
+                                .toList(),
                           ),
                           const SizedBox(height: AppSpacing.lg),
                           const Text(
@@ -266,10 +270,13 @@ class _LeaveRequestCreateScreenState extends State<LeaveRequestCreateScreen> {
                             minLines: 3,
                             maxLines: 5,
                             decoration: InputDecoration(
-                              hintText: 'Ví dụ: Con bị sốt cao, gia đình xin phép nghỉ...',
+                              hintText:
+                                  'Ví dụ: Con bị sốt cao, gia đình xin phép nghỉ...',
                               prefixIcon: const Icon(Icons.edit_note),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.md,
+                                ),
                               ),
                             ),
                           ),

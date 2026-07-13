@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.myfschool.entity.Schedule;
+import vn.edu.fpt.myfschool.common.enums.TimetableStatus;
 import java.util.List;
 import java.util.Optional;
 import java.util.Collection;
@@ -55,6 +56,24 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     Optional<Schedule> findTeacherConflict(@Param("teacherId") Long teacherId,
         @Param("semesterId") Long semesterId, @Param("dayOfWeek") Integer dayOfWeek,
         @Param("periodId") Long periodId);
+
+    @Query("SELECT s FROM Schedule s WHERE s.timetable.semester.id = :semesterId " +
+           "AND s.timetable.status IN :statuses")
+    List<Schedule> findPlanningSchedules(
+        @Param("semesterId") Long semesterId,
+        @Param("statuses") Collection<TimetableStatus> statuses);
+
+    @Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END FROM Schedule s " +
+           "WHERE s.assignment.teacher.id = :teacherId AND s.timetable.semester.id = :semesterId " +
+           "AND s.timetable.cls.id <> :classId AND s.timetable.status IN :statuses " +
+           "AND s.dayOfWeek = :dayOfWeek AND s.periodRef.id = :periodId")
+    boolean existsTeacherPlanningConflict(
+        @Param("teacherId") Long teacherId,
+        @Param("semesterId") Long semesterId,
+        @Param("classId") Long classId,
+        @Param("dayOfWeek") Integer dayOfWeek,
+        @Param("periodId") Long periodId,
+        @Param("statuses") Collection<TimetableStatus> statuses);
 
     @Modifying
     @Query("DELETE FROM Schedule s WHERE s.timetable.cls.id = :classId " +

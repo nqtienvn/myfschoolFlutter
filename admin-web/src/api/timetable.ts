@@ -15,6 +15,15 @@ export interface TimetableItem {
   slotCount: number;
 }
 
+export interface AutoGenerateTimetableResult {
+  academicYearId: number;
+  semesterId: number;
+  classCount: number;
+  timetableCount: number;
+  slotCount: number;
+  timetables: TimetableItem[];
+}
+
 export function getTimetables(classId: number | string, semesterId: number | string) {
   const params = new URLSearchParams({ classId: String(classId), semesterId: String(semesterId) });
   return apiFetch(`/timetables?${params}`) as Promise<TimetableItem[]>;
@@ -27,6 +36,18 @@ export function createTimetable(data: {
   copyFromTimetableId?: number;
 }) {
   return apiFetch('/timetables', { method: 'POST', body: JSON.stringify(data) }) as Promise<TimetableItem>;
+}
+
+export function autoGenerateTimetables(data: {
+  academicYearId: number;
+  semesterId: number;
+  classIds: number[];
+  shiftIds: number[];
+  periodIds: number[];
+}) {
+  return apiFetch('/timetables/auto-generate', {
+    method: 'POST', body: JSON.stringify(data),
+  }) as Promise<AutoGenerateTimetableResult>;
 }
 
 export function publishTimetable(id: number, effectiveFrom: string) {

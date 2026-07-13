@@ -9,7 +9,6 @@ class UserDto {
   final String role;
   final bool active;
   final String? phone;
-  final String? avatarUrl;
 
   const UserDto({
     required this.id,
@@ -18,7 +17,6 @@ class UserDto {
     required this.role,
     required this.active,
     this.phone,
-    this.avatarUrl,
   });
 
   factory UserDto.fromJson(Map<String, dynamic> json) {
@@ -29,7 +27,6 @@ class UserDto {
       role: requireField(json, 'role'),
       active: requireField(json, 'active'),
       phone: json['phone'],
-      avatarUrl: json['avatarUrl'],
     );
   }
 
@@ -41,7 +38,6 @@ class UserDto {
       'role': role,
       'active': active,
       'phone': phone,
-      'avatarUrl': avatarUrl,
     };
   }
 
@@ -53,7 +49,6 @@ class UserDto {
       role: parseRole(role),
       active: active,
       phone: phone,
-      avatarUrl: avatarUrl,
     );
   }
 

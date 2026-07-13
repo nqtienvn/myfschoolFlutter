@@ -54,7 +54,7 @@ public class ConversationServiceImpl implements ConversationService {
                     c.getId(), userId, current == null ? null : current.getLastReadMessageId());
             ParticipantDto otherDto = other != null ? new ParticipantDto(
                     other.getUser().getId(), other.getUser().getName(),
-                    other.getUser().getAvatar(), other.getUser().getRole()) : null;
+                    other.getUser().getRole()) : null;
             return new ConversationDto(c.getId(), c.getLastMessage(), c.getLastMessageAt(),
                     (int) unread, otherDto);
         }).collect(Collectors.toList());
@@ -86,7 +86,7 @@ public class ConversationServiceImpl implements ConversationService {
 
         User other = userRepository.findById(otherUserId).orElseThrow();
         return new ConversationDto(conv.getId(), null, null, 0,
-                new ParticipantDto(other.getId(), other.getName(), other.getAvatar(), other.getRole()));
+                new ParticipantDto(other.getId(), other.getName(), other.getRole()));
     }
 
     @Override
@@ -229,7 +229,7 @@ public class ConversationServiceImpl implements ConversationService {
         return Stream.concat(byPhone.stream(), byNameLike.stream())
                 .distinct()
                 .filter(u -> !u.getId().equals(userId))
-                .map(u -> new SearchResultDto(u.getId(), u.getName(), u.getPhone(), u.getAvatar(), u.getRole().name()))
+                .map(u -> new SearchResultDto(u.getId(), u.getName(), u.getPhone(), u.getRole().name()))
                 .collect(Collectors.toList());
     }
 
@@ -275,7 +275,6 @@ public class ConversationServiceImpl implements ConversationService {
                 msg.getConversation().getId(),
                 msg.getSender().getId(),
                 msg.getSender().getName(),
-                msg.getSender().getAvatar(),
                 msg.getMessageType(),
                 msg.getContent(),
                 msg.getServerSeq(),

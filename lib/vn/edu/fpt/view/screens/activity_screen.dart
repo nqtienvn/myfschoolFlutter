@@ -86,8 +86,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
                             child: ChoiceChip(
                               selected: _selectedGroup == i,
                               label: Text(catalogGroups[i].label),
-                              avatar: Icon(catalogGroups[i].icon, size: 18),
-                              onSelected: (_) => setState(() => _selectedGroup = i),
+                              onSelected: (_) =>
+                                  setState(() => _selectedGroup = i),
                               selectedColor: AppColors.primarySoft,
                               labelStyle: TextStyle(
                                 color: _selectedGroup == i
@@ -106,7 +106,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 6,
+                ),
                 children: [
                   Row(
                     children: [

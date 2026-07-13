@@ -22,4 +22,6 @@ public interface ScheduleService {
     void deleteSchedule(Long scheduleId);
 
     List<PeriodDto> getAvailablePeriods(Long classId, Long semesterId, Integer dayOfWeek, Long shiftId);
+
+    List<AssignmentAvailabilityDto> getAssignmentAvailability(Long classId, Long semesterId);
 }

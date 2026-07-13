@@ -133,37 +133,6 @@ class _ConversationCard extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Row(
                 children: [
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: AppColors.fptOrange.withValues(
-                          alpha: 0.12,
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          color: AppColors.fptOrange,
-                        ),
-                      ),
-                      if (conversation.isOnline)
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: AppColors.success,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: AppColors.surface,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,11 +483,6 @@ class _ContactCard extends StatelessWidget {
     return AppCard(
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: AppColors.primarySoft,
-            child: const Icon(Icons.person, color: AppColors.fptOrange),
-          ),
-          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -741,15 +705,7 @@ class AccountProfileScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 14,
-                        backgroundColor: AppColors.line.withValues(alpha: 0.5),
-                        child: Icon(
-                          Icons.email_outlined,
-                          color: actor.color,
-                          size: 14,
-                        ),
-                      ),
+                      Icon(Icons.email_outlined, color: actor.color, size: 18),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -766,15 +722,7 @@ class AccountProfileScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 14,
-                        backgroundColor: AppColors.line.withValues(alpha: 0.5),
-                        child: Icon(
-                          Icons.phone_outlined,
-                          color: actor.color,
-                          size: 14,
-                        ),
-                      ),
+                      Icon(Icons.phone_outlined, color: actor.color, size: 18),
                       const SizedBox(width: 12),
                       Text(
                         phone,
@@ -899,13 +847,7 @@ class _ParentChildrenCard extends StatelessWidget {
 
   final AuthService authService;
 
-  StudentSnapshot _snapshot(domain.LinkedStudent child, int index) {
-    const colors = [
-      AppColors.fptOrange,
-      AppColors.blue,
-      AppColors.teal,
-      AppColors.green,
-    ];
+  StudentSnapshot _snapshot(domain.LinkedStudent child) {
     return StudentSnapshot.linked(
       id: child.id,
       name: child.name,
@@ -913,7 +855,6 @@ class _ParentChildrenCard extends StatelessWidget {
       className: child.className ?? 'Chưa xếp lớp',
       school: child.schoolName ?? 'FPT Schools',
       linkStatus: child.status == 'ACTIVE' ? 'Đang học' : child.status,
-      avatarColor: colors[index % colors.length],
       dateOfBirth: child.dateOfBirth,
       gender: child.gender,
       address: child.address,
@@ -949,22 +890,6 @@ class _ParentChildrenCard extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor:
-                          (selected ? AppColors.fptOrange : AppColors.blue)
-                              .withValues(alpha: 0.12),
-                      child: Text(
-                        _snapshot(child, index).shortName,
-                        style: TextStyle(
-                          color: selected
-                              ? AppColors.fptOrange
-                              : AppColors.blue,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -994,9 +919,8 @@ class _ParentChildrenCard extends StatelessWidget {
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
-                            builder: (_) => StudentProfileScreen(
-                              student: _snapshot(child, index),
-                            ),
+                            builder: (_) =>
+                                StudentProfileScreen(student: _snapshot(child)),
                           ),
                         );
                       },

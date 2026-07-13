@@ -25,6 +25,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByPhoneAndIdNot(String phone, Long id);
 
+    boolean existsByEmailAndIdNot(String email, Long id);
+
     List<User> findByRole(UserRole role);
 
     @Query("SELECT u FROM User u WHERE u.role = :role AND " +

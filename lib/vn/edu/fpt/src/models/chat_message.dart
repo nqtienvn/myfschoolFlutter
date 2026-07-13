@@ -15,7 +15,6 @@ class ChatMessage {
     required this.isMine,
     this.id,
     this.serverSeq,
-    this.senderAvatar,
   });
 
   final int? id;
@@ -23,7 +22,6 @@ class ChatMessage {
   final int conversationId;
   final int senderId;
   final String senderName;
-  final String? senderAvatar;
   final String content;
   final ChatMessageType type;
   final ChatMessageStatus status;
@@ -37,7 +35,6 @@ class ChatMessage {
     int? conversationId,
     int? senderId,
     String? senderName,
-    String? senderAvatar,
     String? content,
     ChatMessageType? type,
     ChatMessageStatus? status,
@@ -51,7 +48,6 @@ class ChatMessage {
       conversationId: conversationId ?? this.conversationId,
       senderId: senderId ?? this.senderId,
       senderName: senderName ?? this.senderName,
-      senderAvatar: senderAvatar ?? this.senderAvatar,
       content: content ?? this.content,
       type: type ?? this.type,
       status: status ?? this.status,

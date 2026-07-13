@@ -18,8 +18,19 @@ export interface ScheduleSlotItem {
   shift: 'MORNING' | 'AFTERNOON';
 }
 
+export interface AssignmentAvailabilityItem {
+  dayOfWeek: number;
+  periodId: number;
+  assignmentIds: number[];
+}
+
 export function getTimetableSlots(timetableId: number) {
   return apiFetch(`/schedules/timetable/${timetableId}`) as Promise<ScheduleSlotItem[]>;
+}
+
+export function getAssignmentAvailability(classId: number | string, semesterId: number | string) {
+  const params = new URLSearchParams({ classId: String(classId), semesterId: String(semesterId) });
+  return apiFetch(`/schedules/assignment-availability?${params}`) as Promise<AssignmentAvailabilityItem[]>;
 }
 
 export function createScheduleSlot(data: {

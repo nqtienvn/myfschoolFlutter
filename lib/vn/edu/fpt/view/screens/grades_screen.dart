@@ -225,16 +225,6 @@ class _GradesScreenState extends State<GradesScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ExpansionTile(
                         initiallyExpanded: true,
-                        leading: CircleAvatar(
-                          backgroundColor: AppColors.blueSoft,
-                          child: Text(
-                            (subject['subjectName'] as String).substring(0, 1),
-                            style: const TextStyle(
-                              color: AppColors.blue,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
                         title: Text(
                           subject['subjectName'] as String,
                           style: const TextStyle(fontWeight: FontWeight.w800),
@@ -409,10 +399,7 @@ class _StatCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: color.withValues(alpha: .12),
-            child: Icon(icon, color: color),
-          ),
+          Icon(icon, color: color),
           const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,

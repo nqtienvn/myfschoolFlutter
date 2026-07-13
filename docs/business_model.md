@@ -33,7 +33,7 @@ Toàn bộ logic nghiệp vụ của ứng dụng được mô phỏng trực ti
 * *(Ghi chú: Đã loại bỏ hoàn toàn các tiện ích "Sự kiện & CLB" và "Dịch vụ khác" để phụ huynh tập trung vào giám sát học tập).*
 
 ### Tác nhân 2: Học sinh (Student)
-* **Giao diện trang chủ:** Fixed Header hiển thị avatar viết tắt và biểu tượng thông báo. Bên dưới là thẻ thông tin học sinh (Green Card) trực quan và lưới tiện ích cá nhân.
+* **Giao diện trang chủ:** Fixed Header hiển thị nhận diện hệ thống và biểu tượng thông báo. Bên dưới là thẻ thông tin học sinh (Green Card) trực quan và lưới tiện ích cá nhân.
 * **Lưới tiện ích học tập (2x2 Grid Layout):** Tập trung vào trải nghiệm học tập và sinh hoạt cá nhân của học sinh lớp 12:
   1. **Thời khóa biểu:** Lịch học và phòng học cụ thể.
   2. **Bảng điểm:** Theo dõi điểm số cá nhân để chủ động cải thiện.

@@ -4,8 +4,16 @@ import { getSemesters } from '../api/semester';
 import { getTeachingAssignments } from '../api/teachingAssignment';
 import { getAcademicYearMasterData } from '../api/academicYearConfig';
 import { getPeriods, getShifts } from '../api/masterData';
-import { createScheduleSlot, deleteScheduleSlot, getTimetableSlots, type ScheduleSlotItem } from '../api/schedule';
+import ShiftPeriodSelector from '../components/ShiftPeriodSelector';
 import {
+  createScheduleSlot,
+  deleteScheduleSlot,
+  getAssignmentAvailability,
+  getTimetableSlots,
+  type ScheduleSlotItem,
+} from '../api/schedule';
+import {
+  autoGenerateTimetables,
   createTimetable,
   deleteTimetable,
   getTimetables,
@@ -43,11 +51,18 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
   const [classId, setClassId] = useState('');
   const [versions, setVersions] = useState<TimetableItem[]>([]);
   const [assignments, setAssignments] = useState<AssignmentItem[]>([]);
+  const [shifts, setShifts] = useState<ShiftItem[]>([]);
   const [periods, setPeriods] = useState<PeriodItem[]>([]);
   const [slots, setSlots] = useState<ScheduleSlotItem[]>([]);
   const [draftId, setDraftId] = useState<number | null>(null);
   const [publishDate, setPublishDate] = useState('');
   const [cellSubjects, setCellSubjects] = useState<Record<string, string>>({});
+  const [availabilityByCell, setAvailabilityByCell] = useState<Map<string, Set<number>>>(new Map());
+  const [generationShiftIds, setGenerationShiftIds] = useState<number[]>([]);
+  const [generationPeriodIds, setGenerationPeriodIds] = useState<number[]>([]);
+  const [generationAllClasses, setGenerationAllClasses] = useState(true);
+  const [generationClassIds, setGenerationClassIds] = useState<number[]>([]);
+  const [generating, setGenerating] = useState(false);
   const [savingCell, setSavingCell] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -57,10 +72,16 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
     setClassId('');
     setVersions([]);
     setAssignments([]);
+    setShifts([]);
     setPeriods([]);
     setSlots([]);
     setDraftId(null);
     setCellSubjects({});
+    setAvailabilityByCell(new Map());
+    setGenerationShiftIds([]);
+    setGenerationPeriodIds([]);
+    setGenerationAllClasses(true);
+    setGenerationClassIds([]);
     setError('');
     if (!selectedYearId) { setClasses([]); return; }
     Promise.all([
@@ -72,11 +93,17 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
     ]).then(([page, semesterList, yearConfig, periodCatalog, shiftCatalog]) => {
       setClasses(page.content || []);
       const appliedIds = new Set(yearConfig.periodIds || []);
+      const appliedShiftIds = new Set(yearConfig.shiftIds || []);
       const shiftMap = new Map(shiftCatalog.map(shift => [shift.id, shift]));
-      setPeriods(periodCatalog
+      const appliedShifts = shiftCatalog.filter(shift => appliedShiftIds.has(shift.id));
+      const appliedPeriods = periodCatalog
         .filter(period => appliedIds.has(period.id))
         .map(period => ({ ...period, shiftCode: shiftMap.get(period.shiftId)?.code || 'MORNING', shiftOrder: shiftMap.get(period.shiftId)?.order || 0 }))
-        .sort((first, second) => first.shiftOrder - second.shiftOrder || first.order - second.order));
+        .sort((first, second) => first.shiftOrder - second.shiftOrder || first.order - second.order);
+      setShifts(appliedShifts);
+      setPeriods(appliedPeriods);
+      setGenerationShiftIds(appliedShifts.map(shift => shift.id));
+      setGenerationPeriodIds(appliedPeriods.map(period => period.id));
       const selected = (semesterList || []).find((item: SemesterItem) => String(item.id) === selectedSemesterId) || null;
       setSemester(selected);
       setPublishDate(selected ? firstScheduleDate(selected) : '');
@@ -84,12 +111,16 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
   }, [selectedYearId, selectedSemesterId]);
 
   async function loadClassData(targetClassId = classId) {
-    if (!targetClassId || !selectedSemesterId) return;
+    if (!targetClassId || !selectedSemesterId) {
+      setVersions([]); setAssignments([]); setSlots([]); setDraftId(null); setAvailabilityByCell(new Map());
+      return;
+    }
     setError('');
     try {
-      const [versionList, assignmentList] = await Promise.all([
+      const [versionList, assignmentList, availabilityList] = await Promise.all([
         getTimetables(targetClassId, selectedSemesterId),
         getTeachingAssignments({ classId: targetClassId }) as Promise<AssignmentItem[]>,
+        getAssignmentAvailability(targetClassId, selectedSemesterId),
       ]);
       const draft = (versionList || []).find(item => item.status === 'DRAFT');
       const displayed = draft
@@ -99,6 +130,10 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
       setAssignments((assignmentList || []).filter(item => item.id && item.subjectId && item.teacherId));
       setDraftId(draft?.id || null);
       setSlots(displayed ? await getTimetableSlots(displayed.id) : []);
+      setAvailabilityByCell(new Map((availabilityList || []).map(item => [
+        `${item.dayOfWeek}-${item.periodId}`,
+        new Set(item.assignmentIds || []),
+      ])));
       setCellSubjects({});
     } catch (cause: any) {
       setError(cause.message || 'Không thể tải thời khóa biểu của lớp.');
@@ -117,6 +152,65 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
     return Array.from(unique, ([id, name]) => ({ id, name }));
   }, [assignments]);
   const slotsByCell = useMemo(() => new Map(slots.map(slot => [`${slot.dayOfWeek}-${slot.periodId}`, slot])), [slots]);
+  const generationClassCount = generationAllClasses ? classes.length : generationClassIds.length;
+
+  function toggleGenerationShift(shiftId: number) {
+    const selecting = !generationShiftIds.includes(shiftId);
+    setGenerationShiftIds(current => selecting
+      ? [...current, shiftId]
+      : current.filter(id => id !== shiftId));
+    const periodIdsOfShift = periods.filter(period => period.shiftId === shiftId).map(period => period.id);
+    setGenerationPeriodIds(current => selecting
+      ? Array.from(new Set([...current, ...periodIdsOfShift]))
+      : current.filter(id => !periodIdsOfShift.includes(id)));
+  }
+
+  function toggleGenerationPeriod(periodId: number) {
+    setGenerationPeriodIds(current => current.includes(periodId)
+      ? current.filter(id => id !== periodId)
+      : [...current, periodId]);
+  }
+
+  function toggleGenerationClass(targetClassId: number) {
+    setGenerationClassIds(current => current.includes(targetClassId)
+      ? current.filter(id => id !== targetClassId)
+      : [...current, targetClassId]);
+  }
+
+  async function generateAutomatically() {
+    if (!selectedYearId || !selectedSemesterId) return;
+    if (generationShiftIds.length === 0 || generationPeriodIds.length === 0) {
+      setError('Chọn ít nhất một ca học và một tiết học.');
+      return;
+    }
+    if (!generationAllClasses && generationClassIds.length === 0) {
+      setError('Chọn ít nhất một lớp hoặc dùng tùy chọn Tất cả lớp.');
+      return;
+    }
+    const targetLabel = generationAllClasses ? `toàn bộ ${classes.length} lớp` : `${generationClassIds.length} lớp đã chọn`;
+    if (!confirm(`Tạo lại thời khóa biểu nháp cho ${targetLabel}? Nội dung nháp hiện tại của các lớp này sẽ được thay thế.`)) return;
+
+    setGenerating(true); setError(''); setMessage('');
+    try {
+      const result = await autoGenerateTimetables({
+        academicYearId: Number(selectedYearId),
+        semesterId: Number(selectedSemesterId),
+        classIds: generationAllClasses ? [] : generationClassIds,
+        shiftIds: generationShiftIds,
+        periodIds: generationPeriodIds,
+      });
+      const firstClassId = result.timetables[0]?.classId;
+      if (firstClassId) {
+        const firstClass = classes.find(item => item.id === firstClassId);
+        if (firstClass) setGrade(String(firstClass.gradeLevel));
+        if (String(firstClassId) === classId) await loadClassData(String(firstClassId));
+        else setClassId(String(firstClassId));
+      }
+      setMessage(`Đã tạo ${result.slotCount} tiết cho ${result.classCount} lớp. Các lịch đang ở trạng thái nháp để kiểm tra và phát hành.`);
+    } catch (cause: any) {
+      setError(cause.message || 'Không thể tự động tạo thời khóa biểu.');
+    } finally { setGenerating(false); }
+  }
 
   async function ensureDraft() {
     if (draftId) return { id: draftId, slots };
@@ -214,6 +308,46 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
     {error && <div className="notice error">{error}</div>}
     {message && <div className="notice success">{message}</div>}
 
+    <section className="timetable-generator-card">
+      <div className="timetable-generator-heading">
+        <div><span className="eyebrow">Tạo lịch hàng loạt</span><h2>Tự động xếp thời khóa biểu</h2><p>Hệ thống phân bổ đều các môn theo phân công và không xếp một giáo viên ở hai lớp trong cùng khung giờ.</p></div>
+        <div className="timetable-generator-summary"><strong>{generationClassCount}</strong><span>lớp · {generationPeriodIds.length} tiết/ngày · Thứ 2–Thứ 7</span></div>
+      </div>
+      <div className="timetable-generator-grid">
+        <fieldset className="timetable-generator-fieldset timetable-shift-period-picker">
+          <legend>1. Ca và tiết học</legend>
+          <p className="input-desc timetable-generator-desc">Chọn ca học trước, sau đó chọn các tiết thuộc đúng ca đó.</p>
+          <ShiftPeriodSelector
+            shifts={shifts}
+            periods={periods}
+            selectedShiftIds={generationShiftIds}
+            selectedPeriodIds={generationPeriodIds}
+            onToggleShift={toggleGenerationShift}
+            onTogglePeriod={toggleGenerationPeriod}
+          />
+        </fieldset>
+
+        <fieldset className="timetable-generator-fieldset timetable-class-picker">
+          <legend>2. Lớp áp dụng</legend>
+          <div className="timetable-class-mode">
+            <label><input type="radio" name="generation-class-mode" checked={generationAllClasses} onChange={() => { setGenerationAllClasses(true); setGenerationClassIds([]); }} /> Tất cả lớp (mặc định)</label>
+            <label><input type="radio" name="generation-class-mode" checked={!generationAllClasses} onChange={() => setGenerationAllClasses(false)} /> Chọn lớp cụ thể</label>
+          </div>
+          {!generationAllClasses && <div className="timetable-class-options">{classes.map(item => <label key={item.id} className="timetable-check-option compact">
+            <input type="checkbox" checked={generationClassIds.includes(item.id)} onChange={() => toggleGenerationClass(item.id)} />
+            <span><strong>{item.name}</strong><small>Khối {item.gradeLevel}</small></span>
+          </label>)}</div>}
+          {classes.length === 0 && <small className="muted">Năm học chưa có lớp.</small>}
+        </fieldset>
+      </div>
+      <div className="timetable-generator-actions">
+        <p>Lịch tự động tạo là bản nháp. Bạn có thể mở từng lớp bên dưới để sửa trước khi phát hành.</p>
+        <button type="button" disabled={generating || !selectedYearId || !selectedSemesterId || classes.length === 0 || generationShiftIds.length === 0 || generationPeriodIds.length === 0 || (!generationAllClasses && generationClassIds.length === 0)} onClick={generateAutomatically}>
+          {generating ? 'Đang xếp lịch…' : 'Tạo thời khóa biểu tự động'}
+        </button>
+      </div>
+    </section>
+
     <section className="timetable-filter-card inline-only">
       <div className="form-group"><label>Khối</label><select value={grade} onChange={event => { setGrade(event.target.value); setClassId(''); }}>{Array.from({ length: 12 }, (_, index) => index + 1).map(value => <option key={value}>{value}</option>)}</select></div>
       <div className="form-group timetable-class-select"><label>Lớp học</label><select value={classId} onChange={event => setClassId(event.target.value)}><option value="">Chọn lớp để lập lịch</option>{filteredClasses.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
@@ -233,7 +367,9 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
         const slot = slotsByCell.get(key);
         const currentAssignment = slot ? assignments.find(item => item.id === slot.assignmentId) : undefined;
         const subjectId = cellSubjects[key] ?? (currentAssignment ? String(currentAssignment.subjectId) : '');
-        const teacherAssignments = assignments.filter(item => String(item.subjectId) === subjectId);
+        const availableAssignmentIds = availabilityByCell.get(key) || new Set<number>();
+        const teacherAssignments = assignments.filter(item => String(item.subjectId) === subjectId
+          && (availableAssignmentIds.has(item.id) || item.id === currentAssignment?.id));
         const teacherValue = currentAssignment && String(currentAssignment.subjectId) === subjectId ? String(currentAssignment.id) : '';
         const disabled = !!scheduled || savingCell === key || assignments.length === 0;
         return <td key={day.value}><div className={`schedule-cell inline-selects ${slot ? 'filled' : ''} ${savingCell === key ? 'saving' : ''}`}>
@@ -241,7 +377,7 @@ export default function TimetablesPage({ selectedYearId, selectedSemesterId }: {
             <option value="">Môn học</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
           </select>
           <select aria-label={`Giáo viên ${day.label} ${period.name}`} disabled={disabled || !subjectId} value={teacherValue} onChange={event => event.target.value && saveCell(day.value, period, Number(event.target.value))}>
-            <option value="">Giáo viên</option>{teacherAssignments.map(item => <option key={item.id} value={item.id}>{item.teacherName}</option>)}
+            <option value="">{teacherAssignments.length === 0 ? 'Không có GV trống' : 'Giáo viên'}</option>{teacherAssignments.map(item => <option key={item.id} value={item.id}>{item.teacherName}</option>)}
           </select>
           {slot && <button type="button" className="clear-cell-button" title="Xóa tiết" disabled={disabled} onClick={() => clearCell(day.value, period)}>×</button>}
           {savingCell === key && <small className="cell-saving-label">Đang lưu…</small>}

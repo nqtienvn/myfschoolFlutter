@@ -11,7 +11,6 @@ public record UserDto(
     String phone,
     String name,
     String email,
-    String avatar,
     UserRole role,
     UserStatus status,
     LocalDateTime createdAt,

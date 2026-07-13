@@ -69,7 +69,7 @@ public class ClassServiceImpl implements ClassService {
             .findActiveStudentsByClassAndYear(classId, yearId)
             .stream().map(s -> new StudentSummaryDto(
                 s.getId(), s.getUser().getName(), s.getStudentCode(),
-                cls.getName(), s.getUser().getAvatar()))
+                cls.getName()))
             .collect(Collectors.toList());
 
         // Teaching assignments
@@ -157,7 +157,7 @@ public class ClassServiceImpl implements ClassService {
         return enrollmentRepository.findActiveStudentsByClassAndYear(classId, cls.getAcademicYear().getId())
             .stream().map(s -> new StudentSummaryDto(
                 s.getId(), s.getUser().getName(), s.getStudentCode(),
-                cls.getName(), s.getUser().getAvatar()))
+                cls.getName()))
             .collect(Collectors.toList());
     }
 

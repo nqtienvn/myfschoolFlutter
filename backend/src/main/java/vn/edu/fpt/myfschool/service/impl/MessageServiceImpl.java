@@ -49,7 +49,6 @@ public class MessageServiceImpl implements MessageService {
                 m.getConversation().getId(),
                 m.getSender().getId(),
                 m.getSender().getName(),
-                m.getSender().getAvatar(),
                 m.getMessageType(),
                 m.getContent(),
                 m.getServerSeq(),

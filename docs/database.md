@@ -80,7 +80,6 @@ CREATE TABLE users (
   password    VARCHAR(255)    NOT NULL COMMENT 'bcrypt hash',
   name        VARCHAR(100)    NOT NULL,
   email       VARCHAR(255)    NULL,
-  avatar      VARCHAR(500)    NULL,
   role        ENUM('PARENT','STUDENT','TEACHER') NOT NULL,
   status      ENUM('ACTIVE','INACTIVE','LOCKED') NOT NULL DEFAULT 'ACTIVE',
   created_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,

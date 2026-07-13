@@ -12,6 +12,7 @@ public record TeacherSummaryDto(
     String email,
     UserStatus status,
     String employeeCode,
-    String avatar,
-    List<SubjectDto> subjects
+    List<SubjectDto> subjects,
+    List<TeacherYearAssignmentDto> teachingAssignments,
+    List<TeacherHomeroomDto> homeroomClasses
 ) {}

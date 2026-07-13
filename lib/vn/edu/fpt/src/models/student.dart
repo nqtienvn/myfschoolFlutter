@@ -4,7 +4,6 @@ class Student {
   final String fullName;
   final String status;
   final DateTime? dateOfBirth;
-  final String? avatarUrl;
 
   const Student({
     required this.id,
@@ -12,7 +11,6 @@ class Student {
     required this.fullName,
     required this.status,
     this.dateOfBirth,
-    this.avatarUrl,
   });
 
   String get displayCode {

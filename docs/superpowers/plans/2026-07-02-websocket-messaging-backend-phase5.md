@@ -42,7 +42,7 @@
 - `backend/src/main/java/vn/edu/fpt/myfschool/entity/ConversationParticipant.java` — add `lastReadMessageId`, `lastSeenAt`.
 - `backend/src/main/java/vn/edu/fpt/myfschool/repository/MessageRepository.java` — add afterSeq, message ownership, unread-after-message queries.
 - `backend/src/main/java/vn/edu/fpt/myfschool/repository/ConversationParticipantRepository.java` — add participant/user queries for presence and realtime fanout.
-- `backend/src/main/java/vn/edu/fpt/myfschool/common/dto/MessageDto.java` — add sender avatar and status string for FE event payloads.
+- `backend/src/main/java/vn/edu/fpt/myfschool/common/dto/MessageDto.java` — add sender identity and status string for FE event payloads.
 - `backend/src/main/java/vn/edu/fpt/myfschool/service/ConversationService.java` — add read/delivery/presence support signatures.
 - `backend/src/main/java/vn/edu/fpt/myfschool/service/impl/ConversationServiceImpl.java` — receipt/read/presence implementation.
 - `backend/src/main/java/vn/edu/fpt/myfschool/service/MessageService.java` — add `afterSeq` parameter.
@@ -381,7 +381,7 @@ Expected after Task 2 alone: compile can still fail until Task 4 creates `ChatRe
 **Interfaces:**
 - Consumes: Task 2 repository methods.
 - Produces:
-  - `MessageDto(..., String senderAvatar, String status, ...)`
+  - `MessageDto(..., String senderName, String status, ...)`
   - `MessageService.getMessages(Long conversationId, Long userId, Long beforeMessageId, Long afterSeq, int limit)`
   - `ConversationService.markAsDelivered(Long conversationId, Long messageId, Long userId)` returning `MessageReceipt`
   - `ConversationService.markAsRead(Long conversationId, Long userId, Long lastReadMessageId)` returning `ConversationParticipant`
@@ -406,7 +406,6 @@ public record MessageDto(
         Long conversationId,
         Long senderId,
         String senderName,
-        String senderAvatar,
         MessageType messageType,
         String content,
         Long serverSeq,
@@ -462,7 +461,6 @@ private MessageDto toDto(Message m, Long userId) {
             m.getConversation().getId(),
             m.getSender().getId(),
             m.getSender().getName(),
-            m.getSender().getAvatar(),
             m.getMessageType(),
             m.getContent(),
             m.getServerSeq(),
@@ -537,7 +535,6 @@ return new MessageDto(
         msg.getConversation().getId(),
         msg.getSender().getId(),
         msg.getSender().getName(),
-        msg.getSender().getAvatar(),
         msg.getMessageType(),
         msg.getContent(),
         msg.getServerSeq(),

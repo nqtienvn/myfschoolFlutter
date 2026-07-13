@@ -8,7 +8,6 @@ class ChatMessageDto {
     required this.conversationId,
     required this.senderId,
     required this.senderName,
-    required this.senderAvatar,
     required this.messageType,
     required this.content,
     required this.serverSeq,
@@ -21,7 +20,6 @@ class ChatMessageDto {
   final int conversationId;
   final int senderId;
   final String senderName;
-  final String? senderAvatar;
   final String messageType;
   final String content;
   final int? serverSeq;
@@ -31,12 +29,15 @@ class ChatMessageDto {
   factory ChatMessageDto.fromJson(Map<String, dynamic> json) {
     return ChatMessageDto(
       id: json['id'] as int?,
-      clientMessageId: json['clientMessageId'] is String ? json['clientMessageId'] as String : '',
+      clientMessageId: json['clientMessageId'] is String
+          ? json['clientMessageId'] as String
+          : '',
       conversationId: requireField<int>(json, 'conversationId'),
       senderId: requireField<int>(json, 'senderId'),
       senderName: requireField<String>(json, 'senderName'),
-      senderAvatar: json['senderAvatar'] as String?,
-      messageType: json['messageType'] is String ? json['messageType'] as String : 'TEXT',
+      messageType: json['messageType'] is String
+          ? json['messageType'] as String
+          : 'TEXT',
       content: requireField<String>(json, 'content'),
       serverSeq: json['serverSeq'] as int?,
       status: json['status'] is String ? json['status'] as String : 'sent',
@@ -51,7 +52,6 @@ class ChatMessageDto {
       conversationId: conversationId,
       senderId: senderId,
       senderName: senderName,
-      senderAvatar: senderAvatar,
       content: content,
       type: _parseType(messageType),
       status: _parseStatus(status),

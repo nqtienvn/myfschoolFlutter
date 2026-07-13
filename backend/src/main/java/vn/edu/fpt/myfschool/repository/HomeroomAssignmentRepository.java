@@ -18,6 +18,10 @@ public interface HomeroomAssignmentRepository extends JpaRepository<HomeroomAssi
 
     List<HomeroomAssignment> findByTeacherIdAndAcademicYearId(Long teacherId, Long academicYearId);
 
+    @Query("SELECT DISTINCT ha.teacher.id FROM HomeroomAssignment ha " +
+           "WHERE ha.academicYear.id = :academicYearId")
+    List<Long> findTeacherIdsByYear(@Param("academicYearId") Long academicYearId);
+
     boolean existsByTeacherIdAndClsIdAndAcademicYearId(
         Long teacherId, Long classId, Long academicYearId);
 

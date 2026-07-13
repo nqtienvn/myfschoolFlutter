@@ -117,7 +117,6 @@ const _demoCollections = <String, List<Map<String, Object?>>>{
       'fullName': 'Nguyen Minh An',
       'status': 'ACTIVE',
       'dateOfBirth': '2010-09-01',
-      'avatarUrl': null,
     },
   ],
   'transcripts': [

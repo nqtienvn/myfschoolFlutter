@@ -4,6 +4,5 @@ public record StudentSummaryDto(
     Long id,
     String name,
     String studentCode,
-    String className,
-    String avatar
+    String className
 ) {}

@@ -9,6 +9,7 @@ import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
 import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.enums.TimetableStatus;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
+import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
@@ -24,6 +25,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional
 public class ScheduleServiceImpl implements ScheduleService {
+    private static final Set<TimetableStatus> PLANNING_STATUSES =
+        Set.of(TimetableStatus.DRAFT, TimetableStatus.SCHEDULED, TimetableStatus.ACTIVE);
+
     private final ScheduleRepository scheduleRepository;
     private final TeachingAssignmentRepository teachingAssignmentRepository;
     private final TimetableRepository timetableRepository;
@@ -110,8 +114,16 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (assignment.getStatus() != AssignmentStatus.ACTIVE) {
             throw new ConflictException("Phân công giảng dạy không còn hiệu lực");
         }
+        if (assignment.getTeacher().getUser().getStatus() != UserStatus.ACTIVE) {
+            throw new ConflictException("Tài khoản giáo viên đã bị khóa");
+        }
         if (!assignment.getCls().getId().equals(timetable.getCls().getId())) {
             throw new ConflictException("Phân công không thuộc lớp của thời khóa biểu");
+        }
+        if (assignment.getEffectiveFrom().isAfter(timetable.getSemester().getEndDate())
+                || (assignment.getEffectiveTo() != null
+                    && assignment.getEffectiveTo().isBefore(timetable.getSemester().getStartDate()))) {
+            throw new ConflictException("Phân công giảng dạy không có hiệu lực trong học kỳ này");
         }
         Period period = periodRepository.findById(request.periodId())
             .orElseThrow(() -> new ResourceNotFoundException("Period", "id", request.periodId()));
@@ -125,6 +137,11 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (scheduleRepository.findByTimetableIdAndDayOfWeekAndPeriodRefId(
                 timetable.getId(), request.dayOfWeek(), period.getId()).isPresent()) {
             throw new ConflictException("Lớp đã có môn học tại khung giờ này");
+        }
+        if (scheduleRepository.existsTeacherPlanningConflict(
+                assignment.getTeacher().getId(), timetable.getSemester().getId(), timetable.getCls().getId(),
+                request.dayOfWeek(), period.getId(), PLANNING_STATUSES)) {
+            throw new ConflictException("Giáo viên đã có tiết ở lớp khác tại khung giờ này");
         }
 
         Schedule schedule = new Schedule();
@@ -183,6 +200,50 @@ public class ScheduleServiceImpl implements ScheduleService {
         return periodRepository.findByShiftIdOrderByOrderAsc(shiftId).stream()
             .filter(period -> appliedPeriodIds.contains(period.getId()) && !occupied.contains(period.getId()))
             .map(this::toPeriodDto).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AssignmentAvailabilityDto> getAssignmentAvailability(Long classId, Long semesterId) {
+        SchoolClass cls = classRepository.findById(classId)
+            .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
+        Semester semester = semesterRepository.findById(semesterId)
+            .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+        requireSameAcademicYear(cls, semester);
+
+        List<TeachingAssignment> assignments = teachingAssignmentRepository
+            .findByClsIdAndStatus(classId, AssignmentStatus.ACTIVE).stream()
+            .filter(assignment -> !assignment.getEffectiveFrom().isAfter(semester.getEndDate()))
+            .filter(assignment -> assignment.getEffectiveTo() == null
+                || !assignment.getEffectiveTo().isBefore(semester.getStartDate()))
+            .filter(assignment -> assignment.getTeacher().getUser().getStatus() == UserStatus.ACTIVE)
+            .toList();
+        List<Period> periods = academicYearPeriodRepository.findByAcademicYearId(cls.getAcademicYear().getId())
+            .stream().map(AcademicYearPeriod::getPeriod)
+            .filter(period -> Boolean.TRUE.equals(period.getIsActive()))
+            .sorted(Comparator.comparing((Period period) -> period.getShift().getOrder())
+                .thenComparing(Period::getOrder))
+            .toList();
+
+        Map<SlotKey, Set<Long>> busyTeachers = new HashMap<>();
+        scheduleRepository.findPlanningSchedules(semesterId, PLANNING_STATUSES).stream()
+            .filter(slot -> !slot.getTimetable().getCls().getId().equals(classId))
+            .forEach(slot -> busyTeachers
+                .computeIfAbsent(new SlotKey(slot.getDayOfWeek(), slot.getPeriodRef().getId()), ignored -> new HashSet<>())
+                .add(slot.getAssignment().getTeacher().getId()));
+
+        List<AssignmentAvailabilityDto> result = new ArrayList<>();
+        for (int day = 1; day <= 7; day++) {
+            for (Period period : periods) {
+                Set<Long> busy = busyTeachers.getOrDefault(new SlotKey(day, period.getId()), Set.of());
+                List<Long> availableIds = assignments.stream()
+                    .filter(assignment -> !busy.contains(assignment.getTeacher().getId()))
+                    .map(TeachingAssignment::getId)
+                    .toList();
+                result.add(new AssignmentAvailabilityDto(day, period.getId(), availableIds));
+            }
+        }
+        return result;
     }
 
     private Timetable resolveTimetable(Long classId, Long semesterId, LocalDate date) {
@@ -259,4 +320,6 @@ public class ScheduleServiceImpl implements ScheduleService {
             case 5 -> "Thứ 5"; case 6 -> "Thứ 6"; case 7 -> "Thứ 7"; default -> "";
         };
     }
+
+    private record SlotKey(Integer dayOfWeek, Long periodId) {}
 }

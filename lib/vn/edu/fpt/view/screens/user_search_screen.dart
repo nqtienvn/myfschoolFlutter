@@ -129,19 +129,23 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
             ),
           ),
           if (_isLoading)
-            const Expanded(
-              child: Center(child: CircularProgressIndicator()),
-            )
+            const Expanded(child: Center(child: CircularProgressIndicator()))
           else if (_error != null)
             Expanded(
               child: Center(
-                child: Text(_error!, style: const TextStyle(color: AppColors.danger)),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(color: AppColors.danger),
+                ),
               ),
             )
           else if (_results.isEmpty && _controller.text.isNotEmpty)
             const Expanded(
               child: Center(
-                child: Text('Không tìm thấy kết quả nào.', style: TextStyle(color: AppColors.muted)),
+                child: Text(
+                  'Không tìm thấy kết quả nào.',
+                  style: TextStyle(color: AppColors.muted),
+                ),
               ),
             )
           else
@@ -149,10 +153,14 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 itemCount: _results.length,
-                separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+                separatorBuilder: (_, _) =>
+                    const SizedBox(height: AppSpacing.sm),
                 itemBuilder: (context, index) {
                   final user = _results[index];
-                  return _UserResultCard(user: user, onTap: () => _onTapUser(user));
+                  return _UserResultCard(
+                    user: user,
+                    onTap: () => _onTapUser(user),
+                  );
                 },
               ),
             ),
@@ -205,12 +213,6 @@ class _UserResultCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              CircleAvatar(
-                backgroundColor: _roleColor(user.role).withValues(alpha: 0.12),
-                radius: 22,
-                child: Icon(Icons.person, color: _roleColor(user.role), size: 20),
-              ),
-              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,7 +228,10 @@ class _UserResultCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       user.phone,
-                      style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.muted,
+                      ),
                     ),
                   ],
                 ),

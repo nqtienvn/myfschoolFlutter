@@ -56,7 +56,6 @@ class LinkedStudent {
     this.gender,
     this.address,
     this.email,
-    this.avatar,
   });
 
   final int id;
@@ -71,5 +70,4 @@ class LinkedStudent {
   final String? gender;
   final String? address;
   final String? email;
-  final String? avatar;
 }

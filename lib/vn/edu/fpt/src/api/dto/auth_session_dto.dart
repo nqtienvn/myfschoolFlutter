@@ -62,32 +62,33 @@ class AuthSessionDto {
     children: children,
   );
 
-  static List<LinkedStudent> _children(
-    Map<String, dynamic> user,
-    String role,
-  ) {
+  static List<LinkedStudent> _children(Map<String, dynamic> user, String role) {
     if (role.toUpperCase() != 'PARENT') return const [];
     final parentProfile = user['parentProfile'];
     if (parentProfile is! Map<String, dynamic>) return const [];
     final rawChildren = parentProfile['children'];
     if (rawChildren is! List) return const [];
-    return rawChildren.whereType<Map<String, dynamic>>().map((child) {
-      return LinkedStudent(
-        id: requireField<int>(child, 'id'),
-        name: requireField<String>(child, 'name'),
-        studentCode: requireField<String>(child, 'studentCode'),
-        status: child['status'] is String ? child['status'] as String : 'ACTIVE',
-        className: child['className'] as String?,
-        classId: child['classId'] as int?,
-        schoolName: child['schoolName'] as String?,
-        academicYearName: child['academicYearName'] as String?,
-        dateOfBirth: child['dateOfBirth'] as String?,
-        gender: child['gender'] as String?,
-        address: child['address'] as String?,
-        email: child['email'] as String?,
-        avatar: child['avatar'] as String?,
-      );
-    }).toList(growable: false);
+    return rawChildren
+        .whereType<Map<String, dynamic>>()
+        .map((child) {
+          return LinkedStudent(
+            id: requireField<int>(child, 'id'),
+            name: requireField<String>(child, 'name'),
+            studentCode: requireField<String>(child, 'studentCode'),
+            status: child['status'] is String
+                ? child['status'] as String
+                : 'ACTIVE',
+            className: child['className'] as String?,
+            classId: child['classId'] as int?,
+            schoolName: child['schoolName'] as String?,
+            academicYearName: child['academicYearName'] as String?,
+            dateOfBirth: child['dateOfBirth'] as String?,
+            gender: child['gender'] as String?,
+            address: child['address'] as String?,
+            email: child['email'] as String?,
+          );
+        })
+        .toList(growable: false);
   }
 
   static String? _accountCode(Map<String, dynamic> user, String role) {

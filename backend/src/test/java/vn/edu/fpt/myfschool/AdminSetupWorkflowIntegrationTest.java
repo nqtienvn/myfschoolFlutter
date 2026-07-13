@@ -111,7 +111,7 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void completeEightStepSetup_canActivateDraftYear() throws Exception {
+    void completeSetupWithoutStudentAccounts_canActivateDraftYear() throws Exception {
         String token = loginAsAdmin();
         mockMvc.perform(post("/api/master-data/initialize").header("Authorization", authHeader(token)))
             .andExpect(status().isOk());
@@ -143,14 +143,6 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
                 .content("{\"classId\":%d,\"teacherId\":%d,\"academicYearId\":%d,\"effectiveFrom\":\"2032-08-01\"}".formatted(classId, testTeacher.getId(), yearId)))
             .andExpect(status().isOk());
 
-        mockMvc.perform(post("/api/admin/student-enrollments")
-                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {"academicYearId":%d,"classId":%d,"studentCode":"HS203201","studentName":"Học sinh workflow",
-                    "dateOfBirth":"2016-01-10","gender":"FEMALE","parentName":"PH Test","relationship":"MOTHER","parentPhone":"0909000002"}
-                    """.formatted(yearId, classId)))
-            .andExpect(status().isOk());
-
         mockMvc.perform(post("/api/teaching-assignments")
                 .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"classId\":%d,\"subjectId\":%d,\"teacherId\":%d}"
@@ -168,6 +160,7 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/academic-years/" + yearId + "/readiness").header("Authorization", authHeader(token)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.ready").value(true))
+            .andExpect(jsonPath("$.data.checks[?(@.code == 'STUDENTS')]").isEmpty())
             .andExpect(jsonPath("$.data.checks[?(@.code == 'TIMETABLES')]").isEmpty());
 
         testAcademicYear.setStatus(AcademicYearStatus.COMPLETED);

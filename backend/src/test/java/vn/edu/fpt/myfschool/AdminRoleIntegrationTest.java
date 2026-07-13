@@ -73,20 +73,23 @@ class AdminRoleIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void createTeacherAccount_adminRole_createsTeacherWithDefaultPassword() throws Exception {
+    void createTeacherAccount_adminRole_createsTeacherWithTemporaryPassword() throws Exception {
         String token = loginAsAdmin();
 
-        mockMvc.perform(post("/api/admin/users/teachers")
+        var result = mockMvc.perform(post("/api/admin/users/teachers")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"phone\":\"0909000099\",\"name\":\"GV Manual\",\"subjectIds\":[" + testSubject.getId() + "]}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.employeeCode").value(org.hamcrest.Matchers.matchesPattern("GV-[0-9]{4,}")))
-            .andExpect(jsonPath("$.data.status").value("ACTIVE"))
-            .andExpect(jsonPath("$.data.subjects[0].name").value("Toán"));
+            .andExpect(jsonPath("$.data.teacher.employeeCode").value(org.hamcrest.Matchers.matchesPattern("GV-[0-9]{4,}")))
+            .andExpect(jsonPath("$.data.teacher.status").value("ACTIVE"))
+            .andExpect(jsonPath("$.data.temporaryPassword").isNotEmpty())
+            .andReturn();
 
-        login("0909000099", "12345678");
+        String temporaryPassword = objectMapper.readTree(result.getResponse().getContentAsString())
+            .path("data").path("temporaryPassword").asText();
+        login("0909000099", temporaryPassword);
     }
 
     @Test

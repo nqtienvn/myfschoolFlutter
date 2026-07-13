@@ -17,6 +17,5 @@ public record ParentChildDto(
     Gender gender,
     String address,
     String email,
-    String avatar,
     UserStatus status
 ) {}

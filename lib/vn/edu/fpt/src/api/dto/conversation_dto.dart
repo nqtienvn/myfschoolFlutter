@@ -6,29 +6,22 @@ class ChatParticipantDto {
     required this.userId,
     required this.name,
     required this.role,
-    this.avatar,
   });
 
   final int userId;
   final String name;
   final String role;
-  final String? avatar;
 
   factory ChatParticipantDto.fromJson(Map<String, dynamic> json) {
     return ChatParticipantDto(
       userId: requireField<int>(json, 'userId'),
       name: requireField<String>(json, 'name'),
       role: requireField<String>(json, 'role'),
-      avatar: json['avatar'] as String?,
     );
   }
 
-  ChatParticipant toDomain() => ChatParticipant(
-        userId: userId,
-        name: name,
-        role: role,
-        avatar: avatar,
-      );
+  ChatParticipant toDomain() =>
+      ChatParticipant(userId: userId, name: name, role: role);
 }
 
 class ConversationDto {
@@ -62,10 +55,10 @@ class ConversationDto {
   }
 
   Conversation toDomain() => Conversation(
-        id: id,
-        lastMessage: lastMessage,
-        lastMessageAt: lastMessageAt,
-        unreadCount: unreadCount,
-        otherParticipant: otherParticipant?.toDomain(),
-      );
+    id: id,
+    lastMessage: lastMessage,
+    lastMessageAt: lastMessageAt,
+    unreadCount: unreadCount,
+    otherParticipant: otherParticipant?.toDomain(),
+  );
 }

@@ -4,7 +4,6 @@ import { isAdminLoggedIn, logout } from './api/auth';
 import { getSemesters } from './api/semester';
 import AssignmentsPage from './pages/AssignmentsPage';
 import ClassesPage from './pages/ClassesPage';
-import StudentEnrollmentPage from './pages/StudentEnrollmentPage';
 import LoginPage from './pages/LoginPage';
 import MasterDataPage from './pages/MasterDataPage';
 import UsersPage from './pages/UsersPage';
@@ -77,7 +76,7 @@ const OPS_MODULES = [
   {
     key: 'teachers' as ModuleKey,
     label: 'Quản lý giáo viên',
-    description: 'Xem danh sách giáo viên, thêm mới, quản lý tài khoản và môn học phụ trách.',
+    description: 'Quản lý giáo viên, phụ huynh và học sinh trên hai tab tài khoản riêng.',
     Icon: TeacherIcon,
   },
   {
@@ -316,9 +315,13 @@ export default function App() {
       const data = (await getAcademicYears()) as AcademicYearItem[];
       const sorted = [...(data || [])].sort((a, b) => b.id - a.id);
       setYears(sorted);
+      const preferredYear = preferredYearId
+        ? sorted.find(y => String(y.id) === preferredYearId)
+        : undefined;
       const selected =
-        sorted.find(y => String(y.id) === (preferredYearId || yearId)) ||
+        preferredYear ||
         sorted.find(y => y.status === 'ACTIVE') ||
+        sorted.find(y => String(y.id) === yearId) ||
         sorted.find(y => y.status === 'DRAFT') ||
         sorted[0];
       setYearId(selected ? String(selected.id) : '');
@@ -380,10 +383,6 @@ export default function App() {
 
   /* Navigation helpers */
   const navigate = (mod: ModuleKey, tab?: WizardStepKey) => {
-    // When navigating to configuration, auto-switch to the draft year
-    if (mod === 'configuration' && draftYear) {
-      setYearId(String(draftYear.id));
-    }
     setModule(mod);
     if (tab) setConfigTab(tab);
     setSidebarOpen(false);
@@ -398,6 +397,8 @@ export default function App() {
     years: (
       <MasterDataPage
         initialTab="academic-years"
+        selectedYearId={yearId}
+        selectedYearStatus={selectedYear?.status}
         onYearCreated={() => refreshYears(yearId)}
       />
     ),
@@ -421,12 +422,6 @@ export default function App() {
         selectedSemesterId={semesterId}
         classEditable={selectedYear?.status === 'DRAFT'}
         homeroomEditable={selectedYear?.status !== 'COMPLETED'}
-      />
-    ),
-    students: (
-      <StudentEnrollmentPage
-        selectedYearId={yearId}
-        editable={selectedYear?.status !== 'COMPLETED'}
       />
     ),
     assignments: <AssignmentsPage selectedYearId={yearId} />,
@@ -470,7 +465,12 @@ export default function App() {
         />
       </div>
     ) : module === 'teachers' ? (
-      <div className="page-content"><UsersPage /></div>
+      <div className="page-content">
+        <UsersPage
+          selectedYearId={yearId}
+          studentAccountsEditable={selectedYear?.status !== 'COMPLETED'}
+        />
+      </div>
     ) : module === 'students-attendance' ? (
       <div className="page-content">
         <StudentsAttendancePage selectedYearId={yearId} selectedSemesterId={semesterId} />
@@ -642,7 +642,6 @@ export default function App() {
           {/* Footer: user + logout */}
           <div className="sidebar-footer">
             <div className="sidebar-user" aria-label="Thông tin tài khoản">
-              <span className="sidebar-avatar" aria-hidden="true">AD</span>
               <span className="sidebar-user-info">
                 <span className="sidebar-user-name">Quản trị viên</span>
                 <span className="sidebar-user-role">Admin · FPT Schools</span>

@@ -325,14 +325,6 @@ class _GradesWebScreenState extends State<GradesWebScreen> {
                     ...students.map(
                       (student) => Card(
                         child: ListTile(
-                          leading: CircleAvatar(
-                            child: Text(
-                              (student['studentName'] as String).substring(
-                                0,
-                                1,
-                              ),
-                            ),
-                          ),
                           title: Text(student['studentName'] as String),
                           subtitle: Text(student['studentCode'] as String),
                           trailing: SizedBox(

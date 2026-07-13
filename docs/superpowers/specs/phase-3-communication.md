@@ -108,7 +108,6 @@ public record ConversationDto(
 public record ParticipantDto(
     Long userId,
     String name,
-    String avatar,
     UserRole role
 ) {}
 

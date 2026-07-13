@@ -11,10 +11,16 @@ import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import vn.edu.fpt.myfschool.entity.Teacher;
 
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface TeacherRepository extends JpaRepository<Teacher, Long> {
     Optional<Teacher> findByUserId(Long userId);
+
+    long countByUserStatus(UserStatus status);
+
+    @Query("SELECT t.id FROM Teacher t WHERE t.user.status = :status")
+    List<Long> findIdsByUserStatus(@Param("status") UserStatus status);
 
     @EntityGraph(attributePaths = {"user", "subjects"})
     @Query("SELECT DISTINCT t FROM Teacher t " +

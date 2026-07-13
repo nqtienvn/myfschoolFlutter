@@ -333,7 +333,6 @@ Tối ưu hiệu năng (index, partition) và dễ scale.
 │ password         │ VARCHAR(255) NOT NULL (bcrypt)    │
 │ name             │ VARCHAR(100) NOT NULL             │
 │ email            │ VARCHAR(255) NULL                 │
-│ avatar           │ VARCHAR(500) NULL                 │
 │ role             │ ENUM: PARENT, STUDENT, TEACHER    │
 │ status           │ ENUM: ACTIVE, INACTIVE, LOCKED    │
 │ created_at       │ TIMESTAMP DEFAULT CURRENT         │

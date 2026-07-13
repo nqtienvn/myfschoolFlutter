@@ -7,7 +7,6 @@ class StudentDto {
   final String fullName;
   final String status;
   final DateTime? dateOfBirth;
-  final String? avatarUrl;
 
   const StudentDto({
     required this.id,
@@ -15,7 +14,6 @@ class StudentDto {
     required this.fullName,
     required this.status,
     this.dateOfBirth,
-    this.avatarUrl,
   });
   //decode chuyen tu Json sang Map String
   //fromJson -- chuyen tu Map String sang DTO
@@ -28,7 +26,6 @@ class StudentDto {
       fullName: requireField<String>(json, 'fullName'),
       status: requireField<String>(json, 'status'),
       dateOfBirth: _parseDateOfBirth(rawDateOfBirth),
-      avatarUrl: json['avatarUrl'] as String?,
     );
   }
 
@@ -55,7 +52,6 @@ class StudentDto {
       'fullName': fullName,
       'status': status,
       'dateOfBirth': dateOfBirth?.toUtc().toIso8601String(),
-      'avatarUrl': avatarUrl,
     };
   }
 
@@ -68,7 +64,6 @@ class StudentDto {
       fullName: fullName,
       status: status,
       dateOfBirth: dateOfBirth,
-      avatarUrl: avatarUrl,
     );
   }
 }

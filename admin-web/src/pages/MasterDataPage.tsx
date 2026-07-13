@@ -5,6 +5,7 @@ import { getPeriods, getShifts } from '../api/masterData';
 import { createSubject, deleteSubject, getSubjects } from '../api/subject';
 import { getSemesters } from '../api/semester';
 import { getGradeTemplates, type GradeConfig } from '../api/gradeConfiguration';
+import ShiftPeriodSelector from '../components/ShiftPeriodSelector';
 
 type TabKey = 'academic-years' | 'catalogs';
 interface Props { initialTab?: TabKey; selectedYearId?: string; selectedYearStatus?: string; onYearCreated?: () => void; }
@@ -45,7 +46,11 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
   const [gradeConfigTemplateId, setGradeConfigTemplateId] = useState('');
 
   async function loadYears() {
-    const [yearData, semesterData, templateData] = await Promise.all([getAcademicYears(), getSemesters(), getGradeTemplates()]);
+    const [yearData, semesterData, templateData] = await Promise.all([
+      getAcademicYears(),
+      getSemesters(selectedYearId),
+      getGradeTemplates(),
+    ]);
     setYears((yearData || []) as Year[]);
     setSemesters((semesterData || []) as Semester[]);
     setGradeTemplates(templateData || []);
@@ -62,7 +67,15 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
   }
 
   useEffect(() => { setTab(initialTab); }, [initialTab]);
-  useEffect(() => { tab === 'academic-years' ? loadYears() : loadCatalogs(); }, [tab]);
+  useEffect(() => { tab === 'academic-years' ? loadYears() : loadCatalogs(); }, [tab, selectedYearId]);
+  useEffect(() => {
+    setEditingId(null);
+    setStartDate('');
+    setEndDate('');
+    setShowYearForm(false);
+    setMessage('');
+    setError('');
+  }, [selectedYearId]);
   useEffect(() => {
     if (!selectedYearId || tab !== 'catalogs') return;
     getAcademicYearMasterData(selectedYearId).then(config => {
@@ -136,7 +149,10 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
     setPeriodIds(current => Array.from(new Set([...current, ...addedPeriodIds])));
   }
 
-  const hasDraftYears = years.some(year => year.status === 'DRAFT');
+  const selectedYear = years.find(year => String(year.id) === selectedYearId);
+  const selectedYearSemesters = selectedYear
+    ? semesters.filter(semester => semester.academicYearId === selectedYear.id).sort((a, b) => a.order - b.order)
+    : [];
 
   return (
     <div className="page-stack">
@@ -152,11 +168,16 @@ export default function MasterDataPage({ initialTab = 'catalogs', selectedYearId
 
       {tab === 'academic-years' ? (
         <div className="master-data-layout">
-          <div className="table-responsive"><table><thead><tr><th>Năm học</th><th>Thời gian</th><th>Học kỳ</th><th>Trạng thái</th>{hasDraftYears && <th>Thao tác</th>}</tr></thead><tbody>
-            {[...years].sort((a, b) => b.id - a.id).map(year => (
-              <tr key={year.id}><td><strong>{year.name}</strong></td><td>{year.startDate}<br />{year.endDate}</td><td>{semesters.filter(s => s.academicYearId === year.id).sort((a, b) => a.order - b.order).map(s => <div key={s.id}>{s.name} · {STATUS_LABELS[s.status] || s.status}</div>)}</td><td><span className={`badge-status ${year.status === 'ACTIVE' ? 'active' : year.status === 'COMPLETED' ? 'completed' : 'preparing'}`}>{STATUS_LABELS[year.status] || year.status}</span></td>{hasDraftYears && <td>{year.status === 'DRAFT' && <button className="secondary-button" onClick={() => { setEditingId(year.id); setStartDate(year.startDate); setEndDate(year.endDate); }}>Sửa</button>}</td>}</tr>
-            ))}
-            {years.length === 0 && <tr><td colSpan={hasDraftYears ? 5 : 4}>Chưa có năm học.</td></tr>}
+          <div className="table-responsive"><table><thead><tr><th>Năm học đang cấu hình</th><th>Thời gian</th><th>Học kỳ</th>{selectedYear?.status === 'DRAFT' && <th>Thao tác</th>}</tr></thead><tbody>
+            {selectedYear && (
+              <tr key={selectedYear.id}>
+                <td><strong>{selectedYear.name}</strong></td>
+                <td>{selectedYear.startDate}<br />{selectedYear.endDate}</td>
+                <td>{selectedYearSemesters.length > 0 ? selectedYearSemesters.map(semester => <div key={semester.id}>{semester.name} · {semester.startDate} → {semester.endDate} · {STATUS_LABELS[semester.status] || semester.status}</div>) : 'Chưa có học kỳ.'}</td>
+                {selectedYear.status === 'DRAFT' && <td><button className="secondary-button" onClick={() => { setEditingId(selectedYear.id); setStartDate(selectedYear.startDate); setEndDate(selectedYear.endDate); }}>Sửa</button></td>}
+              </tr>
+            )}
+            {!selectedYear && <tr><td colSpan={3}>{selectedYearId ? 'Không tìm thấy dữ liệu của năm học đang chọn.' : 'Chọn năm học trên header để xem cấu hình.'}</td></tr>}
           </tbody></table></div>
           {(showYearForm || editingId) && <aside className="master-data-side"><div className="master-data-form-card">
             <h3>{editingId ? 'Sửa năm học DRAFT' : 'Tạo năm học'}</h3>
@@ -279,12 +300,16 @@ function ShiftPeriodCatalog({ shifts, periods, selectedShiftIds, selectedPeriodI
   onToggleShift: (id: number) => void;
   onTogglePeriod: (id: number) => void;
 }) {
-  return <section className="step-card" style={{ display: 'block' }}><h3 style={{ marginTop: 0 }}>Cấu hình Ca & Tiết học</h3><p className="input-desc" style={{ marginBottom: 16 }}>Chọn Ca học để áp dụng cho năm học, sau đó chọn các Tiết học tương ứng thuộc ca đó.</p><div style={{ display: 'grid', gap: 16 }}>{shifts.map(shift => {
-    const isShiftSelected = selectedShiftIds.includes(shift.id);
-    const shiftPeriods = periods.filter(period => period.shiftId === shift.id);
-    return <div key={shift.id} style={{ border: '1px solid var(--line)', borderRadius: '12px', padding: '16px', background: isShiftSelected ? 'var(--green-soft)' : '#fcfdfe', transition: 'all 0.2s ease' }}><label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', borderBottom: isShiftSelected ? '1px dashed rgba(22, 132, 91, 0.3)' : '1px solid transparent', paddingBottom: isShiftSelected ? 10 : 0, marginBottom: isShiftSelected ? 12 : 0, color: isShiftSelected ? 'var(--navy)' : 'var(--ink)' }}><input type="checkbox" checked={isShiftSelected} onChange={() => onToggleShift(shift.id)} style={{ width: 18, height: 18 }} /><span style={{ flex: 1 }}>{shift.name} ({shift.code})</span><span className={`badge-status ${isShiftSelected ? 'active' : ''}`}>{isShiftSelected ? 'ĐANG ÁP DỤNG' : 'CHƯA ÁP DỤNG'}</span></label>{isShiftSelected && <div className="period-options" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8 }}>{shiftPeriods.map(period => {
-      const isPeriodSelected = selectedPeriodIds.includes(period.id);
-      return <label key={period.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', border: '1px solid', borderColor: isPeriodSelected ? 'var(--navy)' : 'var(--line)', borderRadius: '8px', background: isPeriodSelected ? 'white' : '#f8f9fb', fontSize: 12, cursor: 'pointer', fontWeight: isPeriodSelected ? 700 : 500, transition: 'all 0.15s ease' }}><input type="checkbox" checked={isPeriodSelected} onChange={() => onTogglePeriod(period.id)} style={{ width: 14, height: 14 }} /><span>{period.name}</span></label>;
-    })}{shiftPeriods.length === 0 && <span className="input-desc" style={{ gridColumn: '1 / -1' }}>Không có tiết học nào.</span>}</div>}</div>;
-  })}{shifts.length === 0 && <span className="input-desc">Chưa có ca học.</span>}</div></section>;
+  return <section className="step-card" style={{ display: 'block' }}>
+    <h3 style={{ marginTop: 0 }}>Cấu hình Ca & Tiết học</h3>
+    <p className="input-desc" style={{ marginBottom: 16 }}>Chọn Ca học để áp dụng cho năm học, sau đó chọn các Tiết học tương ứng thuộc ca đó.</p>
+    <ShiftPeriodSelector
+      shifts={shifts}
+      periods={periods.filter((period): period is CatalogItem & { shiftId: number } => period.shiftId !== undefined)}
+      selectedShiftIds={selectedShiftIds}
+      selectedPeriodIds={selectedPeriodIds}
+      onToggleShift={onToggleShift}
+      onTogglePeriod={onTogglePeriod}
+    />
+  </section>;
 }

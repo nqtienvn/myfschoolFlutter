@@ -23,7 +23,6 @@ class StudentSnapshot {
     required this.notifications,
     required this.teacherMessages,
     required this.aiSummary,
-    required this.avatarColor,
     required this.tuitionBills,
     this.dateOfBirth,
     this.gender,
@@ -39,19 +38,22 @@ class StudentSnapshot {
     required String className,
     required String school,
     required String linkStatus,
-    required Color avatarColor,
     String? dateOfBirth,
     String? gender,
     String? address,
     String? email,
     String? academicYearName,
   }) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
     final shortName = parts.isEmpty
         ? '--'
         : parts.length == 1
-            ? parts.first.substring(0, 1).toUpperCase()
-            : '${parts[parts.length - 2][0]}${parts.last[0]}'.toUpperCase();
+        ? parts.first.substring(0, 1).toUpperCase()
+        : '${parts[parts.length - 2][0]}${parts.last[0]}'.toUpperCase();
     return StudentSnapshot(
       id: id,
       name: name,
@@ -73,7 +75,6 @@ class StudentSnapshot {
       notifications: const [],
       teacherMessages: const [],
       aiSummary: '',
-      avatarColor: avatarColor,
       tuitionBills: const [],
       dateOfBirth: dateOfBirth,
       gender: gender,
@@ -103,7 +104,6 @@ class StudentSnapshot {
   final List<ParentNotification> notifications;
   final List<TeacherMessage> teacherMessages;
   final String aiSummary;
-  final Color avatarColor;
   final List<TuitionBill> tuitionBills;
   final String? dateOfBirth;
   final String? gender;
@@ -279,7 +279,6 @@ final mockStudents = [
     pendingLeaveRequests: 1,
     aiSummary:
         'Minh An giữ chuyên cần tốt, điểm Toán tăng 0.4 so với kỳ trước. Môn Tiếng Anh cần theo dõi vì giảm nhẹ trong 2 bài gần nhất.',
-    avatarColor: AppColors.fptOrange,
     subjects: [
       SubjectScore(
         subject: 'Toán',
@@ -375,7 +374,8 @@ final mockStudents = [
     notifications: [
       ParentNotification(
         title: 'Thông báo đóng học phí Fall 2026',
-        body: 'Nhà trường bắt đầu thu học phí học kỳ Fall 2026 từ ngày 15/06/2026.',
+        body:
+            'Nhà trường bắt đầu thu học phí học kỳ Fall 2026 từ ngày 15/06/2026.',
         tag: 'Học phí',
         requiresReply: false,
         color: AppColors.danger,
@@ -450,7 +450,6 @@ final mockStudents = [
     pendingLeaveRequests: 0,
     aiSummary:
         'Minh Bảo có chuyên cần ổn định trong tháng. AI gợi ý phụ huynh tiếp tục theo dõi lịch học hằng ngày.',
-    avatarColor: AppColors.blue,
     subjects: [
       SubjectScore(
         subject: 'Ngữ văn',

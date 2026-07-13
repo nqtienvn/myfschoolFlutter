@@ -137,19 +137,7 @@ class _HomeStudentState extends State<HomeStudent> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: SharedHeader(
-                avatarWidget: CircleAvatar(
-                  backgroundColor: _student.avatarColor.withValues(alpha: 0.12),
-                  child: Text(
-                    _student.shortName,
-                    style: TextStyle(
-                      color: _student.avatarColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
+              child: const SharedHeader(),
             ),
             Expanded(
               child: ListView(

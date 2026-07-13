@@ -7,7 +7,6 @@ class User {
   final UserRole role;
   final bool active;
   final String? phone;
-  final String? avatarUrl;
 
   const User({
     required this.id,
@@ -16,7 +15,6 @@ class User {
     required this.role,
     required this.active,
     this.phone,
-    this.avatarUrl,
   });
 
   String get displayName {

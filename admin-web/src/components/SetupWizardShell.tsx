@@ -5,7 +5,6 @@ function CalendarIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="cu
 function GradeIcon()    { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>; }
 function CatalogIcon()  { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>; }
 function SchoolIcon()   { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M6 12.5V18h12v-5.5M9 20v-4h6v4"/></svg>; }
-function FamilyIcon()   { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2"/><path d="M3 20v-1.5A4.5 4.5 0 0 1 7.5 14h3A4.5 4.5 0 0 1 15 18.5V20M15 15h1.5a3.5 3.5 0 0 1 3.5 3.5V20"/></svg>; }
 function AssignIcon()   { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5V6.8A2.8 2.8 0 0 1 6.8 4H20v15.5H6.5A2.5 2.5 0 0 0 4 22"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M9 9h7M9 12h5"/></svg>; }
 function ChecklistIcon(){ return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 9 1.5 1.5L12 8M14 9h2M8 15l1.5 1.5L12 14M14 15h2"/></svg>; }
 function PowerIcon()    { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v9"/><path d="M7.1 6.2a8 8 0 1 0 9.8 0"/></svg>; }
@@ -36,12 +35,6 @@ export const WIZARD_STEPS = [
     label: 'Lớp học',
     desc: 'Tạo lớp học, phân công giáo viên chủ nhiệm',
     Icon: SchoolIcon,
-  },
-  {
-    key: 'students',
-    label: 'Học sinh & Phụ huynh',
-    desc: 'Nhập danh sách học sinh, tạo tài khoản phụ huynh',
-    Icon: FamilyIcon,
   },
   {
     key: 'assignments',

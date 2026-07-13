@@ -52,9 +52,15 @@ class AssignedClassesScreen extends StatelessWidget {
             AppCard(
               child: Column(
                 children: [
-                  _ContactRow(name: 'Phụ huynh Nguyễn Minh An', detail: 'SĐT: 0901 234 567 • Đã đọc 92% thông báo'),
+                  _ContactRow(
+                    name: 'Phụ huynh Nguyễn Minh An',
+                    detail: 'SĐT: 0901 234 567 • Đã đọc 92% thông báo',
+                  ),
                   const Divider(height: AppSpacing.lg),
-                  _ContactRow(name: 'Phụ huynh Trần Hoàng Nam', detail: 'SĐT: 0988 112 233 • Cần xác nhận đơn nghỉ'),
+                  _ContactRow(
+                    name: 'Phụ huynh Trần Hoàng Nam',
+                    detail: 'SĐT: 0988 112 233 • Cần xác nhận đơn nghỉ',
+                  ),
                 ],
               ),
             ),
@@ -102,7 +108,11 @@ class _ClassCard extends StatelessWidget {
                 child: Center(
                   child: Text(
                     name,
-                    style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -113,11 +123,18 @@ class _ClassCard extends StatelessWidget {
                   children: [
                     Text(
                       role,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.ink),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.ink,
+                      ),
                     ),
                     Text(
                       subject,
-                      style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.muted,
+                      ),
                     ),
                   ],
                 ),
@@ -125,13 +142,23 @@ class _ClassCard extends StatelessWidget {
             ],
           ),
           const Divider(height: AppSpacing.lg),
-          Text('Sĩ số: $size', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+          Text(
+            'Sĩ số: $size',
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: AppSpacing.xs),
-          Text(contact, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          Text(
+            contact,
+            style: const TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             warning,
-            style: const TextStyle(fontSize: 12, color: AppColors.danger, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.danger,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -149,18 +176,17 @@ class _ContactRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        CircleAvatar(
-          backgroundColor: AppColors.primarySoft,
-          child: const Icon(Icons.person, color: AppColors.fptOrange),
-        ),
-        const SizedBox(width: AppSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 name,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.ink),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.ink,
+                ),
               ),
               Text(
                 detail,

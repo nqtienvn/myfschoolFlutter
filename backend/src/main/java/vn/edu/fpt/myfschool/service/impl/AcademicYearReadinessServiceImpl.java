@@ -5,7 +5,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
-import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.entity.SchoolClass;
@@ -21,7 +20,6 @@ import java.util.List;
 public class AcademicYearReadinessServiceImpl implements AcademicYearReadinessService {
     private final AcademicYearRepository yearRepository;
     private final ClassRepository classRepository;
-    private final EnrollmentRepository enrollmentRepository;
     private final HomeroomAssignmentRepository homeroomRepository;
     private final TeachingAssignmentRepository teachingRepository;
     private final AcademicYearSubjectRepository yearSubjectRepository;
@@ -48,9 +46,6 @@ public class AcademicYearReadinessServiceImpl implements AcademicYearReadinessSe
 
         long missingHomeroom = classes.stream().filter(cls -> homeroomRepository.findActiveByClassAndYear(cls.getId(), yearId).isEmpty()).count();
         checks.add(check("HOMEROOM", "Giáo viên chủ nhiệm", !classes.isEmpty() && missingHomeroom == 0, missingHomeroom == 0 ? "Tất cả lớp đã có GVCN." : missingHomeroom + " lớp chưa có GVCN."));
-
-        long emptyClasses = classes.stream().filter(cls -> enrollmentRepository.findByClsIdAndAcademicYearIdAndStatus(cls.getId(), yearId, EnrollmentStatus.ACTIVE).isEmpty()).count();
-        checks.add(check("STUDENTS", "Học sinh trong lớp", !classes.isEmpty() && emptyClasses == 0, emptyClasses == 0 ? "Tất cả lớp đã có học sinh." : emptyClasses + " lớp chưa có học sinh."));
 
         var requiredSubjects = yearSubjectRepository.findByAcademicYearId(yearId);
         List<String> missingAssignments = new ArrayList<>();

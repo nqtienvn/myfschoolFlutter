@@ -83,7 +83,6 @@ Chung cho tất cả 3 actor: Login → Role Selection → AppShell.
 [SCR-PH-01: HOME PARENT (HomeParent)]
   │
   ├── [COMPONENT: SharedHeader]
-  │     └── Avatar học sinh (shortName) — hiển thị tên viết tắt
   │
   ├── [COMPONENT: Student Switcher — Horizontal ListView]
   │     ├── Chọn con 1: "Nguyễn Minh An" → setState(_selectedStudentIndex = 0)
@@ -216,7 +215,6 @@ Chung cho tất cả 3 actor: Login → Role Selection → AppShell.
 [SCR-HS-01: HOME STUDENT (HomeStudent)]
   │
   ├── [COMPONENT: SharedHeader]
-  │     └── Avatar học sinh (shortName) — hiển thị tên viết tắt
   │         (KHÔNG có icon 🔔 thông báo)
   │
   ├── [COMPONENT: Green Profile Card]
@@ -338,7 +336,6 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
 [SCR-GV-01: HOME TEACHER (HomeTeacher)]
   │
   ├── [COMPONENT: SharedHeader]
-  │     └── Avatar role (Icon co_present, color: orange)
   │         (KHÔNG có icon 💬 tin nhắn)
   │
   ├── [COMPONENT: Orange Profile Card]
@@ -516,7 +513,7 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
   │      ├── AppBar: "Tin nhắn phụ huynh"
   │      └── "Luồng tin nhắn cần phản hồi" → ThreadCards
   │            ├── Mỗi thread:
-  │            │     ├── Avatar PH + Tên PH
+  │            │     ├── Tên PH
   │            │     ├── Tên HS + Lớp ("Trần Hoàng Nam - 12A")
   │            │     ├── Tin nhắn preview (dòng cuối)
   │            │     ├── Tag pill (Đơn nghỉ / Điểm / Thông báo)
@@ -532,7 +529,7 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
          ├── AppBar: "Tin nhắn liên lạc"
          └── "Hộp thoại gần đây" → ThreadCards
                ├── Mỗi thread:
-               │     ├── Avatar GV (color circle)
+               │     ├── Tên GV
                │     ├── Tên GV ("Cô Nguyễn Thu Hà")
                │     ├── Tin nhắn preview (dòng cuối)
                │     └── Thời gian
@@ -602,7 +599,6 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
 [TAB 3: TÀI KHOẢN — AccountProfileScreen(actor)]
   │
   ├──► [COMPONENT: Bento ID Card]
-  │     ├── Avatar (viết tắt tên, gradient theo actor color)
   │     ├── Tên + Subtitle (vai trò)
   │     ├── ID Label + Value (Mã PH/GV/HS)
   │     ├── Dept Label + Value (Học kỳ/Bộ môn/Lớp)

@@ -118,7 +118,6 @@
     "conversationId": 123,
     "senderId": 10,
     "senderName": "PH Test",
-    "senderAvatar": null,
     "messageType": "TEXT",
     "content": "Xin chào cô",
     "serverSeq": 152,
@@ -137,7 +136,6 @@
     "conversationId": 123,
     "senderId": 10,
     "senderName": "PH Test",
-    "senderAvatar": null,
     "messageType": "TEXT",
     "content": "Xin chào cô",
     "serverSeq": 152,
@@ -1104,7 +1102,6 @@ class ChatMessage {
     required this.createdAt,
     required this.isMine,
     this.serverSeq,
-    this.senderAvatar,
   });
 
   final int? id;
@@ -1112,7 +1109,6 @@ class ChatMessage {
   final int conversationId;
   final int senderId;
   final String senderName;
-  final String? senderAvatar;
   final String content;
   final ChatMessageType type;
   final ChatMessageStatus status;
@@ -1247,7 +1243,6 @@ conversation.read:
 **Conversation tile cần hiển thị:**
 
 ```txt
-avatar
 name
 online green dot nếu isOnline=true
 lastMessage
@@ -1275,14 +1270,14 @@ unreadCount badge
 **UI elements:**
 
 ```txt
-AppBar: avatar + tên + online/last seen
+AppBar: tên + online/last seen
 ListView reverse hoặc scroll xuống cuối
 Bubble trái/phải
 Status nhỏ dưới message của mình:
   sending: icon đồng hồ/spinner
   sent: 1 check
   delivered: 2 check xám
-  read: avatar nhỏ hoặc 2 check xanh
+  read: 2 check xanh
   failed: icon lỗi + retry
 TextField + send button
 Typing indicator: "Đang nhập..."
