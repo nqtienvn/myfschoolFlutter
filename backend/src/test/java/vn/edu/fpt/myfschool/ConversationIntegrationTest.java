@@ -1,6 +1,8 @@
 package vn.edu.fpt.myfschool;
 
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
 import vn.edu.fpt.myfschool.common.enums.UserStatus;
@@ -10,8 +12,11 @@ import java.time.LocalDate;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 class ConversationIntegrationTest extends BaseIntegrationTest {
+
+    @Autowired EntityManager entityManager;
 
     @Test
     void create_conversation_between_parent_and_teacher() throws Exception {
@@ -111,6 +116,23 @@ class ConversationIntegrationTest extends BaseIntegrationTest {
                         .param("keyword", "teacher.login"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void search_student_loaded_from_database_does_not_overflow_hash_code() throws Exception {
+        String token = loginAsParent();
+        Long studentUserId = testStudent1.getUser().getId();
+        entityManager.flush();
+        entityManager.clear();
+
+        var reloadedStudentUser = userRepository.findById(studentUserId).orElseThrow();
+        assertDoesNotThrow(() -> reloadedStudentUser.hashCode());
+
+        mockMvc.perform(get("/api/conversations/search-users")
+                        .header("Authorization", authHeader(token))
+                        .param("keyword", "12A-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(studentUserId));
     }
 
     @Test

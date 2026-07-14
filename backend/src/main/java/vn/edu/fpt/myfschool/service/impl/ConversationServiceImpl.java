@@ -243,8 +243,8 @@ public class ConversationServiceImpl implements ConversationService {
                         accountCodeMatch)
                 .filter(u -> u.getStatus() == UserStatus.ACTIVE && u.getRole() != UserRole.ADMIN)
                 .filter(u -> !u.getId().equals(userId))
-                .distinct()
                 .map(u -> new SearchResultDto(u.getId(), u.getName(), u.getPhone(), u.getRole().name()))
+                .distinct()
                 .collect(Collectors.toList());
     }
 
