@@ -8,5 +8,6 @@ public record DashboardStudentStatsDto(
     Long academicYearId, String academicYearName,
     Long semesterId, String semesterName,
     double attendanceRate, int presentSessions, int absentSessions,
-    BigDecimal currentGpa, String academicAbility, String conduct, Integer classRank
+    BigDecimal currentGpa, String academicAbility, String conduct, Integer classRank,
+    String homeroomTeacherName, String homeroomTeacherPhone
 ) {}

@@ -10,6 +10,7 @@ import vn.edu.fpt.myfschool.common.dto.StudentDto;
 import vn.edu.fpt.myfschool.common.dto.TeacherDto;
 import vn.edu.fpt.myfschool.common.dto.UpdateProfileRequest;
 import vn.edu.fpt.myfschool.common.dto.UserDto;
+import vn.edu.fpt.myfschool.entity.HomeroomAssignment;
 import vn.edu.fpt.myfschool.entity.Parent;
 import vn.edu.fpt.myfschool.entity.Student;
 import vn.edu.fpt.myfschool.entity.StudentGuardian;
@@ -24,6 +25,7 @@ import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
+import vn.edu.fpt.myfschool.repository.HomeroomAssignmentRepository;
 import vn.edu.fpt.myfschool.repository.ParentRepository;
 import vn.edu.fpt.myfschool.repository.StudentGuardianRepository;
 import vn.edu.fpt.myfschool.repository.StudentRepository;
@@ -32,6 +34,8 @@ import vn.edu.fpt.myfschool.repository.UserRepository;
 import vn.edu.fpt.myfschool.security.JwtTokenProvider;
 import vn.edu.fpt.myfschool.service.AuthService;
 
+import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -45,6 +49,7 @@ public class AuthServiceImpl implements AuthService {
     private final StudentRepository studentRepository;
     private final TeacherRepository teacherRepository;
     private final StudentGuardianRepository studentGuardianRepository;
+    private final HomeroomAssignmentRepository homeroomAssignmentRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -140,19 +145,7 @@ public class AuthServiceImpl implements AuthService {
                 if (parent != null) {
                     List<Student> children = parentRepository.findChildrenByParentId(parent.getId());
                     List<ParentChildDto> childSummaries = children.stream()
-                        .map(s -> new ParentChildDto(
-                            s.getId(),
-                            s.getUser().getName(),
-                            s.getStudentCode(),
-                            s.getCurrentClass() != null ? s.getCurrentClass().getName() : null,
-                            s.getCurrentClass() != null ? s.getCurrentClass().getId() : null,
-                            s.getCurrentClass() != null ? s.getCurrentClass().getSchoolName() : null,
-                            s.getCurrentClass() != null ? s.getCurrentClass().getAcademicYear().getName() : null,
-                            s.getDateOfBirth(),
-                            s.getGender(),
-                            s.getAddress(),
-                            s.getUser().getEmail(),
-                            s.getUser().getStatus()))
+                        .map(this::toParentChildDto)
                         .collect(Collectors.toList());
                     parentDto = new ParentDto(parent.getId(), parent.getAddress(), parent.getOccupation(), childSummaries);
                 }
@@ -180,6 +173,44 @@ public class AuthServiceImpl implements AuthService {
             user.getId(), user.getPhone(), user.getName(), user.getEmail(),
             user.getRole(), user.getStatus(), user.getCreatedAt(), user.getMustChangePassword(),
             parentDto, studentDto, teacherDto);
+    }
+
+    private ParentChildDto toParentChildDto(Student student) {
+        HomeroomAssignment homeroom = findCurrentHomeroom(student);
+        return new ParentChildDto(
+            student.getId(),
+            student.getUser().getName(),
+            student.getStudentCode(),
+            student.getCurrentClass() != null ? student.getCurrentClass().getName() : null,
+            student.getCurrentClass() != null ? student.getCurrentClass().getId() : null,
+            student.getCurrentClass() != null ? student.getCurrentClass().getSchoolName() : null,
+            student.getCurrentClass() != null ? student.getCurrentClass().getAcademicYear().getName() : null,
+            homeroom != null ? homeroom.getTeacher().getUser().getName() : null,
+            homeroom != null ? homeroom.getTeacher().getUser().getPhone() : null,
+            student.getDateOfBirth(),
+            student.getGender(),
+            student.getAddress(),
+            student.getUser().getEmail(),
+            student.getUser().getStatus());
+    }
+
+    private HomeroomAssignment findCurrentHomeroom(Student student) {
+        if (student.getCurrentClass() == null) return null;
+        var academicYear = student.getCurrentClass().getAcademicYear();
+        LocalDate referenceDate = LocalDate.now();
+        if (referenceDate.isBefore(academicYear.getStartDate())) {
+            referenceDate = academicYear.getStartDate();
+        } else if (referenceDate.isAfter(academicYear.getEndDate())) {
+            referenceDate = academicYear.getEndDate();
+        }
+        LocalDate effectiveDate = referenceDate;
+        return homeroomAssignmentRepository.findByClsIdAndAcademicYearId(
+                student.getCurrentClass().getId(), academicYear.getId()).stream()
+            .filter(item -> !item.getEffectiveFrom().isAfter(effectiveDate))
+            .filter(item -> item.getEffectiveTo() == null
+                || !item.getEffectiveTo().isBefore(effectiveDate))
+            .max(Comparator.comparing(HomeroomAssignment::getEffectiveFrom))
+            .orElse(null);
     }
 
     @Override

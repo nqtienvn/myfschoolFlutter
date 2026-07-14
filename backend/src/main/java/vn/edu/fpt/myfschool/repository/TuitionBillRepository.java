@@ -1,6 +1,8 @@
 package vn.edu.fpt.myfschool.repository;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -8,9 +10,14 @@ import vn.edu.fpt.myfschool.entity.TuitionBill;
 import vn.edu.fpt.myfschool.common.enums.BillStatus;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TuitionBillRepository extends JpaRepository<TuitionBill, Long> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT tb FROM TuitionBill tb WHERE tb.id = :id")
+    Optional<TuitionBill> findByIdForUpdate(@Param("id") Long id);
+
     List<TuitionBill> findByStudentIdOrderByCreatedAtDesc(Long studentId);
 
     @Query("SELECT tb FROM TuitionBill tb WHERE tb.cls.id = :classId AND tb.semester.id = :semesterId ORDER BY tb.createdAt DESC")

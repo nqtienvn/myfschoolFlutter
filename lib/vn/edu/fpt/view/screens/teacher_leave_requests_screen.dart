@@ -4,17 +4,24 @@ import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 
 class TeacherLeaveRequestsScreen extends StatefulWidget {
   const TeacherLeaveRequestsScreen({
     super.key,
     required this.token,
+    this.academicYearId,
+    this.semesterId,
     this.notificationService,
+    this.apiClient,
   });
 
   final String token;
+  final int? academicYearId;
+  final int? semesterId;
   final NotificationService? notificationService;
+  final LeaveRequestApiClient? apiClient;
 
   @override
   State<TeacherLeaveRequestsScreen> createState() =>
@@ -29,12 +36,45 @@ class _TeacherLeaveRequestsScreenState
   List<Map<String, dynamic>> _pendingRequests = [];
   List<Map<String, dynamic>> _reviewedRequests = [];
   int? _lastLeaveNotificationId;
+  int? _academicYearId;
+  int? _semesterId;
+  bool _didResolvePeriod = false;
+  int _loadGeneration = 0;
+  int _mutationGeneration = 0;
 
   @override
   void initState() {
     super.initState();
-    _apiClient = LeaveRequestApiClient(backend: BackendApiClient());
+    _apiClient =
+        widget.apiClient ?? LeaveRequestApiClient(backend: BackendApiClient());
     widget.notificationService?.addListener(_onNotificationChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final periodController = AcademicPeriodScope.maybeOf(context);
+    if (widget.academicYearId == null &&
+        widget.semesterId == null &&
+        periodController?.isLoading == true) {
+      return;
+    }
+
+    final academicYearId =
+        widget.academicYearId ?? periodController?.selected?.academicYearId;
+    final semesterId =
+        widget.semesterId ?? periodController?.selected?.semesterId;
+    if (_didResolvePeriod &&
+        _academicYearId == academicYearId &&
+        _semesterId == semesterId) {
+      return;
+    }
+
+    _didResolvePeriod = true;
+    _loadGeneration++;
+    _mutationGeneration++;
+    _academicYearId = academicYearId;
+    _semesterId = semesterId;
     _loadData();
   }
 
@@ -56,6 +96,9 @@ class _TeacherLeaveRequestsScreenState
   }
 
   Future<void> _loadData() async {
+    final academicYearId = _academicYearId;
+    final semesterId = _semesterId;
+    final generation = ++_loadGeneration;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -63,15 +106,25 @@ class _TeacherLeaveRequestsScreenState
 
     try {
       final results = await Future.wait([
-        _apiClient.getPendingLeaveRequests(token: widget.token),
-        _apiClient.getReviewedLeaveRequests(token: widget.token),
+        _apiClient.getPendingLeaveRequests(
+          token: widget.token,
+          academicYearId: academicYearId,
+          semesterId: semesterId,
+        ),
+        _apiClient.getReviewedLeaveRequests(
+          token: widget.token,
+          academicYearId: academicYearId,
+          semesterId: semesterId,
+        ),
       ]);
+      if (!_isCurrentLoad(generation, academicYearId, semesterId)) return;
       setState(() {
         _pendingRequests = results[0];
         _reviewedRequests = results[1];
         _isLoading = false;
       });
     } catch (e) {
+      if (!_isCurrentLoad(generation, academicYearId, semesterId)) return;
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
@@ -79,7 +132,26 @@ class _TeacherLeaveRequestsScreenState
     }
   }
 
+  bool _isCurrentLoad(int generation, int? academicYearId, int? semesterId) =>
+      mounted &&
+      generation == _loadGeneration &&
+      academicYearId == _academicYearId &&
+      semesterId == _semesterId;
+
+  bool _isCurrentMutation(
+    int generation,
+    int? academicYearId,
+    int? semesterId,
+  ) =>
+      mounted &&
+      generation == _mutationGeneration &&
+      academicYearId == _academicYearId &&
+      semesterId == _semesterId;
+
   Future<void> _approve(int id) async {
+    final dialogAcademicYearId = _academicYearId;
+    final dialogSemesterId = _semesterId;
+    final dialogGeneration = _mutationGeneration;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -99,24 +171,40 @@ class _TeacherLeaveRequestsScreenState
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true ||
+        !_isCurrentMutation(
+          dialogGeneration,
+          dialogAcademicYearId,
+          dialogSemesterId,
+        )) {
+      return;
+    }
+    final academicYearId = _academicYearId;
+    final semesterId = _semesterId;
+    final generation = ++_mutationGeneration;
+    _loadGeneration++;
     setState(() => _isLoading = true);
     try {
       await _apiClient.approveRequest(token: widget.token, id: id);
+      if (!_isCurrentMutation(generation, academicYearId, semesterId)) return;
       await _loadData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã phê duyệt đơn xin nghỉ thành công!'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      if (!mounted ||
+          !_isCurrentMutation(generation, academicYearId, semesterId)) {
+        return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã phê duyệt đơn xin nghỉ thành công!'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-        _isLoading = false;
-      });
+      if (_isCurrentMutation(generation, academicYearId, semesterId)) {
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -201,6 +289,9 @@ class _TeacherLeaveRequestsScreenState
 
   Future<void> _reject(int id) async {
     final reasonController = TextEditingController();
+    final dialogAcademicYearId = _academicYearId;
+    final dialogSemesterId = _semesterId;
+    final dialogGeneration = _mutationGeneration;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -230,29 +321,47 @@ class _TeacherLeaveRequestsScreenState
       ),
     );
 
-    if (confirm != true) return;
+    final reason = reasonController.text.trim();
+    reasonController.dispose();
+    if (confirm != true ||
+        !_isCurrentMutation(
+          dialogGeneration,
+          dialogAcademicYearId,
+          dialogSemesterId,
+        )) {
+      return;
+    }
 
+    final academicYearId = _academicYearId;
+    final semesterId = _semesterId;
+    final generation = ++_mutationGeneration;
+    _loadGeneration++;
     setState(() => _isLoading = true);
     try {
       await _apiClient.rejectRequest(
         token: widget.token,
         id: id,
-        response: reasonController.text.trim(),
+        response: reason,
       );
+      if (!_isCurrentMutation(generation, academicYearId, semesterId)) return;
       await _loadData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã từ chối đơn xin nghỉ học!'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      if (!mounted ||
+          !_isCurrentMutation(generation, academicYearId, semesterId)) {
+        return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã từ chối đơn xin nghỉ học!'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-        _isLoading = false;
-      });
+      if (_isCurrentMutation(generation, academicYearId, semesterId)) {
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
+      }
     }
   }
 

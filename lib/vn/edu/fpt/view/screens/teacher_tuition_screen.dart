@@ -1,61 +1,80 @@
 import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 
+enum _TuitionFilter { all, paid, outstanding, noBills }
+
 class TeacherTuitionScreen extends StatefulWidget {
-  const TeacherTuitionScreen({super.key});
+  const TeacherTuitionScreen({
+    super.key,
+    required this.token,
+    required this.classId,
+    required this.semesterId,
+    this.apiClient,
+  });
+
+  final String token;
+  final int classId;
+  final int semesterId;
+  final TuitionBillApiClient? apiClient;
 
   @override
   State<TeacherTuitionScreen> createState() => _TeacherTuitionScreenState();
 }
 
 class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
-  String _selectedFilter = 'Tất cả';
+  late final TuitionBillApiClient _api =
+      widget.apiClient ?? TuitionBillApiClient(backend: BackendApiClient());
+  TeacherTuitionSummaryDto? _summary;
+  String? _error;
+  bool _loading = true;
+  _TuitionFilter _filter = _TuitionFilter.all;
 
-  // Compute total stats
-  int get totalStudents => mockStudents.length;
-
-  int get paidCount {
-    return mockStudents.where((student) {
-      final unpaid = student.tuitionBills
-          .where((bill) => bill.status == 'Chưa đóng')
-          .fold(0, (sum, bill) => sum + bill.amount);
-      return unpaid == 0;
-    }).length;
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
 
-  int get unpaidCount => totalStudents - paidCount;
-
-  List<StudentSnapshot> get filteredStudents {
-    if (_selectedFilter == 'Đã đóng') {
-      return mockStudents.where((student) {
-        final unpaid = student.tuitionBills
-            .where((bill) => bill.status == 'Chưa đóng')
-            .fold(0, (sum, bill) => sum + bill.amount);
-        return unpaid == 0;
-      }).toList();
-    } else if (_selectedFilter == 'Chưa đóng') {
-      return mockStudents.where((student) {
-        final unpaid = student.tuitionBills
-            .where((bill) => bill.status == 'Chưa đóng')
-            .fold(0, (sum, bill) => sum + bill.amount);
-        return unpaid > 0;
-      }).toList();
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = await _api.getTeacherClassSummary(
+        token: widget.token,
+        classId: widget.classId,
+        semesterId: widget.semesterId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _summary = result;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _summary = null;
+        _loading = false;
+        _error = error.toString().replaceFirst('Exception: ', '');
+      });
     }
-    return mockStudents;
   }
 
-  void _sendReminder(StudentSnapshot student) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Đã gửi nhắc nhở học phí đến phụ huynh học sinh ${student.name}!',
-        ),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.fptOrange,
-      ),
-    );
+  List<TeacherTuitionStudentDto> _filtered(TeacherTuitionSummaryDto summary) {
+    return summary.students
+        .where(
+          (student) => switch (_filter) {
+            _TuitionFilter.all => true,
+            _TuitionFilter.paid => student.isPaid,
+            _TuitionFilter.outstanding => student.hasOutstanding,
+            _TuitionFilter.noBills => student.paymentState == 'NO_BILLS',
+          },
+        )
+        .toList(growable: false);
   }
 
   @override
@@ -63,251 +82,229 @@ class _TeacherTuitionScreenState extends State<TeacherTuitionScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const OrangeTopBar(title: 'Học phí lớp chủ nhiệm'),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Mini Header Stats (Gọn gàng, ít chữ)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              color: Colors.white,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Trạng thái đóng phí lớp',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                  Text(
-                    'Đã đóng: $paidCount / $totalStudents',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.muted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, color: AppColors.line),
+      body: SafeArea(child: _buildBody()),
+    );
+  }
 
-            // Filters (Tabs tối giản)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
-              child: Row(
-                children: [
-                  for (final filter in ['Tất cả', 'Đã đóng', 'Chưa đóng']) ...[
-                    GestureDetector(
-                      onTap: () => setState(() => _selectedFilter = filter),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _selectedFilter == filter
-                              ? AppColors.primarySoft
-                              : AppColors.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: _selectedFilter == filter
-                                ? AppColors.fptOrange
-                                : AppColors.line.withValues(alpha: 0.6),
-                          ),
-                        ),
-                        child: Text(
-                          filter,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: _selectedFilter == filter
-                                ? AppColors.fptOrange
-                                : AppColors.ink,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+  Widget _buildBody() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    final summary = _summary;
+    if (summary == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _error ?? 'Không có dữ liệu học phí.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.muted),
               ),
-            ),
+              const SizedBox(height: AppSpacing.md),
+              OutlinedButton(onPressed: _load, child: const Text('Thử lại')),
+            ],
+          ),
+        ),
+      );
+    }
 
-            // Student list dạng Single Line phẳng
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 8,
+    final students = _filtered(summary);
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          color: Colors.white,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Lớp ${summary.className} · ${summary.semesterName}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.ink,
                 ),
-                itemCount: filteredStudents.length,
-                itemBuilder: (context, index) {
-                  final student = filteredStudents[index];
-                  final unpaid = student.tuitionBills
-                      .where((bill) => bill.status == 'Chưa đóng')
-                      .fold(0, (sum, bill) => sum + bill.amount);
-                  final isPaid = unpaid == 0;
-
-                  return Semantics(
-                    label:
-                        'Học sinh: ${student.name}. Trạng thái học phí: ${isPaid ? 'Đã đóng đủ' : 'Chưa đóng'}.',
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: AppColors.line.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          // Tên học sinh
-                          Expanded(
-                            child: Text(
-                              student.name,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                          ),
-
-                          // Trạng thái (Đã đóng / Chưa đóng)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isPaid
-                                  ? AppColors.successSoft
-                                  : AppColors.dangerSoft,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              isPaid ? 'Đã đóng' : 'Chưa đóng',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: isPaid
-                                    ? AppColors.success
-                                    : AppColors.danger,
-                              ),
-                            ),
-                          ),
-
-                          // Nút nhắc nhở dạng Icon quả chuông tối giản nhưng dễ chạm bấm (A11y friendly)
-                          if (!isPaid) ...[
-                            const SizedBox(width: 12),
-                            Semantics(
-                              label:
-                                  'Nhấn để gửi nhắc nhở nộp tiền học phí cho phụ huynh học sinh ${student.name}',
-                              button: true,
-                              child: IconButton(
-                                onPressed: () => _sendReminder(student),
-                                icon: const Icon(Icons.notifications_active),
-                                color: AppColors.fptOrange,
-                                iconSize: 20,
-                                padding: const EdgeInsets.all(10),
-                                constraints: const BoxConstraints(
-                                  minWidth: 44,
-                                  minHeight: 44,
-                                ),
-                                tooltip: 'Nhắc đóng học phí',
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  );
-                },
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                'Đã hoàn tất ${summary.paidStudents}/${summary.totalStudents} · '
+                'Còn phải thu ${summary.outstandingStudents} · '
+                'Chưa phát sinh ${summary.studentsWithoutBills}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, color: AppColors.line),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+          child: Row(
+            children: [
+              _FilterChip(
+                label: 'Tất cả',
+                selected: _filter == _TuitionFilter.all,
+                onTap: () => setState(() => _filter = _TuitionFilter.all),
+              ),
+              _FilterChip(
+                label: 'Đã hoàn tất',
+                selected: _filter == _TuitionFilter.paid,
+                onTap: () => setState(() => _filter = _TuitionFilter.paid),
+              ),
+              _FilterChip(
+                label: 'Còn phải thu',
+                selected: _filter == _TuitionFilter.outstanding,
+                onTap: () =>
+                    setState(() => _filter = _TuitionFilter.outstanding),
+              ),
+              _FilterChip(
+                label: 'Chưa phát sinh',
+                selected: _filter == _TuitionFilter.noBills,
+                onTap: () => setState(() => _filter = _TuitionFilter.noBills),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: students.isEmpty
+              ? const Center(
+                  child: Text(
+                    'Không có học sinh ở trạng thái này.',
+                    style: TextStyle(color: AppColors.muted),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                  itemCount: students.length,
+                  itemBuilder: (context, index) =>
+                      _StudentTuitionTile(student: students[index]),
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) => onTap(),
+        selectedColor: AppColors.primarySoft,
+        side: BorderSide(
+          color: selected ? AppColors.fptOrange : AppColors.line,
+        ),
+        labelStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: selected ? AppColors.fptOrange : AppColors.ink,
         ),
       ),
     );
   }
 }
 
-class CardTile extends StatelessWidget {
-  const CardTile({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.bgColor,
-  });
+class _StudentTuitionTile extends StatelessWidget {
+  const _StudentTuitionTile({required this.student});
 
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final Color bgColor;
+  final TeacherTuitionStudentDto student;
 
   @override
   Widget build(BuildContext context) {
+    final (label, color, background) = switch (student.paymentState) {
+      'PAID' => ('Đã hoàn tất', AppColors.success, AppColors.successSoft),
+      'PROCESSING' => (
+        'Đang xử lý',
+        AppColors.fptOrange,
+        AppColors.primarySoft,
+      ),
+      'NO_BILLS' => ('Chưa phát sinh', AppColors.muted, AppColors.background),
+      _ => ('Còn phải thu', AppColors.danger, AppColors.dangerSoft),
+    };
     return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line.withValues(alpha: 0.5)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.line.withValues(alpha: 0.4)),
       ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.muted,
-                  fontWeight: FontWeight.bold,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  student.studentName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink,
+                  ),
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 16),
-              ),
-            ],
+                if (student.studentCode.isNotEmpty)
+                  Text(
+                    student.studentCode,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                if (student.outstandingAmount > 0)
+                  Text(
+                    'Còn ${_formatMoney(student.outstandingAmount)} đ',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.danger,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: color,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  static String _formatMoney(double value) {
+    final digits = value.round().toString();
+    return digits.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
   }
 }

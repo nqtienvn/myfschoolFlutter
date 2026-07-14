@@ -24,6 +24,8 @@ void main() {
               'classId': 3,
               'schoolName': 'FPT Schools',
               'academicYearName': '2026-2027',
+              'homeroomTeacherName': 'Cô Nguyễn Thu Hà',
+              'homeroomTeacherPhone': '0901234567',
               'dateOfBirth': '2010-01-02',
               'gender': 'FEMALE',
               'address': 'Hà Nội',
@@ -43,6 +45,8 @@ void main() {
     expect(session.children, hasLength(2));
     expect(session.children.first.name, 'Học sinh A');
     expect(session.children.first.className, '10A1');
+    expect(session.children.first.homeroomTeacherName, 'Cô Nguyễn Thu Hà');
+    expect(session.children.first.homeroomTeacherPhone, '0901234567');
     expect(session.children.first.dateOfBirth, '2010-01-02');
     expect(session.children.last.studentCode, 'HS002');
   });

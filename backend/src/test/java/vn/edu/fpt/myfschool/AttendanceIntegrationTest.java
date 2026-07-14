@@ -5,21 +5,34 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Autowired;
 import vn.edu.fpt.myfschool.entity.HomeroomAssignment;
+import vn.edu.fpt.myfschool.entity.LeaveRequest;
 import vn.edu.fpt.myfschool.entity.Schedule;
 import vn.edu.fpt.myfschool.entity.Timetable;
 import vn.edu.fpt.myfschool.common.enums.Shift;
+import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
+import vn.edu.fpt.myfschool.common.enums.LeaveShift;
+import vn.edu.fpt.myfschool.common.enums.LeaveStatus;
 import vn.edu.fpt.myfschool.common.enums.TimetableStatus;
 import vn.edu.fpt.myfschool.repository.ScheduleRepository;
 import vn.edu.fpt.myfschool.repository.TimetableRepository;
+import vn.edu.fpt.myfschool.repository.AttendanceDetailRepository;
+import vn.edu.fpt.myfschool.repository.AttendanceRepository;
+import vn.edu.fpt.myfschool.repository.AttendanceSessionRepository;
+import vn.edu.fpt.myfschool.repository.LeaveRequestRepository;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.hasItem;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class AttendanceIntegrationTest extends BaseIntegrationTest {
 
     @Autowired private TimetableRepository timetableRepository;
     @Autowired private ScheduleRepository scheduleRepository;
+    @Autowired private AttendanceRepository attendanceRepository;
+    @Autowired private AttendanceSessionRepository attendanceSessionRepository;
+    @Autowired private AttendanceDetailRepository attendanceDetailRepository;
+    @Autowired private LeaveRequestRepository leaveRequestRepository;
 
     @BeforeEach
     void assignHomeroomTeacher() {
@@ -53,6 +66,23 @@ class AttendanceIntegrationTest extends BaseIntegrationTest {
         schedule.setPeriodRef(testPeriods.get(periodIndex));
         schedule.setShift(shift);
         scheduleRepository.save(schedule);
+    }
+
+    private LeaveRequest createApprovedLeave(
+            java.time.LocalDate date, LeaveShift shift) {
+        LeaveRequest leave = new LeaveRequest();
+        leave.setStudent(testStudent1);
+        leave.setParent(testParent);
+        leave.setCls(testClass);
+        leave.setAcademicYear(testAcademicYear);
+        leave.setApprovedBy(testTeacher);
+        leave.setDateFrom(date);
+        leave.setDateTo(date);
+        leave.setShift(shift);
+        leave.setReason("Đơn nghỉ đã duyệt cho kiểm thử điểm danh");
+        leave.setStatus(LeaveStatus.APPROVED);
+        leave.setApprovedAt(java.time.LocalDateTime.of(date, java.time.LocalTime.NOON));
+        return leaveRequestRepository.save(leave);
     }
 
     private String attendanceJson(String shift, String entries) {
@@ -90,6 +120,22 @@ class AttendanceIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.data.classId").value(testClass.getId().intValue()))
             .andExpect(jsonPath("$.data.academicYearId").value(testAcademicYear.getId().intValue()))
             .andExpect(jsonPath("$.data.shifts").isArray());
+    }
+
+    @Test
+    void get_homeroom_context_supports_selected_completed_year() throws Exception {
+        testAcademicYear.setStatus(
+            vn.edu.fpt.myfschool.common.enums.AcademicYearStatus.COMPLETED);
+        academicYearRepository.save(testAcademicYear);
+        String token = loginAsTeacher();
+
+        mockMvc.perform(get("/api/attendance/homeroom-context")
+                .header("Authorization", authHeader(token))
+                .param("date", "2026-09-24"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.classId").value(testClass.getId().intValue()))
+            .andExpect(jsonPath("$.data.academicYearId")
+                .value(testAcademicYear.getId().intValue()));
     }
 
     @Test
@@ -152,13 +198,17 @@ class AttendanceIntegrationTest extends BaseIntegrationTest {
     @Test
     void correction_requires_admin_approval_before_attendance_changes() throws Exception {
         String token = loginAsTeacher();
-        String body = attendanceJson("MORNING", entry(testStudent1.getId(), "PRESENT"));
+        String sessionBody = "{\"classId\":" + testClass.getId()
+            + ",\"teacherId\":" + testTeacher.getId()
+            + ",\"date\":\"2026-09-24\",\"shift\":\"MORNING\"}";
 
-        mockMvc.perform(post("/api/attendance/submit")
+        String sessionJson = mockMvc.perform(post("/api/attendance-sessions")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
-            .andExpect(status().isOk());
+                .content(sessionBody))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        Long sessionId = objectMapper.readTree(sessionJson).path("data").path("id").asLong();
 
         String correctionBody = attendanceJson(
             "MORNING", entry(testStudent1.getId(), "ABSENT_WITHOUT_LEAVE") + ","
@@ -197,6 +247,119 @@ class AttendanceIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.students[?(@.studentId == " + testStudent1.getId() + ")].status")
                 .value(hasItem("ABSENT_WITHOUT_LEAVE")));
+
+        assertEquals(AttendanceStatus.ABSENT_WITHOUT_LEAVE,
+            attendanceDetailRepository.findBySessionIdAndStudentId(
+                sessionId, testStudent1.getId()).orElseThrow().getStatus());
+        var projectedSession = attendanceSessionRepository.findById(sessionId).orElseThrow();
+        assertEquals(2, projectedSession.getPresent());
+        assertEquals(1, projectedSession.getAbsent());
+    }
+
+    @Test
+    void admin_adjustment_projects_canonical_statuses_and_session_counts() throws Exception {
+        String teacherToken = loginAsTeacher();
+        String sessionBody = "{\"classId\":" + testClass.getId()
+            + ",\"teacherId\":" + testTeacher.getId()
+            + ",\"date\":\"2026-09-25\",\"shift\":\"MORNING\"}";
+        String sessionJson = mockMvc.perform(post("/api/attendance-sessions")
+                .header("Authorization", authHeader(teacherToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(sessionBody))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        Long sessionId = objectMapper.readTree(sessionJson).path("data").path("id").asLong();
+
+        String adjustmentBody = "{\"academicYearId\":" + testAcademicYear.getId()
+            + ",\"classId\":" + testClass.getId()
+            + ",\"date\":\"2026-09-25\",\"shift\":\"MORNING\""
+            + ",\"presentCount\":2,\"absentWithLeaveCount\":0"
+            + ",\"absentWithoutLeaveCount\":1}";
+        mockMvc.perform(put("/api/attendance/admin/daily")
+                .header("Authorization", authHeader(loginAsAdmin()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adjustmentBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.presentCount").value(2))
+            .andExpect(jsonPath("$.data.absentWithoutLeaveCount").value(1));
+
+        var session = attendanceSessionRepository.findById(sessionId).orElseThrow();
+        assertEquals(3, session.getTotal());
+        assertEquals(2, session.getPresent());
+        assertEquals(1, session.getAbsent());
+        var details = attendanceDetailRepository.findBySessionId(sessionId);
+        assertEquals(3, details.size());
+        for (var detail : details) {
+            var canonical = attendanceRepository.findByStudentIdAndDateAndShift(
+                detail.getStudent().getId(), java.time.LocalDate.of(2026, 9, 25),
+                Shift.MORNING).orElseThrow();
+            assertEquals(canonical.getStatus(), detail.getStatus());
+        }
+    }
+
+    @Test
+    void admin_adjustment_projects_valid_nonzero_excused_absence_with_leave_link()
+            throws Exception {
+        java.time.LocalDate date = java.time.LocalDate.of(2026, 9, 28);
+        LeaveRequest approvedLeave = createApprovedLeave(date, LeaveShift.MORNING);
+        String teacherToken = loginAsTeacher();
+        String sessionBody = "{\"classId\":" + testClass.getId()
+            + ",\"teacherId\":" + testTeacher.getId()
+            + ",\"date\":\"2026-09-28\",\"shift\":\"MORNING\"}";
+        String sessionJson = mockMvc.perform(post("/api/attendance-sessions")
+                .header("Authorization", authHeader(teacherToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(sessionBody))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        Long sessionId = objectMapper.readTree(sessionJson).path("data").path("id").asLong();
+
+        String adjustmentBody = "{\"academicYearId\":" + testAcademicYear.getId()
+            + ",\"classId\":" + testClass.getId()
+            + ",\"date\":\"2026-09-28\",\"shift\":\"MORNING\""
+            + ",\"presentCount\":2,\"absentWithLeaveCount\":1"
+            + ",\"absentWithoutLeaveCount\":0}";
+        mockMvc.perform(put("/api/attendance/admin/daily")
+                .header("Authorization", authHeader(loginAsAdmin()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adjustmentBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.presentCount").value(2))
+            .andExpect(jsonPath("$.data.absentWithLeaveCount").value(1));
+
+        var canonical = attendanceRepository.findByStudentIdAndDateAndShift(
+            testStudent1.getId(), date, Shift.MORNING).orElseThrow();
+        assertEquals(AttendanceStatus.ABSENT_WITH_LEAVE, canonical.getStatus());
+        assertEquals(approvedLeave.getId(), canonical.getLeaveRequest().getId());
+        assertEquals(AttendanceStatus.ABSENT_WITH_LEAVE,
+            attendanceDetailRepository.findBySessionIdAndStudentId(
+                sessionId, testStudent1.getId()).orElseThrow().getStatus());
+        assertEquals(2,
+            attendanceSessionRepository.findById(sessionId).orElseThrow().getPresent());
+        assertEquals(1,
+            attendanceSessionRepository.findById(sessionId).orElseThrow().getAbsent());
+    }
+
+    @Test
+    void admin_adjustment_rejects_excused_count_above_eligible_approved_leaves()
+            throws Exception {
+        java.time.LocalDate date = java.time.LocalDate.of(2026, 9, 29);
+        createApprovedLeave(date, LeaveShift.MORNING);
+        String adjustmentBody = "{\"academicYearId\":" + testAcademicYear.getId()
+            + ",\"classId\":" + testClass.getId()
+            + ",\"date\":\"2026-09-29\",\"shift\":\"MORNING\""
+            + ",\"presentCount\":1,\"absentWithLeaveCount\":2"
+            + ",\"absentWithoutLeaveCount\":0}";
+
+        mockMvc.perform(put("/api/attendance/admin/daily")
+                .header("Authorization", authHeader(loginAsAdmin()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adjustmentBody))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false));
+
+        assertEquals(0, attendanceRepository.findByClsIdAndDateAndShift(
+            testClass.getId(), date, Shift.MORNING).size());
     }
 
     @Test

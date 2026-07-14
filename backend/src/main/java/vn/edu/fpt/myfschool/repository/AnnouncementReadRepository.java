@@ -3,6 +3,7 @@ package vn.edu.fpt.myfschool.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.myfschool.entity.AnnouncementRead;
+import java.util.Collection;
 import java.util.Optional;
 
 @Repository
@@ -10,4 +11,6 @@ public interface AnnouncementReadRepository extends JpaRepository<AnnouncementRe
     Optional<AnnouncementRead> findByAnnouncementIdAndUserId(Long announcementId, Long userId);
     boolean existsByAnnouncementIdAndUserId(Long announcementId, Long userId);
     long countByAnnouncementIdAndReadAtIsNotNull(Long announcementId);
+    long countByAnnouncementIdInAndUserIdInAndReadAtIsNotNull(
+        Collection<Long> announcementIds, Collection<Long> userIds);
 }

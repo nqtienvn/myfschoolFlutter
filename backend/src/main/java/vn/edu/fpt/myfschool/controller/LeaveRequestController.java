@@ -56,17 +56,23 @@ public class LeaveRequestController {
     @GetMapping("/pending")
     @PreAuthorize("hasRole('TEACHER')")
     @Operation(summary = "Đơn chờ duyệt")
-    public ResponseEntity<ApiResponse<List<LeaveRequestDto>>> getPendingRequests() {
+    public ResponseEntity<ApiResponse<List<LeaveRequestDto>>> getPendingRequests(
+            @RequestParam(required = false) Long academicYearId,
+            @RequestParam(required = false) Long semesterId) {
         return ResponseEntity.ok(ApiResponse.success(
-                leaveRequestService.getPendingLeaveRequests(SecurityUtil.getCurrentUserId())));
+                leaveRequestService.getPendingLeaveRequests(
+                    SecurityUtil.getCurrentUserId(), academicYearId, semesterId)));
     }
 
     @GetMapping("/reviewed")
     @PreAuthorize("hasRole('TEACHER')")
-    @Operation(summary = "Đơn đã xử lý trong năm học đang hoạt động")
-    public ResponseEntity<ApiResponse<List<LeaveRequestDto>>> getReviewedRequests() {
+    @Operation(summary = "Đơn đã xử lý trong học kỳ được chọn")
+    public ResponseEntity<ApiResponse<List<LeaveRequestDto>>> getReviewedRequests(
+            @RequestParam(required = false) Long academicYearId,
+            @RequestParam(required = false) Long semesterId) {
         return ResponseEntity.ok(ApiResponse.success(
-                leaveRequestService.getReviewedLeaveRequests(SecurityUtil.getCurrentUserId())));
+                leaveRequestService.getReviewedLeaveRequests(
+                    SecurityUtil.getCurrentUserId(), academicYearId, semesterId)));
     }
 
     @GetMapping("/class")
@@ -108,8 +114,11 @@ public class LeaveRequestController {
     @GetMapping("/pending-count")
     @PreAuthorize("hasRole('TEACHER')")
     @Operation(summary = "Đếm đơn chờ")
-    public ResponseEntity<ApiResponse<Long>> getPendingCount() {
+    public ResponseEntity<ApiResponse<Long>> getPendingCount(
+            @RequestParam(required = false) Long academicYearId,
+            @RequestParam(required = false) Long semesterId) {
         return ResponseEntity.ok(ApiResponse.success(
-                leaveRequestService.getPendingCount(SecurityUtil.getCurrentUserId())));
+                leaveRequestService.getPendingCount(
+                    SecurityUtil.getCurrentUserId(), academicYearId, semesterId)));
     }
 }

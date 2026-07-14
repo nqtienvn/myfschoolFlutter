@@ -11,5 +11,5 @@ public record TuitionBillDto(
     Long classId, String className, Long semesterId, String semesterName,
     Long feeTemplateId, String feeTemplateName,
     String name, BigDecimal amount, LocalDate dueDate, BillStatus status,
-    LocalDateTime paidAt, List<Object> transactions, LocalDateTime createdAt
+    LocalDateTime paidAt, List<PaymentTransactionDto> transactions, LocalDateTime createdAt
 ) {}

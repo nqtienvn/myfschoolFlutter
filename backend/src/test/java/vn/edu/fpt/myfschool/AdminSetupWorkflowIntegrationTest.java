@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
 import vn.edu.fpt.myfschool.entity.AcademicYearSubject;
+import vn.edu.fpt.myfschool.entity.HomeroomAssignment;
 import vn.edu.fpt.myfschool.repository.AcademicYearPeriodRepository;
 import vn.edu.fpt.myfschool.repository.AcademicYearShiftRepository;
 import vn.edu.fpt.myfschool.repository.AcademicYearSubjectRepository;
@@ -13,6 +14,7 @@ import vn.edu.fpt.myfschool.repository.PeriodRepository;
 import vn.edu.fpt.myfschool.repository.SchoolShiftRepository;
 
 import java.util.Set;
+import java.time.LocalDate;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,12 +52,81 @@ class AdminSetupWorkflowIntegrationTest extends BaseIntegrationTest {
                     .formatted(class1Id, testTeacher.getId(), yearId)))
             .andExpect(status().isOk());
 
+        // Draft-year setup treats the assignment as configured before its future effective date.
+        assertTrue(homeroomAssignmentRepository.findConfiguredByClassAndYear(class1Id, yearId).isPresent());
+        assertEquals(1, homeroomAssignmentRepository
+            .findConfiguredByTeacherAndYear(testTeacher.getId(), yearId).size());
+        assertTrue(homeroomAssignmentRepository
+            .findActiveByClassAndYear(class1Id, yearId).isEmpty());
+        assertTrue(homeroomAssignmentRepository
+            .findActiveByTeacherAndYear(testTeacher.getId(), yearId).isEmpty());
+
         mockMvc.perform(post("/api/homeroom-assignments")
                 .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"classId\":%d,\"teacherId\":%d,\"academicYearId\":%d,\"effectiveFrom\":\"2040-08-01\"}"
                     .formatted(class2Id, testTeacher.getId(), yearId)))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("đang là GVCN lớp")));
+    }
+
+    @Test
+    void deleteHomeroomAssignment_immediatelyAllowsReplacement() throws Exception {
+        String token = loginAsAdmin();
+        String yearResponse = mockMvc.perform(post("/api/academic-years")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content(academicYearBody("2041-08-01", "2042-05-31")))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        long yearId = objectMapper.readTree(yearResponse).path("data").path("id").asLong();
+
+        String classesResponse = mockMvc.perform(post("/api/classes/generate")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"academicYearId\":%d,\"gradeLevel\":10,\"namingPrefix\":\"R\",\"count\":1}"
+                    .formatted(yearId)))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        long classId = objectMapper.readTree(classesResponse).path("data").get(0).path("id").asLong();
+
+        String createdResponse = mockMvc.perform(post("/api/homeroom-assignments")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"classId\":%d,\"teacherId\":%d,\"academicYearId\":%d,\"effectiveFrom\":\"2041-08-01\"}"
+                    .formatted(classId, testTeacher.getId(), yearId)))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        long assignmentId = objectMapper.readTree(createdResponse).path("data").path("id").asLong();
+
+        mockMvc.perform(delete("/api/homeroom-assignments/" + assignmentId)
+                .header("Authorization", authHeader(token)))
+            .andExpect(status().isOk());
+
+        assertTrue(homeroomAssignmentRepository.findConfiguredByClassAndYear(classId, yearId).isEmpty());
+        assertTrue(homeroomAssignmentRepository
+            .findConfiguredByTeacherAndYear(testTeacher.getId(), yearId).isEmpty());
+
+        mockMvc.perform(post("/api/homeroom-assignments")
+                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"classId\":%d,\"teacherId\":%d,\"academicYearId\":%d,\"effectiveFrom\":\"2041-08-02\"}"
+                    .formatted(classId, testTeacher.getId(), yearId)))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void runtime_homeroom_scope_keeps_effective_to_inclusive() {
+        LocalDate today = LocalDate.now();
+        HomeroomAssignment assignment = new HomeroomAssignment();
+        assignment.setCls(testClass);
+        assignment.setTeacher(testTeacher);
+        assignment.setAcademicYear(testAcademicYear);
+        assignment.setEffectiveFrom(today.minusDays(1));
+        assignment.setEffectiveTo(today);
+        homeroomAssignmentRepository.saveAndFlush(assignment);
+
+        assertTrue(homeroomAssignmentRepository
+            .findConfiguredByClassAndYear(testClass.getId(), testAcademicYear.getId())
+            .isPresent());
+        assertTrue(homeroomAssignmentRepository
+            .findActiveByClassAndYear(testClass.getId(), testAcademicYear.getId())
+            .isPresent());
+        assertEquals(1, homeroomAssignmentRepository
+            .findActiveByTeacherAndYear(testTeacher.getId(), testAcademicYear.getId())
+            .size());
     }
 
     @Test

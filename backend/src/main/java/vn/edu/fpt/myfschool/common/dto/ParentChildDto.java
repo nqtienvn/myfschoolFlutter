@@ -13,6 +13,8 @@ public record ParentChildDto(
     Long classId,
     String schoolName,
     String academicYearName,
+    String homeroomTeacherName,
+    String homeroomTeacherPhone,
     LocalDate dateOfBirth,
     Gender gender,
     String address,

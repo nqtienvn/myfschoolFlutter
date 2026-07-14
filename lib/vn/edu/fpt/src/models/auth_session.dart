@@ -52,6 +52,8 @@ class LinkedStudent {
     this.classId,
     this.schoolName,
     this.academicYearName,
+    this.homeroomTeacherName,
+    this.homeroomTeacherPhone,
     this.dateOfBirth,
     this.gender,
     this.address,
@@ -66,6 +68,8 @@ class LinkedStudent {
   final int? classId;
   final String? schoolName;
   final String? academicYearName;
+  final String? homeroomTeacherName;
+  final String? homeroomTeacherPhone;
   final String? dateOfBirth;
   final String? gender;
   final String? address;

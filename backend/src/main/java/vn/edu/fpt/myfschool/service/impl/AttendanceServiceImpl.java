@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import vn.edu.fpt.myfschool.entity.Attendance;
+import vn.edu.fpt.myfschool.entity.AttendanceDetail;
+import vn.edu.fpt.myfschool.entity.AttendanceSession;
 import vn.edu.fpt.myfschool.entity.SchoolClass;
 import vn.edu.fpt.myfschool.entity.Semester;
 import vn.edu.fpt.myfschool.entity.Student;
@@ -47,6 +49,8 @@ import java.util.stream.Collectors;
 public class AttendanceServiceImpl implements AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
+    private final AttendanceSessionRepository attendanceSessionRepository;
+    private final AttendanceDetailRepository attendanceDetailRepository;
     private final StudentRepository studentRepository;
     private final ClassRepository classRepository;
     private final TeacherRepository teacherRepository;
@@ -132,6 +136,18 @@ public class AttendanceServiceImpl implements AttendanceService {
         return applyAttendanceEntries(request, teacher, cls, slots);
     }
 
+    @Override
+    public List<AttendanceDto> synchronizeSessionAttendance(
+            SubmitAttendanceRequest request, Long teacherUserId) {
+        Teacher teacher = requireTeacher(teacherUserId);
+        SchoolClass cls = classRepository.findById(request.classId())
+            .orElseThrow(() -> new ResourceNotFoundException("Class", "id", request.classId()));
+        validateAttendanceScope(teacher, cls, request.date(), request.shift());
+        requireTeacherCanEditToday(request.date());
+        List<Schedule> slots = requireScheduledSlots(cls, request.date(), request.shift());
+        return applyAttendanceEntries(request, teacher, cls, slots);
+    }
+
     private List<AttendanceDto> applyAttendanceEntries(
             SubmitAttendanceRequest request, Teacher teacher, SchoolClass cls, List<Schedule> slots) {
 
@@ -183,6 +199,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             att = attendanceRepository.save(att);
             results.add(toDto(att));
         }
+        synchronizeExistingSessions(cls, request.date(), request.shift());
         return results;
     }
 
@@ -219,12 +236,6 @@ public class AttendanceServiceImpl implements AttendanceService {
             BigDecimal.valueOf(rate).setScale(1, RoundingMode.HALF_UP).doubleValue());
 
         return new AttendanceLogDto(dtos, stats);
-    }
-
-    @Override
-    public void autoUpdateForApprovedLeave(Long leaveRequestId) {
-        // Called by LeaveRequestService when approved
-        // Implementation depends on LeaveRequest entity
     }
 
     private Teacher requireTeacher(Long teacherUserId) {
@@ -319,6 +330,13 @@ public class AttendanceServiceImpl implements AttendanceService {
 
         Map<Long, LeaveRequest> approvedLeaves = approvedLeavesByStudent(
             cls.getId(), request.date(), request.shift());
+        long eligibleApprovedLeaves = students.stream()
+            .filter(student -> approvedLeaves.containsKey(student.getId()))
+            .count();
+        if (request.absentWithLeaveCount() > eligibleApprovedLeaves) {
+            throw new BadRequestException(
+                "Số học sinh vắng có phép vượt quá số đơn nghỉ đã được duyệt cho ngày và buổi này");
+        }
         List<Student> ordered = new ArrayList<>(students);
         ordered.sort((left, right) -> Boolean.compare(
             !approvedLeaves.containsKey(left.getId()), !approvedLeaves.containsKey(right.getId())));
@@ -343,10 +361,56 @@ public class AttendanceServiceImpl implements AttendanceService {
             attendance.setTeacher(slots.get(0).getAssignment().getTeacher());
             attendance.setSchedule(slots.get(0));
             attendance.setStatus(status);
-            attendance.setLeaveRequest(status == AttendanceStatus.ABSENT_WITH_LEAVE ? approvedLeave : null);
+            if (status == AttendanceStatus.ABSENT_WITH_LEAVE && approvedLeave == null) {
+                throw new BadRequestException(
+                    "Không thể ghi nhận vắng có phép khi chưa có đơn nghỉ được duyệt");
+            }
+            attendance.setLeaveRequest(
+                status == AttendanceStatus.ABSENT_WITH_LEAVE ? approvedLeave : null);
             attendanceRepository.save(attendance);
         }
+        synchronizeExistingSessions(cls, request.date(), request.shift());
         return toAdminDayDto(cls, request.date(), request.shift(), slots.size());
+    }
+
+    private void synchronizeExistingSessions(
+            SchoolClass cls, LocalDate date, Shift shift) {
+        List<AttendanceSession> sessions = attendanceSessionRepository
+            .findByClsIdAndDateAndShift(cls.getId(), date, shift);
+        if (sessions.isEmpty()) return;
+
+        List<Attendance> canonicalRecords = attendanceRepository
+            .findByClsIdAndDateAndShift(cls.getId(), date, shift);
+        for (AttendanceSession session : sessions) {
+            List<AttendanceDetail> details = attendanceDetailRepository
+                .findBySessionId(session.getId());
+            Map<Long, AttendanceDetail> detailsByStudent = details.stream()
+                .collect(Collectors.toMap(
+                    detail -> detail.getStudent().getId(),
+                    detail -> detail));
+
+            for (Attendance attendance : canonicalRecords) {
+                AttendanceDetail detail = detailsByStudent.get(
+                    attendance.getStudent().getId());
+                if (detail == null) {
+                    detail = new AttendanceDetail();
+                    detail.setSession(session);
+                    detail.setStudent(attendance.getStudent());
+                    details.add(detail);
+                    detailsByStudent.put(attendance.getStudent().getId(), detail);
+                }
+                detail.setStatus(attendance.getStatus());
+            }
+            attendanceDetailRepository.saveAll(details);
+
+            int present = (int) details.stream()
+                .filter(detail -> detail.getStatus() == AttendanceStatus.PRESENT)
+                .count();
+            session.setTotal(details.size());
+            session.setPresent(present);
+            session.setAbsent(details.size() - present);
+            attendanceSessionRepository.save(session);
+        }
     }
 
     @Override

@@ -164,7 +164,7 @@ void main() {
         final backend = _RecordingBackendApiClient(
           responses: [
             <String, dynamic>{
-              'items': [
+              'records': [
                 <String, dynamic>{
                   'date': '2026-09-03',
                   'shift': 'MORNING',
@@ -280,7 +280,7 @@ void main() {
         studentId: 7,
         dateFrom: '2026-09-03',
         dateTo: '2026-09-04',
-        shift: 'ALL_DAY',
+        shift: 'FULL_DAY',
         reason: 'Ốm',
       );
 
@@ -294,7 +294,7 @@ void main() {
         'studentId': 7,
         'dateFrom': '2026-09-03',
         'dateTo': '2026-09-04',
-        'shift': 'ALL_DAY',
+        'shift': 'FULL_DAY',
         'reason': 'Ốm',
       });
     });
@@ -358,6 +358,41 @@ void main() {
         client.getPendingLeaveRequests(token: 'teacher-token'),
         throwsA(isA<ParseException>()),
       );
+    });
+
+    test('scopes teacher leave endpoints to the selected period', () async {
+      final backend = _RecordingBackendApiClient(
+        responses: [<Map<String, dynamic>>[], <Map<String, dynamic>>[], 4],
+      );
+      final client = LeaveRequestApiClient(backend: backend);
+
+      await client.getPendingLeaveRequests(
+        token: 'teacher-token',
+        academicYearId: 7,
+        semesterId: 71,
+      );
+      await client.getReviewedLeaveRequests(
+        token: 'teacher-token',
+        academicYearId: 7,
+        semesterId: 71,
+      );
+      expect(
+        await client.getPendingCount(
+          token: 'teacher-token',
+          academicYearId: 7,
+          semesterId: 71,
+        ),
+        4,
+      );
+
+      expect(backend.calls.map((call) => call.path), [
+        '/api/leave-requests/pending',
+        '/api/leave-requests/reviewed',
+        '/api/leave-requests/pending-count',
+      ]);
+      for (final call in backend.calls) {
+        expect(call.query, {'academicYearId': '7', 'semesterId': '71'});
+      }
     });
 
     test(

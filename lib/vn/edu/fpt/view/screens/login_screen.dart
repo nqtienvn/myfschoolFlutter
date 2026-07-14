@@ -19,8 +19,17 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _phoneController = TextEditingController(text: '0909000002');
-  final _passwordController = TextEditingController(text: 'test1234');
+  static const _defaultPhone = String.fromEnvironment(
+    'DEMO_LOGIN_PHONE',
+    defaultValue: '0902000001',
+  );
+  static const _defaultPassword = String.fromEnvironment(
+    'DEMO_DATA_PASSWORD',
+    defaultValue: 'Demo@123',
+  );
+
+  final _phoneController = TextEditingController(text: _defaultPhone);
+  final _passwordController = TextEditingController(text: _defaultPassword);
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _error;

@@ -2,13 +2,25 @@ package vn.edu.fpt.myfschool;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
+import vn.edu.fpt.myfschool.common.enums.BillStatus;
+import vn.edu.fpt.myfschool.entity.AcademicYear;
 import vn.edu.fpt.myfschool.entity.HomeroomAssignment;
+import vn.edu.fpt.myfschool.entity.SchoolClass;
+import vn.edu.fpt.myfschool.entity.Semester;
+import vn.edu.fpt.myfschool.repository.TuitionBillRepository;
+
+import java.time.LocalDate;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class TuitionIntegrationTest extends BaseIntegrationTest {
+
+    @Autowired
+    private TuitionBillRepository tuitionBillRepository;
 
     @BeforeEach
     void assignHomeroomTeacher() {
@@ -21,8 +33,40 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
     }
 
     private String billJson(Long studentId, Long classId, Long semesterId, String name, long amount) {
+        return billJson(studentId, classId, semesterId, name, amount, "2026-12-31");
+    }
+
+    private String billJson(Long studentId, Long classId, Long semesterId, String name,
+                            long amount, String dueDate) {
         return "{\"studentId\":" + studentId + ",\"classId\":" + classId + ",\"semesterId\":" + semesterId
-            + ",\"name\":\"" + name + "\",\"amount\":" + amount + ",\"dueDate\":\"2026-12-31\"}";
+            + ",\"name\":\"" + name + "\",\"amount\":" + amount + ",\"dueDate\":\"" + dueDate + "\"}";
+    }
+
+    private Semester createSemesterInAnotherAcademicYear() {
+        AcademicYear otherYear = new AcademicYear();
+        otherYear.setName("2027-2028");
+        otherYear.setStartDate(LocalDate.of(2027, 8, 1));
+        otherYear.setEndDate(LocalDate.of(2028, 5, 31));
+        otherYear.setStatus(AcademicYearStatus.DRAFT);
+        otherYear = academicYearRepository.save(otherYear);
+
+        Semester otherSemester = new Semester();
+        otherSemester.setName("HK I");
+        otherSemester.setOrder(1);
+        otherSemester.setStartDate(LocalDate.of(2027, 9, 1));
+        otherSemester.setEndDate(LocalDate.of(2028, 1, 15));
+        otherSemester.setIsCurrent(false);
+        otherSemester.setAcademicYear(otherYear);
+        return semesterRepository.save(otherSemester);
+    }
+
+    private SchoolClass createOtherClassInTestYear() {
+        SchoolClass otherClass = new SchoolClass();
+        otherClass.setName("12B");
+        otherClass.setGradeLevel(12);
+        otherClass.setAcademicYear(testAcademicYear);
+        otherClass.setSchoolName("FPT Schools");
+        return classRepository.save(otherClass);
     }
 
     private String feeCategoryJson(String name) {
@@ -55,6 +99,17 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asLong();
     }
 
+    private Long createBill(Long studentId, String name, long amount) throws Exception {
+        var result = mockMvc.perform(post("/api/tuition/bills")
+                .header("Authorization", authHeader(loginAsAdmin()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(billJson(studentId, testClass.getId(), testSemester.getId(), name, amount)))
+            .andExpect(status().isOk())
+            .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString())
+            .path("data").path("id").asLong();
+    }
+
     @Test
     void create_tuition_bill_admin_only() throws Exception {
         String token = loginAsAdmin();
@@ -78,6 +133,43 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(billJson(testStudent1.getId(), testClass.getId(), testSemester.getId(), "Test", 1000000)))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void create_bill_rejects_class_and_semester_from_different_years() throws Exception {
+        Semester otherSemester = createSemesterInAnotherAcademicYear();
+
+        mockMvc.perform(post("/api/tuition/bills")
+                .header("Authorization", authHeader(loginAsAdmin()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(billJson(testStudent1.getId(), testClass.getId(), otherSemester.getId(),
+                    "Sai nam hoc", 1000000, "2027-12-31")))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void create_bill_rejects_student_not_enrolled_in_selected_class() throws Exception {
+        SchoolClass otherClass = createOtherClassInTestYear();
+
+        mockMvc.perform(post("/api/tuition/bills")
+                .header("Authorization", authHeader(loginAsAdmin()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(billJson(testStudent1.getId(), otherClass.getId(), testSemester.getId(),
+                    "Sai lop", 1000000)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void create_bill_rejects_due_date_outside_selected_semester() throws Exception {
+        mockMvc.perform(post("/api/tuition/bills")
+                .header("Authorization", authHeader(loginAsAdmin()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(billJson(testStudent1.getId(), testClass.getId(), testSemester.getId(),
+                    "Sai han", 1000000, "2026-08-31")))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test
@@ -107,6 +199,126 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(get("/api/tuition/bills/class")
                 .header("Authorization", authHeader(teacherToken))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void teacher_cannot_view_bills_when_assignment_does_not_overlap_semester() throws Exception {
+        HomeroomAssignment assignment = homeroomAssignmentRepository.findAll().getFirst();
+        assignment.setEffectiveTo(testSemester.getStartDate().minusDays(1));
+        homeroomAssignmentRepository.saveAndFlush(assignment);
+
+        mockMvc.perform(get("/api/tuition/bills/class")
+                .header("Authorization", authHeader(loginAsTeacher()))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/tuition/bills/class-summary")
+                .header("Authorization", authHeader(loginAsTeacher()))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void class_list_rejects_class_and_semester_from_different_years() throws Exception {
+        Semester otherSemester = createSemesterInAnotherAcademicYear();
+
+        mockMvc.perform(get("/api/tuition/bills/class")
+                .header("Authorization", authHeader(loginAsAdmin()))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", otherSemester.getId().toString()))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false));
+
+        mockMvc.perform(get("/api/tuition/bills/class-summary")
+                .header("Authorization", authHeader(loginAsTeacher()))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", otherSemester.getId().toString()))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void teacher_class_summary_uses_canonical_bills_and_enrollment_roster() throws Exception {
+        String adminToken = loginAsAdmin();
+        var paidBillResult = mockMvc.perform(post("/api/tuition/bills")
+                .header("Authorization", authHeader(adminToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(billJson(testStudent1.getId(), testClass.getId(), testSemester.getId(),
+                    "HP da dong", 6000000)))
+            .andExpect(status().isOk())
+            .andReturn();
+        Long paidBillId = objectMapper.readTree(paidBillResult.getResponse().getContentAsString())
+            .path("data").path("id").asLong();
+
+        mockMvc.perform(post("/api/tuition/bills")
+                .header("Authorization", authHeader(adminToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(billJson(testStudent2.getId(), testClass.getId(), testSemester.getId(),
+                    "HP chua dong", 7000000)))
+            .andExpect(status().isOk());
+        mockMvc.perform(post("/api/tuition/bills/" + paidBillId + "/simulate-pay")
+                .header("Authorization", authHeader(adminToken)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/tuition/bills/class-summary")
+                .header("Authorization", authHeader(loginAsTeacher()))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.classId").value(testClass.getId().intValue()))
+            .andExpect(jsonPath("$.data.semesterId").value(testSemester.getId().intValue()))
+            .andExpect(jsonPath("$.data.totalStudents").value(3))
+            .andExpect(jsonPath("$.data.paidStudents").value(1))
+            .andExpect(jsonPath("$.data.outstandingStudents").value(1))
+            .andExpect(jsonPath("$.data.studentsWithoutBills").value(1))
+            .andExpect(jsonPath("$.data.students[0].studentCode").value(testStudent1.getStudentCode()))
+            .andExpect(jsonPath("$.data.students[0].paymentState").value("PAID"))
+            .andExpect(jsonPath("$.data.students[0].outstandingAmount").value(0))
+            .andExpect(jsonPath("$.data.students[0].bills[0].transactions[0].status").value("SUCCESS"))
+            .andExpect(jsonPath("$.data.students[1].studentCode").value(testStudent2.getStudentCode()))
+            .andExpect(jsonPath("$.data.students[1].paymentState").value("UNPAID"))
+            .andExpect(jsonPath("$.data.students[1].outstandingAmount").value(7000000))
+            .andExpect(jsonPath("$.data.students[2].paymentState").value("NO_BILLS"));
+    }
+
+    @Test
+    void teacher_class_summary_keeps_processing_bill_outstanding() throws Exception {
+        var billResult = mockMvc.perform(post("/api/tuition/bills")
+                .header("Authorization", authHeader(loginAsAdmin()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(billJson(testStudent1.getId(), testClass.getId(), testSemester.getId(),
+                    "HP dang xu ly", 4500000)))
+            .andExpect(status().isOk())
+            .andReturn();
+        Long billId = objectMapper.readTree(billResult.getResponse().getContentAsString())
+            .path("data").path("id").asLong();
+
+        var processingBill = tuitionBillRepository.findById(billId).orElseThrow();
+        processingBill.setStatus(BillStatus.PROCESSING);
+        tuitionBillRepository.saveAndFlush(processingBill);
+
+        mockMvc.perform(get("/api/tuition/bills/class-summary")
+                .header("Authorization", authHeader(loginAsTeacher()))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.totalStudents").value(3))
+            .andExpect(jsonPath("$.data.paidStudents").value(0))
+            .andExpect(jsonPath("$.data.outstandingStudents").value(1))
+            .andExpect(jsonPath("$.data.studentsWithoutBills").value(2))
+            .andExpect(jsonPath("$.data.students[0].paymentState").value("PROCESSING"))
+            .andExpect(jsonPath("$.data.students[0].outstandingAmount").value(4500000));
+    }
+
+    @Test
+    void class_summary_is_teacher_only() throws Exception {
+        mockMvc.perform(get("/api/tuition/bills/class-summary")
+                .header("Authorization", authHeader(loginAsAdmin()))
                 .param("classId", testClass.getId().toString())
                 .param("semesterId", testSemester.getId().toString()))
             .andExpect(status().isForbidden());
@@ -146,6 +358,72 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
                 .param("studentId", testStudent1.getId().toString())
                 .param("semesterId", testSemester.getId().toString()))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void parent_payment_request_updates_canonical_bill_and_teacher_summary() throws Exception {
+        Long billId = createBill(testStudent1.getId(), "HP chuyen khoan", 9100000);
+
+        mockMvc.perform(post("/api/tuition/bills/" + billId + "/payment-request")
+                .header("Authorization", authHeader(loginAsParent())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("PENDING"))
+            .andExpect(jsonPath("$.data.paymentMethod").value("BANK_TRANSFER_CONFIRMATION"))
+            .andExpect(jsonPath("$.data.transactionRef").isNotEmpty());
+
+        mockMvc.perform(get("/api/tuition/bills/student")
+                .header("Authorization", authHeader(loginAsParent()))
+                .param("studentId", testStudent1.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].status").value("PROCESSING"))
+            .andExpect(jsonPath("$.data[0].transactions[0].status").value("PENDING"));
+
+        mockMvc.perform(get("/api/tuition/bills/class-summary")
+                .header("Authorization", authHeader(loginAsTeacher()))
+                .param("classId", testClass.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.students[0].paymentState").value("PROCESSING"))
+            .andExpect(jsonPath("$.data.students[0].outstandingAmount").value(9100000));
+    }
+
+    @Test
+    void payment_request_rejects_unrelated_student_and_parent() throws Exception {
+        Long billId = createBill(testStudent1.getId(), "HP bao mat", 9200000);
+
+        mockMvc.perform(post("/api/tuition/bills/" + billId + "/payment-request")
+                .header("Authorization", authHeader(loginAsStudent2())))
+            .andExpect(status().isForbidden());
+
+        var guardianLink = studentGuardianRepository
+            .findByStudentIdAndGuardianId(testStudent1.getId(), testParent.getId())
+            .orElseThrow();
+        studentGuardianRepository.delete(guardianLink);
+        studentGuardianRepository.flush();
+        mockMvc.perform(post("/api/tuition/bills/" + billId + "/payment-request")
+                .header("Authorization", authHeader(loginAsParent())))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void payment_request_rejects_duplicate_and_paid_bill() throws Exception {
+        Long processingBillId = createBill(testStudent1.getId(), "HP gui trung", 9300000);
+        String parentToken = loginAsParent();
+        mockMvc.perform(post("/api/tuition/bills/" + processingBillId + "/payment-request")
+                .header("Authorization", authHeader(parentToken)))
+            .andExpect(status().isOk());
+        mockMvc.perform(post("/api/tuition/bills/" + processingBillId + "/payment-request")
+                .header("Authorization", authHeader(parentToken)))
+            .andExpect(status().isConflict());
+
+        Long paidBillId = createBill(testStudent1.getId(), "HP da thanh toan", 9400000);
+        mockMvc.perform(post("/api/tuition/bills/" + paidBillId + "/simulate-pay")
+                .header("Authorization", authHeader(loginAsAdmin())))
+            .andExpect(status().isOk());
+        mockMvc.perform(post("/api/tuition/bills/" + paidBillId + "/payment-request")
+                .header("Authorization", authHeader(parentToken)))
+            .andExpect(status().isBadRequest());
     }
 
     @Test

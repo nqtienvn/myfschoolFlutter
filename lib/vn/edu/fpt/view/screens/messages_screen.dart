@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/dto/search_result_dto.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/models/models.dart' as domain;
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
@@ -696,11 +697,33 @@ class AccountProfileScreen extends StatelessWidget {
     this.actor = AppActor.parent,
     this.authService,
     this.chatService,
+    this.authApiClient,
   });
 
   final AppActor actor;
   final AuthService? authService;
   final ChatService? chatService;
+  final AuthApiClient? authApiClient;
+
+  Future<void> _showChangePassword(BuildContext context, String token) async {
+    final changed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _ChangePasswordDialog(
+        token: token,
+        apiClient: authApiClient ?? AuthApiClient(backend: BackendApiClient()),
+      ),
+    );
+    if (changed == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đổi mật khẩu thành công.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -949,7 +972,7 @@ class AccountProfileScreen extends StatelessWidget {
                     subtitle: 'Cập nhật mật khẩu bảo mật tài khoản',
                     iconColor: AppColors.blue,
                     iconBgColor: AppColors.blueSoft,
-                    onTap: () {},
+                    onTap: () => _showChangePassword(context, session.token),
                   ),
                 ],
               ),
@@ -1012,6 +1035,150 @@ class AccountProfileScreen extends StatelessWidget {
   }
 }
 
+class _ChangePasswordDialog extends StatefulWidget {
+  const _ChangePasswordDialog({required this.token, required this.apiClient});
+
+  final String token;
+  final AuthApiClient apiClient;
+
+  @override
+  State<_ChangePasswordDialog> createState() => _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _oldPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _submitting = false;
+  String? _serverError;
+
+  @override
+  void dispose() {
+    _oldPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() {
+      _submitting = true;
+      _serverError = null;
+    });
+    try {
+      await widget.apiClient.changePassword(
+        token: widget.token,
+        oldPassword: _oldPasswordController.text,
+        newPassword: _newPasswordController.text,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _serverError = error.toString().replaceFirst('Exception: ', '');
+        _submitting = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text(
+        'Đổi mật khẩu',
+        style: TextStyle(fontWeight: FontWeight.w900),
+      ),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _oldPasswordController,
+                obscureText: true,
+                enabled: !_submitting,
+                decoration: const InputDecoration(
+                  labelText: 'Mật khẩu hiện tại',
+                  prefixIcon: Icon(Icons.lock_outline),
+                ),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Vui lòng nhập mật khẩu hiện tại'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _newPasswordController,
+                obscureText: true,
+                enabled: !_submitting,
+                decoration: const InputDecoration(
+                  labelText: 'Mật khẩu mới',
+                  prefixIcon: Icon(Icons.password_outlined),
+                ),
+                validator: (value) {
+                  if (value == null || value.length < 6) {
+                    return 'Mật khẩu mới phải có ít nhất 6 ký tự';
+                  }
+                  if (value == _oldPasswordController.text) {
+                    return 'Mật khẩu mới phải khác mật khẩu hiện tại';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _confirmPasswordController,
+                obscureText: true,
+                enabled: !_submitting,
+                decoration: const InputDecoration(
+                  labelText: 'Nhập lại mật khẩu mới',
+                  prefixIcon: Icon(Icons.verified_user_outlined),
+                ),
+                validator: (value) => value != _newPasswordController.text
+                    ? 'Mật khẩu nhập lại không khớp'
+                    : null,
+              ),
+              if (_serverError != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _serverError!,
+                  style: const TextStyle(color: AppColors.danger),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting ? null : () => Navigator.pop(context, false),
+          child: const Text('Hủy'),
+        ),
+        ElevatedButton(
+          onPressed: _submitting ? null : _submit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.fptOrange,
+            foregroundColor: Colors.white,
+          ),
+          child: _submitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Cập nhật'),
+        ),
+      ],
+    );
+  }
+}
+
 class _ParentChildrenCard extends StatelessWidget {
   const _ParentChildrenCard({required this.authService});
 
@@ -1025,6 +1192,8 @@ class _ParentChildrenCard extends StatelessWidget {
       className: child.className ?? 'Chưa xếp lớp',
       school: child.schoolName ?? 'FPT Schools',
       linkStatus: child.status == 'ACTIVE' ? 'Đang học' : child.status,
+      homeroomTeacherName: child.homeroomTeacherName,
+      homeroomTeacherPhone: child.homeroomTeacherPhone,
       dateOfBirth: child.dateOfBirth,
       gender: child.gender,
       address: child.address,

@@ -65,17 +65,40 @@ class LeaveRequestApiClient {
 
   Future<List<Map<String, dynamic>>> getPendingLeaveRequests({
     required String token,
-  }) => _getTeacherRequests(token: token, path: '/api/leave-requests/pending');
+    int? academicYearId,
+    int? semesterId,
+  }) => _getTeacherRequests(
+    token: token,
+    path: '/api/leave-requests/pending',
+    academicYearId: academicYearId,
+    semesterId: semesterId,
+  );
 
   Future<List<Map<String, dynamic>>> getReviewedLeaveRequests({
     required String token,
-  }) => _getTeacherRequests(token: token, path: '/api/leave-requests/reviewed');
+    int? academicYearId,
+    int? semesterId,
+  }) => _getTeacherRequests(
+    token: token,
+    path: '/api/leave-requests/reviewed',
+    academicYearId: academicYearId,
+    semesterId: semesterId,
+  );
 
   Future<List<Map<String, dynamic>>> _getTeacherRequests({
     required String token,
     required String path,
+    int? academicYearId,
+    int? semesterId,
   }) async {
-    final data = await _backend.getData(path, token: token);
+    final data = await _backend.getData(
+      path,
+      token: token,
+      query: {
+        'academicYearId': academicYearId?.toString(),
+        'semesterId': semesterId?.toString(),
+      },
+    );
     if (data is! List) {
       throw const ParseException('Dữ liệu đơn xin nghỉ phải là dạng mảng.');
     }
@@ -91,10 +114,18 @@ class LeaveRequestApiClient {
     await _backend.putData('/api/leave-requests/$id/approve', token: token);
   }
 
-  Future<int> getPendingCount({required String token}) async {
+  Future<int> getPendingCount({
+    required String token,
+    int? academicYearId,
+    int? semesterId,
+  }) async {
     final data = await _backend.getData(
       '/api/leave-requests/pending-count',
       token: token,
+      query: {
+        'academicYearId': academicYearId?.toString(),
+        'semesterId': semesterId?.toString(),
+      },
     );
     if (data is! int) {
       throw const ParseException('Số đơn chờ duyệt không hợp lệ.');

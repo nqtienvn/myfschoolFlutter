@@ -82,6 +82,8 @@ class AuthSessionDto {
             classId: child['classId'] as int?,
             schoolName: child['schoolName'] as String?,
             academicYearName: child['academicYearName'] as String?,
+            homeroomTeacherName: child['homeroomTeacherName'] as String?,
+            homeroomTeacherPhone: child['homeroomTeacherPhone'] as String?,
             dateOfBirth: child['dateOfBirth'] as String?,
             gender: child['gender'] as String?,
             address: child['address'] as String?,

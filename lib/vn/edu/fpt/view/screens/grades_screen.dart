@@ -162,7 +162,7 @@ class _GradesScreenState extends State<GradesScreen> {
                               ),
                             ),
                             const Text(
-                              'ĐTB các môn',
+                              'TB môn đã công bố',
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 11,

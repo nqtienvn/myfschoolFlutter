@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/repositories/repositories.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_theme.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/login_screen.dart';
 
@@ -17,7 +18,11 @@ void main() {
 }
 
 class MyFschoolApp extends StatelessWidget {
-  const MyFschoolApp({super.key, required this.authService, required this.chatService});
+  const MyFschoolApp({
+    super.key,
+    required this.authService,
+    required this.chatService,
+  });
 
   final AuthService authService;
   final ChatService chatService;
@@ -28,6 +33,25 @@ class MyFschoolApp extends StatelessWidget {
       title: 'MyFschool',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      builder: (context, child) {
+        final content = child ?? const SizedBox.shrink();
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth <= 600) return content;
+
+            return ColoredBox(
+              color: AppColors.background,
+              child: Center(
+                child: SizedBox(
+                  width: 520,
+                  height: constraints.maxHeight,
+                  child: ClipRect(child: content),
+                ),
+              ),
+            );
+          },
+        );
+      },
       home: LoginScreen(authService: authService, chatService: chatService),
     );
   }

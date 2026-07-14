@@ -87,7 +87,7 @@ public class ClassServiceImpl implements ClassService {
         // Homeroom teacher
         HomeroomAssignmentDto homeroomDto = null;
         HomeroomAssignment ha = homeroomAssignmentRepository
-            .findActiveByClassAndYear(classId, yearId).orElse(null);
+            .findConfiguredByClassAndYear(classId, yearId).orElse(null);
         if (ha != null) {
             homeroomDto = new HomeroomAssignmentDto(
                 ha.getId(),

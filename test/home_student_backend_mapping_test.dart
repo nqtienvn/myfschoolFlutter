@@ -47,6 +47,15 @@ class _HomeBackend extends BackendApiClient {
         'academicYearName': '2026-2027',
         'semesterId': 71,
         'semesterName': 'Học kỳ 1',
+        'attendanceRate': 96.5,
+        'presentSessions': 38,
+        'absentSessions': 2,
+        'currentGpa': 8.25,
+        'academicAbility': 'Tốt',
+        'conduct': 'Tốt',
+        'classRank': 3,
+        'homeroomTeacherName': 'Cô Nguyễn Thu Hà',
+        'homeroomTeacherPhone': '0901234567',
       };
     }
     if (path == '/api/tuition/bills/student') return <Object>[];
@@ -104,5 +113,9 @@ void main() {
     expect(find.textContaining('Mã HS: HS0099'), findsOneWidget);
     expect(find.textContaining('FPT Schools Cầu Giấy'), findsOneWidget);
     expect(find.textContaining('2026-2027 · Học kỳ 1'), findsOneWidget);
+    expect(find.text('8.25'), findsOneWidget);
+    expect(find.text('96.5%'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
+    expect(find.textContaining('Cô Nguyễn Thu Hà'), findsOneWidget);
   });
 }

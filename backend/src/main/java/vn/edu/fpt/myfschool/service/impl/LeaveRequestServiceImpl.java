@@ -1,6 +1,7 @@
 package vn.edu.fpt.myfschool.service.impl;
 
 import vn.edu.fpt.myfschool.entity.Attendance;
+import vn.edu.fpt.myfschool.entity.AttendanceDetail;
 import vn.edu.fpt.myfschool.entity.LeaveRequest;
 import vn.edu.fpt.myfschool.entity.Parent;
 import vn.edu.fpt.myfschool.entity.SchoolClass;
@@ -23,6 +24,7 @@ import vn.edu.fpt.myfschool.repository.*;
 import vn.edu.fpt.myfschool.entity.HomeroomAssignment;
 import vn.edu.fpt.myfschool.entity.User;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.time.LocalDate;
 import java.util.stream.Collectors;
@@ -38,6 +40,8 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
     private final TeacherRepository teacherRepository;
     private final StudentGuardianRepository studentGuardianRepository;
     private final AttendanceRepository attendanceRepository;
+    private final AttendanceSessionRepository attendanceSessionRepository;
+    private final AttendanceDetailRepository attendanceDetailRepository;
     private final ClassRepository classRepository;
     private final HomeroomAssignmentRepository homeroomAssignmentRepository;
     private final EnrollmentRepository enrollmentRepository;
@@ -64,6 +68,16 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         Enrollment enrollment = matchingEnrollments.get(0);
         SchoolClass cls = enrollment.getCls();
         validateLeaveShiftConfigured(enrollment, request.shift());
+        HomeroomAssignment reviewingAssignment = homeroomAssignmentRepository
+            .findByClsIdAndAcademicYearId(
+                cls.getId(), enrollment.getAcademicYear().getId())
+            .stream()
+            .filter(assignment -> !assignment.getEffectiveFrom().isAfter(request.dateFrom()))
+            .filter(assignment -> assignment.getEffectiveTo() == null
+                || !assignment.getEffectiveTo().isBefore(request.dateTo()))
+            .max(Comparator.comparing(HomeroomAssignment::getEffectiveFrom))
+            .orElseThrow(() -> new BadRequestException(
+                "Khoảng ngày nghỉ phải nằm trọn trong thời gian phân công của một giáo viên chủ nhiệm"));
 
         long overlapping = leaveRequestRepository.countOverlappingPending(
             request.studentId(), request.dateFrom(), request.dateTo());
@@ -83,23 +97,14 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         lr.setStatus(LeaveStatus.PENDING);
         lr = leaveRequestRepository.save(lr);
 
-        // Notify Homeroom Teacher
-        List<HomeroomAssignment> assignments = homeroomAssignmentRepository
-            .findByClsIdAndAcademicYearId(cls.getId(), enrollment.getAcademicYear().getId())
-            .stream()
-            .filter(assignment -> !assignment.getEffectiveFrom().isAfter(request.dateFrom())
-                && (assignment.getEffectiveTo() == null
-                    || !assignment.getEffectiveTo().isBefore(request.dateFrom())))
-            .toList();
-        if (!assignments.isEmpty()) {
-            User teacherUser = assignments.get(0).getTeacher().getUser();
-            notificationService.createNotification(
-                teacherUser.getId(),
-                "Đơn xin nghỉ học mới",
-                "Học sinh " + student.getUser().getName() + " có đơn xin nghỉ từ ngày " + request.dateFrom() + " đến " + request.dateTo(),
-                "Đơn xin nghỉ", lr.getId(), "LEAVE_REQUEST"
-            );
-        }
+        // Notify the same homeroom teacher who is allowed to review the full request range.
+        User teacherUser = reviewingAssignment.getTeacher().getUser();
+        notificationService.createNotification(
+            teacherUser.getId(),
+            "Đơn xin nghỉ học mới",
+            "Học sinh " + student.getUser().getName() + " có đơn xin nghỉ từ ngày " + request.dateFrom() + " đến " + request.dateTo(),
+            "Đơn xin nghỉ", lr.getId(), "LEAVE_REQUEST"
+        );
 
         return toDto(lr);
     }
@@ -140,37 +145,62 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<LeaveRequestDto> getPendingLeaveRequests(Long teacherUserId) {
+    public List<LeaveRequestDto> getPendingLeaveRequests(
+            Long teacherUserId, Long academicYearId, Long semesterId) {
         Teacher teacher = requireTeacher(teacherUserId);
-        List<Long> classIds = getTeacherClassIds(teacher);
-        if (classIds.isEmpty()) return List.of();
+        TeacherLeaveScope scope = resolveTeacherLeaveScope(
+            teacher, academicYearId, semesterId);
+        if (scope != null) {
+            return findRequestsInScope(scope, List.of(LeaveStatus.PENDING), false)
+                .stream().map(this::toDto).toList();
+        }
+        List<HomeroomAssignment> assignments = getTeacherAssignments(teacher);
+        List<Long> classIds = assignmentClassIds(assignments);
 
         return leaveRequestRepository.findByClassIdsAndStatusOrderByCreatedAtDesc(classIds, LeaveStatus.PENDING)
-            .stream().map(this::toDto).collect(Collectors.toList());
+            .stream()
+            .filter(request -> isRequestWithinAssignments(request, assignments))
+            .map(this::toDto).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     @Override
-    public List<LeaveRequestDto> getReviewedLeaveRequests(Long teacherUserId) {
+    public List<LeaveRequestDto> getReviewedLeaveRequests(
+            Long teacherUserId, Long academicYearId, Long semesterId) {
         Teacher teacher = requireTeacher(teacherUserId);
-        List<Long> classIds = getTeacherClassIds(teacher);
-        if (classIds.isEmpty()) return List.of();
+        TeacherLeaveScope scope = resolveTeacherLeaveScope(
+            teacher, academicYearId, semesterId);
+        if (scope != null) {
+            return findRequestsInScope(
+                    scope, List.of(LeaveStatus.APPROVED, LeaveStatus.REJECTED), true)
+                .stream().map(this::toDto).toList();
+        }
+        List<HomeroomAssignment> assignments = getTeacherAssignments(teacher);
+        List<Long> classIds = assignmentClassIds(assignments);
 
         return leaveRequestRepository.findReviewedInActiveYear(
                 classIds, List.of(LeaveStatus.APPROVED, LeaveStatus.REJECTED))
-            .stream().map(this::toDto).collect(Collectors.toList());
+            .stream()
+            .filter(request -> isRequestWithinAssignments(request, assignments))
+            .map(this::toDto).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     @Override
     public List<LeaveRequestDto> getClassLeaveRequests(Long classId, LeaveStatus status, Long teacherUserId) {
         Teacher teacher = requireTeacher(teacherUserId);
-        assertTeacherCanAccessClass(teacher, classId, LocalDate.now());
+        SchoolClass cls = assertTeacherCanAccessClass(
+            teacher, classId, LocalDate.now());
 
         List<LeaveRequest> requests = status != null
             ? leaveRequestRepository.findByClassIdAndStatusOrderByCreatedAtDesc(classId, status)
             : leaveRequestRepository.findByClassIdOrderByCreatedAtDesc(classId);
-        return requests.stream().map(this::toDto).collect(Collectors.toList());
+        List<HomeroomAssignment> assignments = homeroomAssignmentRepository
+            .findByTeacherIdAndAcademicYearId(
+                teacher.getId(), cls.getAcademicYear().getId());
+        return requests.stream()
+            .filter(request -> isRequestWithinAssignments(request, assignments))
+            .map(this::toDto).collect(Collectors.toList());
     }
 
     @Override
@@ -182,7 +212,7 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         }
 
         Teacher teacher = requireTeacher(teacherUserId);
-        assertTeacherCanAccessClass(teacher, lr.getCls().getId(), reviewDate(lr));
+        assertTeacherCanReviewRequest(teacher, lr);
 
         lr.setStatus(LeaveStatus.APPROVED);
         lr.setApprovedBy(teacher);
@@ -220,7 +250,7 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         }
 
         Teacher teacher = requireTeacher(teacherUserId);
-        assertTeacherCanAccessClass(teacher, lr.getCls().getId(), reviewDate(lr));
+        assertTeacherCanReviewRequest(teacher, lr);
 
         lr.setStatus(LeaveStatus.REJECTED);
         lr.setApprovedBy(teacher);
@@ -262,10 +292,74 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
 
     @Transactional(readOnly = true)
     @Override
-    public long getPendingCount(Long teacherUserId) {
+    public long getPendingCount(
+            Long teacherUserId, Long academicYearId, Long semesterId) {
         Teacher teacher = requireTeacher(teacherUserId);
-        List<Long> classIds = getTeacherClassIds(teacher);
-        return classIds.isEmpty() ? 0 : leaveRequestRepository.countByClassIdsAndStatus(classIds, LeaveStatus.PENDING);
+        TeacherLeaveScope scope = resolveTeacherLeaveScope(
+            teacher, academicYearId, semesterId);
+        if (scope != null) {
+            return findRequestsInScope(scope, List.of(LeaveStatus.PENDING), false).size();
+        }
+        List<HomeroomAssignment> assignments = getTeacherAssignments(teacher);
+        return leaveRequestRepository.findByClassIdsAndStatusOrderByCreatedAtDesc(
+                assignmentClassIds(assignments), LeaveStatus.PENDING)
+            .stream()
+            .filter(request -> isRequestWithinAssignments(request, assignments))
+            .count();
+    }
+
+    private TeacherLeaveScope resolveTeacherLeaveScope(
+            Teacher teacher, Long academicYearId, Long semesterId) {
+        if (academicYearId == null && semesterId == null) return null;
+        if (academicYearId == null || semesterId == null) {
+            throw new BadRequestException(
+                "academicYearId và semesterId phải được cung cấp cùng nhau");
+        }
+
+        Semester semester = semesterRepository.findById(semesterId)
+            .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+        if (!semester.getAcademicYear().getId().equals(academicYearId)) {
+            throw new BadRequestException("Học kỳ không thuộc năm học đã chọn");
+        }
+
+        List<HomeroomAssignment> assignments = homeroomAssignmentRepository
+            .findByTeacherIdAndAcademicYearId(teacher.getId(), academicYearId)
+            .stream()
+            .filter(assignment -> !assignment.getEffectiveFrom().isAfter(semester.getEndDate()))
+            .filter(assignment -> assignment.getEffectiveTo() == null
+                || !assignment.getEffectiveTo().isBefore(semester.getStartDate()))
+            .toList();
+        if (assignments.isEmpty()) {
+            throw new ForbiddenException(
+                "Giáo viên không có lớp chủ nhiệm hiệu lực trong học kỳ đã chọn");
+        }
+        return new TeacherLeaveScope(
+            academicYearId, semester.getStartDate(), semester.getEndDate(), assignments);
+    }
+
+    private List<LeaveRequest> findRequestsInScope(
+            TeacherLeaveScope scope, List<LeaveStatus> statuses, boolean reviewed) {
+        Comparator<LeaveRequest> ordering = reviewed
+            ? Comparator.comparing(
+                    LeaveRequest::getApprovedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(
+                    LeaveRequest::getCreatedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder()))
+            : Comparator.comparing(
+                LeaveRequest::getCreatedAt,
+                Comparator.nullsLast(Comparator.reverseOrder()));
+
+        return assignmentClassIds(scope.assignments()).stream()
+            .flatMap(classId -> leaveRequestRepository
+                .findByClassIdOrderByCreatedAtDesc(classId).stream())
+            .filter(request -> request.getAcademicYear().getId().equals(scope.academicYearId()))
+            .filter(request -> statuses.contains(request.getStatus()))
+            .filter(request -> !request.getDateTo().isBefore(scope.startDate())
+                && !request.getDateFrom().isAfter(scope.endDate()))
+            .filter(request -> isRequestWithinAssignments(request, scope.assignments()))
+            .sorted(ordering)
+            .toList();
     }
 
     private void autoUpdateAttendance(LeaveRequest lr) {
@@ -287,13 +381,57 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
             LeaveRequest lr, java.time.LocalDate date,
             vn.edu.fpt.myfschool.common.enums.Shift shift) {
         attendanceRepository.findByStudentIdAndDateAndShift(lr.getStudent().getId(), date, shift)
-            .filter(attendance -> attendance.getStatus()
-                == vn.edu.fpt.myfschool.common.enums.AttendanceStatus.ABSENT_WITHOUT_LEAVE)
             .ifPresent(attendance -> {
-                attendance.setStatus(vn.edu.fpt.myfschool.common.enums.AttendanceStatus.ABSENT_WITH_LEAVE);
-                attendance.setLeaveRequest(lr);
-                attendanceRepository.save(attendance);
+                if (attendance.getStatus()
+                        == vn.edu.fpt.myfschool.common.enums.AttendanceStatus.ABSENT_WITHOUT_LEAVE) {
+                    attendance.setStatus(
+                        vn.edu.fpt.myfschool.common.enums.AttendanceStatus.ABSENT_WITH_LEAVE);
+                    attendance.setLeaveRequest(lr);
+                    attendanceRepository.save(attendance);
+                } else if (attendance.getStatus()
+                        == vn.edu.fpt.myfschool.common.enums.AttendanceStatus.ABSENT_WITH_LEAVE
+                        && attendance.getLeaveRequest() == null) {
+                    attendance.setLeaveRequest(lr);
+                    attendanceRepository.save(attendance);
+                }
+                synchronizeSessionDetailFromCanonical(attendance, date, shift);
             });
+    }
+
+    private void synchronizeSessionDetailFromCanonical(
+            Attendance attendance, LocalDate date,
+            vn.edu.fpt.myfschool.common.enums.Shift shift) {
+        attendanceSessionRepository.findByClsIdAndDateAndShift(
+                attendance.getCls().getId(), date, shift).forEach(session -> {
+            AttendanceDetail detail = attendanceDetailRepository
+                .findBySessionIdAndStudentId(
+                    session.getId(), attendance.getStudent().getId())
+                .orElseGet(() -> {
+                    AttendanceDetail created = new AttendanceDetail();
+                    created.setSession(session);
+                    created.setStudent(attendance.getStudent());
+                    return created;
+                });
+            detail.setStatus(attendance.getStatus());
+            if (attendance.getStatus()
+                    == vn.edu.fpt.myfschool.common.enums.AttendanceStatus.ABSENT_WITH_LEAVE
+                    && attendance.getLeaveRequest() != null) {
+                detail.setNote(
+                    "Nghỉ có phép - đơn #" + attendance.getLeaveRequest().getId() + " đã duyệt");
+            }
+            attendanceDetailRepository.save(detail);
+
+            List<AttendanceDetail> details =
+                attendanceDetailRepository.findBySessionId(session.getId());
+            int present = (int) details.stream()
+                .filter(item -> item.getStatus()
+                    == vn.edu.fpt.myfschool.common.enums.AttendanceStatus.PRESENT)
+                .count();
+            session.setTotal(details.size());
+            session.setPresent(present);
+            session.setAbsent(details.size() - present);
+            attendanceSessionRepository.save(session);
+        });
     }
 
     private Parent requireParent(Long parentUserId) {
@@ -330,31 +468,52 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         }
     }
 
-    private LocalDate reviewDate(LeaveRequest request) {
-        LocalDate today = LocalDate.now();
-        if (!today.isBefore(request.getAcademicYear().getStartDate())
-                && !today.isAfter(request.getAcademicYear().getEndDate())) {
-            return today;
-        }
-        return request.getDateFrom();
-    }
-
-    private List<Long> getTeacherClassIds(Teacher teacher) {
-        List<Long> classIds = homeroomAssignmentRepository.findByTeacherInActiveAcademicYear(teacher.getId())
-            .stream().map(assignment -> assignment.getCls().getId()).distinct().toList();
-        if (classIds.isEmpty()) {
+    private List<HomeroomAssignment> getTeacherAssignments(Teacher teacher) {
+        List<HomeroomAssignment> assignments = homeroomAssignmentRepository
+            .findByTeacherInActiveAcademicYear(teacher.getId());
+        if (assignments.isEmpty()) {
             throw new ForbiddenException("Chỉ giáo viên chủ nhiệm mới được truy cập chức năng duyệt đơn xin nghỉ");
         }
-        return classIds;
+        return assignments;
     }
 
-    private void assertTeacherCanAccessClass(Teacher teacher, Long classId, LocalDate date) {
+    private List<Long> assignmentClassIds(List<HomeroomAssignment> assignments) {
+        return assignments.stream()
+            .map(assignment -> assignment.getCls().getId())
+            .distinct()
+            .toList();
+    }
+
+    private boolean isRequestWithinAssignments(
+            LeaveRequest request, List<HomeroomAssignment> assignments) {
+        return assignments.stream().anyMatch(assignment ->
+            assignment.getCls().getId().equals(request.getCls().getId())
+                && assignment.getAcademicYear().getId().equals(
+                    request.getAcademicYear().getId())
+                && !assignment.getEffectiveFrom().isAfter(request.getDateFrom())
+                && (assignment.getEffectiveTo() == null
+                    || !assignment.getEffectiveTo().isBefore(request.getDateTo())));
+    }
+
+    private void assertTeacherCanReviewRequest(Teacher teacher, LeaveRequest request) {
+        List<HomeroomAssignment> assignments = homeroomAssignmentRepository
+            .findByTeacherIdAndAcademicYearId(
+                teacher.getId(), request.getAcademicYear().getId());
+        if (!isRequestWithinAssignments(request, assignments)) {
+            throw new ForbiddenException(
+                "Giáo viên không được xử lý đơn nằm ngoài thời gian chủ nhiệm của mình");
+        }
+    }
+
+    private SchoolClass assertTeacherCanAccessClass(
+            Teacher teacher, Long classId, LocalDate date) {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
         if (!homeroomAssignmentRepository.existsActiveForTeacherClassAndDate(
                 teacher.getId(), classId, cls.getAcademicYear().getId(), date)) {
             throw new ForbiddenException("Chỉ giáo viên chủ nhiệm được duyệt đơn của lớp này");
         }
+        return cls;
     }
 
     private LeaveRequestDto toDto(LeaveRequest lr) {
@@ -373,4 +532,11 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
                 .collect(Collectors.toList()),
             lr.getCreatedAt());
     }
+
+    private record TeacherLeaveScope(
+        Long academicYearId,
+        LocalDate startDate,
+        LocalDate endDate,
+        List<HomeroomAssignment> assignments
+    ) {}
 }

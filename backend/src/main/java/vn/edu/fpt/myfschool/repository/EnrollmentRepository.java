@@ -25,6 +25,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     List<Enrollment> findByStudentId(Long studentId);
     Optional<Enrollment> findFirstByStudentIdAndAcademicYearIdOrderByIdDesc(Long studentId, Long academicYearId);
     Optional<Enrollment> findByStudentIdAndAcademicYearIdAndStatus(Long studentId, Long academicYearId, EnrollmentStatus status);
+    boolean existsByStudentIdAndClsIdAndAcademicYearIdAndStatus(
+        Long studentId, Long classId, Long academicYearId, EnrollmentStatus status);
     List<Enrollment> findByClsIdAndAcademicYearIdAndStatus(Long classId, Long academicYearId, EnrollmentStatus status);
 
     @Query("SELECT e.student FROM Enrollment e WHERE e.cls.id = :classId AND e.academicYear.id = :academicYearId AND e.status = 'ACTIVE'")

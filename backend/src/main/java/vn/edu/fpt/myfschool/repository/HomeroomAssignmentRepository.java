@@ -25,23 +25,42 @@ public interface HomeroomAssignmentRepository extends JpaRepository<HomeroomAssi
     boolean existsByTeacherIdAndClsIdAndAcademicYearId(
         Long teacherId, Long classId, Long academicYearId);
 
+    // Setup/readiness must see a future assignment as soon as it is configured,
+    // but an assignment closed today is released immediately for replacement.
     @Query("SELECT ha FROM HomeroomAssignment ha " +
            "WHERE ha.cls.id = :classId AND ha.academicYear.id = :academicYearId " +
-           "AND (ha.effectiveTo IS NULL OR ha.effectiveTo > CURRENT_DATE)")
+           "AND (ha.effectiveTo IS NULL OR ha.effectiveTo >= CURRENT_DATE)")
+    Optional<HomeroomAssignment> findConfiguredByClassAndYear(
+        @Param("classId") Long classId,
+        @Param("academicYearId") Long academicYearId);
+
+    @Query("SELECT ha FROM HomeroomAssignment ha " +
+           "WHERE ha.teacher.id = :teacherId AND ha.academicYear.id = :academicYearId " +
+           "AND (ha.effectiveTo IS NULL OR ha.effectiveTo >= CURRENT_DATE)")
+    List<HomeroomAssignment> findConfiguredByTeacherAndYear(
+        @Param("teacherId") Long teacherId,
+        @Param("academicYearId") Long academicYearId);
+
+    // Runtime authorization observes the actual interval and keeps effectiveTo
+    // inclusive, so the current teacher retains access through their final day.
+    @Query("SELECT ha FROM HomeroomAssignment ha " +
+           "WHERE ha.cls.id = :classId AND ha.academicYear.id = :academicYearId " +
+           "AND ha.effectiveFrom <= CURRENT_DATE " +
+           "AND (ha.effectiveTo IS NULL OR ha.effectiveTo >= CURRENT_DATE)")
     Optional<HomeroomAssignment> findActiveByClassAndYear(
         @Param("classId") Long classId,
         @Param("academicYearId") Long academicYearId);
 
     @Query("SELECT ha FROM HomeroomAssignment ha " +
            "WHERE ha.teacher.id = :teacherId AND ha.academicYear.id = :academicYearId " +
-           "AND (ha.effectiveTo IS NULL OR ha.effectiveTo > CURRENT_DATE)")
+           "AND ha.effectiveFrom <= CURRENT_DATE " +
+           "AND (ha.effectiveTo IS NULL OR ha.effectiveTo >= CURRENT_DATE)")
     List<HomeroomAssignment> findActiveByTeacherAndYear(
         @Param("teacherId") Long teacherId,
         @Param("academicYearId") Long academicYearId);
 
     @Query("SELECT ha FROM HomeroomAssignment ha " +
            "WHERE ha.teacher.id = :teacherId " +
-           "AND ha.academicYear.status = 'ACTIVE' " +
            "AND ha.academicYear.startDate <= :date AND ha.academicYear.endDate >= :date " +
            "AND ha.effectiveFrom <= :date AND (ha.effectiveTo IS NULL OR ha.effectiveTo >= :date)")
     List<HomeroomAssignment> findActiveByTeacherAndDate(
@@ -62,6 +81,18 @@ public interface HomeroomAssignmentRepository extends JpaRepository<HomeroomAssi
         @Param("classId") Long classId,
         @Param("academicYearId") Long academicYearId,
         @Param("date") LocalDate date);
+
+    @Query("SELECT COUNT(ha) > 0 FROM HomeroomAssignment ha " +
+           "WHERE ha.teacher.id = :teacherId AND ha.cls.id = :classId " +
+           "AND ha.academicYear.id = :academicYearId " +
+           "AND ha.effectiveFrom <= :periodEnd " +
+           "AND (ha.effectiveTo IS NULL OR ha.effectiveTo >= :periodStart)")
+    boolean existsEffectiveForTeacherClassAndPeriod(
+        @Param("teacherId") Long teacherId,
+        @Param("classId") Long classId,
+        @Param("academicYearId") Long academicYearId,
+        @Param("periodStart") LocalDate periodStart,
+        @Param("periodEnd") LocalDate periodEnd);
 
     void deleteByClsId(Long classId);
 }

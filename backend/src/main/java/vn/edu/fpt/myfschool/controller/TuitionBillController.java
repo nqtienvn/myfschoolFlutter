@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
+import vn.edu.fpt.myfschool.common.dto.PaymentTransactionDto;
 import vn.edu.fpt.myfschool.common.dto.TuitionBillDto;
 import vn.edu.fpt.myfschool.common.dto.TuitionBillRequest;
+import vn.edu.fpt.myfschool.common.dto.TeacherTuitionSummaryDto;
 import vn.edu.fpt.myfschool.common.enums.BillStatus;
 import vn.edu.fpt.myfschool.service.PaymentTransactionService;
 import vn.edu.fpt.myfschool.service.TuitionBillService;
@@ -49,6 +51,15 @@ public class TuitionBillController {
         return ResponseEntity.ok(ApiResponse.success(tuitionBillService.getClassBills(classId, semesterId, status)));
     }
 
+    @GetMapping("/bills/class-summary")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "Tổng hợp học phí lớp chủ nhiệm theo học kỳ")
+    public ResponseEntity<ApiResponse<TeacherTuitionSummaryDto>> getClassSummary(
+            @RequestParam Long classId, @RequestParam Long semesterId) {
+        return ResponseEntity.ok(ApiResponse.success(
+            tuitionBillService.getClassSummary(classId, semesterId)));
+    }
+
     @GetMapping("/bills/student")
     @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
     @Operation(summary = "Học phí của học sinh theo học kỳ")
@@ -70,7 +81,17 @@ public class TuitionBillController {
     @PostMapping("/bills/{id}/simulate-pay")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Mô phỏng thanh toán")
-    public ResponseEntity<ApiResponse<Object>> simulatePayment(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<PaymentTransactionDto>> simulatePayment(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success("Thanh toán thành công", paymentTransactionService.simulatePayment(id)));
+    }
+
+    @PostMapping("/bills/{id}/payment-request")
+    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
+    @Operation(summary = "Ghi nhận xác nhận chuyển khoản và chờ nhà trường đối soát")
+    public ResponseEntity<ApiResponse<PaymentTransactionDto>> requestBankTransfer(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(
+            "Đã ghi nhận xác nhận chuyển khoản",
+            paymentTransactionService.requestBankTransfer(id)));
     }
 }

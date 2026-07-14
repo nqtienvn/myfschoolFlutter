@@ -5,6 +5,8 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
+import 'dart:ui' show Size;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/repositories/repositories.dart';
@@ -14,6 +16,9 @@ import 'package:myfschoolse1913/main.dart';
 
 void main() {
   testWidgets('MyFschool app opens the login screen', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final backend = BackendApiClient();
     final authService = AuthService(apiClient: AuthApiClient(backend: backend));
     final chatService = ChatService(
@@ -26,5 +31,6 @@ void main() {
     );
 
     expect(find.byType(LoginScreen), findsOneWidget);
+    expect(tester.getSize(find.byType(LoginScreen)).width, 520);
   });
 }

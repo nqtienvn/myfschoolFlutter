@@ -52,8 +52,11 @@ class AcademicPeriodController extends ChangeNotifier {
   List<AcademicPeriod> periods = const [];
   AcademicPeriod? selected;
   String? errorMessage;
+  int _loadGeneration = 0;
 
   Future<void> load() async {
+    final generation = ++_loadGeneration;
+    final requestedStudentId = studentId;
     isLoading = true;
     errorMessage = null;
     notifyListeners();
@@ -61,7 +64,7 @@ class AcademicPeriodController extends ChangeNotifier {
       final data = await _backend.getData(
         '/api/academic-years/available',
         token: token,
-        query: {'studentId': studentId?.toString()},
+        query: {'studentId': requestedStudentId?.toString()},
       );
       final rows = (data as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>();
@@ -98,7 +101,6 @@ class AcademicPeriodController extends ChangeNotifier {
           );
         }
       }
-      periods = loaded;
       AcademicPeriod? current;
       for (final period in loaded) {
         if (period.isCurrent && period.isActive) {
@@ -114,16 +116,24 @@ class AcademicPeriodController extends ChangeNotifier {
         (period) => period?.isCurrent == true,
         orElse: () => null,
       );
+      if (!_isCurrentLoad(generation, requestedStudentId)) return;
+      periods = loaded;
       selected = current ?? (loaded.isEmpty ? null : loaded.first);
     } catch (error) {
+      if (!_isCurrentLoad(generation, requestedStudentId)) return;
       periods = const [];
       selected = null;
       errorMessage = error.toString().replaceAll('Exception: ', '');
     } finally {
-      isLoading = false;
-      notifyListeners();
+      if (_isCurrentLoad(generation, requestedStudentId)) {
+        isLoading = false;
+        notifyListeners();
+      }
     }
   }
+
+  bool _isCurrentLoad(int generation, int? requestedStudentId) =>
+      generation == _loadGeneration && studentId == requestedStudentId;
 
   void select(AcademicPeriod period) {
     if (!periods.contains(period) || selected == period) return;
@@ -134,6 +144,7 @@ class AcademicPeriodController extends ChangeNotifier {
   Future<void> setStudentId(int? value) async {
     if (studentId == value) return;
     studentId = value;
+    _loadGeneration++;
     periods = const [];
     selected = null;
     notifyListeners();

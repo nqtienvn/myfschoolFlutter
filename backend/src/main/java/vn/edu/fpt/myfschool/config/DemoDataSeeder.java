@@ -285,8 +285,12 @@ public class DemoDataSeeder implements ApplicationRunner {
         );
         populateTimetable(scheduledTimetable, new ArrayList<>(assignments10A1.values()), periods, 2, 3, 1, 5);
 
+        // Anchor all dated demo operations inside the selected semester. Using the
+        // machine clock here made the fixed 2026-2027 seed invalid after that year.
+        LocalDate demoReferenceDate = currentSemester1.getStartDate().plusDays(14);
+
         // Leave requests first so approved leave can be linked to attendance.
-        List<LocalDate> recentSchoolDays = recentSchoolDays(LocalDate.now(SCHOOL_ZONE), 6);
+        List<LocalDate> recentSchoolDays = recentSchoolDays(demoReferenceDate, 6);
         LocalDate approvedLeaveDate = recentSchoolDays.get(recentSchoolDays.size() - 3);
         LeaveRequest approvedLeave = createLeaveRequest(
             studentAn, parentHung, class12A1, currentYear, teacherMath,
@@ -298,26 +302,20 @@ public class DemoDataSeeder implements ApplicationRunner {
             "giay-kham-suc-khoe.pdf", 182_400, "application/pdf");
         createLeaveRequest(
             studentNam, parentHung, class10A1, currentYear, null,
-            nextSchoolDay(LocalDate.now(SCHOOL_ZONE)), nextSchoolDay(LocalDate.now(SCHOOL_ZONE)),
+            nextSchoolDay(demoReferenceDate), nextSchoolDay(demoReferenceDate),
             LeaveShift.FULL_DAY, "Gia đình có việc riêng.", LeaveStatus.PENDING, null, null
         );
         createLeaveRequest(
             studentBinh, parentLan, class12A1, currentYear, teacherMath,
-            nextSchoolDay(LocalDate.now(SCHOOL_ZONE)).plusDays(2),
-            nextSchoolDay(LocalDate.now(SCHOOL_ZONE)).plusDays(2),
+            nextSchoolDay(demoReferenceDate).plusDays(2),
+            nextSchoolDay(demoReferenceDate).plusDays(2),
             LeaveShift.AFTERNOON, "Tham gia hoạt động bên ngoài trường.", LeaveStatus.REJECTED,
             "Lịch hoạt động trùng với bài kiểm tra giữa kỳ.", LocalDateTime.now(SCHOOL_ZONE).minusHours(6)
         );
 
-        Schedule morningSchedule = activeTimetable.getSlots().stream()
-            .filter(slot -> slot.getShift() == Shift.MORNING)
-            .findFirst().orElseThrow();
-        Schedule afternoonSchedule = activeTimetable.getSlots().stream()
-            .filter(slot -> slot.getShift() == Shift.AFTERNOON)
-            .findFirst().orElseThrow();
         createAttendanceHistory(
             students12A1, class12A1, teacherMath, recentSchoolDays,
-            morningSchedule, afternoonSchedule, approvedLeave, approvedLeaveDate
+            activeTimetable, approvedLeave, approvedLeaveDate
         );
         createAttendanceCorrectionRequests(class12A1, teacherMath, recentSchoolDays, studentDung);
 
@@ -770,11 +768,12 @@ public class DemoDataSeeder implements ApplicationRunner {
     }
 
     private void createAttendanceHistory(List<Student> students, SchoolClass cls, Teacher teacher,
-                                         List<LocalDate> days, Schedule morningSchedule,
-                                         Schedule afternoonSchedule, LeaveRequest approvedLeave,
+                                         List<LocalDate> days, Timetable timetable,
+                                         LeaveRequest approvedLeave,
                                          LocalDate approvedLeaveDate) {
         for (int dayIndex = 0; dayIndex < days.size(); dayIndex++) {
             LocalDate date = days.get(dayIndex);
+            Schedule morningSchedule = scheduleFor(timetable, date, Shift.MORNING);
             Map<Student, AttendanceStatus> statuses = new LinkedHashMap<>();
             for (Student student : students) {
                 AttendanceStatus status = AttendanceStatus.PRESENT;
@@ -789,6 +788,8 @@ public class DemoDataSeeder implements ApplicationRunner {
                 statuses, approvedLeave, approvedLeaveDate, dayIndex < days.size() - 1);
 
             if (dayIndex >= days.size() - 2) {
+                Schedule afternoonSchedule = scheduleFor(
+                    timetable, date, Shift.AFTERNOON);
                 Map<Student, AttendanceStatus> afternoonStatuses = new LinkedHashMap<>();
                 for (Student student : students) {
                     afternoonStatuses.put(student, AttendanceStatus.PRESENT);
@@ -797,6 +798,24 @@ public class DemoDataSeeder implements ApplicationRunner {
                     afternoonStatuses, null, null, dayIndex < days.size() - 1);
             }
         }
+    }
+
+    private Schedule scheduleFor(Timetable timetable, LocalDate date, Shift shift) {
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7 + 1;
+        if (date.isBefore(timetable.getSemester().getStartDate())
+                || date.isAfter(timetable.getSemester().getEndDate())
+                || date.isBefore(timetable.getEffectiveFrom())
+                || (timetable.getEffectiveTo() != null
+                    && date.isAfter(timetable.getEffectiveTo()))) {
+            throw new IllegalStateException(
+                "Ngày điểm danh demo không thuộc thời khóa biểu hiệu lực: " + date);
+        }
+        return timetable.getSlots().stream()
+            .filter(slot -> slot.getDayOfWeek() == dayOfWeek)
+            .filter(slot -> slot.getShift() == shift)
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException(
+                "Không có tiết học demo cho " + date + " - " + shift));
     }
 
     private void createAttendanceSession(SchoolClass cls, Teacher teacher, LocalDate date,
@@ -1337,7 +1356,8 @@ public class DemoDataSeeder implements ApplicationRunner {
         List<LocalDate> days = new ArrayList<>();
         LocalDate cursor = today;
         while (days.size() < count) {
-            if (cursor.getDayOfWeek() != DayOfWeek.SUNDAY) {
+            if (cursor.getDayOfWeek() != DayOfWeek.SATURDAY
+                    && cursor.getDayOfWeek() != DayOfWeek.SUNDAY) {
                 days.add(cursor);
             }
             cursor = cursor.minusDays(1);

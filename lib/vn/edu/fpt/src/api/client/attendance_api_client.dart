@@ -6,7 +6,7 @@ import 'backend_api_client.dart';
 
 class AttendanceApiClient {
   const AttendanceApiClient({required BackendApiClient backend})
-      : _backend = backend;
+    : _backend = backend;
 
   final BackendApiClient _backend;
 
@@ -34,11 +34,7 @@ class AttendanceApiClient {
     final data = await _backend.getData(
       '/api/attendance/daily',
       token: token,
-      query: {
-        'classId': classId.toString(),
-        'date': date,
-        'shift': shift,
-      },
+      query: {'classId': classId.toString(), 'date': date, 'shift': shift},
     );
     if (data is! Map<String, dynamic>) {
       throw const ParseException('Dữ liệu điểm danh ngày không hợp lệ.');
@@ -101,7 +97,7 @@ class AttendanceApiClient {
       throw const ParseException('Dữ liệu chuyên cần học sinh không hợp lệ.');
     }
 
-    final rawItems = data['items'] as List? ?? [];
+    final rawItems = data['records'] as List? ?? [];
     final statsJson = data['stats'] as Map<String, dynamic>? ?? {};
 
     final events = rawItems.map((item) {

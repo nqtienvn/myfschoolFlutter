@@ -44,7 +44,7 @@ public class AcademicYearReadinessServiceImpl implements AcademicYearReadinessSe
         List<SchoolClass> classes = classRepository.findByAcademicYearId(yearId);
         checks.add(check("CLASSES", "Danh sách lớp", !classes.isEmpty(), classes.isEmpty() ? "Chưa có lớp học." : "Có " + classes.size() + " lớp học."));
 
-        long missingHomeroom = classes.stream().filter(cls -> homeroomRepository.findActiveByClassAndYear(cls.getId(), yearId).isEmpty()).count();
+        long missingHomeroom = classes.stream().filter(cls -> homeroomRepository.findConfiguredByClassAndYear(cls.getId(), yearId).isEmpty()).count();
         checks.add(check("HOMEROOM", "Giáo viên chủ nhiệm", !classes.isEmpty() && missingHomeroom == 0, missingHomeroom == 0 ? "Tất cả lớp đã có GVCN." : missingHomeroom + " lớp chưa có GVCN."));
 
         var requiredSubjects = yearSubjectRepository.findByAcademicYearId(yearId);

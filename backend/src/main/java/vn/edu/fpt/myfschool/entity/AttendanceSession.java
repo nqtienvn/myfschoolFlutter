@@ -19,7 +19,8 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "attendance_sessions",
        uniqueConstraints = @UniqueConstraint(
-           columnNames = {"class_id", "date", "shift", "schedule_id"}))
+           name = "uk_attendance_sessions_class_date_shift",
+           columnNames = {"class_id", "date", "shift"}))
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class AttendanceSession extends BaseEntity {

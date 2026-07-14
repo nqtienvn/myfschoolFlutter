@@ -13,6 +13,14 @@ public interface AttendanceService {
 
     List<AttendanceDto> submitAttendance(SubmitAttendanceRequest request, Long teacherUserId);
 
+    /**
+     * Synchronizes the compatibility attendance-session flow into the canonical
+     * attendance table. Unlike the first submission endpoint, this method may
+     * update an existing class/date/shift roster.
+     */
+    List<AttendanceDto> synchronizeSessionAttendance(
+        SubmitAttendanceRequest request, Long teacherUserId);
+
     AttendanceLogDto getStudentAttendanceLog(Long studentId, Long semesterId, Long requestUserId);
 
     List<ClassAttendanceSummaryDto> getClassAttendanceSummary(
@@ -29,5 +37,4 @@ public interface AttendanceService {
 
     AttendanceCorrectionRequestDto reviewAttendanceCorrection(Long requestId, boolean approve);
 
-    void autoUpdateForApprovedLeave(Long leaveRequestId);
 }

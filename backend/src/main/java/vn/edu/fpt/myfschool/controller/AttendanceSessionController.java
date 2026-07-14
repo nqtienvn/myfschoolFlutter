@@ -19,6 +19,7 @@ import vn.edu.fpt.myfschool.common.dto.AttendanceSessionDto;
 import vn.edu.fpt.myfschool.common.dto.CreateAttendanceSessionRequest;
 import vn.edu.fpt.myfschool.common.dto.UpdateAttendanceDetailRequest;
 import vn.edu.fpt.myfschool.common.enums.Shift;
+import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.AttendanceSessionService;
 
@@ -46,6 +47,9 @@ public class AttendanceSessionController {
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<ApiResponse<List<AttendanceDetailDto>>> updateDetails(
             @PathVariable Long id, @Valid @RequestBody UpdateAttendanceDetailRequest request) {
+        if (!id.equals(request.sessionId())) {
+            throw new BadRequestException("Mã buổi điểm danh trong đường dẫn và nội dung không khớp");
+        }
         return ResponseEntity.ok(ApiResponse.success(
                 "Cap nhat diem danh",
                 attendanceSessionService.updateDetails(request, SecurityUtil.getCurrentUserId())));
@@ -64,6 +68,8 @@ public class AttendanceSessionController {
     public ResponseEntity<ApiResponse<List<AttendanceSessionDto>>> getSessions(
             @RequestParam Long classId, @RequestParam LocalDate date, @RequestParam Shift shift) {
         return ResponseEntity.ok(ApiResponse.success(
-                attendanceSessionService.findByClassDateShift(classId, date, shift)));
+                attendanceSessionService.findByClassDateShift(
+                    classId, date, shift, SecurityUtil.getCurrentUserId(),
+                    SecurityUtil.getCurrentUserRole())));
     }
 }

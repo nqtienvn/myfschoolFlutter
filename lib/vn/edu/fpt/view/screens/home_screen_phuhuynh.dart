@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/attendance_screen.dart';
@@ -11,24 +12,34 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/tuition_payment_screen.d
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_bottom_sheet.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/models/auth_session.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 
 class HomeParent extends StatefulWidget {
-  const HomeParent({super.key, required this.authService});
+  const HomeParent({super.key, required this.authService, this.backend});
 
   final AuthService authService;
+  final BackendApiClient? backend;
 
   @override
   State<HomeParent> createState() => _HomeParentState();
 }
 
 class _HomeParentState extends State<HomeParent> {
+  late final BackendApiClient _backend = widget.backend ?? BackendApiClient();
   late final TuitionBillApiClient _tuitionApi = TuitionBillApiClient(
-    backend: BackendApiClient(),
+    backend: _backend,
   );
+  late final DashboardApiClient _dashboardApi = DashboardApiClient(
+    backend: _backend,
+  );
+  StudentDashboardStatsDto? _dashboard;
   List<TuitionBill> _tuitionBills = const [];
   AcademicPeriod? _selectedPeriod;
-  String? _loadedTuitionKey;
+  String? _loadedContextKey;
+  int _loadGeneration = 0;
+  bool _dashboardLoading = false;
+  String? _dashboardError;
   bool _tuitionLoading = false;
   String? _tuitionError;
 
@@ -55,8 +66,16 @@ class _HomeParentState extends State<HomeParent> {
 
   void _onSelectionChanged() {
     if (!mounted) return;
-    setState(() => _tuitionBills = const []);
-    _loadedTuitionKey = null;
+    _loadGeneration++;
+    _loadedContextKey = null;
+    setState(() {
+      _dashboard = null;
+      _dashboardError = null;
+      _tuitionBills = const [];
+      _tuitionError = null;
+    });
+    final period = _selectedPeriod;
+    if (period != null) _loadContext(period);
   }
 
   @override
@@ -64,71 +83,136 @@ class _HomeParentState extends State<HomeParent> {
     super.didChangeDependencies();
     final period = AcademicPeriodScope.maybeOf(context)?.selected;
     _selectedPeriod = period;
-    if (period != null) _loadTuition(period);
+    if (period == null) {
+      _loadGeneration++;
+      _loadedContextKey = null;
+      return;
+    }
+    _loadContext(period);
   }
 
-  Future<void> _loadTuition(AcademicPeriod period) async {
+  Future<void> _loadContext(AcademicPeriod period) async {
+    if (!mounted || !_samePeriod(period, _selectedPeriod)) return;
     final child = widget.authService.selectedChild;
     if (child == null) return;
-    final key = '${child.id}-${period.semesterId}';
-    if (_loadedTuitionKey == key) return;
-    _loadedTuitionKey = key;
+    final session = widget.authService.currentSession;
+    if (session == null) return;
+    final requestedToken = session.token;
+    final key = '${child.id}-${period.academicYearId}-${period.semesterId}';
+    if (_loadedContextKey == key) return;
+    _loadedContextKey = key;
+    final generation = ++_loadGeneration;
     setState(() {
+      _dashboardLoading = true;
+      _dashboardError = null;
+      _dashboard = null;
       _tuitionLoading = true;
       _tuitionError = null;
       _tuitionBills = const [];
     });
+    Object? tuitionError;
     try {
-      final bills = await _tuitionApi.getStudentBills(
-        token: widget.authService.currentSession!.token,
-        studentId: child.id,
-        semesterId: period.semesterId,
-      );
-      if (mounted && _loadedTuitionKey == key) {
-        setState(() => _tuitionBills = bills);
+      final results = await Future.wait<Object?>([
+        _dashboardApi.getStudentStats(
+          token: requestedToken,
+          studentId: child.id,
+          academicYearId: period.academicYearId,
+          semesterId: period.semesterId,
+        ),
+        _tuitionApi
+            .getStudentBills(
+              token: requestedToken,
+              studentId: child.id,
+              semesterId: period.semesterId,
+            )
+            .then<List<TuitionBill>>(
+              (value) => value,
+              onError: (Object error, StackTrace _) {
+                tuitionError = error;
+                return const <TuitionBill>[];
+              },
+            ),
+      ]);
+      if (_isCurrentLoad(generation, key, child.id, period, requestedToken)) {
+        setState(() {
+          _dashboard = results[0] as StudentDashboardStatsDto;
+          _tuitionBills = results[1] as List<TuitionBill>;
+          _tuitionError = tuitionError?.toString().replaceAll(
+            'Exception: ',
+            '',
+          );
+        });
       }
     } catch (error) {
-      if (mounted && _loadedTuitionKey == key) {
+      if (_isCurrentLoad(generation, key, child.id, period, requestedToken)) {
         setState(() {
+          _dashboard = null;
+          _dashboardError = error.toString().replaceAll('Exception: ', '');
           _tuitionBills = const [];
-          _tuitionError = error.toString().replaceAll('Exception: ', '');
+          _tuitionError = tuitionError?.toString().replaceAll(
+            'Exception: ',
+            '',
+          );
         });
       }
     } finally {
-      if (mounted && _loadedTuitionKey == key) {
-        setState(() => _tuitionLoading = false);
+      if (_isCurrentLoad(generation, key, child.id, period, requestedToken)) {
+        setState(() {
+          _dashboardLoading = false;
+          _tuitionLoading = false;
+        });
       }
     }
   }
 
-  List<StudentSnapshot> get _students {
-    return widget.authService.currentSession?.children
-            .map((child) {
-              return StudentSnapshot.linked(
-                id: child.id,
-                name: child.name,
-                studentCode: child.studentCode,
-                className: child.className ?? 'Chưa xếp lớp',
-                school: child.schoolName ?? 'FPT Schools',
-                linkStatus: child.status == 'ACTIVE'
-                    ? 'Đang học'
-                    : child.status,
-                dateOfBirth: child.dateOfBirth,
-                gender: child.gender,
-                address: child.address,
-                email: child.email,
-                academicYearName: child.academicYearName,
-              );
-            })
-            .toList(growable: false) ??
-        const [];
-  }
+  bool _isCurrentLoad(
+    int generation,
+    String requestKey,
+    int childId,
+    AcademicPeriod period,
+    String requestedToken,
+  ) =>
+      mounted &&
+      generation == _loadGeneration &&
+      _loadedContextKey == requestKey &&
+      widget.authService.selectedChild?.id == childId &&
+      widget.authService.currentSession?.token == requestedToken &&
+      _samePeriod(period, _selectedPeriod);
 
-  StudentSnapshot get _student =>
-      _students[widget.authService.selectedChildIndex];
+  bool _samePeriod(AcademicPeriod? first, AcademicPeriod? second) =>
+      first?.academicYearId == second?.academicYearId &&
+      first?.semesterId == second?.semesterId;
+
+  List<LinkedStudent> get _children =>
+      widget.authService.currentSession?.children ?? const [];
+
+  StudentSnapshot? get _student {
+    final data = _dashboard;
+    final child = widget.authService.selectedChild;
+    if (data == null || child == null) return null;
+    return StudentSnapshot.linked(
+      id: data.studentId,
+      name: data.studentName,
+      studentCode: data.studentCode,
+      className: data.className,
+      school: data.schoolName,
+      linkStatus: child.status == 'ACTIVE' ? 'Đang học' : child.status,
+      homeroomTeacherName: data.homeroomTeacherName,
+      homeroomTeacherPhone: data.homeroomTeacherPhone,
+      dateOfBirth: child.dateOfBirth,
+      gender: child.gender,
+      address: child.address,
+      email: child.email,
+      academicYearName: data.academicYearName,
+      averageScore: data.currentGpa ?? 0,
+      attendanceRate: data.attendanceRate,
+    );
+  }
 
   void _showTuitionNotificationsSheet(BuildContext context) {
     final period = _selectedPeriod;
+    final student = _student;
+    if (student == null) return;
 
     showAppBottomSheet(
       context: context,
@@ -241,14 +325,16 @@ class _HomeParentState extends State<HomeParent> {
                       .push(
                         MaterialPageRoute<void>(
                           builder: (_) => TuitionPaymentScreen(
-                            student: _student,
+                            student: student,
                             token: widget.authService.currentSession!.token,
                           ),
                         ),
                       )
                       .then((_) {
-                        _loadedTuitionKey = null;
-                        if (period != null) _loadTuition(period);
+                        if (!mounted) return;
+                        final selected = _selectedPeriod;
+                        _loadedContextKey = null;
+                        if (selected != null) _loadContext(selected);
                       });
                 },
                 icon: const Icon(Icons.account_balance_wallet_outlined),
@@ -274,7 +360,9 @@ class _HomeParentState extends State<HomeParent> {
 
   @override
   Widget build(BuildContext context) {
-    final students = _students;
+    final students = _children;
+    final student = _student;
+    final dashboard = _dashboard;
     if (students.isEmpty) {
       return const Scaffold(
         backgroundColor: AppColors.background,
@@ -372,6 +460,99 @@ class _HomeParentState extends State<HomeParent> {
                       },
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  if (_dashboardLoading && student == null)
+                    const AppCard(
+                      padding: 28,
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_dashboardError != null && student == null)
+                    AppCard(
+                      child: Column(
+                        children: [
+                          Text(
+                            _dashboardError!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.danger),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: _selectedPeriod == null
+                                ? null
+                                : () {
+                                    _loadedContextKey = null;
+                                    _loadGeneration++;
+                                    _loadContext(_selectedPeriod!);
+                                  },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Tải lại hồ sơ'),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (student != null && dashboard != null)
+                    AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            student.name,
+                            style: const TextStyle(
+                              color: AppColors.ink,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Lớp ${student.className} • Mã HS: ${student.studentCode}\n${student.school} • ${_selectedPeriod?.label ?? ''}',
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                              height: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _DashboardMetric(
+                                  label: 'GPA học kỳ',
+                                  value:
+                                      dashboard.currentGpa?.toStringAsFixed(
+                                        2,
+                                      ) ??
+                                      '--',
+                                ),
+                              ),
+                              Expanded(
+                                child: _DashboardMetric(
+                                  label: 'Chuyên cần',
+                                  value:
+                                      '${dashboard.attendanceRate.toStringAsFixed(1)}%',
+                                ),
+                              ),
+                              Expanded(
+                                child: _DashboardMetric(
+                                  label: 'Xếp hạng',
+                                  value:
+                                      dashboard.classRank?.toString() ?? '--',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'GVCN: ${student.homeroomTeacher} • ${student.homeroomPhone}',
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 24),
                   const SectionHeader(title: 'Tiện ích học tập'),
                   Builder(
@@ -394,21 +575,21 @@ class _HomeParentState extends State<HomeParent> {
                             iconColor: AppColors.fptOrange,
                             iconBgColor: AppColors.primarySoft,
                             onTap: () {
+                              if (student == null) return;
                               final session =
                                   widget.authService.currentSession!;
-                              final child = widget.authService.selectedChild!;
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => ScheduleScreen(
                                     service: ScheduleService(
                                       apiClient: ScheduleApiClient(
-                                        backend: BackendApiClient(),
+                                        backend: _backend,
                                       ),
                                       token: session.token,
                                     ),
                                     mode: ScheduleViewMode.student,
-                                    studentId: child.id,
-                                    studentName: child.name,
+                                    studentId: student.id,
+                                    studentName: student.name,
                                   ),
                                 ),
                               );
@@ -420,6 +601,7 @@ class _HomeParentState extends State<HomeParent> {
                             iconColor: AppColors.blue,
                             iconBgColor: AppColors.blueSoft,
                             onTap: () {
+                              if (student == null) return;
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => GradesScreen(
@@ -427,10 +609,8 @@ class _HomeParentState extends State<HomeParent> {
                                         .authService
                                         .currentSession!
                                         .token,
-                                    studentId:
-                                        widget.authService.selectedChild!.id,
-                                    studentName:
-                                        widget.authService.selectedChild!.name,
+                                    studentId: student.id,
+                                    studentName: student.name,
                                   ),
                                 ),
                               );
@@ -442,10 +622,11 @@ class _HomeParentState extends State<HomeParent> {
                             iconColor: AppColors.teal,
                             iconBgColor: AppColors.tealSoft,
                             onTap: () {
+                              if (student == null) return;
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => StudentAttendanceScreen(
-                                    student: _student,
+                                    student: student,
                                     token: widget
                                         .authService
                                         .currentSession!
@@ -461,12 +642,13 @@ class _HomeParentState extends State<HomeParent> {
                             iconColor: AppColors.danger,
                             iconBgColor: AppColors.dangerSoft,
                             onTap: () {
+                              if (student == null) return;
                               final session =
                                   widget.authService.currentSession!;
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => LeaveRequestListScreen(
-                                    student: _student,
+                                    student: student,
                                     token: session.token,
                                   ),
                                 ),
@@ -492,6 +674,35 @@ class _HomeParentState extends State<HomeParent> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DashboardMetric extends StatelessWidget {
+  const _DashboardMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.muted, fontSize: 11),
+        ),
+      ],
     );
   }
 }

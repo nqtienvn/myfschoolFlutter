@@ -28,30 +28,31 @@ class _HomeStudentState extends State<HomeStudent> {
   late final TuitionBillApiClient _tuitionApi = TuitionBillApiClient(
     backend: _backend,
   );
-  Map<String, dynamic>? _dashboard;
+  late final DashboardApiClient _dashboardApi = DashboardApiClient(
+    backend: _backend,
+  );
+  StudentDashboardStatsDto? _dashboard;
   List<TuitionBill> _tuitionBills = const [];
   String? _loadedPeriodKey;
+  int _loadGeneration = 0;
   bool _dashboardLoading = true;
   String? _dashboardError;
 
   StudentSnapshot? get _student {
     final data = _dashboard;
-    final id = data?['studentId'] as int?;
-    if (data == null || id == null) return null;
+    if (data == null) return null;
     return StudentSnapshot.linked(
-      id: id,
-      name:
-          data['studentName'] as String? ??
-          widget.authService.currentSession?.userName ??
-          'Học sinh',
-      studentCode:
-          data['studentCode'] as String? ??
-          widget.authService.currentSession?.accountCode ??
-          '',
-      className: data['className'] as String? ?? 'Chưa xếp lớp',
-      school: data['schoolName'] as String? ?? 'FPT Schools',
+      id: data.studentId,
+      name: data.studentName,
+      studentCode: data.studentCode,
+      className: data.className,
+      school: data.schoolName,
       linkStatus: 'Đang học',
-      academicYearName: data['academicYearName'] as String?,
+      academicYearName: data.academicYearName,
+      homeroomTeacherName: data.homeroomTeacherName,
+      homeroomTeacherPhone: data.homeroomTeacherPhone,
+      averageScore: data.currentGpa ?? 0,
+      attendanceRate: data.attendanceRate,
     );
   }
 
@@ -59,7 +60,13 @@ class _HomeStudentState extends State<HomeStudent> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final period = AcademicPeriodScope.maybeOf(context)?.selected;
-    if (period == null) return;
+    if (period == null) {
+      if (_loadedPeriodKey != null) {
+        _loadedPeriodKey = null;
+        _loadGeneration++;
+      }
+      return;
+    }
     final key = '${period.academicYearId}-${period.semesterId}';
     if (_loadedPeriodKey != key) {
       _loadedPeriodKey = key;
@@ -69,6 +76,11 @@ class _HomeStudentState extends State<HomeStudent> {
 
   Future<void> _loadPeriod(AcademicPeriod period) async {
     final requestKey = '${period.academicYearId}-${period.semesterId}';
+    if (_loadedPeriodKey != requestKey) return;
+    final session = widget.authService.currentSession;
+    if (session == null) return;
+    final requestedToken = session.token;
+    final generation = ++_loadGeneration;
     setState(() {
       _dashboardLoading = true;
       _dashboardError = null;
@@ -76,31 +88,21 @@ class _HomeStudentState extends State<HomeStudent> {
       _tuitionBills = const [];
     });
     try {
-      final session = widget.authService.currentSession!;
       final results = await Future.wait<Object?>([
-        _backend.getData(
-          '/api/dashboard/student',
+        _dashboardApi.getStudentStats(
           token: session.token,
-          query: {
-            'academicYearId': period.academicYearId.toString(),
-            'semesterId': period.semesterId.toString(),
-          },
+          academicYearId: period.academicYearId,
+          semesterId: period.semesterId,
         ),
         _loadTuitionSafely(session.token, period.semesterId),
       ]);
-      if (!mounted || _loadedPeriodKey != requestKey) {
-        return;
-      }
-      final dashboard = results[0];
-      if (dashboard is! Map<String, dynamic>) {
-        throw const FormatException('Dữ liệu hồ sơ học sinh không hợp lệ.');
-      }
+      if (!_isCurrentLoad(generation, requestKey, requestedToken)) return;
       setState(() {
-        _dashboard = dashboard;
+        _dashboard = results[0] as StudentDashboardStatsDto;
         _tuitionBills = results[1] as List<TuitionBill>;
       });
     } catch (error) {
-      if (mounted && _loadedPeriodKey == requestKey) {
+      if (_isCurrentLoad(generation, requestKey, requestedToken)) {
         setState(() {
           _dashboardError = error.toString().replaceAll('Exception: ', '');
           _dashboard = null;
@@ -108,11 +110,21 @@ class _HomeStudentState extends State<HomeStudent> {
         });
       }
     } finally {
-      if (mounted && _loadedPeriodKey == requestKey) {
+      if (_isCurrentLoad(generation, requestKey, requestedToken)) {
         setState(() => _dashboardLoading = false);
       }
     }
   }
+
+  bool _isCurrentLoad(
+    int generation,
+    String requestKey,
+    String requestedToken,
+  ) =>
+      mounted &&
+      generation == _loadGeneration &&
+      _loadedPeriodKey == requestKey &&
+      widget.authService.currentSession?.token == requestedToken;
 
   Future<List<TuitionBill>> _loadTuitionSafely(
     String token,
@@ -234,6 +246,7 @@ class _HomeStudentState extends State<HomeStudent> {
   @override
   Widget build(BuildContext context) {
     final student = _student;
+    final dashboard = _dashboard;
     final period = AcademicPeriodScope.maybeOf(context)?.selected;
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -325,6 +338,53 @@ class _HomeStudentState extends State<HomeStudent> {
                         ],
                       ),
                     ),
+                  if (dashboard != null) ...[
+                    const SizedBox(height: 12),
+                    AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _DashboardMetric(
+                                  label: 'GPA học kỳ',
+                                  value:
+                                      dashboard.currentGpa?.toStringAsFixed(
+                                        2,
+                                      ) ??
+                                      '--',
+                                ),
+                              ),
+                              Expanded(
+                                child: _DashboardMetric(
+                                  label: 'Chuyên cần',
+                                  value:
+                                      '${dashboard.attendanceRate.toStringAsFixed(1)}%',
+                                ),
+                              ),
+                              Expanded(
+                                child: _DashboardMetric(
+                                  label: 'Xếp hạng',
+                                  value:
+                                      dashboard.classRank?.toString() ?? '--',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'GVCN: ${student?.homeroomTeacher ?? 'Chưa cập nhật'} • ${student?.homeroomPhone ?? 'Chưa cập nhật'}',
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
 
                   // Learning Utilities Grid
@@ -428,6 +488,35 @@ class _HomeStudentState extends State<HomeStudent> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DashboardMetric extends StatelessWidget {
+  const _DashboardMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.muted, fontSize: 11),
+        ),
+      ],
     );
   }
 }

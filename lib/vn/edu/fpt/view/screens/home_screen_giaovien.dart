@@ -3,7 +3,6 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_attendance_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_leave_requests_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_web_screen.dart';
@@ -11,6 +10,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/announcements_create_scr
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_stats_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_tuition_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 
@@ -19,28 +19,81 @@ class HomeTeacher extends StatefulWidget {
     super.key,
     required this.authService,
     this.notificationService,
+    this.backend,
   });
 
   final AuthService authService;
   final NotificationService? notificationService;
+  final BackendApiClient? backend;
 
   @override
   State<HomeTeacher> createState() => _HomeTeacherState();
 }
 
 class _HomeTeacherState extends State<HomeTeacher> {
+  late final BackendApiClient _backend = widget.backend ?? BackendApiClient();
+  late final DashboardApiClient _dashboardApi = DashboardApiClient(
+    backend: _backend,
+  );
+  late final TuitionBillApiClient _tuitionApi = TuitionBillApiClient(
+    backend: _backend,
+  );
+  late final LeaveRequestApiClient _leaveApi = LeaveRequestApiClient(
+    backend: _backend,
+  );
   bool _loadingClass = true;
   int? _classId;
   String? _className;
   String? _teacherName;
   String? _employeeCode;
   int _pendingLeaveCount = 0;
+  AcademicPeriod? _selectedPeriod;
+  TeacherTuitionSummaryDto? _tuitionSummary;
+  String? _loadedPeriodKey;
+  int _profileLoadGeneration = 0;
+  int _periodLoadGeneration = 0;
+  int _pendingLeaveLoadGeneration = 0;
+  int _tuitionLoadGeneration = 0;
+  String? _classLoadError;
+  bool _pendingLeaveLoadFailed = false;
+  bool _tuitionLoadFailed = false;
 
   @override
   void initState() {
     super.initState();
     widget.notificationService?.addListener(_onNotificationChanged);
-    _loadTeacherClass();
+    _loadTeacherProfile();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final controller = AcademicPeriodScope.maybeOf(context);
+    final selected = controller?.selected;
+    if (selected == null) {
+      _selectedPeriod = null;
+      _periodLoadGeneration++;
+      _pendingLeaveLoadGeneration++;
+      _tuitionLoadGeneration++;
+      if ((controller?.isLoading ?? false) || _loadedPeriodKey == 'none') {
+        return;
+      }
+      _loadedPeriodKey = 'none';
+      setState(() {
+        _loadingClass = false;
+        _classId = null;
+        _className = null;
+        _tuitionSummary = null;
+        _pendingLeaveCount = 0;
+        _classLoadError = null;
+        _pendingLeaveLoadFailed = false;
+        _tuitionLoadFailed = false;
+      });
+      return;
+    }
+    if (_samePeriod(_selectedPeriod, selected)) return;
+    _selectedPeriod = selected;
+    _loadTeacherPeriod(selected);
   }
 
   @override
@@ -52,70 +105,215 @@ class _HomeTeacherState extends State<HomeTeacher> {
   void _onNotificationChanged() {
     final notifications = widget.notificationService?.notifications ?? const [];
     if (notifications.any((item) => item.relatedType == 'LEAVE_REQUEST')) {
-      _loadPendingLeaveCount();
+      final period = _selectedPeriod;
+      if (period != null) _loadPendingLeaveCount(period);
     }
   }
 
-  Future<void> _loadPendingLeaveCount() async {
+  Future<void> _loadPendingLeaveCount(AcademicPeriod period) async {
     final session = widget.authService.currentSession;
     if (session == null) return;
+    final requestedToken = session.token;
+    final generation = ++_pendingLeaveLoadGeneration;
     try {
-      final count = await LeaveRequestApiClient(
-        backend: BackendApiClient(),
-      ).getPendingCount(token: session.token);
-      if (mounted) setState(() => _pendingLeaveCount = count);
+      final count = await _leaveApi.getPendingCount(
+        token: session.token,
+        academicYearId: period.academicYearId,
+        semesterId: period.semesterId,
+      );
+      if (_isCurrentPendingLeaveLoad(generation, period, requestedToken)) {
+        setState(() {
+          _pendingLeaveCount = count;
+          _pendingLeaveLoadFailed = false;
+        });
+      }
     } catch (_) {
-      // Không chặn trang chủ nếu badge chưa tải được.
+      if (_isCurrentPendingLeaveLoad(generation, period, requestedToken)) {
+        setState(() => _pendingLeaveLoadFailed = true);
+      }
     }
   }
 
-  Future<void> _loadTeacherClass() async {
-    setState(() => _loadingClass = true);
+  bool _isCurrentPendingLeaveLoad(
+    int generation,
+    AcademicPeriod period,
+    String requestedToken,
+  ) =>
+      mounted &&
+      generation == _pendingLeaveLoadGeneration &&
+      widget.authService.currentSession?.token == requestedToken &&
+      _samePeriod(period, _selectedPeriod);
+
+  bool _samePeriod(AcademicPeriod? first, AcademicPeriod? second) =>
+      first?.academicYearId == second?.academicYearId &&
+      first?.semesterId == second?.semesterId;
+
+  Future<void> _loadTeacherProfile() async {
+    final generation = ++_profileLoadGeneration;
+    final requestedSession = widget.authService.currentSession;
     try {
-      final session = widget.authService.currentSession;
+      final session = requestedSession;
       if (session == null) {
-        setState(() => _loadingClass = false);
         return;
       }
-
-      final backend = BackendApiClient();
       final profile =
-          await backend.getData('/api/user/profile', token: session.token)
+          await _backend.getData('/api/user/profile', token: session.token)
               as Map<String, dynamic>?;
-      final context = await AttendanceApiClient(
-        backend: backend,
-      ).getHomeroomContext(token: session.token);
       final teacherProfile =
           profile?['teacherProfile'] as Map<String, dynamic>?;
-      if (!mounted) return;
+      if (!_isCurrentProfileLoad(generation, requestedSession?.token)) return;
       setState(() {
-        _classId = context['classId'] as int?;
-        _className = context['className'] as String?;
         _teacherName = profile?['name'] as String? ?? session.userName;
         _employeeCode =
             teacherProfile?['employeeCode'] as String? ?? session.accountCode;
-        _loadingClass = false;
       });
-      if (_classId != null) await _loadPendingLeaveCount();
-    } catch (e) {
-      _setNullClass(
-        widget.authService.currentSession?.userName,
-        widget.authService.currentSession?.accountCode,
-      );
+    } catch (_) {
+      if (!_isCurrentProfileLoad(generation, requestedSession?.token)) return;
+      setState(() {
+        _teacherName = widget.authService.currentSession?.userName;
+        _employeeCode = widget.authService.currentSession?.accountCode;
+      });
     }
   }
 
-  void _setNullClass(String? teacherName, String? employeeCode) {
-    if (mounted) {
+  bool _isCurrentProfileLoad(int generation, String? requestedToken) =>
+      mounted &&
+      generation == _profileLoadGeneration &&
+      widget.authService.currentSession?.token == requestedToken;
+
+  Future<void> _loadTeacherPeriod(AcademicPeriod period) async {
+    final session = widget.authService.currentSession;
+    if (session == null) return;
+    final requestedToken = session.token;
+    final key = '${period.academicYearId}:${period.semesterId}';
+    final generation = ++_periodLoadGeneration;
+    _pendingLeaveLoadGeneration++;
+    _tuitionLoadGeneration++;
+    _loadedPeriodKey = key;
+    setState(() {
+      _loadingClass = true;
+      _classId = null;
+      _className = null;
+      _tuitionSummary = null;
+      _pendingLeaveCount = 0;
+      _classLoadError = null;
+      _pendingLeaveLoadFailed = false;
+      _tuitionLoadFailed = false;
+    });
+    try {
+      final stats = await _dashboardApi.getTeacherStats(
+        token: session.token,
+        academicYearId: period.academicYearId,
+        semesterId: period.semesterId,
+      );
+      if (!_isCurrentPeriodLoad(generation, key, period, requestedToken)) {
+        return;
+      }
+      setState(() {
+        _classId = stats.classId;
+        _className = stats.className;
+        _loadingClass = false;
+        _classLoadError = null;
+      });
+      await Future.wait<void>([
+        _loadPendingLeaveCount(period),
+        _loadTuitionSummary(period, stats.classId, key),
+      ]);
+    } on BackendApiException catch (error) {
+      if (!_isCurrentPeriodLoad(generation, key, period, requestedToken)) {
+        return;
+      }
       setState(() {
         _classId = null;
         _className = null;
-        _teacherName = teacherName;
-        _employeeCode = employeeCode;
+        _tuitionSummary = null;
         _loadingClass = false;
+        _classLoadError = error.statusCode == 403
+            ? 'Chưa được phân công chủ nhiệm trong học kỳ này.'
+            : 'Không thể đồng bộ dữ liệu lớp. Vui lòng thử lại.';
+      });
+    } catch (_) {
+      if (!_isCurrentPeriodLoad(generation, key, period, requestedToken)) {
+        return;
+      }
+      setState(() {
+        _classId = null;
+        _className = null;
+        _tuitionSummary = null;
+        _loadingClass = false;
+        _classLoadError = 'Không thể đồng bộ dữ liệu lớp. Vui lòng thử lại.';
       });
     }
   }
+
+  bool _isCurrentPeriodLoad(
+    int generation,
+    String requestKey,
+    AcademicPeriod period,
+    String requestedToken,
+  ) =>
+      mounted &&
+      generation == _periodLoadGeneration &&
+      _loadedPeriodKey == requestKey &&
+      widget.authService.currentSession?.token == requestedToken &&
+      _samePeriod(period, _selectedPeriod);
+
+  Future<void> _loadTuitionSummary(
+    AcademicPeriod period,
+    int classId,
+    String requestKey,
+  ) async {
+    final session = widget.authService.currentSession;
+    if (session == null) return;
+    final requestedToken = session.token;
+    final generation = ++_tuitionLoadGeneration;
+    try {
+      final summary = await _tuitionApi.getTeacherClassSummary(
+        token: session.token,
+        classId: classId,
+        semesterId: period.semesterId,
+      );
+      if (_isCurrentTuitionLoad(
+        generation,
+        requestKey,
+        period,
+        classId,
+        requestedToken,
+      )) {
+        setState(() {
+          _tuitionSummary = summary;
+          _tuitionLoadFailed = false;
+        });
+      }
+    } catch (_) {
+      if (_isCurrentTuitionLoad(
+        generation,
+        requestKey,
+        period,
+        classId,
+        requestedToken,
+      )) {
+        setState(() {
+          _tuitionSummary = null;
+          _tuitionLoadFailed = true;
+        });
+      }
+    }
+  }
+
+  bool _isCurrentTuitionLoad(
+    int generation,
+    String requestKey,
+    AcademicPeriod period,
+    int classId,
+    String requestedToken,
+  ) =>
+      mounted &&
+      generation == _tuitionLoadGeneration &&
+      _loadedPeriodKey == requestKey &&
+      _classId == classId &&
+      widget.authService.currentSession?.token == requestedToken &&
+      _samePeriod(period, _selectedPeriod);
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +361,9 @@ class _HomeTeacherState extends State<HomeTeacher> {
                               Text(
                                 _loadingClass
                                     ? 'Đang tải thông tin...'
-                                    : 'GVCN ${_className ?? 'Chưa xếp lớp'}',
+                                    : _className == null
+                                    ? 'Thông tin chủ nhiệm chưa sẵn sàng'
+                                    : 'GVCN $_className',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w900,
@@ -189,20 +389,46 @@ class _HomeTeacherState extends State<HomeTeacher> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
 
+                  if (_classLoadError != null) ...[
+                    AppCard(
+                      backgroundColor: AppColors.warningSoft,
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.sync_problem_outlined,
+                            color: AppColors.warning,
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Text(
+                              _classLoadError!,
+                              style: const TextStyle(
+                                color: AppColors.ink,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              final period = _selectedPeriod;
+                              if (period != null) _loadTeacherPeriod(period);
+                            },
+                            child: const Text('Thử lại'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+
                   const SizedBox(height: 24),
 
                   // Grid of Features
                   const SectionHeader(title: 'Chức năng giảng dạy & điều hành'),
                   Builder(
                     builder: (context) {
-                      final total = mockStudents.length;
-                      final paid = mockStudents.where((student) {
-                        final unpaid = student.tuitionBills
-                            .where((bill) => bill.status == 'Chưa đóng')
-                            .fold(0, (sum, bill) => sum + bill.amount);
-                        return unpaid == 0;
-                      }).length;
-                      final unpaidCount = total - paid;
+                      final unpaidCount =
+                          _tuitionSummary?.outstandingStudents ?? 0;
 
                       return GridView.count(
                         crossAxisCount: 2,
@@ -224,7 +450,7 @@ class _HomeTeacherState extends State<HomeTeacher> {
                                   builder: (_) => ScheduleScreen(
                                     service: ScheduleService(
                                       apiClient: ScheduleApiClient(
-                                        backend: BackendApiClient(),
+                                        backend: _backend,
                                       ),
                                       token: session.token,
                                     ),
@@ -253,10 +479,16 @@ class _HomeTeacherState extends State<HomeTeacher> {
                                 }
                                 final session =
                                     widget.authService.currentSession!;
+                                final period = _selectedPeriod;
+                                if (period == null) return;
                                 Navigator.of(context).push(
                                   MaterialPageRoute<void>(
                                     builder: (_) => TeacherAttendanceScreen(
                                       token: session.token,
+                                      date: period.referenceDate,
+                                      apiClient: AttendanceApiClient(
+                                        backend: _backend,
+                                      ),
                                     ),
                                   ),
                                 );
@@ -270,6 +502,7 @@ class _HomeTeacherState extends State<HomeTeacher> {
                               badgeCount: _pendingLeaveCount > 0
                                   ? _pendingLeaveCount
                                   : null,
+                              hasLoadError: _pendingLeaveLoadFailed,
                               onTap: () {
                                 final session =
                                     widget.authService.currentSession!;
@@ -279,12 +512,22 @@ class _HomeTeacherState extends State<HomeTeacher> {
                                         builder: (_) =>
                                             TeacherLeaveRequestsScreen(
                                               token: session.token,
+                                              academicYearId: _selectedPeriod
+                                                  ?.academicYearId,
+                                              semesterId:
+                                                  _selectedPeriod?.semesterId,
                                               notificationService:
                                                   widget.notificationService,
+                                              apiClient: _leaveApi,
                                             ),
                                       ),
                                     )
-                                    .then((_) => _loadPendingLeaveCount());
+                                    .then((_) {
+                                      final period = _selectedPeriod;
+                                      if (period != null) {
+                                        _loadPendingLeaveCount(period);
+                                      }
+                                    });
                               },
                             ),
                           _FeatureButton(
@@ -321,33 +564,65 @@ class _HomeTeacherState extends State<HomeTeacher> {
                               );
                             },
                           ),
-                          _FeatureButton(
-                            title: 'Thống kê lớp học',
-                            icon: Icons.auto_graph_outlined,
-                            color: AppColors.teal,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const TeacherStatsScreen(),
-                                ),
-                              );
-                            },
-                          ),
+                          if (_classId != null)
+                            _FeatureButton(
+                              title: 'Thống kê lớp học',
+                              icon: Icons.auto_graph_outlined,
+                              color: AppColors.teal,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => TeacherStatsScreen(
+                                      token: widget
+                                          .authService
+                                          .currentSession!
+                                          .token,
+                                      apiClient: _dashboardApi,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           if (_classId != null)
                             _FeatureButton(
                               title: 'QL Học phí',
                               icon: Icons.request_quote_outlined,
                               color: AppColors.fptOrange,
                               badgeCount: unpaidCount > 0 ? unpaidCount : null,
+                              hasLoadError: _tuitionLoadFailed,
                               onTap: () {
+                                final period = _selectedPeriod;
+                                final classId = _classId;
+                                if (period == null || classId == null) return;
                                 Navigator.of(context)
                                     .push(
                                       MaterialPageRoute<void>(
-                                        builder: (_) =>
-                                            const TeacherTuitionScreen(),
+                                        builder: (_) => TeacherTuitionScreen(
+                                          token: widget
+                                              .authService
+                                              .currentSession!
+                                              .token,
+                                          classId: classId,
+                                          semesterId: period.semesterId,
+                                          apiClient: _tuitionApi,
+                                        ),
                                       ),
                                     )
-                                    .then((_) => setState(() {}));
+                                    .then((_) {
+                                      if (!mounted) return;
+                                      final selected = _selectedPeriod;
+                                      final currentClassId = _classId;
+                                      final key = _loadedPeriodKey;
+                                      if (selected != null &&
+                                          currentClassId != null &&
+                                          key != null) {
+                                        _loadTuitionSummary(
+                                          selected,
+                                          currentClassId,
+                                          key,
+                                        );
+                                      }
+                                    });
                               },
                             ),
                         ],
@@ -371,6 +646,7 @@ class _FeatureButton extends StatelessWidget {
     required this.color,
     required this.onTap,
     this.badgeCount,
+    this.hasLoadError = false,
   });
 
   final String title;
@@ -378,6 +654,7 @@ class _FeatureButton extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
   final int? badgeCount;
+  final bool hasLoadError;
 
   @override
   Widget build(BuildContext context) {
@@ -442,6 +719,19 @@ class _FeatureButton extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            if (hasLoadError)
+              const Positioned(
+                top: 8,
+                right: 8,
+                child: Tooltip(
+                  message: 'Chưa đồng bộ được dữ liệu',
+                  child: Icon(
+                    Icons.error_outline,
+                    color: AppColors.warning,
+                    size: 20,
                   ),
                 ),
               ),

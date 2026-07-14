@@ -1,25 +1,43 @@
 package vn.edu.fpt.myfschool.service.impl;
 
-import vn.edu.fpt.myfschool.entity.SchoolClass;
-import vn.edu.fpt.myfschool.entity.Semester;
-import vn.edu.fpt.myfschool.entity.Student;
-import vn.edu.fpt.myfschool.entity.TuitionBill;
-import vn.edu.fpt.myfschool.entity.Parent;
-import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import vn.edu.fpt.myfschool.common.dto.*;
+import vn.edu.fpt.myfschool.common.dto.PaymentTransactionDto;
+import vn.edu.fpt.myfschool.common.dto.TeacherTuitionStudentDto;
+import vn.edu.fpt.myfschool.common.dto.TeacherTuitionSummaryDto;
+import vn.edu.fpt.myfschool.common.dto.TuitionBillDto;
+import vn.edu.fpt.myfschool.common.dto.TuitionBillRequest;
 import vn.edu.fpt.myfschool.common.enums.BillStatus;
+import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
-import vn.edu.fpt.myfschool.repository.*;
+import vn.edu.fpt.myfschool.entity.Parent;
+import vn.edu.fpt.myfschool.entity.SchoolClass;
+import vn.edu.fpt.myfschool.entity.Semester;
+import vn.edu.fpt.myfschool.entity.Student;
+import vn.edu.fpt.myfschool.entity.TuitionBill;
+import vn.edu.fpt.myfschool.repository.ClassRepository;
+import vn.edu.fpt.myfschool.repository.EnrollmentRepository;
+import vn.edu.fpt.myfschool.repository.HomeroomAssignmentRepository;
+import vn.edu.fpt.myfschool.repository.ParentRepository;
+import vn.edu.fpt.myfschool.repository.PaymentTransactionRepository;
+import vn.edu.fpt.myfschool.repository.SemesterRepository;
+import vn.edu.fpt.myfschool.repository.StudentGuardianRepository;
+import vn.edu.fpt.myfschool.repository.StudentRepository;
+import vn.edu.fpt.myfschool.repository.TeacherRepository;
+import vn.edu.fpt.myfschool.repository.TuitionBillRepository;
+import vn.edu.fpt.myfschool.service.TuitionBillService;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service("tuitionBillService")
@@ -36,15 +54,15 @@ public class TuitionBillServiceImpl implements TuitionBillService {
     private final ParentRepository parentRepository;
     private final StudentGuardianRepository studentGuardianRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final PaymentTransactionRepository paymentTransactionRepository;
 
     @Override
     public TuitionBillDto createTuitionBill(TuitionBillRequest request) {
         Student student = studentRepository.findById(request.studentId())
             .orElseThrow(() -> new ResourceNotFoundException("Student", "id", request.studentId()));
-        SchoolClass cls = classRepository.findById(request.classId())
-            .orElseThrow(() -> new ResourceNotFoundException("Class", "id", request.classId()));
-        Semester semester = semesterRepository.findById(request.semesterId())
-            .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", request.semesterId()));
+        ClassSemesterContext context = resolveClassSemester(request.classId(), request.semesterId());
+        validateStudentEnrollment(student, context.cls());
+        validateDueDate(request.dueDate(), context.semester());
 
         if (tuitionBillRepository.existsByStudentIdAndSemesterIdAndName(
                 request.studentId(), request.semesterId(), request.name())) {
@@ -53,14 +71,13 @@ public class TuitionBillServiceImpl implements TuitionBillService {
 
         TuitionBill bill = new TuitionBill();
         bill.setStudent(student);
-        bill.setCls(cls);
-        bill.setSemester(semester);
+        bill.setCls(context.cls());
+        bill.setSemester(context.semester());
         bill.setName(request.name());
         bill.setAmount(request.amount());
         bill.setDueDate(request.dueDate());
         bill.setStatus(BillStatus.UNPAID);
-        bill = tuitionBillRepository.save(bill);
-        return toDto(bill);
+        return toDto(tuitionBillRepository.save(bill));
     }
 
     @Transactional(readOnly = true)
@@ -78,28 +95,62 @@ public class TuitionBillServiceImpl implements TuitionBillService {
         return tuitionBillRepository.findByStudentIdOrderByCreatedAtDesc(student.getId())
             .stream()
             .filter(bill -> semesterId == null || bill.getSemester().getId().equals(semesterId))
-            .map(this::toDto).collect(Collectors.toList());
+            .map(this::toDto)
+            .toList();
     }
 
     @Transactional(readOnly = true)
     @Override
     public List<TuitionBillDto> getClassBills(Long classId, Long semesterId, BillStatus status) {
-        if (SecurityUtil.getCurrentUserRole() == UserRole.TEACHER) {
-            var teacher = teacherRepository.findByUserId(SecurityUtil.getCurrentUserId())
-                .orElseThrow(() -> new ForbiddenException("Tài khoản không có hồ sơ giáo viên"));
-            SchoolClass cls = classRepository.findById(classId)
-                .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
-            if (!homeroomAssignmentRepository.existsByTeacherIdAndClsIdAndAcademicYearId(
-                    teacher.getId(), classId, cls.getAcademicYear().getId())) {
-                throw new ForbiddenException("Chỉ giáo viên chủ nhiệm mới được xem và quản lý học phí của lớp");
-            }
+        ClassSemesterContext context = resolveClassSemester(classId, semesterId);
+        authorizeTeacherForSelectedSemester(context);
+        List<TuitionBill> bills = status == null
+            ? tuitionBillRepository.findByClassIdAndSemesterIdOrderByCreatedAtDesc(classId, semesterId)
+            : tuitionBillRepository.findByClassIdAndSemesterIdAndStatus(classId, semesterId, status);
+        return bills.stream().map(this::toDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public TeacherTuitionSummaryDto getClassSummary(Long classId, Long semesterId) {
+        ClassSemesterContext context = resolveClassSemester(classId, semesterId);
+        if (SecurityUtil.getCurrentUserRole() != UserRole.TEACHER) {
+            throw new ForbiddenException("Chỉ giáo viên chủ nhiệm mới được xem tổng hợp học phí của lớp");
         }
-        if (status != null) {
-            return tuitionBillRepository.findByClassIdAndSemesterIdAndStatus(classId, semesterId, status)
-                .stream().map(this::toDto).collect(Collectors.toList());
-        }
-        return tuitionBillRepository.findByClassIdAndSemesterIdOrderByCreatedAtDesc(classId, semesterId)
-            .stream().map(this::toDto).collect(Collectors.toList());
+        authorizeTeacherForSelectedSemester(context);
+
+        List<Student> students = enrollmentRepository.findActiveStudentsByClassAndYear(
+            classId, context.cls().getAcademicYear().getId());
+        students.sort(Comparator.comparing(
+            Student::getStudentCode, Comparator.nullsLast(String::compareTo)));
+
+        Map<Long, List<TuitionBill>> billsByStudent = tuitionBillRepository
+            .findByClassIdAndSemesterIdOrderByCreatedAtDesc(classId, semesterId)
+            .stream()
+            .collect(Collectors.groupingBy(bill -> bill.getStudent().getId()));
+
+        List<TeacherTuitionStudentDto> studentRows = students.stream()
+            .map(student -> toTeacherSummaryRow(
+                student, billsByStudent.getOrDefault(student.getId(), List.of())))
+            .toList();
+        int paidStudents = (int) studentRows.stream()
+            .filter(row -> "PAID".equals(row.paymentState()))
+            .count();
+        int studentsWithoutBills = (int) studentRows.stream()
+            .filter(row -> "NO_BILLS".equals(row.paymentState()))
+            .count();
+        int outstandingStudents = studentRows.size() - paidStudents - studentsWithoutBills;
+
+        return new TeacherTuitionSummaryDto(
+            context.cls().getId(),
+            context.cls().getName(),
+            context.semester().getId(),
+            context.semester().getName(),
+            studentRows.size(),
+            paidStudents,
+            outstandingStudents,
+            studentsWithoutBills,
+            studentRows);
     }
 
     @Override
@@ -112,13 +163,105 @@ public class TuitionBillServiceImpl implements TuitionBillService {
         tuitionBillRepository.delete(bill);
     }
 
-    private TuitionBillDto toDto(TuitionBill b) {
-        return new TuitionBillDto(b.getId(), b.getStudent().getId(), b.getStudent().getUser().getName(),
-            b.getStudent().getStudentCode(), b.getCls().getId(), b.getCls().getName(),
-            b.getSemester().getId(), b.getSemester().getName(),
-            b.getFeeTemplate() != null ? b.getFeeTemplate().getId() : null,
-            b.getFeeTemplate() != null ? b.getFeeTemplate().getName() : null,
-            b.getName(), b.getAmount(), b.getDueDate(), b.getStatus(), b.getPaidAt(), List.of(), b.getCreatedAt());
+    private TuitionBillDto toDto(TuitionBill bill) {
+        List<PaymentTransactionDto> transactions = paymentTransactionRepository
+            .findByTuitionBillIdOrderByCreatedAtDesc(bill.getId())
+            .stream()
+            .map(transaction -> new PaymentTransactionDto(
+                transaction.getId(),
+                transaction.getAmount(),
+                transaction.getPaymentMethod(),
+                transaction.getTransactionRef(),
+                transaction.getStatus(),
+                transaction.getPaidAt(),
+                transaction.getCreatedAt()))
+            .toList();
+        return new TuitionBillDto(
+            bill.getId(),
+            bill.getStudent().getId(),
+            bill.getStudent().getUser().getName(),
+            bill.getStudent().getStudentCode(),
+            bill.getCls().getId(),
+            bill.getCls().getName(),
+            bill.getSemester().getId(),
+            bill.getSemester().getName(),
+            bill.getFeeTemplate() != null ? bill.getFeeTemplate().getId() : null,
+            bill.getFeeTemplate() != null ? bill.getFeeTemplate().getName() : null,
+            bill.getName(),
+            bill.getAmount(),
+            bill.getDueDate(),
+            bill.getStatus(),
+            bill.getPaidAt(),
+            transactions,
+            bill.getCreatedAt());
+    }
+
+    private TeacherTuitionStudentDto toTeacherSummaryRow(
+            Student student, List<TuitionBill> bills) {
+        String paymentState;
+        if (bills.isEmpty()) {
+            paymentState = "NO_BILLS";
+        } else if (bills.stream().allMatch(bill -> bill.getStatus() == BillStatus.PAID)) {
+            paymentState = "PAID";
+        } else if (bills.stream().noneMatch(bill -> bill.getStatus() == BillStatus.UNPAID)) {
+            paymentState = "PROCESSING";
+        } else {
+            paymentState = "UNPAID";
+        }
+        BigDecimal outstandingAmount = bills.stream()
+            .filter(bill -> bill.getStatus() != BillStatus.PAID)
+            .map(TuitionBill::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return new TeacherTuitionStudentDto(
+            student.getId(),
+            student.getUser().getName(),
+            student.getStudentCode(),
+            paymentState,
+            outstandingAmount,
+            bills.stream().map(this::toDto).toList());
+    }
+
+    private ClassSemesterContext resolveClassSemester(Long classId, Long semesterId) {
+        SchoolClass cls = classRepository.findById(classId)
+            .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
+        Semester semester = semesterRepository.findById(semesterId)
+            .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+        if (!cls.getAcademicYear().getId().equals(semester.getAcademicYear().getId())) {
+            throw new BadRequestException("Lớp và học kỳ phải thuộc cùng một năm học");
+        }
+        return new ClassSemesterContext(cls, semester);
+    }
+
+    private void validateStudentEnrollment(Student student, SchoolClass cls) {
+        boolean enrolledInClass = enrollmentRepository
+            .existsByStudentIdAndClsIdAndAcademicYearIdAndStatus(
+                student.getId(), cls.getId(), cls.getAcademicYear().getId(), EnrollmentStatus.ACTIVE);
+        if (!enrolledInClass) {
+            throw new BadRequestException("Học sinh không có ghi danh đang hoạt động trong lớp đã chọn");
+        }
+    }
+
+    private void validateDueDate(LocalDate dueDate, Semester semester) {
+        if (dueDate.isBefore(semester.getStartDate()) || dueDate.isAfter(semester.getEndDate())) {
+            throw new BadRequestException("Hạn thanh toán phải nằm trong học kỳ đã chọn");
+        }
+    }
+
+    private void authorizeTeacherForSelectedSemester(ClassSemesterContext context) {
+        if (SecurityUtil.getCurrentUserRole() != UserRole.TEACHER) {
+            return;
+        }
+        var teacher = teacherRepository.findByUserId(SecurityUtil.getCurrentUserId())
+            .orElseThrow(() -> new ForbiddenException("Tài khoản không có hồ sơ giáo viên"));
+        if (!homeroomAssignmentRepository.existsEffectiveForTeacherClassAndPeriod(
+                teacher.getId(),
+                context.cls().getId(),
+                context.cls().getAcademicYear().getId(),
+                context.semester().getStartDate(),
+                context.semester().getEndDate())) {
+            throw new ForbiddenException(
+                "Chỉ giáo viên chủ nhiệm có phân công hiệu lực trong học kỳ mới được xem học phí của lớp");
+        }
     }
 
     private Student resolveAccessibleStudent(Long requestedStudentId) {
@@ -147,4 +290,6 @@ public class TuitionBillServiceImpl implements TuitionBillService {
         }
         throw new ForbiddenException("Vai trò không được phép xem học phí học sinh");
     }
+
+    private record ClassSemesterContext(SchoolClass cls, Semester semester) {}
 }

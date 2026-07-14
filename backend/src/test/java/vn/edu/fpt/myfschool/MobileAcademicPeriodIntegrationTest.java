@@ -41,6 +41,18 @@ class MobileAcademicPeriodIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.classId").value(historical.cls().getId()))
             .andExpect(jsonPath("$.data.semesterId").value(historical.semester().getId()));
+
+        mockMvc.perform(get("/api/dashboard/student")
+                .header("Authorization", authHeader(loginAsParent()))
+                .param("studentId", testStudent1.getId().toString())
+                .param("academicYearId", historical.year().getId().toString())
+                .param("semesterId", historical.semester().getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.studentId").value(testStudent1.getId()))
+            .andExpect(jsonPath("$.data.classId").value(historical.cls().getId()))
+            .andExpect(jsonPath("$.data.className").value("11A"))
+            .andExpect(jsonPath("$.data.academicYearName").value("2025-2026"))
+            .andExpect(jsonPath("$.data.semesterId").value(historical.semester().getId()));
     }
 
     @Test

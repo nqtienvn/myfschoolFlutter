@@ -126,19 +126,104 @@ void main() {
           home: LoginScreen(authService: auth, chatService: chat),
         ),
       );
-      await tester.enterText(find.byType(TextField).at(0), '0909000002');
-      await tester.enterText(find.byType(TextField).at(1), 'test1234');
+      final fields = tester
+          .widgetList<TextField>(find.byType(TextField))
+          .toList(growable: false);
+      expect(fields[0].controller?.text, '0902000001');
+      expect(fields[1].controller?.text, 'Demo@123');
       await tester.tap(find.text('Đăng Nhập'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(auth.loginCalls, 1);
-      expect(auth.lastPhone, '0909000002');
+      expect(auth.lastPhone, '0902000001');
+      expect(auth.lastPassword, 'Demo@123');
       expect(chat.startCalls, 1);
       // Screen navigates to AppShell after success — no success toast
       await tester.pumpAndSettle();
       expect(find.byType(LoginScreen), findsNothing);
     },
+  );
+
+  testWidgets('account change password calls backend before showing success', (
+    tester,
+  ) async {
+    final api = _RecordingAuthApi();
+    final auth = _ProfileAuthService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AccountProfileScreen(
+          actor: AppActor.student,
+          authService: auth,
+          authApiClient: api,
+        ),
+      ),
+    );
+    await tester.ensureVisible(find.text('Đổi mật khẩu'));
+    await tester.tap(find.text('Đổi mật khẩu'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Mật khẩu hiện tại'),
+      'old-password',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Mật khẩu mới'),
+      'new-password',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Nhập lại mật khẩu mới'),
+      'new-password',
+    );
+    await tester.tap(find.text('Cập nhật'));
+    await tester.pumpAndSettle();
+
+    expect(api.oldPassword, 'old-password');
+    expect(api.newPassword, 'new-password');
+    expect(api.token, 'profile-token');
+    expect(find.text('Đổi mật khẩu thành công.'), findsOneWidget);
+  });
+}
+
+class _RecordingAuthApi extends AuthApiClient {
+  _RecordingAuthApi()
+    : super(backend: BackendApiClient(baseUrl: 'http://localhost'));
+
+  String? token;
+  String? oldPassword;
+  String? newPassword;
+
+  @override
+  Future<void> changePassword({
+    required String token,
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    this.token = token;
+    this.oldPassword = oldPassword;
+    this.newPassword = newPassword;
+  }
+}
+
+class _ProfileAuthService extends AuthService {
+  _ProfileAuthService()
+    : super(
+        apiClient: AuthApiClient(
+          backend: BackendApiClient(baseUrl: 'http://localhost'),
+        ),
+      );
+
+  @override
+  AuthSession get currentSession => const AuthSession(
+    token: 'profile-token',
+    tokenType: 'Bearer',
+    expiresIn: 3600,
+    userId: 3,
+    userName: 'Học sinh Test',
+    role: 'STUDENT',
+    phone: '0903000001',
+    email: 'student@test.local',
+    status: 'ACTIVE',
   );
 }
 
@@ -152,11 +237,13 @@ class _FakeAuthService extends AuthService {
 
   int loginCalls = 0;
   String? lastPhone;
+  String? lastPassword;
 
   @override
   Future<AuthSession> login(String phone, String password) async {
     loginCalls++;
     lastPhone = phone;
+    lastPassword = password;
     return const AuthSession(
       token: 'token',
       tokenType: 'Bearer',

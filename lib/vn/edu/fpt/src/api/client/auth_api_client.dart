@@ -7,7 +7,10 @@ class AuthApiClient {
 
   final BackendApiClient _backend;
 
-  Future<AuthSessionDto> login({required String phone, required String password}) async {
+  Future<AuthSessionDto> login({
+    required String phone,
+    required String password,
+  }) async {
     final data = await _backend.postData(
       '/api/auth/login',
       body: {'phone': phone, 'password': password},
@@ -16,5 +19,17 @@ class AuthApiClient {
       throw const ParseException('Login response data must be object.');
     }
     return AuthSessionDto.fromJson(data);
+  }
+
+  Future<void> changePassword({
+    required String token,
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    await _backend.putData(
+      '/api/user/password',
+      token: token,
+      body: {'oldPassword': oldPassword, 'newPassword': newPassword},
+    );
   }
 }

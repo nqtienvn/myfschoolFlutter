@@ -43,7 +43,7 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
     @Transactional(readOnly = true)
     public HomeroomAssignmentDto getByClassAndYear(Long classId, Long academicYearId) {
         Optional<HomeroomAssignment> ha = homeroomAssignmentRepository
-            .findActiveByClassAndYear(classId, academicYearId);
+            .findConfiguredByClassAndYear(classId, academicYearId);
         return ha.map(this::toDto).orElse(null);
     }
 
@@ -58,7 +58,7 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
         validate(request, cls, teacher, year, null);
 
         Optional<HomeroomAssignment> existing = homeroomAssignmentRepository
-            .findActiveByClassAndYear(request.classId(), request.academicYearId());
+            .findConfiguredByClassAndYear(request.classId(), request.academicYearId());
         if (existing.isPresent()) {
             throw new ConflictException("Lop da co GVCN, hay cap nhat thay vi tao moi");
         }
@@ -81,7 +81,7 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
         AcademicYear year = academicYearRepository.findById(request.academicYearId())
             .orElseThrow(() -> new ResourceNotFoundException("AcademicYear", "id", request.academicYearId()));
         validate(request, cls, teacher, year, id);
-        homeroomAssignmentRepository.findActiveByClassAndYear(request.classId(), request.academicYearId())
+        homeroomAssignmentRepository.findConfiguredByClassAndYear(request.classId(), request.academicYearId())
             .filter(existing -> !existing.getId().equals(id))
             .ifPresent(existing -> { throw new ConflictException("Lớp đã có giáo viên chủ nhiệm"); });
 
@@ -96,7 +96,12 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
     public void delete(Long id) {
         HomeroomAssignment ha = findEntity(id);
         requireEditable(ha.getAcademicYear());
-        ha.setEffectiveTo(java.time.LocalDate.now());
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (!ha.getEffectiveFrom().isBefore(today)) {
+            homeroomAssignmentRepository.delete(ha);
+            return;
+        }
+        ha.setEffectiveTo(today.minusDays(1));
         homeroomAssignmentRepository.save(ha);
     }
 
@@ -109,7 +114,7 @@ public class HomeroomAssignmentServiceImpl implements HomeroomAssignmentService 
         requireEditable(year);
         if (!cls.getAcademicYear().getId().equals(year.getId())) throw new ConflictException("Lớp không thuộc năm học đã chọn");
         if (teacher.getUser().getStatus() != UserStatus.ACTIVE) throw new ConflictException("Giáo viên đã bị khóa");
-        homeroomAssignmentRepository.findActiveByTeacherAndYear(teacher.getId(), year.getId()).stream()
+        homeroomAssignmentRepository.findConfiguredByTeacherAndYear(teacher.getId(), year.getId()).stream()
             .filter(existing -> currentAssignmentId == null || !existing.getId().equals(currentAssignmentId))
             .findFirst()
             .ifPresent(existing -> {

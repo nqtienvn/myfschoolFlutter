@@ -13,9 +13,11 @@ public interface LeaveRequestService {
 
     List<LeaveRequestDto> getStudentLeaveRequests(Long studentUserId);
 
-    List<LeaveRequestDto> getPendingLeaveRequests(Long teacherUserId);
+    List<LeaveRequestDto> getPendingLeaveRequests(
+        Long teacherUserId, Long academicYearId, Long semesterId);
 
-    List<LeaveRequestDto> getReviewedLeaveRequests(Long teacherUserId);
+    List<LeaveRequestDto> getReviewedLeaveRequests(
+        Long teacherUserId, Long academicYearId, Long semesterId);
 
     List<LeaveRequestDto> getClassLeaveRequests(Long classId, LeaveStatus status, Long teacherUserId);
 
@@ -25,5 +27,5 @@ public interface LeaveRequestService {
 
     void cancelLeaveRequest(Long leaveRequestId, Long parentUserId);
 
-    long getPendingCount(Long teacherUserId);
+    long getPendingCount(Long teacherUserId, Long academicYearId, Long semesterId);
 }

@@ -38,11 +38,15 @@ class StudentSnapshot {
     required String className,
     required String school,
     required String linkStatus,
+    String? homeroomTeacherName,
+    String? homeroomTeacherPhone,
     String? dateOfBirth,
     String? gender,
     String? address,
     String? email,
     String? academicYearName,
+    double averageScore = 0,
+    double attendanceRate = 0,
   }) {
     final parts = name
         .trim()
@@ -62,10 +66,14 @@ class StudentSnapshot {
       school: school,
       studentCode: studentCode,
       linkStatus: linkStatus,
-      homeroomTeacher: 'Chưa cập nhật',
-      homeroomPhone: 'Chưa cập nhật',
-      averageScore: 0,
-      attendanceRate: 0,
+      homeroomTeacher: homeroomTeacherName?.trim().isNotEmpty == true
+          ? homeroomTeacherName!.trim()
+          : 'Chưa cập nhật',
+      homeroomPhone: homeroomTeacherPhone?.trim().isNotEmpty == true
+          ? homeroomTeacherPhone!.trim()
+          : 'Chưa cập nhật',
+      averageScore: averageScore,
+      attendanceRate: attendanceRate,
       unreadNotifications: 0,
       pendingLeaveRequests: 0,
       subjects: const [],
@@ -94,7 +102,7 @@ class StudentSnapshot {
   final String homeroomTeacher;
   final String homeroomPhone;
   final double averageScore;
-  final int attendanceRate;
+  final double attendanceRate;
   final int unreadNotifications;
   final int pendingLeaveRequests;
   final List<SubjectScore> subjects;
@@ -222,12 +230,14 @@ class TeacherMessage {
 
 class TuitionBill {
   TuitionBill({
+    this.id,
     required this.title,
     required this.amount,
     required this.dueDate,
     required this.status,
   });
 
+  final int? id;
   final String title;
   final int amount;
   final String dueDate;
