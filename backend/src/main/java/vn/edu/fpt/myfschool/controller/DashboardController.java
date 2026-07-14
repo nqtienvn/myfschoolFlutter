@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
 import vn.edu.fpt.myfschool.common.dto.DashboardStudentStatsDto;
@@ -24,8 +25,11 @@ public class DashboardController {
     @GetMapping("/student")
     @PreAuthorize("hasRole('STUDENT')")
     @Operation(summary = "Dashboard học sinh")
-    public ResponseEntity<ApiResponse<DashboardStudentStatsDto>> getStudentDashboard() {
+    public ResponseEntity<ApiResponse<DashboardStudentStatsDto>> getStudentDashboard(
+            @RequestParam(required = false) Long academicYearId,
+            @RequestParam(required = false) Long semesterId) {
         return ResponseEntity.ok(ApiResponse.success(
-                dashboardService.getStudentDashboard(SecurityUtil.getCurrentUserId())));
+                dashboardService.getStudentDashboard(
+                    SecurityUtil.getCurrentUserId(), academicYearId, semesterId)));
     }
 }

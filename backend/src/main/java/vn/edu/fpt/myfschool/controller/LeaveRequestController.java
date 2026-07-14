@@ -46,10 +46,11 @@ public class LeaveRequestController {
     @PreAuthorize("hasRole('PARENT')")
     @Operation(summary = "Đơn của tôi")
     public ResponseEntity<ApiResponse<List<LeaveRequestDto>>> getMyLeaveRequests(
-            @RequestParam(required = false) Long studentId) {
+            @RequestParam(required = false) Long studentId,
+            @RequestParam(required = false) Long semesterId) {
         return ResponseEntity.ok(ApiResponse.success(
                 leaveRequestService.getParentLeaveRequests(
-                    SecurityUtil.getCurrentUserId(), studentId)));
+                    SecurityUtil.getCurrentUserId(), studentId, semesterId)));
     }
 
     @GetMapping("/pending")

@@ -11,24 +11,32 @@ class ScheduleApiClient {
   Future<SchoolScheduleDto> getForStudent({
     required String token,
     required int studentId,
+    int? semesterId,
     DateTime? date,
   }) async {
     final data = await _backend.getData(
       '/api/schedules/student/$studentId',
       token: token,
-      query: {'date': date == null ? null : _date(date)},
+      query: {
+        'semesterId': semesterId?.toString(),
+        'date': date == null ? null : _date(date),
+      },
     );
     return _parse(data);
   }
 
   Future<SchoolScheduleDto> getMine({
     required String token,
+    int? semesterId,
     DateTime? date,
   }) async {
     final data = await _backend.getData(
       '/api/schedules/me',
       token: token,
-      query: {'date': date == null ? null : _date(date)},
+      query: {
+        'semesterId': semesterId?.toString(),
+        'date': date == null ? null : _date(date),
+      },
     );
     return _parse(data);
   }

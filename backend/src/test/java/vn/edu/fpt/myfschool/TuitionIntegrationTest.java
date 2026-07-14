@@ -125,6 +125,30 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void student_views_only_own_bills_in_selected_semester() throws Exception {
+        String adminToken = loginAsAdmin();
+        mockMvc.perform(post("/api/tuition/bills")
+                .header("Authorization", authHeader(adminToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(billJson(testStudent1.getId(), testClass.getId(), testSemester.getId(),
+                    "HP mobile", 9000000)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/tuition/bills/student")
+                .header("Authorization", authHeader(loginAsStudent1()))
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].name").value("HP mobile"));
+
+        mockMvc.perform(get("/api/tuition/bills/student")
+                .header("Authorization", authHeader(loginAsStudent2()))
+                .param("studentId", testStudent1.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
     void create_fee_category_admin_only() throws Exception {
         String token = loginAsAdmin();
 

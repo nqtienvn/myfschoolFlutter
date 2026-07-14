@@ -20,7 +20,10 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     @Query("SELECT DISTINCT e.academicYear.id FROM Enrollment e, StudentGuardian sg " +
            "WHERE sg.student = e.student AND sg.guardian.user.id = :userId")
     List<Long> findAcademicYearIdsByParentUserId(@Param("userId") Long userId);
+    @Query("SELECT DISTINCT e.academicYear.id FROM Enrollment e WHERE e.student.id = :studentId")
+    List<Long> findAcademicYearIdsByStudentId(@Param("studentId") Long studentId);
     List<Enrollment> findByStudentId(Long studentId);
+    Optional<Enrollment> findFirstByStudentIdAndAcademicYearIdOrderByIdDesc(Long studentId, Long academicYearId);
     Optional<Enrollment> findByStudentIdAndAcademicYearIdAndStatus(Long studentId, Long academicYearId, EnrollmentStatus status);
     List<Enrollment> findByClsIdAndAcademicYearIdAndStatus(Long classId, Long academicYearId, EnrollmentStatus status);
 

@@ -48,8 +48,12 @@ class _AppShellState extends State<AppShell> {
     if (session != null) {
       _academicPeriodController = AcademicPeriodController(
         token: session.token,
+        studentId: session.actor == AppActor.parent
+            ? widget.authService?.selectedChild?.id
+            : null,
       );
       unawaited(_academicPeriodController!.load());
+      widget.authService?.addListener(_syncAcademicPeriodStudent);
     }
     if (session != null && chatService != null) {
       _notificationService = NotificationService(
@@ -63,9 +67,20 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    widget.authService?.removeListener(_syncAcademicPeriodStudent);
     _notificationService?.dispose();
     _academicPeriodController?.dispose();
     super.dispose();
+  }
+
+  void _syncAcademicPeriodStudent() {
+    final session = widget.authService?.currentSession;
+    if (session == null || session.actor != AppActor.parent) return;
+    unawaited(
+      _academicPeriodController?.setStudentId(
+        widget.authService?.selectedChild?.id,
+      ),
+    );
   }
 
   Widget _homeForActor() {

@@ -5,6 +5,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/src/services/schedule_service.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 
 enum ScheduleViewMode { student, teacher }
 
@@ -31,39 +32,68 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   SchoolSchedule? _schedule;
   bool _loading = true;
   String? _error;
+  String? _loadedPeriod;
 
   @override
   void initState() {
     super.initState();
-    _load();
   }
 
-  Future<void> _load() async {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final period = AcademicPeriodScope.maybeOf(context)?.selected;
+    final key = period == null
+        ? 'current'
+        : '${period.academicYearId}-${period.semesterId}';
+    if (_loadedPeriod != key) {
+      _loadedPeriod = key;
+      _load(period);
+    }
+  }
+
+  Future<void> _load([AcademicPeriod? period]) async {
+    final requestKey = period == null
+        ? 'current'
+        : '${period.academicYearId}-${period.semesterId}';
     setState(() {
       _loading = true;
       _error = null;
+      _schedule = null;
     });
     try {
       final schedule = widget.studentId == null
-          ? await widget.service.getMine()
-          : await widget.service.getForStudent(widget.studentId!);
-      if (!mounted) return;
+          ? await widget.service.getMine(
+              semesterId: period?.semesterId,
+              date: period?.referenceDate,
+            )
+          : await widget.service.getForStudent(
+              widget.studentId!,
+              semesterId: period?.semesterId,
+              date: period?.referenceDate,
+            );
+      if (!mounted || _loadedPeriod != requestKey) return;
       setState(() => _schedule = schedule);
     } on BackendApiException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted && _loadedPeriod == requestKey) {
+        setState(() => _error = error.message);
+      }
     } catch (_) {
-      if (mounted) {
+      if (mounted && _loadedPeriod == requestKey) {
         setState(
           () => _error = 'Không thể tải thời khóa biểu. Vui lòng thử lại.',
         );
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && _loadedPeriod == requestKey) {
+        setState(() => _loading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final period = AcademicPeriodScope.maybeOf(context)?.selected;
     final schedule = _schedule;
     final title = widget.mode == ScheduleViewMode.teacher
         ? 'Lịch dạy của tôi'
@@ -76,7 +106,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       appBar: OrangeTopBar(title: title),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _load,
+          onRefresh: () => _load(period),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

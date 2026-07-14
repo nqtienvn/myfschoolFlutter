@@ -7,6 +7,7 @@ import vn.edu.fpt.myfschool.entity.SchoolClass;
 import vn.edu.fpt.myfschool.entity.Student;
 import vn.edu.fpt.myfschool.entity.Teacher;
 import vn.edu.fpt.myfschool.entity.Enrollment;
+import vn.edu.fpt.myfschool.entity.Semester;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
     private final EnrollmentRepository enrollmentRepository;
     private final AcademicYearShiftRepository academicYearShiftRepository;
     private final NotificationService notificationService;
+    private final SemesterRepository semesterRepository;
 
     @Override
     public LeaveRequestDto createLeaveRequest(CreateLeaveRequestRequest request, Long parentUserId) {
@@ -104,14 +106,26 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<LeaveRequestDto> getParentLeaveRequests(Long parentUserId, Long studentId) {
+    public List<LeaveRequestDto> getParentLeaveRequests(
+            Long parentUserId, Long studentId, Long semesterId) {
         Parent parent = requireParent(parentUserId);
         if (studentId != null) {
             assertParentOwnsStudent(parent, studentId);
         }
+        Semester semester = semesterId == null ? null : semesterRepository.findById(semesterId)
+            .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+        if (semester != null && studentId != null
+                && enrollmentRepository.findFirstByStudentIdAndAcademicYearIdOrderByIdDesc(
+                    studentId, semester.getAcademicYear().getId()).isEmpty()) {
+            throw new BadRequestException("Học sinh không thuộc năm học của học kỳ đã chọn");
+        }
         return leaveRequestRepository.findByParentIdOrderByCreatedAtDesc(parent.getId())
             .stream()
             .filter(request -> studentId == null || request.getStudent().getId().equals(studentId))
+            .filter(request -> semester == null
+                || (request.getAcademicYear().getId().equals(semester.getAcademicYear().getId())
+                    && !request.getDateTo().isBefore(semester.getStartDate())
+                    && !request.getDateFrom().isAfter(semester.getEndDate())))
             .map(this::toDto).collect(Collectors.toList());
     }
 

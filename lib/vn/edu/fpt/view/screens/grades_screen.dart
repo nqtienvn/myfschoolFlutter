@@ -36,7 +36,12 @@ class _GradesScreenState extends State<GradesScreen> {
   }
 
   Future<void> _load(AcademicPeriod period) async {
-    setState(() => loading = true);
+    final requestKey = '${period.academicYearId}-${period.semesterId}';
+    setState(() {
+      loading = true;
+      error = null;
+      transcript = null;
+    });
     try {
       final data = await api.getTranscript(
         token: widget.token,
@@ -44,11 +49,17 @@ class _GradesScreenState extends State<GradesScreen> {
         semesterId: period.semesterId,
         studentId: widget.studentId,
       );
-      if (mounted) setState(() => transcript = data);
+      if (mounted && loadedPeriod == requestKey) {
+        setState(() => transcript = data);
+      }
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted && loadedPeriod == requestKey) {
+        setState(() => error = '$e');
+      }
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted && loadedPeriod == requestKey) {
+        setState(() => loading = false);
+      }
     }
   }
 

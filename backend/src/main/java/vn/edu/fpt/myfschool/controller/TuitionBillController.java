@@ -50,10 +50,13 @@ public class TuitionBillController {
     }
 
     @GetMapping("/bills/student")
-    @PreAuthorize("hasRole('PARENT')")
-    @Operation(summary = "HP con tôi")
-    public ResponseEntity<ApiResponse<List<TuitionBillDto>>> getStudentBills(@RequestParam Long studentId) {
-        return ResponseEntity.ok(ApiResponse.success(tuitionBillService.getStudentBills(studentId)));
+    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
+    @Operation(summary = "Học phí của học sinh theo học kỳ")
+    public ResponseEntity<ApiResponse<List<TuitionBillDto>>> getStudentBills(
+            @RequestParam(required = false) Long studentId,
+            @RequestParam(required = false) Long semesterId) {
+        return ResponseEntity.ok(ApiResponse.success(
+            tuitionBillService.getStudentBills(studentId, semesterId)));
     }
 
     @DeleteMapping("/bills/{id}")

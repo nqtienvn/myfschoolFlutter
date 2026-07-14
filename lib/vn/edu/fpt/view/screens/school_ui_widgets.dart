@@ -450,7 +450,13 @@ class _AcademicPeriodPicker extends StatelessWidget {
       );
     }
     final selected = controller.selected;
-    if (selected == null) return const SizedBox.shrink();
+    if (selected == null) {
+      return IconButton(
+        tooltip: controller.errorMessage ?? 'Tải lại năm học và học kỳ',
+        onPressed: controller.load,
+        icon: const Icon(Icons.refresh),
+      );
+    }
     return PopupMenuButton<AcademicPeriod>(
       tooltip: 'Chọn năm học và học kỳ',
       initialValue: selected,
@@ -466,7 +472,19 @@ class _AcademicPeriodPicker extends StatelessWidget {
                       padding: EdgeInsets.only(right: 8),
                       child: Icon(Icons.check, size: 18),
                     ),
-                  Text(period.label),
+                  Expanded(child: Text(period.label)),
+                  if (period.isCurrent)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Text(
+                        'Đang học',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -486,14 +504,30 @@ class _AcademicPeriodPicker extends StatelessWidget {
             const Icon(Icons.calendar_month_outlined, size: 16),
             const SizedBox(width: 6),
             Flexible(
-              child: Text(
-                selected.label,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    selected.academicYearName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.muted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    selected.semesterName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
             ),
             const Icon(Icons.arrow_drop_down, size: 18),

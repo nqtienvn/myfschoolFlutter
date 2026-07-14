@@ -8,7 +8,7 @@ import java.util.List;
 public interface TuitionBillService {
     TuitionBillDto createTuitionBill(TuitionBillRequest request);
 
-    List<TuitionBillDto> getStudentBills(Long studentId);
+    List<TuitionBillDto> getStudentBills(Long studentId, Long semesterId);
 
     List<TuitionBillDto> getClassBills(Long classId, Long semesterId, BillStatus status);
 

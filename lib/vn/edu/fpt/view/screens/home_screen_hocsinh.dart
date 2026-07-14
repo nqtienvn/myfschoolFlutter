@@ -11,36 +11,132 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/tuition_payment_screen.d
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_bottom_sheet.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 
 class HomeStudent extends StatefulWidget {
-  const HomeStudent({super.key, required this.authService});
+  const HomeStudent({super.key, required this.authService, this.backend});
 
   final AuthService authService;
+  final BackendApiClient? backend;
 
   @override
   State<HomeStudent> createState() => _HomeStudentState();
 }
 
 class _HomeStudentState extends State<HomeStudent> {
-  // Students[0] is Nguyễn Minh An, representing the logged-in student actor.
-  StudentSnapshot get _student => mockStudents[0];
+  late final BackendApiClient _backend = widget.backend ?? BackendApiClient();
+  late final TuitionBillApiClient _tuitionApi = TuitionBillApiClient(
+    backend: _backend,
+  );
+  Map<String, dynamic>? _dashboard;
+  List<TuitionBill> _tuitionBills = const [];
+  String? _loadedPeriodKey;
+  bool _dashboardLoading = true;
+  String? _dashboardError;
+
+  StudentSnapshot? get _student {
+    final data = _dashboard;
+    final id = data?['studentId'] as int?;
+    if (data == null || id == null) return null;
+    return StudentSnapshot.linked(
+      id: id,
+      name:
+          data['studentName'] as String? ??
+          widget.authService.currentSession?.userName ??
+          'Học sinh',
+      studentCode:
+          data['studentCode'] as String? ??
+          widget.authService.currentSession?.accountCode ??
+          '',
+      className: data['className'] as String? ?? 'Chưa xếp lớp',
+      school: data['schoolName'] as String? ?? 'FPT Schools',
+      linkStatus: 'Đang học',
+      academicYearName: data['academicYearName'] as String?,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final period = AcademicPeriodScope.maybeOf(context)?.selected;
+    if (period == null) return;
+    final key = '${period.academicYearId}-${period.semesterId}';
+    if (_loadedPeriodKey != key) {
+      _loadedPeriodKey = key;
+      _loadPeriod(period);
+    }
+  }
+
+  Future<void> _loadPeriod(AcademicPeriod period) async {
+    final requestKey = '${period.academicYearId}-${period.semesterId}';
+    setState(() {
+      _dashboardLoading = true;
+      _dashboardError = null;
+      _dashboard = null;
+      _tuitionBills = const [];
+    });
+    try {
+      final session = widget.authService.currentSession!;
+      final results = await Future.wait<Object?>([
+        _backend.getData(
+          '/api/dashboard/student',
+          token: session.token,
+          query: {
+            'academicYearId': period.academicYearId.toString(),
+            'semesterId': period.semesterId.toString(),
+          },
+        ),
+        _loadTuitionSafely(session.token, period.semesterId),
+      ]);
+      if (!mounted || _loadedPeriodKey != requestKey) {
+        return;
+      }
+      final dashboard = results[0];
+      if (dashboard is! Map<String, dynamic>) {
+        throw const FormatException('Dữ liệu hồ sơ học sinh không hợp lệ.');
+      }
+      setState(() {
+        _dashboard = dashboard;
+        _tuitionBills = results[1] as List<TuitionBill>;
+      });
+    } catch (error) {
+      if (mounted && _loadedPeriodKey == requestKey) {
+        setState(() {
+          _dashboardError = error.toString().replaceAll('Exception: ', '');
+          _dashboard = null;
+          _tuitionBills = const [];
+        });
+      }
+    } finally {
+      if (mounted && _loadedPeriodKey == requestKey) {
+        setState(() => _dashboardLoading = false);
+      }
+    }
+  }
+
+  Future<List<TuitionBill>> _loadTuitionSafely(
+    String token,
+    int semesterId,
+  ) async {
+    try {
+      return await _tuitionApi.getStudentBills(
+        token: token,
+        semesterId: semesterId,
+      );
+    } catch (_) {
+      return const [];
+    }
+  }
 
   void _showStudentTuitionAlertSheet(BuildContext context) {
-    final unpaidSum = _student.tuitionBills
+    final student = _student;
+    if (student == null) return;
+    final unpaidSum = _tuitionBills
         .where((bill) => bill.status == 'Chưa đóng')
         .fold(0, (sum, bill) => sum + bill.amount);
     final isPaid = unpaidSum == 0;
-
-    final tuitionNotifs = unpaidSum > 0
-        ? _student.notifications
-              .where(
-                (n) =>
-                    n.tag == 'Học phí' ||
-                    n.title.toLowerCase().contains('học phí'),
-              )
-              .toList()
-        : <ParentNotification>[];
-    final hasTuitionNotifs = tuitionNotifs.isNotEmpty;
+    final period = AcademicPeriodScope.maybeOf(context)?.selected;
+    final hasBills = _tuitionBills.isNotEmpty;
 
     showAppBottomSheet(
       context: context,
@@ -79,8 +175,10 @@ class _HomeStudentState extends State<HomeStudent> {
                 const SizedBox(height: 6),
                 Text(
                   isPaid
-                      ? 'Học sinh ${_student.name} đã hoàn thành đầy đủ nghĩa vụ học phí. Cảm ơn bạn!'
-                      : 'Bạn còn chưa thanh toán học phí kì Fall 2026.\nTổng số tiền còn thiếu: ${unpaidSum.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]}.")} đ.\nHạn nộp: 30/06/2026.',
+                      ? hasBills
+                            ? 'Học sinh ${student.name} đã hoàn thành học phí ${period?.label ?? ''}.'
+                            : 'Không có khoản học phí nào trong ${period?.label ?? 'học kỳ đã chọn'}.'
+                      : 'Học sinh ${student.name} còn khoản học phí chưa thanh toán trong ${period?.label ?? 'học kỳ đã chọn'}.\nTổng số tiền: ${unpaidSum.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]}.")} đ.',
                   style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.ink,
@@ -90,7 +188,7 @@ class _HomeStudentState extends State<HomeStudent> {
               ],
             ),
           ),
-          if (!isPaid && hasTuitionNotifs) ...[
+          if (hasBills) ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -100,11 +198,16 @@ class _HomeStudentState extends State<HomeStudent> {
                   Navigator.of(context)
                       .push(
                         MaterialPageRoute<void>(
-                          builder: (_) =>
-                              TuitionPaymentScreen(student: _student),
+                          builder: (_) => TuitionPaymentScreen(
+                            student: student,
+                            token: widget.authService.currentSession!.token,
+                            viewAsStudent: true,
+                          ),
                         ),
                       )
-                      .then((_) => setState(() {}));
+                      .then((_) {
+                        if (period != null) _loadPeriod(period);
+                      });
                 },
                 icon: const Icon(Icons.account_balance_wallet_outlined),
                 label: const Text(
@@ -130,6 +233,8 @@ class _HomeStudentState extends State<HomeStudent> {
 
   @override
   Widget build(BuildContext context) {
+    final student = _student;
+    final period = AcademicPeriodScope.maybeOf(context)?.selected;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -143,64 +248,90 @@ class _HomeStudentState extends State<HomeStudent> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
                 children: [
-                  // Student profile summary card
-                  AppCard(
-                    padding: 20,
-                    gradient: const LinearGradient(
-                      colors: [AppColors.green, Color(0xFF66BB6A)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
+                  if (_dashboardLoading && student == null)
+                    const AppCard(
+                      padding: 28,
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_dashboardError != null && student == null)
+                    AppCard(
+                      child: Column(
+                        children: [
+                          Text(
+                            _dashboardError!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.danger),
                           ),
-                          child: const Icon(
-                            Icons.school,
-                            color: Colors.white,
-                            size: 26,
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: period == null
+                                ? null
+                                : () => _loadPeriod(period),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Tải lại hồ sơ'),
                           ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _student.name,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
+                        ],
+                      ),
+                    )
+                  else if (student != null)
+                    AppCard(
+                      padding: 20,
+                      gradient: const LinearGradient(
+                        colors: [AppColors.green, Color(0xFF66BB6A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.school,
+                              color: Colors.white,
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  student.name,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Lớp ${_student.className} • Mã HS: ${_student.studentCode} • FPT Schools',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white70,
-                                  fontWeight: FontWeight.w500,
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Lớp ${student.className} • Mã HS: ${student.studentCode}\n${student.school} • ${period?.label ?? ''}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white70,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.35,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 24),
 
                   // Learning Utilities Grid
                   const SectionHeader(title: 'Tiện ích học tập cá nhân'),
                   Builder(
                     builder: (context) {
-                      final unpaidSum = _student.tuitionBills
+                      final unpaidSum = _tuitionBills
                           .where((bill) => bill.status == 'Chưa đóng')
                           .fold(0, (sum, bill) => sum + bill.amount);
                       return GridView.count(
@@ -262,12 +393,13 @@ class _HomeStudentState extends State<HomeStudent> {
                             iconColor: AppColors.teal,
                             iconBgColor: AppColors.tealSoft,
                             onTap: () {
+                              if (student == null) return;
                               final session =
                                   widget.authService.currentSession!;
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => StudentAttendanceScreen(
-                                    student: _student,
+                                    student: student,
                                     token: session.token,
                                     viewAsStudent: true,
                                   ),

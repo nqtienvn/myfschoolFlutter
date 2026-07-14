@@ -5,6 +5,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 
 class StudentAttendanceScreen extends StatefulWidget {
   const StudentAttendanceScreen({
@@ -19,8 +20,10 @@ class StudentAttendanceScreen extends StatefulWidget {
   final bool viewAsStudent;
 
   @override
-  State<StudentAttendanceScreen> createState() => _StudentAttendanceScreenState();
+  State<StudentAttendanceScreen> createState() =>
+      _StudentAttendanceScreenState();
 }
+
 class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
   late final AttendanceApiClient _apiClient;
   bool _isLoading = true;
@@ -33,15 +36,30 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
   int _absentWithoutLeave = 0;
   int _totalSessions = 0;
   String _semesterName = '';
+  int? _loadedSemesterId;
+  bool _periodInitialized = false;
 
   @override
   void initState() {
     super.initState();
     _apiClient = AttendanceApiClient(backend: BackendApiClient());
-    _loadData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final semesterId = AcademicPeriodScope.maybeOf(
+      context,
+    )?.selected?.semesterId;
+    if (!_periodInitialized || _loadedSemesterId != semesterId) {
+      _periodInitialized = true;
+      _loadedSemesterId = semesterId;
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
+    final requestSemesterId = _loadedSemesterId;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -51,8 +69,10 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
       final result = await _apiClient.getStudentAttendanceLog(
         token: widget.token,
         studentId: widget.viewAsStudent ? null : widget.student.id,
+        semesterId: requestSemesterId,
       );
 
+      if (!mounted || _loadedSemesterId != requestSemesterId) return;
       setState(() {
         _events = result['events'] as List<AttendanceEvent>;
         _attendanceRate = result['attendanceRate'] as double;
@@ -65,10 +85,12 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-        _isLoading = false;
-      });
+      if (mounted && _loadedSemesterId == requestSemesterId) {
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -83,129 +105,169 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _errorMessage != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(_errorMessage!, style: const TextStyle(color: AppColors.danger), textAlign: TextAlign.center),
-                            const SizedBox(height: AppSpacing.md),
-                            ElevatedButton(onPressed: _loadData, child: const Text('Thử lại')),
-                          ],
-                        ),
-                      ),
-                    )
-                  : ListView(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        AppCard(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    const Text(
-                                      'Tỷ lệ đi học',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.muted,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: AppSpacing.xs),
-                                    Text(
-                                      '${_attendanceRate.toStringAsFixed(1)}%',
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w900,
-                                        color: AppColors.fptOrange,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(width: 1, height: 40, color: AppColors.line),
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    const Text(
-                                      'Số buổi vắng',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.muted,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: AppSpacing.xs),
-                                    Text(
-                                      '$_absentCount',
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w900,
-                                        color: AppColors.danger,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                        Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: AppColors.danger),
+                          textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: AppSpacing.sm),
-                        AppCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _semesterName.isEmpty ? 'Học kỳ hiện tại' : _semesterName,
-                                style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              Row(
-                                children: [
-                                  Expanded(child: _SummaryValue(label: 'Có mặt', value: _presentCount, color: AppColors.green)),
-                                  Expanded(child: _SummaryValue(label: 'Vắng phép', value: _absentWithLeave, color: AppColors.blue)),
-                                  Expanded(child: _SummaryValue(label: 'Vắng KP', value: _absentWithoutLeave, color: AppColors.danger)),
-                                ],
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              Text('Tổng số buổi đã điểm danh: $_totalSessions', style: const TextStyle(fontSize: 12, color: AppColors.muted)),
-                            ],
-                          ),
+                        const SizedBox(height: AppSpacing.md),
+                        ElevatedButton(
+                          onPressed: _loadData,
+                          child: const Text('Thử lại'),
                         ),
-                        const SizedBox(height: AppSpacing.lg),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const SectionHeader(title: 'Nhật ký điểm danh'),
-                            TextButton.icon(
-                              onPressed: _loadData,
-                              icon: const Icon(Icons.refresh, size: 16),
-                              label: const Text('Tải lại'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        if (_events.isEmpty)
-                          const AppCard(
-                            child: Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(AppSpacing.lg),
-                                child: Text(
-                                  'Chưa có dữ liệu điểm danh',
-                                  style: TextStyle(color: AppColors.muted),
-                                ),
-                              ),
-                            ),
-                          )
-                        else
-                          for (final event in _events) ...[
-                            _AttendanceEventTile(event: event),
-                            const SizedBox(height: AppSpacing.sm),
-                          ],
                       ],
                     ),
+                  ),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  children: [
+                    AppCard(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              children: [
+                                const Text(
+                                  'Tỷ lệ đi học',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.muted,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  '${_attendanceRate.toStringAsFixed(1)}%',
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.fptOrange,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: AppColors.line,
+                          ),
+                          Expanded(
+                            child: Column(
+                              children: [
+                                const Text(
+                                  'Số buổi vắng',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.muted,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  '$_absentCount',
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.danger,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _semesterName.isEmpty
+                                ? 'Học kỳ hiện tại'
+                                : _semesterName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _SummaryValue(
+                                  label: 'Có mặt',
+                                  value: _presentCount,
+                                  color: AppColors.green,
+                                ),
+                              ),
+                              Expanded(
+                                child: _SummaryValue(
+                                  label: 'Vắng phép',
+                                  value: _absentWithLeave,
+                                  color: AppColors.blue,
+                                ),
+                              ),
+                              Expanded(
+                                child: _SummaryValue(
+                                  label: 'Vắng KP',
+                                  value: _absentWithoutLeave,
+                                  color: AppColors.danger,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            'Tổng số buổi đã điểm danh: $_totalSessions',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const SectionHeader(title: 'Nhật ký điểm danh'),
+                        TextButton.icon(
+                          onPressed: _loadData,
+                          icon: const Icon(Icons.refresh, size: 16),
+                          label: const Text('Tải lại'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    if (_events.isEmpty)
+                      const AppCard(
+                        child: Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(AppSpacing.lg),
+                            child: Text(
+                              'Chưa có dữ liệu điểm danh',
+                              style: TextStyle(color: AppColors.muted),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      for (final event in _events) ...[
+                        _AttendanceEventTile(event: event),
+                        const SizedBox(height: AppSpacing.sm),
+                      ],
+                  ],
+                ),
         ),
       ),
     );
@@ -213,7 +275,11 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
 }
 
 class _SummaryValue extends StatelessWidget {
-  const _SummaryValue({required this.label, required this.value, required this.color});
+  const _SummaryValue({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   final String label;
   final int value;
@@ -223,9 +289,20 @@ class _SummaryValue extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text('$value', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: color)),
+        Text(
+          '$value',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: color,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 10, color: AppColors.muted),
+        ),
       ],
     );
   }
@@ -296,10 +373,7 @@ class _AttendanceEventTile extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   event.reason,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.muted,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
                 ),
               ],
             ),

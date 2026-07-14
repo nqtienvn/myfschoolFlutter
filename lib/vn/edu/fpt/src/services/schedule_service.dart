@@ -11,17 +11,26 @@ class ScheduleService {
   final ScheduleApiClient _apiClient;
   final String _token;
 
-  Future<SchoolSchedule> getForStudent(int studentId, [DateTime? date]) async {
+  Future<SchoolSchedule> getForStudent(
+    int studentId, {
+    int? semesterId,
+    DateTime? date,
+  }) async {
     final dto = await _apiClient.getForStudent(
       token: _token,
       studentId: studentId,
+      semesterId: semesterId,
       date: date,
     );
     return dto.toDomain();
   }
 
-  Future<SchoolSchedule> getMine([DateTime? date]) async {
-    final dto = await _apiClient.getMine(token: _token, date: date);
+  Future<SchoolSchedule> getMine({int? semesterId, DateTime? date}) async {
+    final dto = await _apiClient.getMine(
+      token: _token,
+      semesterId: semesterId,
+      date: date,
+    );
     return dto.toDomain();
   }
 }

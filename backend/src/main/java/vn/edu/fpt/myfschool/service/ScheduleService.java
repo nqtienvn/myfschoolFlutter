@@ -11,9 +11,9 @@ public interface ScheduleService {
 
     ClassScheduleDto getTeacherSchedule(Long teacherId, Long semesterId, LocalDate date);
 
-    ClassScheduleDto getStudentSchedule(Long studentId, Long userId, LocalDate date);
+    ClassScheduleDto getStudentSchedule(Long studentId, Long userId, Long semesterId, LocalDate date);
 
-    ClassScheduleDto getMySchedule(Long userId, UserRole role, LocalDate date);
+    ClassScheduleDto getMySchedule(Long userId, UserRole role, Long semesterId, LocalDate date);
 
     ScheduleDto createSchedule(ScheduleRequest request);
 

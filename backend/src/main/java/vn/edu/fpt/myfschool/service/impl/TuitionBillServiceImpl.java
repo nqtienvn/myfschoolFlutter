@@ -4,6 +4,7 @@ import vn.edu.fpt.myfschool.entity.SchoolClass;
 import vn.edu.fpt.myfschool.entity.Semester;
 import vn.edu.fpt.myfschool.entity.Student;
 import vn.edu.fpt.myfschool.entity.TuitionBill;
+import vn.edu.fpt.myfschool.entity.Parent;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,9 @@ public class TuitionBillServiceImpl implements TuitionBillService {
     private final SemesterRepository semesterRepository;
     private final TeacherRepository teacherRepository;
     private final HomeroomAssignmentRepository homeroomAssignmentRepository;
+    private final ParentRepository parentRepository;
+    private final StudentGuardianRepository studentGuardianRepository;
+    private final EnrollmentRepository enrollmentRepository;
 
     @Override
     public TuitionBillDto createTuitionBill(TuitionBillRequest request) {
@@ -61,9 +65,20 @@ public class TuitionBillServiceImpl implements TuitionBillService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<TuitionBillDto> getStudentBills(Long studentId) {
-        return tuitionBillRepository.findByStudentIdOrderByCreatedAtDesc(studentId)
-            .stream().map(this::toDto).collect(Collectors.toList());
+    public List<TuitionBillDto> getStudentBills(Long studentId, Long semesterId) {
+        Student student = resolveAccessibleStudent(studentId);
+        if (semesterId != null) {
+            Semester semester = semesterRepository.findById(semesterId)
+                .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+            if (enrollmentRepository.findFirstByStudentIdAndAcademicYearIdOrderByIdDesc(
+                    student.getId(), semester.getAcademicYear().getId()).isEmpty()) {
+                throw new BadRequestException("Học sinh không thuộc năm học của học kỳ đã chọn");
+            }
+        }
+        return tuitionBillRepository.findByStudentIdOrderByCreatedAtDesc(student.getId())
+            .stream()
+            .filter(bill -> semesterId == null || bill.getSemester().getId().equals(semesterId))
+            .map(this::toDto).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -104,5 +119,32 @@ public class TuitionBillServiceImpl implements TuitionBillService {
             b.getFeeTemplate() != null ? b.getFeeTemplate().getId() : null,
             b.getFeeTemplate() != null ? b.getFeeTemplate().getName() : null,
             b.getName(), b.getAmount(), b.getDueDate(), b.getStatus(), b.getPaidAt(), List.of(), b.getCreatedAt());
+    }
+
+    private Student resolveAccessibleStudent(Long requestedStudentId) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        UserRole role = SecurityUtil.getCurrentUserRole();
+        if (role == UserRole.STUDENT) {
+            Student own = studentRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Student", "userId", userId));
+            if (requestedStudentId != null && !requestedStudentId.equals(own.getId())) {
+                throw new ForbiddenException("Học sinh chỉ được xem học phí của chính mình");
+            }
+            return own;
+        }
+        if (role == UserRole.PARENT) {
+            if (requestedStudentId == null) {
+                throw new BadRequestException("Phụ huynh phải chọn học sinh cần xem học phí");
+            }
+            Parent parent = parentRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Parent", "userId", userId));
+            if (!studentGuardianRepository.existsByStudentIdAndGuardianId(
+                    requestedStudentId, parent.getId())) {
+                throw new ForbiddenException("Phụ huynh không có quyền xem học phí của học sinh này");
+            }
+            return studentRepository.findById(requestedStudentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Student", "id", requestedStudentId));
+        }
+        throw new ForbiddenException("Vai trò không được phép xem học phí học sinh");
     }
 }

@@ -38,11 +38,15 @@ class LeaveRequestApiClient {
   Future<List<LeaveRequest>> getMyLeaveRequests({
     required String token,
     int? studentId,
+    int? semesterId,
   }) async {
     final data = await _backend.getData(
       '/api/leave-requests/my',
       token: token,
-      query: {'studentId': studentId?.toString()},
+      query: {
+        'studentId': studentId?.toString(),
+        'semesterId': semesterId?.toString(),
+      },
     );
     if (data is! List) {
       throw const ParseException(

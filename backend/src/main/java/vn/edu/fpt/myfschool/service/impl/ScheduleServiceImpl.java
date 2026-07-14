@@ -37,6 +37,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final StudentRepository studentRepository;
     private final ParentRepository parentRepository;
     private final StudentGuardianRepository studentGuardianRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final PeriodRepository periodRepository;
     private final AcademicYearPeriodRepository academicYearPeriodRepository;
     private final AcademicYearShiftRepository academicYearShiftRepository;
@@ -74,7 +75,8 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     @Transactional(readOnly = true)
-    public ClassScheduleDto getStudentSchedule(Long studentId, Long userId, LocalDate date) {
+    public ClassScheduleDto getStudentSchedule(
+            Long studentId, Long userId, Long semesterId, LocalDate date) {
         Student student = studentRepository.findById(studentId)
             .orElseThrow(() -> new ResourceNotFoundException("Student", "id", studentId));
         Parent parent = parentRepository.findByUserId(userId)
@@ -82,13 +84,14 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (!studentGuardianRepository.existsByStudentIdAndGuardianId(studentId, parent.getId())) {
             throw new ForbiddenException("Phụ huynh không có quyền xem thời khóa biểu của học sinh này");
         }
-        return getScheduleForStudent(student, currentSemester(), date);
+        return getScheduleForStudent(student, resolveSemester(semesterId), date);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ClassScheduleDto getMySchedule(Long userId, UserRole role, LocalDate date) {
-        Semester semester = currentSemester();
+    public ClassScheduleDto getMySchedule(
+            Long userId, UserRole role, Long semesterId, LocalDate date) {
+        Semester semester = resolveSemester(semesterId);
         if (role == UserRole.STUDENT) {
             Student student = studentRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student", "userId", userId));
@@ -259,11 +262,17 @@ public class ScheduleServiceImpl implements ScheduleService {
             .orElseThrow(() -> new ResourceNotFoundException("Semester", "isCurrent", true));
     }
 
+    private Semester resolveSemester(Long semesterId) {
+        return semesterId == null ? currentSemester() : semesterRepository.findById(semesterId)
+            .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+    }
+
     private ClassScheduleDto getScheduleForStudent(Student student, Semester semester, LocalDate date) {
-        SchoolClass cls = student.getCurrentClass();
-        if (cls == null) {
-            throw new ConflictException("Học sinh chưa được xếp lớp");
-        }
+        SchoolClass cls = enrollmentRepository
+            .findFirstByStudentIdAndAcademicYearIdOrderByIdDesc(
+                student.getId(), semester.getAcademicYear().getId())
+            .map(Enrollment::getCls)
+            .orElseThrow(() -> new ConflictException("Học sinh chưa được xếp lớp trong năm học đã chọn"));
         return getClassSchedule(cls.getId(), semester.getId(), date);
     }
 

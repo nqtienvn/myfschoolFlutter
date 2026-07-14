@@ -11,6 +11,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/tuition_payment_screen.d
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_bottom_sheet.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 
 class HomeParent extends StatefulWidget {
   const HomeParent({super.key, required this.authService});
@@ -22,6 +23,15 @@ class HomeParent extends StatefulWidget {
 }
 
 class _HomeParentState extends State<HomeParent> {
+  late final TuitionBillApiClient _tuitionApi = TuitionBillApiClient(
+    backend: BackendApiClient(),
+  );
+  List<TuitionBill> _tuitionBills = const [];
+  AcademicPeriod? _selectedPeriod;
+  String? _loadedTuitionKey;
+  bool _tuitionLoading = false;
+  String? _tuitionError;
+
   @override
   void initState() {
     super.initState();
@@ -44,7 +54,51 @@ class _HomeParentState extends State<HomeParent> {
   }
 
   void _onSelectionChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() => _tuitionBills = const []);
+    _loadedTuitionKey = null;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final period = AcademicPeriodScope.maybeOf(context)?.selected;
+    _selectedPeriod = period;
+    if (period != null) _loadTuition(period);
+  }
+
+  Future<void> _loadTuition(AcademicPeriod period) async {
+    final child = widget.authService.selectedChild;
+    if (child == null) return;
+    final key = '${child.id}-${period.semesterId}';
+    if (_loadedTuitionKey == key) return;
+    _loadedTuitionKey = key;
+    setState(() {
+      _tuitionLoading = true;
+      _tuitionError = null;
+      _tuitionBills = const [];
+    });
+    try {
+      final bills = await _tuitionApi.getStudentBills(
+        token: widget.authService.currentSession!.token,
+        studentId: child.id,
+        semesterId: period.semesterId,
+      );
+      if (mounted && _loadedTuitionKey == key) {
+        setState(() => _tuitionBills = bills);
+      }
+    } catch (error) {
+      if (mounted && _loadedTuitionKey == key) {
+        setState(() {
+          _tuitionBills = const [];
+          _tuitionError = error.toString().replaceAll('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted && _loadedTuitionKey == key) {
+        setState(() => _tuitionLoading = false);
+      }
+    }
   }
 
   List<StudentSnapshot> get _students {
@@ -74,19 +128,7 @@ class _HomeParentState extends State<HomeParent> {
       _students[widget.authService.selectedChildIndex];
 
   void _showTuitionNotificationsSheet(BuildContext context) {
-    final unpaidSum = _student.tuitionBills
-        .where((bill) => bill.status == 'Chưa đóng')
-        .fold(0, (sum, bill) => sum + bill.amount);
-
-    final tuitionNotifs = unpaidSum > 0
-        ? _student.notifications
-              .where(
-                (n) =>
-                    n.tag == 'Học phí' ||
-                    n.title.toLowerCase().contains('học phí'),
-              )
-              .toList()
-        : <ParentNotification>[];
+    final period = _selectedPeriod;
 
     showAppBottomSheet(
       context: context,
@@ -102,13 +144,26 @@ class _HomeParentState extends State<HomeParent> {
             ),
           ),
           const SizedBox(height: 12),
-          if (tuitionNotifs.isEmpty)
+          if (_tuitionLoading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_tuitionError != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                _tuitionError!,
+                style: const TextStyle(color: AppColors.danger),
+              ),
+            )
+          else if (_tuitionBills.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text(
-                  'Không có thông báo học phí nào mới.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 13),
+                  'Không có khoản học phí trong ${period?.label ?? 'học kỳ đã chọn'}.',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 13),
                 ),
               ),
             )
@@ -119,7 +174,7 @@ class _HomeParentState extends State<HomeParent> {
               ),
               child: ListView(
                 shrinkWrap: true,
-                children: tuitionNotifs.map((n) {
+                children: _tuitionBills.map((bill) {
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     color: AppColors.surface,
@@ -138,14 +193,18 @@ class _HomeParentState extends State<HomeParent> {
                           Row(
                             children: [
                               Icon(
-                                Icons.warning_amber_rounded,
-                                color: n.color,
+                                bill.status == 'Đã đóng'
+                                    ? Icons.check_circle_outline
+                                    : Icons.warning_amber_rounded,
+                                color: bill.status == 'Đã đóng'
+                                    ? AppColors.success
+                                    : AppColors.warning,
                                 size: 20,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  n.title,
+                                  bill.title,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
@@ -157,7 +216,7 @@ class _HomeParentState extends State<HomeParent> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            n.body,
+                            '${bill.amount.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]}.")} đ • Hạn ${bill.dueDate} • ${bill.status}',
                             style: const TextStyle(
                               fontSize: 12.5,
                               color: AppColors.muted,
@@ -171,7 +230,7 @@ class _HomeParentState extends State<HomeParent> {
                 }).toList(),
               ),
             ),
-          if (tuitionNotifs.isNotEmpty) ...[
+          if (_tuitionBills.isNotEmpty) ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -181,11 +240,16 @@ class _HomeParentState extends State<HomeParent> {
                   Navigator.of(context)
                       .push(
                         MaterialPageRoute<void>(
-                          builder: (_) =>
-                              TuitionPaymentScreen(student: _student),
+                          builder: (_) => TuitionPaymentScreen(
+                            student: _student,
+                            token: widget.authService.currentSession!.token,
+                          ),
                         ),
                       )
-                      .then((_) => setState(() {}));
+                      .then((_) {
+                        _loadedTuitionKey = null;
+                        if (period != null) _loadTuition(period);
+                      });
                 },
                 icon: const Icon(Icons.account_balance_wallet_outlined),
                 label: const Text(
@@ -312,19 +376,9 @@ class _HomeParentState extends State<HomeParent> {
                   const SectionHeader(title: 'Tiện ích học tập'),
                   Builder(
                     builder: (context) {
-                      final unpaidSum = _student.tuitionBills
+                      final tuitionNotifsCount = _tuitionBills
                           .where((bill) => bill.status == 'Chưa đóng')
-                          .fold(0, (sum, bill) => sum + bill.amount);
-
-                      final tuitionNotifsCount = unpaidSum > 0
-                          ? _student.notifications
-                                .where(
-                                  (n) =>
-                                      n.tag == 'Học phí' ||
-                                      n.title.toLowerCase().contains('học phí'),
-                                )
-                                .length
-                          : 0;
+                          .length;
 
                       return GridView.count(
                         crossAxisCount: 2,

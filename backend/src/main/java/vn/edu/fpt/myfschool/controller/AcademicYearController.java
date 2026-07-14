@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.myfschool.common.dto.AcademicYearArchiveStatsDto;
 import vn.edu.fpt.myfschool.common.dto.AcademicYearDto;
@@ -40,8 +41,10 @@ public class AcademicYearController {
     @GetMapping("/available")
     @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Các năm học và học kỳ tài khoản được phép xem")
-    public ResponseEntity<ApiResponse<List<AvailableAcademicYearDto>>> available() {
-        return ResponseEntity.ok(ApiResponse.success(availableAcademicPeriodService.getAvailablePeriods()));
+    public ResponseEntity<ApiResponse<List<AvailableAcademicYearDto>>> available(
+            @RequestParam(required = false) Long studentId) {
+        return ResponseEntity.ok(ApiResponse.success(
+            availableAcademicPeriodService.getAvailablePeriods(studentId)));
     }
 
     @GetMapping("/{id}/readiness")

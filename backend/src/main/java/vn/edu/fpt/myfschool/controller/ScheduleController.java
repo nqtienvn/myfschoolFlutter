@@ -47,18 +47,21 @@ public class ScheduleController {
     @Operation(summary = "TKB của học sinh do phụ huynh quản lý")
     public ResponseEntity<ApiResponse<ClassScheduleDto>> getStudentSchedule(
             @PathVariable Long studentId,
+            @RequestParam(required = false) Long semesterId,
             @RequestParam(required = false) LocalDate date) {
         return ResponseEntity.ok(ApiResponse.success(
-            scheduleService.getStudentSchedule(studentId, SecurityUtil.getCurrentUserId(), date)));
+            scheduleService.getStudentSchedule(
+                studentId, SecurityUtil.getCurrentUserId(), semesterId, date)));
     }
 
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('STUDENT', 'TEACHER')")
     @Operation(summary = "TKB của học sinh hoặc lịch dạy của giáo viên đang đăng nhập")
     public ResponseEntity<ApiResponse<ClassScheduleDto>> getMySchedule(
+            @RequestParam(required = false) Long semesterId,
             @RequestParam(required = false) LocalDate date) {
         return ResponseEntity.ok(ApiResponse.success(scheduleService.getMySchedule(
-            SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole(), date)));
+            SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole(), semesterId, date)));
     }
 
     @GetMapping("/teacher")

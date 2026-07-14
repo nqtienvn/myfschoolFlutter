@@ -7,6 +7,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/primary_bu
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/leave_request_create_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 
 class LeaveRequestListScreen extends StatefulWidget {
   const LeaveRequestListScreen({
@@ -21,20 +22,36 @@ class LeaveRequestListScreen extends StatefulWidget {
   @override
   State<LeaveRequestListScreen> createState() => _LeaveRequestListScreenState();
 }
+
 class _LeaveRequestListScreenState extends State<LeaveRequestListScreen> {
   late final LeaveRequestApiClient _apiClient;
   List<LeaveRequest> _requests = [];
   bool _isLoading = true;
   String? _errorMessage;
+  int? _loadedSemesterId;
+  bool _periodInitialized = false;
 
   @override
   void initState() {
     super.initState();
     _apiClient = LeaveRequestApiClient(backend: BackendApiClient());
-    _loadData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final semesterId = AcademicPeriodScope.maybeOf(
+      context,
+    )?.selected?.semesterId;
+    if (!_periodInitialized || _loadedSemesterId != semesterId) {
+      _periodInitialized = true;
+      _loadedSemesterId = semesterId;
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
+    final requestSemesterId = _loadedSemesterId;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -48,17 +65,21 @@ class _LeaveRequestListScreenState extends State<LeaveRequestListScreen> {
       final studentRequests = await _apiClient.getMyLeaveRequests(
         token: widget.token,
         studentId: studentId,
+        semesterId: requestSemesterId,
       );
 
+      if (!mounted || _loadedSemesterId != requestSemesterId) return;
       setState(() {
         _requests = studentRequests;
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-        _isLoading = false;
-      });
+      if (mounted && _loadedSemesterId == requestSemesterId) {
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -70,8 +91,14 @@ class _LeaveRequestListScreenState extends State<LeaveRequestListScreen> {
         title: const Text('Hủy đơn xin nghỉ?'),
         content: const Text('Bạn chỉ có thể hủy đơn khi giáo viên chưa xử lý.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Không')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Hủy đơn')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Không'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hủy đơn'),
+          ),
         ],
       ),
     );
@@ -89,6 +116,8 @@ class _LeaveRequestListScreenState extends State<LeaveRequestListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedPeriod = AcademicPeriodScope.maybeOf(context)?.selected;
+    final canCreate = selectedPeriod?.isCurrent == true;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const OrangeTopBar(title: 'Đơn xin nghỉ học'),
@@ -100,31 +129,34 @@ class _LeaveRequestListScreenState extends State<LeaveRequestListScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               PrimaryButton(
-                label: 'Tạo đơn xin nghỉ',
+                label: canCreate
+                    ? 'Tạo đơn xin nghỉ'
+                    : 'Chỉ tạo đơn trong học kỳ đang hoạt động',
                 icon: Icons.add_circle_outline,
-                onPressed: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  final navigator = Navigator.of(context);
-                  final newRequest = await navigator.push<LeaveRequest?>(
-                    MaterialPageRoute<LeaveRequest?>(
-                      builder: (_) => LeaveRequestCreateScreen(
-                        student: widget.student,
-                        token: widget.token,
-                      ),
-                    ),
-                  );
-                  if (newRequest != null) {
-                    setState(() {
-                      _requests.insert(0, newRequest);
-                    });
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text('Tạo đơn nghỉ học thành công!'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                },
+                onPressed: !canCreate
+                    ? null
+                    : () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final navigator = Navigator.of(context);
+                        final newRequest = await navigator.push<LeaveRequest?>(
+                          MaterialPageRoute<LeaveRequest?>(
+                            builder: (_) => LeaveRequestCreateScreen(
+                              student: widget.student,
+                              token: widget.token,
+                            ),
+                          ),
+                        );
+                        if (newRequest != null) {
+                          await _loadData();
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Tạo đơn nghỉ học thành công!'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
               ),
               const SizedBox(height: AppSpacing.lg),
               Row(
@@ -150,7 +182,10 @@ class _LeaveRequestListScreenState extends State<LeaveRequestListScreen> {
                 Center(
                   child: Padding(
                     padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
-                    child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger)),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: AppColors.danger),
+                    ),
                   ),
                 )
               else if (_requests.isEmpty)
@@ -169,7 +204,9 @@ class _LeaveRequestListScreenState extends State<LeaveRequestListScreen> {
                 for (final request in _requests) ...[
                   _LeaveRequestTile(
                     request: request,
-                    onCancel: request.status == 'Pending' ? () => _cancel(request) : null,
+                    onCancel: request.status == 'Pending'
+                        ? () => _cancel(request)
+                        : null,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                 ],
