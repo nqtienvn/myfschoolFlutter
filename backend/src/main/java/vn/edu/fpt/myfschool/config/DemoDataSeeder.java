@@ -39,9 +39,9 @@ import java.util.Set;
 public class DemoDataSeeder implements ApplicationRunner {
 
     public static final String ADMIN_PHONE = "0868589707";
-    public static final String CURRENT_YEAR_NAME = "2026-2027 DEMO";
-    public static final String PREVIOUS_YEAR_NAME = "2025-2026 DEMO";
-    public static final String DRAFT_YEAR_NAME = "2027-2028 DEMO";
+    public static final String CURRENT_YEAR_NAME = "2026-2027";
+    public static final String PREVIOUS_YEAR_NAME = "2025-2026";
+    public static final String DRAFT_YEAR_NAME = "2027-2028";
 
     private static final ZoneId SCHOOL_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 

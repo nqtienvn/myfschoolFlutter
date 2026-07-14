@@ -55,7 +55,7 @@ Tài khoản trạng thái biên dành cho trang quản lý người dùng:
 
 | Nhóm | Kịch bản có sẵn |
 |---|---|
-| Năm học | `2025-2026 DEMO` hoàn tất, `2026-2027 DEMO` đang hoạt động, `2027-2028 DEMO` là bản nháp thiếu cấu hình |
+| Năm học | `2025-2026` hoàn tất, `2026-2027` đang hoạt động, `2027-2028` là bản nháp thiếu cấu hình |
 | Danh mục | Trường, khối 10-12, 2 ca, 10 tiết, 7 môn, phòng học, cấu hình đầu điểm |
 | Lớp và phân công | 4 lớp qua 2 năm, GVCN, giáo viên bộ môn, học sinh lên lớp và học sinh ở nhiều lớp |
 | Thời khóa biểu | Trạng thái `ACTIVE`, `DRAFT`, `SCHEDULED`, `ARCHIVED`; có cả sáng và chiều |
@@ -70,8 +70,8 @@ Tài khoản trạng thái biên dành cho trang quản lý người dùng:
 ## Kịch bản kiểm thử nhanh
 
 1. Đăng nhập admin, chuyển giữa ba năm học và xác nhận dữ liệu lớp không bị lẫn.
-2. Ở năm `2026-2027 DEMO`, kiểm tra 12A1 để thấy đầy đủ lịch, điểm, điểm danh và thông báo.
-3. Mở `2027-2028 DEMO` để kiểm tra màn hình validation/activation khi thiếu cấu hình.
+2. Ở năm `2026-2027`, kiểm tra 12A1 để thấy đầy đủ lịch, điểm, điểm danh và thông báo.
+3. Mở `2027-2028` để kiểm tra màn hình validation/activation khi thiếu cấu hình.
 4. Đăng nhập lần lượt giáo viên, phụ huynh, học sinh qua API để kiểm tra phân quyền và dữ liệu cá nhân.
 5. Dùng Swagger tại `http://localhost:8080/swagger-ui.html` để gọi các API theo vai trò.
 

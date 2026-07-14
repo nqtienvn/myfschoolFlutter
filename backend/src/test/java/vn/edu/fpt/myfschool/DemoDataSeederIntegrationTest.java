@@ -64,6 +64,9 @@ class DemoDataSeederIntegrationTest {
         AcademicYear draft = academicYearRepository.findByName(DemoDataSeeder.DRAFT_YEAR_NAME)
             .orElseThrow();
 
+        assertThat(current.getName()).isEqualTo(
+            current.getStartDate().getYear() + "-" + current.getEndDate().getYear()
+        );
         assertThat(classRepository.findByAcademicYearId(previous.getId())).hasSize(1);
         assertThat(classRepository.findByAcademicYearId(current.getId())).hasSize(3);
         assertThat(classRepository.findByAcademicYearId(draft.getId())).isEmpty();
