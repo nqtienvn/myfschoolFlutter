@@ -11,7 +11,8 @@ import java.util.Optional;
 public interface ConversationRepository extends JpaRepository<Conversation, Long> {
 
     @Query("SELECT c FROM Conversation c JOIN c.participants p " +
-           "WHERE p.user.id = :userId ORDER BY c.lastMessageAt DESC NULLS LAST")
+           "WHERE p.user.id = :userId AND c.lastMessageAt IS NOT NULL " +
+           "ORDER BY c.lastMessageAt DESC")
     java.util.List<Conversation> findConversationsByUserId(@Param("userId") Long userId);
 
     @Query("SELECT c FROM Conversation c JOIN c.participants p1 JOIN c.participants p2 " +

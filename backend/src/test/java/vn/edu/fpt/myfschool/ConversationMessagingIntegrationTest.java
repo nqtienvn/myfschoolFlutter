@@ -7,10 +7,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.web.socket.WebSocketSession;
 import vn.edu.fpt.myfschool.common.dto.SendMessageRequest;
+import vn.edu.fpt.myfschool.common.enums.MessageReceiptStatus;
 import vn.edu.fpt.myfschool.common.enums.MessageType;
 import vn.edu.fpt.myfschool.entity.Conversation;
 import vn.edu.fpt.myfschool.entity.ConversationParticipant;
 import vn.edu.fpt.myfschool.service.ChatRealtimeService;
+import vn.edu.fpt.myfschool.repository.MessageReceiptRepository;
 import vn.edu.fpt.myfschool.websocket.WebSocketSessionManager;
 
 import java.time.LocalDateTime;
@@ -28,9 +30,10 @@ class ConversationMessagingIntegrationTest extends BaseIntegrationTest {
 
     @Autowired ChatRealtimeService chatRealtimeService;
     @Autowired WebSocketSessionManager sessionManager;
+    @Autowired MessageReceiptRepository messageReceiptRepository;
 
     @Test
-    void realtime_send_marks_recipient_message_delivered_and_skips_duplicate_push() throws Exception {
+    void realtime_message_moves_from_sent_to_delivered_to_read_and_skips_duplicate_push() throws Exception {
         Conversation conversation = createConversation();
         Long parentUserId = testParent.getUser().getId();
         Long teacherUserId = testTeacher.getUser().getId();
@@ -48,7 +51,28 @@ class ConversationMessagingIntegrationTest extends BaseIntegrationTest {
 
         assertThat(events(parentSession, "message.ack")).hasSize(2);
         assertThat(events(teacherSession, "message.new")).hasSize(1);
-        assertThat(events(teacherSession, "message.new").getFirst().at("/message/status").asText()).isEqualTo("delivered");
+        JsonNode incoming = events(teacherSession, "message.new").getFirst();
+        assertThat(incoming.at("/message/status").asText()).isEqualTo("sent");
+        long messageId = incoming.at("/message/id").asLong();
+
+        chatRealtimeService.handle(teacherUserId, teacherSession, """
+                {"type":"message.delivered","conversationId":%d,"messageId":%d}
+                """.formatted(conversation.getId(), messageId));
+        assertThat(events(parentSession, "message.receipt").getFirst().get("status").asText())
+                .isEqualTo("delivered");
+
+        chatRealtimeService.handle(teacherUserId, teacherSession, """
+                {"type":"message.read","conversationId":%d,"lastReadMessageId":%d}
+                """.formatted(conversation.getId(), messageId));
+        assertThat(events(parentSession, "conversation.read")).hasSize(1);
+        assertThat(messageReceiptRepository.findByMessageIdAndUserId(messageId, teacherUserId)
+                .orElseThrow().getStatus()).isEqualTo(MessageReceiptStatus.READ);
+
+        chatRealtimeService.handle(teacherUserId, teacherSession, """
+                {"type":"message.delivered","conversationId":%d,"messageId":%d}
+                """.formatted(conversation.getId(), messageId));
+        assertThat(events(parentSession, "message.receipt").getLast().get("status").asText())
+                .isEqualTo("read");
     }
 
     @Test
@@ -123,6 +147,18 @@ class ConversationMessagingIntegrationTest extends BaseIntegrationTest {
                 .findByConversationIdAndUserId(conversation.getId(), testTeacher.getUser().getId())
                 .orElseThrow();
         assertThat(participant.getLastReadMessageId()).isEqualTo(message.id());
+        var receipt = messageReceiptRepository
+                .findByMessageIdAndUserId(message.id(), testTeacher.getUser().getId())
+                .orElseThrow();
+        assertThat(receipt.getStatus()).isEqualTo(MessageReceiptStatus.READ);
+        assertThat(receipt.getDeliveredAt()).isNotNull();
+        assertThat(receipt.getReadAt()).isNotNull();
+
+        String parentToken = loginAsParent();
+        mockMvc.perform(get("/api/conversations/" + conversation.getId())
+                        .header("Authorization", authHeader(parentToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].status").value("read"));
     }
 
     @Test
@@ -169,6 +205,26 @@ class ConversationMessagingIntegrationTest extends BaseIntegrationTest {
                 () -> conversationService.sendMessage(conversation.getId(), studentUserId,
                         new SendMessageRequest("client-7", "Không hợp lệ", MessageType.TEXT))
         );
+    }
+
+    @Test
+    void empty_conversation_appears_in_list_only_after_first_message() {
+        Long parentUserId = testParent.getUser().getId();
+        Long teacherUserId = testTeacher.getUser().getId();
+        var created = conversationService.createOrFindConversation(parentUserId, teacherUserId);
+
+        assertThat(created.lastMessage()).isNull();
+        assertThat(conversationService.getConversations(parentUserId)).isEmpty();
+
+        conversationService.sendMessage(created.id(), parentUserId,
+                new SendMessageRequest("client-first", "Tin nhắn đầu tiên", MessageType.TEXT));
+
+        assertThat(conversationService.getConversations(parentUserId))
+                .singleElement()
+                .satisfies(item -> {
+                    assertThat(item.id()).isEqualTo(created.id());
+                    assertThat(item.lastMessage()).isEqualTo("Tin nhắn đầu tiên");
+                });
     }
 
     private List<JsonNode> events(StubWebSocketSession session, String type) throws Exception {

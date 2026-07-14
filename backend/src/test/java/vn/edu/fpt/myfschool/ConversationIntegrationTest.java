@@ -3,6 +3,7 @@ package vn.edu.fpt.myfschool;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
+import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import vn.edu.fpt.myfschool.entity.AcademicYear;
 import vn.edu.fpt.myfschool.entity.SchoolClass;
 import java.time.LocalDate;
@@ -50,6 +51,66 @@ class ConversationIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data").value(0));
+    }
+
+    @Test
+    void search_chat_users_supports_name_phone_and_account_identifiers_but_excludes_admin_and_locked_users() throws Exception {
+        String token = loginAsParent();
+        var teacherUser = testTeacher.getUser();
+        teacherUser.setEmail("teacher.login@fschool.test");
+        userRepository.save(teacherUser);
+
+        mockMvc.perform(get("/api/conversations/search-users")
+                        .header("Authorization", authHeader(token))
+                        .param("keyword", "GV Test"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(teacherUser.getId()));
+
+        mockMvc.perform(get("/api/conversations/search-users")
+                        .header("Authorization", authHeader(token))
+                        .param("keyword", "0909000001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(teacherUser.getId()));
+
+        mockMvc.perform(get("/api/conversations/search-users")
+                        .header("Authorization", authHeader(token))
+                        .param("keyword", "teacher.login"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(teacherUser.getId()));
+
+        mockMvc.perform(get("/api/conversations/search-users")
+                        .header("Authorization", authHeader(token))
+                        .param("keyword", "GV100"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(teacherUser.getId()));
+
+        mockMvc.perform(get("/api/conversations/search-users")
+                        .header("Authorization", authHeader(token))
+                        .param("keyword", "12A-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(testStudent1.getUser().getId()));
+
+        String teacherToken = loginAsTeacher();
+        String parentAccountCode = "PH-%06d".formatted(testParent.getId());
+        mockMvc.perform(get("/api/conversations/search-users")
+                        .header("Authorization", authHeader(teacherToken))
+                        .param("keyword", parentAccountCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(testParent.getUser().getId()));
+
+        mockMvc.perform(get("/api/conversations/search-users")
+                        .header("Authorization", authHeader(token))
+                        .param("keyword", "Admin Test"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+
+        teacherUser.setStatus(UserStatus.LOCKED);
+        userRepository.save(teacherUser);
+        mockMvc.perform(get("/api/conversations/search-users")
+                        .header("Authorization", authHeader(token))
+                        .param("keyword", "teacher.login"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
     }
 
     @Test

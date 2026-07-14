@@ -100,7 +100,7 @@ public class ChatRealtimeServiceImpl implements ChatRealtimeService {
                 recipientMsg.put("content", saved.content());
                 recipientMsg.put("serverSeq", saved.serverSeq());
                 recipientMsg.put("isMine", false);
-                recipientMsg.put("status", "delivered");
+                recipientMsg.put("status", "sent");
                 recipientMsg.put("createdAt", saved.createdAt());
                 recipientMsg.put("attachments", saved.attachments());
 
@@ -127,8 +127,9 @@ public class ChatRealtimeServiceImpl implements ChatRealtimeService {
             payload.put("conversationId", event.conversationId());
             payload.put("messageId", event.messageId());
             payload.put("userId", userId);
-            payload.put("status", "delivered");
+            payload.put("status", receipt.getStatus().name().toLowerCase());
             payload.put("deliveredAt", receipt.getDeliveredAt());
+            payload.put("readAt", receipt.getReadAt());
             sendToUser(receipt.getMessage().getSender().getId(), payload);
         } catch (RuntimeException ex) {
             sendToUser(userId, error("message.delivered", null, "DELIVERED_FAILED", ex.getMessage()));

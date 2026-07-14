@@ -157,7 +157,10 @@ class _AppShellState extends State<AppShell> {
         bottomNavigationBar: SafeArea(
           top: false,
           child: AnimatedBuilder(
-            animation: _notificationService ?? Listenable.merge(const []),
+            animation: Listenable.merge([
+              ?_notificationService,
+              ?widget.chatService,
+            ]),
             builder: (context, _) => BottomNavigationBar(
               currentIndex: _selectedIndex,
               onTap: _selectTab,
@@ -168,8 +171,8 @@ class _AppShellState extends State<AppShell> {
                   label: 'Trang chủ',
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.chat_bubble_outline),
-                  activeIcon: Icon(Icons.chat_bubble),
+                  icon: _chatIcon(Icons.chat_bubble_outline),
+                  activeIcon: _chatIcon(Icons.chat_bubble),
                   label: 'Tin nhắn',
                 ),
                 BottomNavigationBarItem(
@@ -196,6 +199,15 @@ class _AppShellState extends State<AppShell> {
 
   Widget _notificationIcon(IconData icon) {
     final count = _notificationService?.unreadCount ?? 0;
+    return Badge(
+      isLabelVisible: count > 0,
+      label: Text(count > 99 ? '99+' : '$count'),
+      child: Icon(icon),
+    );
+  }
+
+  Widget _chatIcon(IconData icon) {
+    final count = widget.chatService?.totalUnreadCount ?? 0;
     return Badge(
       isLabelVisible: count > 0,
       label: Text(count > 99 ? '99+' : '$count'),

@@ -7,7 +7,10 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.MessageDto;
 import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
 import vn.edu.fpt.myfschool.entity.Message;
+import vn.edu.fpt.myfschool.entity.MessageReceipt;
+import vn.edu.fpt.myfschool.common.enums.MessageReceiptStatus;
 import vn.edu.fpt.myfschool.repository.ConversationParticipantRepository;
+import vn.edu.fpt.myfschool.repository.MessageReceiptRepository;
 import vn.edu.fpt.myfschool.repository.MessageRepository;
 import vn.edu.fpt.myfschool.service.MessageService;
 
@@ -20,6 +23,7 @@ import java.util.stream.Collectors;
 public class MessageServiceImpl implements MessageService {
 
     private final MessageRepository messageRepository;
+    private final MessageReceiptRepository messageReceiptRepository;
     private final ConversationParticipantRepository participantRepository;
 
     @Override
@@ -53,9 +57,17 @@ public class MessageServiceImpl implements MessageService {
                 m.getContent(),
                 m.getServerSeq(),
                 isMine,
-                isMine ? "sent" : "delivered",
+                isMine ? resolveReceiptStatus(m.getId()) : "delivered",
                 m.getCreatedAt(),
                 List.of()
         );
+    }
+
+    private String resolveReceiptStatus(Long messageId) {
+        List<MessageReceipt> receipts = messageReceiptRepository.findByMessageId(messageId);
+        if (receipts.stream().anyMatch(r -> r.getStatus() == MessageReceiptStatus.READ)) {
+            return "read";
+        }
+        return receipts.isEmpty() ? "sent" : "delivered";
     }
 }

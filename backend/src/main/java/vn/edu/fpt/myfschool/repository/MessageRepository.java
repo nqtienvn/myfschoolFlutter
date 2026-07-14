@@ -45,4 +45,14 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     long countUnreadAfterMessageId(@Param("convId") Long convId,
                                    @Param("userId") Long userId,
                                    @Param("lastReadMessageId") Long lastReadMessageId);
+
+    @Query("SELECT m FROM Message m WHERE m.conversation.id = :conversationId " +
+            "AND m.sender.id <> :readerId " +
+            "AND (:previousReadMessageId IS NULL OR m.id > :previousReadMessageId) " +
+            "AND m.id <= :lastReadMessageId")
+    List<Message> findIncomingMessagesInReadRange(
+            @Param("conversationId") Long conversationId,
+            @Param("readerId") Long readerId,
+            @Param("previousReadMessageId") Long previousReadMessageId,
+            @Param("lastReadMessageId") Long lastReadMessageId);
 }

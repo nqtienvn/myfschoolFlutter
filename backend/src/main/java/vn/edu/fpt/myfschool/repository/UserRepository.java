@@ -17,6 +17,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByPhone(String phone);
 
+    Optional<User> findByParentId(Long parentId);
+
     boolean existsByPhone(String phone);
 
     boolean existsByEmail(String email);
@@ -39,6 +41,18 @@ public interface UserRepository extends JpaRepository<User, Long> {
            "LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "u.phone LIKE CONCAT('%', :keyword, '%')")
     List<User> searchByKeyword(@Param("keyword") String keyword);
+
+    @Query("SELECT u FROM User u LEFT JOIN u.student s LEFT JOIN u.teacher t " +
+           "WHERE u.status = :status AND u.role <> :excludedRole AND (" +
+           "LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "u.phone LIKE CONCAT('%', :keyword, '%') OR " +
+           "LOWER(COALESCE(u.email, '')) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(COALESCE(s.studentCode, '')) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(COALESCE(t.employeeCode, '')) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "ORDER BY u.name")
+    List<User> searchChatUsers(@Param("keyword") String keyword,
+                               @Param("status") UserStatus status,
+                               @Param("excludedRole") UserRole excludedRole);
 
     @Query("SELECT u FROM User u WHERE " +
            "(:role IS NULL OR u.role = :role) AND " +

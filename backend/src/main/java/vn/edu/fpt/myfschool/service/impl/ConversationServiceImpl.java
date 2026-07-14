@@ -10,6 +10,8 @@ import vn.edu.fpt.myfschool.common.dto.SearchResultDto;
 import vn.edu.fpt.myfschool.common.dto.SendMessageRequest;
 import vn.edu.fpt.myfschool.common.enums.MessageReceiptStatus;
 import vn.edu.fpt.myfschool.common.enums.MessageType;
+import vn.edu.fpt.myfschool.common.enums.UserRole;
+import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
@@ -46,27 +48,16 @@ public class ConversationServiceImpl implements ConversationService {
     @Override
     public List<ConversationDto> getConversations(Long userId) {
         List<Conversation> conversations = conversationRepository.findConversationsByUserId(userId);
-        return conversations.stream().map(c -> {
-            ConversationParticipant current = participantRepository.findByConversationIdAndUserId(c.getId(), userId).orElse(null);
-            ConversationParticipant other = c.getParticipants().stream()
-                    .filter(p -> !p.getUser().getId().equals(userId)).findFirst().orElse(null);
-            long unread = messageRepository.countUnreadAfterMessageId(
-                    c.getId(), userId, current == null ? null : current.getLastReadMessageId());
-            ParticipantDto otherDto = other != null ? new ParticipantDto(
-                    other.getUser().getId(), other.getUser().getName(),
-                    other.getUser().getRole()) : null;
-            return new ConversationDto(c.getId(), c.getLastMessage(), c.getLastMessageAt(),
-                    (int) unread, otherDto);
-        }).collect(Collectors.toList());
+        return conversations.stream()
+                .map(c -> toConversationDto(c, userId))
+                .collect(Collectors.toList());
     }
 
     @Override
     public ConversationDto createOrFindConversation(Long userId, Long otherUserId) {
         var existing = conversationRepository.findConversationBetweenUsers(userId, otherUserId);
         if (existing.isPresent()) {
-            return getConversations(userId).stream()
-                    .filter(c -> c.id().equals(existing.get().getId())).findFirst()
-                    .orElse(null);
+            return toConversationDto(existing.get(), userId);
         }
 
         Conversation conv = new Conversation();
@@ -145,10 +136,31 @@ public class ConversationServiceImpl implements ConversationService {
             throw new BadRequestException("Tin nhắn đã đọc không thuộc hội thoại này");
         }
         Long current = participant.getLastReadMessageId();
-        if (targetMessageId != null && (current == null || targetMessageId > current)) {
-            participant.setLastReadMessageId(targetMessageId);
+        Long effectiveReadMessageId = targetMessageId;
+        if (current != null && (effectiveReadMessageId == null || current > effectiveReadMessageId)) {
+            effectiveReadMessageId = current;
         }
-        participant.setLastReadAt(LocalDateTime.now());
+        LocalDateTime readAt = LocalDateTime.now();
+        if (effectiveReadMessageId != null) {
+            participant.setLastReadMessageId(effectiveReadMessageId);
+            for (Message message : messageRepository.findIncomingMessagesInReadRange(
+                    conversationId, userId, current, effectiveReadMessageId)) {
+                MessageReceipt receipt = messageReceiptRepository.findByMessageIdAndUserId(message.getId(), userId)
+                        .orElseGet(() -> {
+                            MessageReceipt created = new MessageReceipt();
+                            created.setMessage(message);
+                            created.setUser(participant.getUser());
+                            return created;
+                        });
+                if (receipt.getDeliveredAt() == null) {
+                    receipt.setDeliveredAt(readAt);
+                }
+                receipt.setStatus(MessageReceiptStatus.READ);
+                receipt.setReadAt(readAt);
+                messageReceiptRepository.save(receipt);
+            }
+        }
+        participant.setLastReadAt(readAt);
         return participantRepository.save(participant);
     }
 
@@ -223,12 +235,15 @@ public class ConversationServiceImpl implements ConversationService {
     public List<SearchResultDto> searchUsers(Long userId, String keyword) {
         if (keyword == null || keyword.isBlank()) return List.of();
         String trimmed = keyword.trim();
-        List<User> byPhone = userRepository.findByPhone(trimmed)
-                .map(List::of).orElse(List.of());
-        List<User> byNameLike = userRepository.searchByKeyword(trimmed);
-        return Stream.concat(byPhone.stream(), byNameLike.stream())
-                .distinct()
+        Stream<User> accountCodeMatch = parseParentAccountId(trimmed)
+                .flatMap(userRepository::findByParentId)
+                .stream();
+        return Stream.concat(
+                        userRepository.searchChatUsers(trimmed, UserStatus.ACTIVE, UserRole.ADMIN).stream(),
+                        accountCodeMatch)
+                .filter(u -> u.getStatus() == UserStatus.ACTIVE && u.getRole() != UserRole.ADMIN)
                 .filter(u -> !u.getId().equals(userId))
+                .distinct()
                 .map(u -> new SearchResultDto(u.getId(), u.getName(), u.getPhone(), u.getRole().name()))
                 .collect(Collectors.toList());
     }
@@ -279,9 +294,49 @@ public class ConversationServiceImpl implements ConversationService {
                 msg.getContent(),
                 msg.getServerSeq(),
                 isMine,
-                isMine ? "sent" : "delivered",
+                isMine ? resolveReceiptStatus(msg.getId()) : "delivered",
                 msg.getCreatedAt(),
                 List.of()
         );
+    }
+
+    private ConversationDto toConversationDto(Conversation conversation, Long userId) {
+        ConversationParticipant current = participantRepository
+                .findByConversationIdAndUserId(conversation.getId(), userId)
+                .orElse(null);
+        ConversationParticipant other = conversation.getParticipants().stream()
+                .filter(p -> !p.getUser().getId().equals(userId))
+                .findFirst()
+                .orElse(null);
+        long unread = messageRepository.countUnreadAfterMessageId(
+                conversation.getId(), userId, current == null ? null : current.getLastReadMessageId());
+        ParticipantDto otherDto = other == null ? null : new ParticipantDto(
+                other.getUser().getId(), other.getUser().getName(), other.getUser().getRole());
+        return new ConversationDto(
+                conversation.getId(),
+                conversation.getLastMessage(),
+                conversation.getLastMessageAt(),
+                (int) unread,
+                otherDto
+        );
+    }
+
+    private String resolveReceiptStatus(Long messageId) {
+        List<MessageReceipt> receipts = messageReceiptRepository.findByMessageId(messageId);
+        if (receipts.stream().anyMatch(r -> r.getStatus() == MessageReceiptStatus.READ)) {
+            return "read";
+        }
+        return receipts.isEmpty() ? "sent" : "delivered";
+    }
+
+    private java.util.Optional<Long> parseParentAccountId(String keyword) {
+        if (!keyword.toUpperCase().startsWith("PH-")) {
+            return java.util.Optional.empty();
+        }
+        try {
+            return java.util.Optional.of(Long.parseLong(keyword.substring(3)));
+        } catch (NumberFormatException ignored) {
+            return java.util.Optional.empty();
+        }
     }
 }

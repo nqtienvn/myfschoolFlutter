@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/dto/search_result_dto.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/models/models.dart' as domain;
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
@@ -8,7 +11,6 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/actor_models.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/chat_detail_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/login_screen.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/user_search_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_profile_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_leave_requests_screen.dart';
@@ -50,20 +52,6 @@ class _ServiceConversationsScreen extends StatelessWidget {
             title: actor == AppActor.teacher
                 ? 'Tin nhắn phụ huynh'
                 : 'Tin nhắn liên lạc',
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.person_add_alt_1, color: Colors.white),
-                tooltip: 'Tìm người dùng',
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          UserSearchScreen(chatService: chatService),
-                    ),
-                  );
-                },
-              ),
-            ],
           ),
           body: SafeArea(
             child: RefreshIndicator(
@@ -71,6 +59,8 @@ class _ServiceConversationsScreen extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 children: [
+                  _InlineUserSearch(chatService: chatService),
+                  const SizedBox(height: AppSpacing.lg),
                   const SectionHeader(title: 'Hộp thoại gần đây'),
                   if (chatService.isLoadingConversations)
                     const Padding(
@@ -99,6 +89,180 @@ class _ServiceConversationsScreen extends StatelessWidget {
   }
 }
 
+class _InlineUserSearch extends StatefulWidget {
+  const _InlineUserSearch({required this.chatService});
+
+  final ChatService chatService;
+
+  @override
+  State<_InlineUserSearch> createState() => _InlineUserSearchState();
+}
+
+class _InlineUserSearchState extends State<_InlineUserSearch> {
+  final TextEditingController _controller = TextEditingController();
+  Timer? _debounce;
+  List<SearchResultDto> _results = const [];
+  bool _isSearching = false;
+  int? _openingUserId;
+  String? _error;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    final keyword = value.trim();
+    if (keyword.isEmpty) {
+      setState(() {
+        _results = const [];
+        _isSearching = false;
+        _error = null;
+      });
+      return;
+    }
+    setState(() {
+      _results = const [];
+      _isSearching = true;
+      _error = null;
+    });
+    _debounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _search(keyword),
+    );
+  }
+
+  Future<void> _search(String keyword) async {
+    setState(() {
+      _isSearching = true;
+      _error = null;
+    });
+    try {
+      final results = await widget.chatService.searchUsers(keyword);
+      if (!mounted || _controller.text.trim() != keyword) return;
+      setState(() => _results = results);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _results = const [];
+        _error = 'Không thể tìm kiếm tài khoản lúc này.';
+      });
+    } finally {
+      if (mounted && _controller.text.trim() == keyword) {
+        setState(() => _isSearching = false);
+      }
+    }
+  }
+
+  Future<void> _openChat(SearchResultDto user) async {
+    setState(() => _openingUserId = user.id);
+    try {
+      final conversation = await widget.chatService.createConversation(
+        otherUserId: user.id,
+      );
+      if (!mounted) return;
+      widget.chatService.clearConversationUnread(conversation.id);
+      _controller.clear();
+      setState(() => _results = const []);
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ChatDetailScreen(
+            conversation: conversation,
+            chatService: widget.chatService,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể mở cuộc hội thoại.')),
+      );
+    } finally {
+      if (mounted) setState(() => _openingUserId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasQuery = _controller.text.trim().isNotEmpty;
+    return AppCard(
+      child: Column(
+        children: [
+          TextField(
+            key: const ValueKey('conversation-user-search'),
+            controller: _controller,
+            onChanged: _onChanged,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Tìm theo tên, số điện thoại, tên tài khoản',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _isSearching
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : null,
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              _error!,
+              style: const TextStyle(color: AppColors.danger, fontSize: 12),
+            ),
+          ] else if (hasQuery && !_isSearching && _results.isEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Không tìm thấy tài khoản phù hợp.',
+                style: TextStyle(color: AppColors.muted, fontSize: 12),
+              ),
+            ),
+          ] else if (_results.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const Divider(height: 1),
+            for (final user in _results)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+                title: Text(
+                  user.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text('${user.phone} • ${_roleLabel(user.role)}'),
+                trailing: _openingUserId == user.id
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.chat_bubble_outline),
+                enabled: _openingUserId == null,
+                onTap: () => _openChat(user),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _roleLabel(String role) => switch (role) {
+    'PARENT' => 'Phụ huynh',
+    'STUDENT' => 'Học sinh',
+    'TEACHER' => 'Giáo viên',
+    _ => role,
+  };
+}
+
 class _ConversationCard extends StatelessWidget {
   const _ConversationCard({
     required this.conversation,
@@ -120,6 +284,7 @@ class _ConversationCard extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: () {
+              chatService.clearConversationUnread(conversation.id);
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => ChatDetailScreen(
@@ -152,9 +317,14 @@ class _ConversationCard extends StatelessWidget {
                           conversation.lastMessage ?? 'Nhắn tin ngay',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12.5,
-                            color: AppColors.muted,
+                            color: conversation.unreadCount > 0
+                                ? AppColors.ink
+                                : AppColors.muted,
+                            fontWeight: conversation.unreadCount > 0
+                                ? FontWeight.w700
+                                : FontWeight.normal,
                           ),
                         ),
                       ],
@@ -166,9 +336,9 @@ class _ConversationCard extends StatelessWidget {
                         horizontal: 8,
                         vertical: 4,
                       ),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppColors.fptOrange,
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
                         '${conversation.unreadCount}',

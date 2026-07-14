@@ -6,6 +6,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/src/api/client/auth_api_client.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/client/backend_api_client.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/client/chat_api_client.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/dto/chat_socket_event_dto.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/dto/search_result_dto.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/models/auth_session.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/models/conversation.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/repositories/chat_repository.dart';
@@ -43,6 +44,42 @@ void main() {
     expect(find.text('GV Backend'), findsOneWidget);
     expect(find.text('Tin nhắn từ backend'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('conversation-user-search')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('ConversationsScreen searches and opens a user inline', (
+    tester,
+  ) async {
+    final service = _FakeChatService(const [], const [
+      SearchResultDto(
+        id: 8,
+        name: 'Nguyễn Văn Giáo viên',
+        phone: '0909000001',
+        role: 'TEACHER',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ConversationsScreen(actor: AppActor.parent, chatService: service),
+      ),
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('conversation-user-search')),
+      '0909000001',
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+
+    expect(find.text('Nguyễn Văn Giáo viên'), findsOneWidget);
+    await tester.tap(find.text('Nguyễn Văn Giáo viên'));
+    await tester.pumpAndSettle();
+
+    expect(service.createdForUserId, 8);
+    expect(find.text('Nguyễn Văn Giáo viên'), findsOneWidget);
   });
 
   testWidgets(
@@ -136,14 +173,16 @@ class _FakeAuthService extends AuthService {
 }
 
 class _FakeChatService extends ChatService {
-  _FakeChatService([this.items = const []])
+  _FakeChatService([this.items = const [], this.searchItems = const []])
     : super(
         repository: _FakeChatRepository(const []),
         socketService: _FakeSocketService(),
       );
 
   final List<Conversation> items;
+  final List<SearchResultDto> searchItems;
   int startCalls = 0;
+  int? createdForUserId;
 
   @override
   List<Conversation> get conversations => items;
@@ -155,6 +194,25 @@ class _FakeChatService extends ChatService {
 
   @override
   Future<void> stop() async {}
+
+  @override
+  Future<List<SearchResultDto>> searchUsers(String keyword) async =>
+      searchItems;
+
+  @override
+  Future<Conversation> createConversation({required int otherUserId}) async {
+    createdForUserId = otherUserId;
+    final user = searchItems.firstWhere((item) => item.id == otherUserId);
+    return Conversation(
+      id: 99,
+      unreadCount: 0,
+      otherParticipant: ChatParticipant(
+        userId: user.id,
+        name: user.name,
+        role: user.role,
+      ),
+    );
+  }
 }
 
 class _FakeChatRepository extends ChatRepository {

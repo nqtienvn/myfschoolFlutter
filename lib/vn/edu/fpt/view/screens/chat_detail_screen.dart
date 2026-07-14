@@ -462,27 +462,29 @@ class _DomainMessageBubble extends StatelessWidget {
               message.content,
               style: TextStyle(fontSize: 13.5, color: textColor, height: 1.35),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  status,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: timeColor,
-                    fontWeight: FontWeight.w600,
+            if (isMine) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    status,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: timeColor,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                if (message.status == domain.ChatMessageStatus.failed) ...[
-                  const SizedBox(width: AppSpacing.xs),
-                  GestureDetector(
-                    onTap: onRetry,
-                    child: Icon(Icons.refresh, color: timeColor, size: 14),
-                  ),
+                  if (message.status == domain.ChatMessageStatus.failed) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    GestureDetector(
+                      onTap: onRetry,
+                      child: Icon(Icons.refresh, color: timeColor, size: 14),
+                    ),
+                  ],
                 ],
-              ],
-            ),
+              ),
+            ],
           ],
         ),
       ),

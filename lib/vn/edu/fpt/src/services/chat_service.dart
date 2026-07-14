@@ -21,6 +21,9 @@ class ChatService extends ChangeNotifier {
   final ChatRepository _repository;
   final ChatSocketService _socketService;
   final Map<int, List<ChatMessage>> _messagesByConversationId = {};
+  final Map<int, Conversation> _pendingConversations = {};
+  final Map<int, int> _lastReadMessageIds = {};
+  final Set<int> _deliveredMessageIds = {};
   final Map<String, Timer> _ackTimers = {};
   final Map<int, Timer> _typingTimers = {};
   AuthSession? get session => _session;
@@ -36,6 +39,10 @@ class ChatService extends ChangeNotifier {
   StreamSubscription<void>? _reconnectSub;
 
   List<Conversation> get conversations => List.unmodifiable(_conversations);
+  int get totalUnreadCount => _conversations.fold(
+    0,
+    (total, conversation) => total + conversation.unreadCount,
+  );
   int? get activeConversationId => _activeConversationId;
   Stream<ChatSocketEventDto> get socketEvents => _socketService.events;
 
@@ -79,6 +86,7 @@ class ChatService extends ChangeNotifier {
     notifyListeners();
     try {
       _conversations = await _repository.getConversations(token: session.token);
+      _sortConversations();
     } catch (ex) {
       errorMessage = 'Không tải được danh sách tin nhắn';
     } finally {
@@ -100,6 +108,9 @@ class ChatService extends ChangeNotifier {
       _messagesByConversationId[conversationId] ?? [],
       messages,
     );
+    for (final message in messages) {
+      _acknowledgeDelivered(message);
+    }
     _markReadIfActive(conversationId);
     notifyListeners();
   }
@@ -117,6 +128,9 @@ class ChatService extends ChangeNotifier {
       beforeMessageId: ids.reduce(min),
     );
     _messagesByConversationId[conversationId] = _mergeAll(current, older);
+    for (final message in older) {
+      _acknowledgeDelivered(message);
+    }
     notifyListeners();
   }
 
@@ -135,6 +149,9 @@ class ChatService extends ChangeNotifier {
         limit: 100,
       );
       _messagesByConversationId[conversation.id] = _mergeAll(current, fresh);
+      for (final message in fresh) {
+        _acknowledgeDelivered(message);
+      }
     }
     notifyListeners();
   }
@@ -146,7 +163,9 @@ class ChatService extends ChangeNotifier {
       token: session.token,
       otherUserId: otherUserId,
     );
-    if (!_conversations.any((c) => c.id == conversation.id)) {
+    _pendingConversations[conversation.id] = conversation;
+    if (conversation.lastMessageAt != null &&
+        !_conversations.any((c) => c.id == conversation.id)) {
       _conversations = [conversation, ..._conversations];
       notifyListeners();
     }
@@ -161,7 +180,14 @@ class ChatService extends ChangeNotifier {
 
   Future<void> openConversation(int conversationId) async {
     _activeConversationId = conversationId;
+    _clearConversationUnread(conversationId);
     await loadMessages(conversationId);
+  }
+
+  void clearConversationUnread(int conversationId) {
+    if (_clearConversationUnread(conversationId)) {
+      notifyListeners();
+    }
   }
 
   void closeConversation(int conversationId) {
@@ -224,7 +250,12 @@ class ChatService extends ChangeNotifier {
         break;
       case 'message.receipt':
         if (event.messageId != null) {
-          _updateStatusById(event.messageId!, ChatMessageStatus.delivered);
+          _updateStatusById(
+            event.messageId!,
+            event.status?.toLowerCase() == 'read'
+                ? ChatMessageStatus.read
+                : ChatMessageStatus.delivered,
+          );
         }
         break;
       case 'conversation.read':
@@ -254,9 +285,11 @@ class ChatService extends ChangeNotifier {
     final message = event.message;
     if (session == null || message == null) return;
     _ackTimers.remove(event.clientMessageId)?.cancel();
-    _upsert(
-      message.toDomain(session.userId).copyWith(status: ChatMessageStatus.sent),
-    );
+    final acknowledged = message
+        .toDomain(session.userId)
+        .copyWith(status: ChatMessageStatus.sent);
+    _upsert(acknowledged);
+    _updateConversationPreview(acknowledged);
   }
 
   void _handleNew(ChatSocketEventDto event) {
@@ -266,12 +299,7 @@ class ChatService extends ChangeNotifier {
     final message = messageDto.toDomain(session.userId);
     _upsert(message);
     _updateConversationPreview(message);
-    if (!message.isMine && message.id != null) {
-      _socketService.markDelivered(
-        conversationId: message.conversationId,
-        messageId: message.id!,
-      );
-    }
+    _acknowledgeDelivered(message);
     _markReadIfActive(message.conversationId);
   }
 
@@ -326,10 +354,25 @@ class ChatService extends ChangeNotifier {
         .whereType<int>()
         .fold<int?>(null, (a, b) => a == null || b > a ? b : a);
     if (lastId != null) {
+      if (_lastReadMessageIds[conversationId] == lastId) return;
+      _lastReadMessageIds[conversationId] = lastId;
+      _clearConversationUnread(conversationId);
       _socketService.markRead(
         conversationId: conversationId,
         lastReadMessageId: lastId,
       );
+      final session = _session;
+      if (session != null) {
+        unawaited(
+          _repository
+              .markRead(
+                token: session.token,
+                conversationId: conversationId,
+                lastReadMessageId: lastId,
+              )
+              .catchError((_) {}),
+        );
+      }
     }
   }
 
@@ -338,6 +381,19 @@ class ChatService extends ChangeNotifier {
     _messagesByConversationId[message.conversationId] = _mergeAll(current, [
       message,
     ]);
+  }
+
+  void _acknowledgeDelivered(ChatMessage message) {
+    final messageId = message.id;
+    if (message.isMine ||
+        messageId == null ||
+        !_deliveredMessageIds.add(messageId)) {
+      return;
+    }
+    _socketService.markDelivered(
+      conversationId: message.conversationId,
+      messageId: messageId,
+    );
   }
 
   List<ChatMessage> _mergeAll(
@@ -421,16 +477,59 @@ class ChatService extends ChangeNotifier {
   }
 
   void _updateConversationPreview(ChatMessage message) {
+    final index = _conversations.indexWhere(
+      (conversation) => conversation.id == message.conversationId,
+    );
+    if (index < 0) {
+      final pending = _pendingConversations.remove(message.conversationId);
+      if (pending != null) {
+        _conversations = [
+          pending.copyWith(
+            lastMessage: message.content,
+            lastMessageAt: message.createdAt,
+            unreadCount: message.isMine ? 0 : 1,
+          ),
+          ..._conversations,
+        ];
+        _sortConversations();
+      } else if (!message.isMine) {
+        unawaited(loadConversations());
+      }
+      return;
+    }
+
+    final conversation = _conversations[index];
+    _conversations[index] = conversation.copyWith(
+      lastMessage: message.content,
+      lastMessageAt: message.createdAt,
+      unreadCount:
+          _activeConversationId == message.conversationId || message.isMine
+          ? 0
+          : conversation.unreadCount + 1,
+    );
+    _sortConversations();
+  }
+
+  bool _clearConversationUnread(int conversationId) {
+    var changed = false;
     _conversations = _conversations.map((conversation) {
-      if (conversation.id != message.conversationId) return conversation;
-      return conversation.copyWith(
-        lastMessage: message.content,
-        lastMessageAt: message.createdAt,
-        unreadCount:
-            _activeConversationId == message.conversationId || message.isMine
-            ? 0
-            : conversation.unreadCount + 1,
-      );
+      if (conversation.id != conversationId || conversation.unreadCount == 0) {
+        return conversation;
+      }
+      changed = true;
+      return conversation.copyWith(unreadCount: 0);
     }).toList();
+    return changed;
+  }
+
+  void _sortConversations() {
+    _conversations.sort((a, b) {
+      final aTime = a.lastMessageAt;
+      final bTime = b.lastMessageAt;
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
   }
 }
