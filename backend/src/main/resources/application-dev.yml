@@ -12,3 +12,8 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
+
+app:
+  demo-data:
+    enabled: ${DEMO_DATA_ENABLED:true}
+    password: ${DEMO_DATA_PASSWORD:Demo@123}
