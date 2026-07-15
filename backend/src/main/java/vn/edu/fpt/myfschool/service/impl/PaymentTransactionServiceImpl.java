@@ -17,6 +17,7 @@ import vn.edu.fpt.myfschool.entity.PaymentTransaction;
 import vn.edu.fpt.myfschool.entity.Student;
 import vn.edu.fpt.myfschool.entity.TuitionBill;
 import vn.edu.fpt.myfschool.repository.ParentRepository;
+import vn.edu.fpt.myfschool.repository.PaymentConfigurationRepository;
 import vn.edu.fpt.myfschool.repository.PaymentTransactionRepository;
 import vn.edu.fpt.myfschool.repository.StudentGuardianRepository;
 import vn.edu.fpt.myfschool.repository.StudentRepository;
@@ -36,6 +37,7 @@ public class PaymentTransactionServiceImpl implements PaymentTransactionService 
     private final StudentRepository studentRepository;
     private final ParentRepository parentRepository;
     private final StudentGuardianRepository studentGuardianRepository;
+    private final PaymentConfigurationRepository paymentConfigurationRepository;
 
     @Override
     public PaymentTransactionDto requestBankTransfer(Long billId) {
@@ -46,6 +48,14 @@ public class PaymentTransactionServiceImpl implements PaymentTransactionService 
         }
         if (bill.getStatus() == BillStatus.PROCESSING) {
             throw new ConflictException("Khoản học phí đang chờ nhà trường đối soát");
+        }
+
+        Long academicYearId = bill.getSemester().getAcademicYear().getId();
+        if (paymentConfigurationRepository
+                .findByAcademicYearIdAndEnabledTrue(academicYearId)
+                .isEmpty()) {
+            throw new ConflictException(
+                "Nhà trường chưa kích hoạt tài khoản nhận chuyển khoản cho năm học này");
         }
 
         PaymentTransaction transaction = new PaymentTransaction();
@@ -83,9 +93,49 @@ public class PaymentTransactionServiceImpl implements PaymentTransactionService 
         return toDto(transaction);
     }
 
+    @Override
+    public PaymentTransactionDto confirmBankTransfer(Long billId) {
+        TuitionBill bill = getBillForUpdate(billId);
+        PaymentTransaction transaction = requirePendingBankTransfer(bill);
+        LocalDateTime paidAt = LocalDateTime.now();
+        transaction.setStatus(PaymentStatus.SUCCESS);
+        transaction.setPaidAt(paidAt);
+        paymentTransactionRepository.save(transaction);
+
+        bill.setStatus(BillStatus.PAID);
+        bill.setPaidAt(paidAt);
+        tuitionBillRepository.save(bill);
+        return toDto(transaction);
+    }
+
+    @Override
+    public PaymentTransactionDto rejectBankTransfer(Long billId) {
+        TuitionBill bill = getBillForUpdate(billId);
+        PaymentTransaction transaction = requirePendingBankTransfer(bill);
+        transaction.setStatus(PaymentStatus.FAILED);
+        transaction.setPaidAt(null);
+        paymentTransactionRepository.save(transaction);
+
+        bill.setStatus(BillStatus.UNPAID);
+        bill.setPaidAt(null);
+        tuitionBillRepository.save(bill);
+        return toDto(transaction);
+    }
+
     private TuitionBill getBillForUpdate(Long billId) {
         return tuitionBillRepository.findByIdForUpdate(billId)
             .orElseThrow(() -> new ResourceNotFoundException("TuitionBill", "id", billId));
+    }
+
+    private PaymentTransaction requirePendingBankTransfer(TuitionBill bill) {
+        if (bill.getStatus() != BillStatus.PROCESSING) {
+            throw new ConflictException("Khoản học phí không ở trạng thái chờ đối soát");
+        }
+        return paymentTransactionRepository
+            .findFirstByTuitionBillIdAndStatusOrderByCreatedAtDesc(
+                bill.getId(), PaymentStatus.PENDING)
+            .orElseThrow(() -> new ConflictException(
+                "Không tìm thấy xác nhận chuyển khoản đang chờ đối soát"));
     }
 
     private void authorizeBillOwner(TuitionBill bill) {

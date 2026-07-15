@@ -12,6 +12,8 @@ public interface TuitionBillService {
 
     List<TuitionBillDto> getClassBills(Long classId, Long semesterId, BillStatus status);
 
+    List<TuitionBillDto> getPaymentRequests(Long academicYearId);
+
     TeacherTuitionSummaryDto getClassSummary(Long classId, Long semesterId);
 
     void deleteTuitionBill(Long billId);

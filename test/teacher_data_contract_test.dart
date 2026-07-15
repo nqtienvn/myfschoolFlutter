@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/models/payment_configuration.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_stats_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_tuition_screen.dart';
@@ -89,6 +90,25 @@ class _FakeStudentTuitionClient extends TuitionBillApiClient {
       status: requested ? 'Đang xử lý' : 'Chưa đóng',
     ),
   ];
+
+  @override
+  Future<PaymentConfiguration?> getPaymentConfiguration({
+    required String token,
+    required int semesterId,
+  }) async => const PaymentConfiguration(
+    id: 8,
+    academicYearId: 26,
+    bankCode: 'TPB',
+    bankName: 'TPBank',
+    accountNumber: '1234567890',
+    accountHolder: 'FPT SCHOOLS',
+    branch: 'Hà Nội',
+    transferContentTemplate: 'MFS {studentCode} {semester}',
+    enabled: true,
+    method: 'BANK_TRANSFER',
+    displayMode: 'MANUAL',
+    qrAvailable: false,
+  );
 
   @override
   Future<void> requestBankTransfer({
@@ -304,6 +324,44 @@ void main() {
     expect(backend.postCalls, ['/api/tuition/bills/41/payment-request']);
   });
 
+  test('student tuition maps manual bank transfer configuration', () async {
+    final backend = _RecordingBackend([
+      {
+        'id': 8,
+        'academicYearId': 26,
+        'bankCode': 'TPB',
+        'bankName': 'TPBank',
+        'accountNumber': '1234567890',
+        'accountHolder': 'FPT SCHOOLS',
+        'branch': 'Hà Nội',
+        'transferContentTemplate': 'MFS {studentCode} {semester}',
+        'enabled': true,
+        'method': 'BANK_TRANSFER',
+        'displayMode': 'MANUAL',
+        'qrAvailable': false,
+      },
+    ]);
+
+    final configuration = await TuitionBillApiClient(
+      backend: backend,
+    ).getPaymentConfiguration(token: 'student-token', semesterId: 1);
+
+    expect(
+      backend.calls.single.path,
+      '/api/payment-configurations/semesters/1',
+    );
+    expect(configuration?.accountNumber, '1234567890');
+    expect(configuration?.qrAvailable, isFalse);
+    expect(
+      configuration?.renderTransferContent(
+        studentCode: 'HS009',
+        academicYear: '2026-2027',
+        semester: 'Học kỳ I',
+      ),
+      'MFS HS009 Học kỳ I',
+    );
+  });
+
   test('student tuition rejects unknown backend status', () async {
     final backend = _RecordingBackend([
       [
@@ -480,6 +538,15 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+    await tester.scrollUntilVisible(
+      find.text('TPBank'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('TPBank'), findsOneWidget);
+    expect(find.text('1234567890'), findsOneWidget);
+    expect(find.text('MFS HS009 Học kỳ I'), findsOneWidget);
+    expect(find.textContaining('Chưa sử dụng QR'), findsOneWidget);
 
     await tester.tap(find.text('Xác nhận đã chuyển'));
     await tester.pumpAndSettle();

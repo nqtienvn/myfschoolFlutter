@@ -7,6 +7,7 @@ export 'dto/student_dto.dart';
 export 'dto/user_dto.dart';
 export 'dto/school_schedule_dto.dart';
 export 'dto/notification_dto.dart';
+export 'dto/payment_configuration_dto.dart';
 export 'dto/teacher_dashboard_stats_dto.dart';
 export 'dto/student_dashboard_stats_dto.dart';
 export 'dto/teacher_tuition_summary_dto.dart';

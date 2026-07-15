@@ -4,6 +4,7 @@ export 'auth_session.dart';
 export 'chat_message.dart';
 export 'conversation.dart';
 export 'gradebook.dart';
+export 'payment_configuration.dart';
 export 'student.dart';
 export 'student_summary.dart';
 export 'user.dart';

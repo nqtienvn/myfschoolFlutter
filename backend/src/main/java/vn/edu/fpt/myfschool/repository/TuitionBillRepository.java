@@ -26,6 +26,13 @@ public interface TuitionBillRepository extends JpaRepository<TuitionBill, Long> 
     @Query("SELECT tb FROM TuitionBill tb WHERE tb.cls.id = :classId AND tb.semester.id = :semesterId AND tb.status = :status ORDER BY tb.createdAt DESC")
     List<TuitionBill> findByClassIdAndSemesterIdAndStatus(@Param("classId") Long classId, @Param("semesterId") Long semesterId, @Param("status") BillStatus status);
 
+    @Query("SELECT tb FROM TuitionBill tb "
+        + "WHERE tb.semester.academicYear.id = :academicYearId AND tb.status = :status "
+        + "ORDER BY tb.createdAt DESC")
+    List<TuitionBill> findByAcademicYearIdAndStatus(
+        @Param("academicYearId") Long academicYearId,
+        @Param("status") BillStatus status);
+
     boolean existsByStudentIdAndSemesterIdAndName(Long studentId, Long semesterId, String name);
 
     boolean existsByStudentIdAndSemesterIdAndFeeTemplateId(Long studentId, Long semesterId, Long feeTemplateId);

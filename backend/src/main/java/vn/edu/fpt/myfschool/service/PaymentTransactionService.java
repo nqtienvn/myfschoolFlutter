@@ -6,4 +6,8 @@ public interface PaymentTransactionService {
     PaymentTransactionDto requestBankTransfer(Long billId);
 
     PaymentTransactionDto simulatePayment(Long billId);
+
+    PaymentTransactionDto confirmBankTransfer(Long billId);
+
+    PaymentTransactionDto rejectBankTransfer(Long billId);
 }

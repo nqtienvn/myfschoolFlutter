@@ -22,6 +22,7 @@ import vn.edu.fpt.myfschool.entity.Semester;
 import vn.edu.fpt.myfschool.entity.Student;
 import vn.edu.fpt.myfschool.entity.TuitionBill;
 import vn.edu.fpt.myfschool.repository.ClassRepository;
+import vn.edu.fpt.myfschool.repository.AcademicYearRepository;
 import vn.edu.fpt.myfschool.repository.EnrollmentRepository;
 import vn.edu.fpt.myfschool.repository.HomeroomAssignmentRepository;
 import vn.edu.fpt.myfschool.repository.ParentRepository;
@@ -55,6 +56,7 @@ public class TuitionBillServiceImpl implements TuitionBillService {
     private final StudentGuardianRepository studentGuardianRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final AcademicYearRepository academicYearRepository;
 
     @Override
     public TuitionBillDto createTuitionBill(TuitionBillRequest request) {
@@ -108,6 +110,19 @@ public class TuitionBillServiceImpl implements TuitionBillService {
             ? tuitionBillRepository.findByClassIdAndSemesterIdOrderByCreatedAtDesc(classId, semesterId)
             : tuitionBillRepository.findByClassIdAndSemesterIdAndStatus(classId, semesterId, status);
         return bills.stream().map(this::toDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<TuitionBillDto> getPaymentRequests(Long academicYearId) {
+        if (!academicYearRepository.existsById(academicYearId)) {
+            throw new ResourceNotFoundException("AcademicYear", "id", academicYearId);
+        }
+        return tuitionBillRepository
+            .findByAcademicYearIdAndStatus(academicYearId, BillStatus.PROCESSING)
+            .stream()
+            .map(this::toDto)
+            .toList();
     }
 
     @Transactional(readOnly = true)

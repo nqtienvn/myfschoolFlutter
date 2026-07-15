@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/models/payment_configuration.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
@@ -28,6 +30,7 @@ class TuitionPaymentScreen extends StatefulWidget {
 class _TuitionPaymentScreenState extends State<TuitionPaymentScreen> {
   late final TuitionBillApiClient _apiClient;
   List<TuitionBill> _bills = const [];
+  PaymentConfiguration? _paymentConfiguration;
   String? _loadedContextKey;
   bool _loading = true;
   bool _submitting = false;
@@ -61,16 +64,26 @@ class _TuitionPaymentScreenState extends State<TuitionPaymentScreen> {
         _loading = true;
         _error = null;
         _bills = const [];
+        _paymentConfiguration = null;
       });
     }
     try {
-      final bills = await _apiClient.getStudentBills(
-        token: widget.token,
-        semesterId: period.semesterId,
-        studentId: widget.viewAsStudent ? null : widget.student.id,
-      );
+      final results = await Future.wait<Object?>([
+        _apiClient.getStudentBills(
+          token: widget.token,
+          semesterId: period.semesterId,
+          studentId: widget.viewAsStudent ? null : widget.student.id,
+        ),
+        _apiClient.getPaymentConfiguration(
+          token: widget.token,
+          semesterId: period.semesterId,
+        ),
+      ]);
       if (_acceptResponse(requestKey, generation)) {
-        setState(() => _bills = bills);
+        setState(() {
+          _bills = results[0]! as List<TuitionBill>;
+          _paymentConfiguration = results[1] as PaymentConfiguration?;
+        });
       }
     } catch (error) {
       if (_acceptResponse(requestKey, generation)) {
@@ -95,9 +108,40 @@ class _TuitionPaymentScreenState extends State<TuitionPaymentScreen> {
   int get _unpaidTotal =>
       _unpaidBills.fold(0, (sum, bill) => sum + bill.amount);
 
+  bool get _paymentReady =>
+      _paymentConfiguration?.enabled == true &&
+      _paymentConfiguration?.method == 'BANK_TRANSFER';
+
+  String _transferContent(AcademicPeriod period) {
+    return _paymentConfiguration?.renderTransferContent(
+          studentCode: widget.student.studentCode,
+          academicYear: period.academicYearName,
+          semester: period.semesterName,
+        ) ??
+        '';
+  }
+
+  Future<void> _copyValue(String label, String value) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Đã sao chép $label.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _confirmBankTransfer(AcademicPeriod period) async {
     final unpaidBills = _unpaidBills;
-    if (unpaidBills.isEmpty || _submitting) return;
+    final configuration = _paymentConfiguration;
+    if (unpaidBills.isEmpty ||
+        _submitting ||
+        !_paymentReady ||
+        configuration == null) {
+      return;
+    }
+    final transferContent = _transferContent(period);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -108,7 +152,8 @@ class _TuitionPaymentScreenState extends State<TuitionPaymentScreen> {
         ),
         content: Text(
           'Ứng dụng chỉ gửi xác nhận để nhà trường đối soát, không tự chuyển tiền. '
-          'Chỉ tiếp tục khi bạn đã chuyển ${_money(_unpaidTotal)} theo hướng dẫn thanh toán chính thức của nhà trường.',
+          'Chỉ tiếp tục khi bạn đã chuyển ${_money(_unpaidTotal)} vào tài khoản '
+          '${configuration.accountNumber} tại ${configuration.bankName}, với nội dung “$transferContent”.',
         ),
         actions: [
           TextButton(
@@ -252,6 +297,22 @@ class _TuitionPaymentScreenState extends State<TuitionPaymentScreen> {
                         _BillCard(bill: bill),
                         const SizedBox(height: AppSpacing.sm),
                       ],
+                    if (!_loading &&
+                        _error == null &&
+                        period != null &&
+                        _unpaidTotal > 0) ...[
+                      const SizedBox(height: 18),
+                      const SectionHeader(title: 'Thông tin chuyển khoản'),
+                      const SizedBox(height: 12),
+                      if (_paymentReady && _paymentConfiguration != null)
+                        _BankTransferCard(
+                          configuration: _paymentConfiguration!,
+                          transferContent: _transferContent(period),
+                          onCopy: _copyValue,
+                        )
+                      else
+                        const _PaymentUnavailableCard(),
+                    ],
                     if (!_loading && _error == null) ...[
                       const SizedBox(height: 12),
                       const AppCard(
@@ -301,11 +362,13 @@ class _TuitionPaymentScreenState extends State<TuitionPaymentScreen> {
               child: _TuitionPaymentFooter(
                 unpaidTotal: _unpaidTotal,
                 submitting: _submitting,
+                paymentReady: _paymentReady,
                 onConfirm:
                     period != null &&
                         _unpaidTotal > 0 &&
                         !_loading &&
-                        !_submitting
+                        !_submitting &&
+                        _paymentReady
                     ? () => _confirmBankTransfer(period)
                     : null,
               ),
@@ -317,15 +380,177 @@ class _TuitionPaymentScreenState extends State<TuitionPaymentScreen> {
   }
 }
 
+class _BankTransferCard extends StatelessWidget {
+  const _BankTransferCard({
+    required this.configuration,
+    required this.transferContent,
+    required this.onCopy,
+  });
+
+  final PaymentConfiguration configuration;
+  final String transferContent;
+  final Future<void> Function(String label, String value) onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.blueSoft,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.account_balance_outlined, color: AppColors.blue),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Chuyển khoản thủ công · Chưa sử dụng QR',
+                    style: TextStyle(
+                      color: AppColors.blue,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _BankDetailRow(label: 'Ngân hàng', value: configuration.bankName),
+          if (configuration.branch != null)
+            _BankDetailRow(label: 'Chi nhánh', value: configuration.branch!),
+          _BankDetailRow(
+            label: 'Số tài khoản',
+            value: configuration.accountNumber,
+            onCopy: () => onCopy('số tài khoản', configuration.accountNumber),
+          ),
+          _BankDetailRow(
+            label: 'Chủ tài khoản',
+            value: configuration.accountHolder,
+          ),
+          _BankDetailRow(
+            label: 'Nội dung',
+            value: transferContent,
+            highlight: true,
+            onCopy: () => onCopy('nội dung chuyển khoản', transferContent),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Vui lòng nhập đúng nội dung để nhà trường đối soát nhanh hơn.',
+            style: TextStyle(fontSize: 11, height: 1.4, color: AppColors.muted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BankDetailRow extends StatelessWidget {
+  const _BankDetailRow({
+    required this.label,
+    required this.value,
+    this.onCopy,
+    this.highlight = false,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback? onCopy;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 104,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.muted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                color: highlight ? AppColors.fptOrange : AppColors.ink,
+                fontWeight: highlight ? FontWeight.w900 : FontWeight.w700,
+              ),
+            ),
+          ),
+          if (onCopy != null) ...[
+            const SizedBox(width: 6),
+            InkWell(
+              onTap: onCopy,
+              borderRadius: BorderRadius.circular(8),
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Icon(
+                  Icons.copy_outlined,
+                  size: 18,
+                  color: AppColors.blue,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentUnavailableCard extends StatelessWidget {
+  const _PaymentUnavailableCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const AppCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Nhà trường chưa cấu hình hoặc chưa kích hoạt tài khoản chuyển khoản cho năm học này. Vui lòng liên hệ nhà trường trước khi thanh toán.',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.45,
+                color: AppColors.warning,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TuitionPaymentFooter extends StatelessWidget {
   const _TuitionPaymentFooter({
     required this.unpaidTotal,
     required this.submitting,
+    required this.paymentReady,
     required this.onConfirm,
   });
 
   final int unpaidTotal;
   final bool submitting;
+  final bool paymentReady;
   final VoidCallback? onConfirm;
 
   @override
@@ -372,7 +597,11 @@ class _TuitionPaymentFooter extends StatelessWidget {
             )
           : const Icon(Icons.verified_outlined, size: 18),
       label: Text(
-        submitting ? 'Đang gửi' : 'Xác nhận đã chuyển',
+        submitting
+            ? 'Đang gửi'
+            : unpaidTotal > 0 && !paymentReady
+            ? 'Chưa cấu hình'
+            : 'Xác nhận đã chuyển',
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
     );

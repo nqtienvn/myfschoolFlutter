@@ -70,6 +70,15 @@ public class TuitionBillController {
             tuitionBillService.getStudentBills(studentId, semesterId)));
     }
 
+    @GetMapping("/payment-requests")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Danh sách xác nhận chuyển khoản đang chờ đối soát theo năm học")
+    public ResponseEntity<ApiResponse<List<TuitionBillDto>>> getPaymentRequests(
+            @RequestParam Long academicYearId) {
+        return ResponseEntity.ok(ApiResponse.success(
+            tuitionBillService.getPaymentRequests(academicYearId)));
+    }
+
     @DeleteMapping("/bills/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Xóa khoản HP")
@@ -93,5 +102,25 @@ public class TuitionBillController {
         return ResponseEntity.ok(ApiResponse.success(
             "Đã ghi nhận xác nhận chuyển khoản",
             paymentTransactionService.requestBankTransfer(id)));
+    }
+
+    @PostMapping("/bills/{id}/confirm-payment")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Xác nhận đã nhận tiền chuyển khoản")
+    public ResponseEntity<ApiResponse<PaymentTransactionDto>> confirmBankTransfer(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(
+            "Đã xác nhận thanh toán",
+            paymentTransactionService.confirmBankTransfer(id)));
+    }
+
+    @PostMapping("/bills/{id}/reject-payment")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Từ chối xác nhận khi không tìm thấy giao dịch")
+    public ResponseEntity<ApiResponse<PaymentTransactionDto>> rejectBankTransfer(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(
+            "Đã trả khoản học phí về trạng thái chưa đóng",
+            paymentTransactionService.rejectBankTransfer(id)));
     }
 }

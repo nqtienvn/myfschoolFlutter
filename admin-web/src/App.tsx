@@ -14,6 +14,7 @@ import StudentsAttendancePage from './pages/StudentsAttendancePage';
 import GradesManagementPage from './pages/GradesManagementPage';
 import GradeConfigurationPage from './pages/GradeConfigurationPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
+import PaymentSettingsPage from './pages/PaymentSettingsPage';
 import { getAnnouncements as getAdminAnnouncements } from './api/announcement';
 import SetupWizardShell, { type WizardStepKey } from './components/SetupWizardShell';
 
@@ -57,6 +58,7 @@ type ModuleKey =
   | 'students-attendance'
   | 'grades'
   | 'timetables'
+  | 'payments'
   | 'announcements';
 
 /* ─── SVG Icons ──────────────────────────────────────────────── */
@@ -67,6 +69,7 @@ function AttendanceIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="
 function GradeIcon()      { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>; }
 function TimetableIcon()  { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M7 14h2M11 14h2M15 14h2M7 17.5h2M11 17.5h2"/></svg>; }
 function BellIcon()       { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>; }
+function PaymentIcon()    { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M7 15h4"/></svg>; }
 function LogoutIcon()     { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }
 function SchoolIcon()     { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M6 12.5V18h12v-5.5M9 20v-4h6v4"/></svg>; }
 function ArrowRightIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>; }
@@ -96,6 +99,12 @@ const OPS_MODULES = [
     label: 'Thời khóa biểu',
     description: 'Xem lịch học theo từng lớp. Quản lý phân tiết và thời gian học trong tuần.',
     Icon: TimetableIcon,
+  },
+  {
+    key: 'payments' as ModuleKey,
+    label: 'Thanh toán & học phí',
+    description: 'Cấu hình tài khoản ngân hàng nhận chuyển khoản theo từng năm học.',
+    Icon: PaymentIcon,
   },
   {
     key: 'announcements' as ModuleKey,
@@ -483,6 +492,13 @@ export default function App() {
       <div className="page-content">
         <TimetablesPage selectedYearId={yearId} selectedSemesterId={semesterId} />
       </div>
+    ) : module === 'payments' ? (
+      <div className="page-content">
+        <PaymentSettingsPage
+          selectedYearId={yearId}
+          selectedYearStatus={selectedYear?.status}
+        />
+      </div>
     ) : module === 'announcements' ? (
       <div className="page-content">
         <AnnouncementsPage selectedYearId={yearId} />
@@ -619,6 +635,18 @@ export default function App() {
               <span className="module-label">Thời khóa biểu</span>
             </button>
 
+            {/* Payments */}
+            <button
+              className={module === 'payments' ? 'active' : ''}
+              onClick={() => navigate('payments')}
+              title="Thanh toán & học phí"
+              aria-current={module === 'payments' ? 'page' : undefined}
+              aria-label="Thanh toán và học phí"
+            >
+              <span className="module-icon" aria-hidden="true"><PaymentIcon /></span>
+              <span className="module-label">Thanh toán & học phí</span>
+            </button>
+
             {/* Announcements */}
             <button
               className={module === 'announcements' ? 'active' : ''}
@@ -689,6 +717,7 @@ export default function App() {
                : module === 'students-attendance' ? 'Điểm danh học sinh'
                : module === 'grades' ? 'Quản lý điểm số'
                : module === 'timetables' ? 'Thời khóa biểu'
+               : module === 'payments' ? 'Thanh toán & học phí'
                : 'Thông báo'}
             </span>
 

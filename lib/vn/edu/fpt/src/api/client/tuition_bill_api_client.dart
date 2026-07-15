@@ -1,4 +1,6 @@
 import '../../../view/screens/student_models.dart';
+import '../../models/payment_configuration.dart';
+import '../dto/payment_configuration_dto.dart';
 import '../exception/parse_exception.dart';
 import '../dto/teacher_tuition_summary_dto.dart';
 import 'backend_api_client.dart';
@@ -72,6 +74,21 @@ class TuitionBillApiClient {
           );
         })
         .toList(growable: false);
+  }
+
+  Future<PaymentConfiguration?> getPaymentConfiguration({
+    required String token,
+    required int semesterId,
+  }) async {
+    final data = await _backend.getData(
+      '/api/payment-configurations/semesters/$semesterId',
+      token: token,
+    );
+    if (data == null) return null;
+    if (data is! Map<String, dynamic>) {
+      throw const ParseException('Cấu hình thanh toán không hợp lệ.');
+    }
+    return PaymentConfigurationDto.fromJson(data).toDomain();
   }
 
   Future<void> requestBankTransfer({

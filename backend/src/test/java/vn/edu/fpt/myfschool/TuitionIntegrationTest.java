@@ -6,10 +6,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
 import vn.edu.fpt.myfschool.common.enums.BillStatus;
+import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
 import vn.edu.fpt.myfschool.entity.AcademicYear;
+import vn.edu.fpt.myfschool.entity.Enrollment;
 import vn.edu.fpt.myfschool.entity.HomeroomAssignment;
 import vn.edu.fpt.myfschool.entity.SchoolClass;
 import vn.edu.fpt.myfschool.entity.Semester;
+import vn.edu.fpt.myfschool.entity.TuitionBill;
 import vn.edu.fpt.myfschool.repository.TuitionBillRepository;
 
 import java.time.LocalDate;
@@ -108,6 +111,25 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
             .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString())
             .path("data").path("id").asLong();
+    }
+
+    private void configureBankTransfer() throws Exception {
+        mockMvc.perform(put("/api/payment-configurations/academic-years/"
+                + testAcademicYear.getId())
+                .header("Authorization", authHeader(loginAsAdmin()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "bankCode":"TPB",
+                      "bankName":"TPBank",
+                      "accountNumber":"1234567890",
+                      "accountHolder":"FPT SCHOOLS",
+                      "branch":"Ha Noi",
+                      "transferContentTemplate":"MFS {studentCode} {semester}",
+                      "enabled":true
+                    }
+                    """))
+            .andExpect(status().isOk());
     }
 
     @Test
@@ -362,6 +384,7 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void parent_payment_request_updates_canonical_bill_and_teacher_summary() throws Exception {
+        configureBankTransfer();
         Long billId = createBill(testStudent1.getId(), "HP chuyen khoan", 9100000);
 
         mockMvc.perform(post("/api/tuition/bills/" + billId + "/payment-request")
@@ -408,6 +431,7 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void payment_request_rejects_duplicate_and_paid_bill() throws Exception {
+        configureBankTransfer();
         Long processingBillId = createBill(testStudent1.getId(), "HP gui trung", 9300000);
         String parentToken = loginAsParent();
         mockMvc.perform(post("/api/tuition/bills/" + processingBillId + "/payment-request")
@@ -424,6 +448,101 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/tuition/bills/" + paidBillId + "/payment-request")
                 .header("Authorization", authHeader(parentToken)))
             .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void payment_request_rejects_when_bank_transfer_is_not_configured() throws Exception {
+        Long billId = createBill(testStudent1.getId(), "HP chua cau hinh", 9500000);
+
+        mockMvc.perform(post("/api/tuition/bills/" + billId + "/payment-request")
+                .header("Authorization", authHeader(loginAsParent())))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value(
+                "Nhà trường chưa kích hoạt tài khoản nhận chuyển khoản cho năm học này"));
+    }
+
+    @Test
+    void admin_payment_requests_are_isolated_by_selected_academic_year() throws Exception {
+        Semester otherSemester = createSemesterInAnotherAcademicYear();
+        AcademicYear otherYear = otherSemester.getAcademicYear();
+        SchoolClass otherClass = new SchoolClass();
+        otherClass.setName("12C");
+        otherClass.setGradeLevel(12);
+        otherClass.setAcademicYear(otherYear);
+        otherClass.setSchoolName("FPT Schools");
+        otherClass = classRepository.save(otherClass);
+
+        Enrollment otherEnrollment = new Enrollment();
+        otherEnrollment.setStudent(testStudent1);
+        otherEnrollment.setCls(otherClass);
+        otherEnrollment.setAcademicYear(otherYear);
+        otherEnrollment.setJoinDate(otherYear.getStartDate());
+        otherEnrollment.setStatus(EnrollmentStatus.ACTIVE);
+        enrollmentRepository.save(otherEnrollment);
+
+        createProcessingBill(
+            testClass, testSemester, "Doi soat nam hien tai", 5100000);
+        createProcessingBill(
+            otherClass, otherSemester, "Doi soat nam khac", 5200000);
+        String adminToken = loginAsAdmin();
+
+        mockMvc.perform(get("/api/tuition/payment-requests")
+                .header("Authorization", authHeader(adminToken))
+                .param("academicYearId", testAcademicYear.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].name").value("Doi soat nam hien tai"));
+
+        mockMvc.perform(get("/api/tuition/payment-requests")
+                .header("Authorization", authHeader(adminToken))
+                .param("academicYearId", otherYear.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].name").value("Doi soat nam khac"));
+    }
+
+    @Test
+    void admin_can_confirm_or_reject_pending_bank_transfer() throws Exception {
+        configureBankTransfer();
+        Long confirmedBillId = createBill(testStudent1.getId(), "HP da nhan", 6100000);
+        Long rejectedBillId = createBill(testStudent1.getId(), "HP khong thay", 6200000);
+        String parentToken = loginAsParent();
+        for (Long billId : new Long[] {confirmedBillId, rejectedBillId}) {
+            mockMvc.perform(post("/api/tuition/bills/" + billId + "/payment-request")
+                    .header("Authorization", authHeader(parentToken)))
+                .andExpect(status().isOk());
+        }
+        String adminToken = loginAsAdmin();
+
+        mockMvc.perform(post("/api/tuition/bills/" + confirmedBillId + "/confirm-payment")
+                .header("Authorization", authHeader(adminToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("SUCCESS"));
+
+        mockMvc.perform(post("/api/tuition/bills/" + rejectedBillId + "/reject-payment")
+                .header("Authorization", authHeader(adminToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("FAILED"));
+
+        org.assertj.core.api.Assertions.assertThat(
+            tuitionBillRepository.findById(confirmedBillId).orElseThrow().getStatus())
+            .isEqualTo(BillStatus.PAID);
+        org.assertj.core.api.Assertions.assertThat(
+            tuitionBillRepository.findById(rejectedBillId).orElseThrow().getStatus())
+            .isEqualTo(BillStatus.UNPAID);
+    }
+
+    private TuitionBill createProcessingBill(
+            SchoolClass cls, Semester semester, String name, long amount) {
+        TuitionBill bill = new TuitionBill();
+        bill.setStudent(testStudent1);
+        bill.setCls(cls);
+        bill.setSemester(semester);
+        bill.setName(name);
+        bill.setAmount(java.math.BigDecimal.valueOf(amount));
+        bill.setDueDate(semester.getEndDate());
+        bill.setStatus(BillStatus.PROCESSING);
+        return tuitionBillRepository.save(bill);
     }
 
     @Test
