@@ -49,11 +49,32 @@ void main() {
     );
     expect(
       (morningBadge.decoration! as BoxDecoration).color,
-      AppColors.sunrise.withValues(alpha: 0.08),
+      AppColors.sunriseSoft,
     );
     expect(
       (afternoonBadge.decoration! as BoxDecoration).color,
-      AppColors.sunset.withValues(alpha: 0.08),
+      AppColors.sunsetSoft,
+    );
+
+    final morningLabels = tester.widgetList<Text>(
+      find.descendant(
+        of: find.byKey(const ValueKey('schedule-period-20')),
+        matching: find.byType(Text),
+      ),
+    );
+    final afternoonLabels = tester.widgetList<Text>(
+      find.descendant(
+        of: find.byKey(const ValueKey('schedule-period-21')),
+        matching: find.byType(Text),
+      ),
+    );
+    expect(
+      morningLabels.every((text) => text.style?.color == AppColors.sunrise),
+      isTrue,
+    );
+    expect(
+      afternoonLabels.every((text) => text.style?.color == AppColors.sunset),
+      isTrue,
     );
     expect(tester.takeException(), isNull);
   });

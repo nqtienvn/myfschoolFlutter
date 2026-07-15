@@ -300,7 +300,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   );
 
   Widget _lessonCard(ScheduleLesson lesson) {
-    final color = _lessonColor(lesson.shift);
+    final palette = _lessonPalette(lesson.shift);
+    final color = palette.foreground;
     final detail = widget.mode == ScheduleViewMode.teacher
         ? 'Lớp ${lesson.className}'
         : lesson.teacherName;
@@ -331,7 +332,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     width: 54,
                     height: 58,
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.08),
+                      color: palette.background,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: color.withValues(alpha: 0.18)),
                     ),
@@ -441,8 +442,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     ),
   );
 
-  Color _lessonColor(String shift) =>
-      shift.toUpperCase() == 'AFTERNOON' ? AppColors.sunset : AppColors.sunrise;
+  ({Color foreground, Color background}) _lessonPalette(String shift) =>
+      shift.toUpperCase() == 'AFTERNOON'
+      ? (foreground: AppColors.sunset, background: AppColors.sunsetSoft)
+      : (foreground: AppColors.sunrise, background: AppColors.sunriseSoft);
 
   Widget _buildError() => AppCard(
     child: Padding(
