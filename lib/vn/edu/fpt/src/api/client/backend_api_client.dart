@@ -7,13 +7,13 @@ import '../exception/backend_api_exception.dart';
 
 class BackendApiClient {
   BackendApiClient({String? baseUrl})
-      : baseUri = Uri.parse(
-          baseUrl ??
-              const String.fromEnvironment(
-                'API_BASE_URL',
-                defaultValue: 'http://localhost:8080',
-              ),
-        );
+    : baseUri = Uri.parse(
+        baseUrl ??
+            const String.fromEnvironment(
+              'API_BASE_URL',
+              defaultValue: 'http://localhost:8080',
+            ),
+      );
 
   final Uri baseUri;
   final http.Client _client = http.Client();
@@ -28,6 +28,15 @@ class BackendApiClient {
 
   Future<Object?> postData(String path, {String? token, Object? body}) {
     return _send('POST', path, token: token, body: body);
+  }
+
+  Future<Object?> postDataWithQuery(
+    String path, {
+    String? token,
+    Map<String, String?> query = const {},
+    Object? body,
+  }) {
+    return _send('POST', path, token: token, query: query, body: body);
   }
 
   Future<Object?> putData(String path, {String? token, Object? body}) {
@@ -74,15 +83,23 @@ class BackendApiClient {
     final text = await streamed.stream.bytesToString();
     final decoded = text.isEmpty ? <String, dynamic>{} : jsonDecode(text);
     if (decoded is! Map<String, dynamic>) {
-      throw BackendApiException('Phản hồi máy chủ không hợp lệ', statusCode: streamed.statusCode);
+      throw BackendApiException(
+        'Phản hồi máy chủ không hợp lệ',
+        statusCode: streamed.statusCode,
+      );
     }
     if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
-      final message = decoded['message'] is String ? decoded['message'] as String : 'Lỗi máy chủ';
+      final message = decoded['message'] is String
+          ? decoded['message'] as String
+          : 'Lỗi máy chủ';
       throw BackendApiException(message, statusCode: streamed.statusCode);
     }
     final apiResponse = ApiResponse<Object?>.fromJson(decoded, (json) => json);
     if (!apiResponse.success) {
-      throw BackendApiException(apiResponse.message, statusCode: streamed.statusCode);
+      throw BackendApiException(
+        apiResponse.message,
+        statusCode: streamed.statusCode,
+      );
     }
     return apiResponse.data;
   }

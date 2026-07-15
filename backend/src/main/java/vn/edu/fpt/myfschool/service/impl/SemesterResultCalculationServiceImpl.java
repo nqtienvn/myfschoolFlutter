@@ -13,6 +13,7 @@ import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.repository.*;
 import vn.edu.fpt.myfschool.service.SemesterResultCalculationService;
+import vn.edu.fpt.myfschool.service.StudentRiskService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -34,6 +35,7 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
     private final GradeBookRepository gradeBookRepository;
     private final GradeItemRepository gradeItemRepository;
     private final StudentScoreRepository studentScoreRepository;
+    private final StudentRiskService studentRiskService;
 
     @Override
     public CalculateSemesterResultResponse calculate(Long classId, Long semesterId) {
@@ -100,6 +102,8 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
             semesterResultRepository.save(result);
             updated++;
         }
+
+        studentRiskService.recalculateClass(cls.getAcademicYear().getId(), semesterId, classId);
 
         return new CalculateSemesterResultResponse(processed, updated, skipped, warnings);
     }

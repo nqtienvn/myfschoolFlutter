@@ -12,6 +12,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_tuition_screen.d
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/periodic_reviews_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/homeroom_monitoring_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 
@@ -566,6 +567,29 @@ class _HomeTeacherState extends State<HomeTeacher> {
                               );
                             },
                           ),
+                          if (_classId != null)
+                            _FeatureButton(
+                              title: 'Theo dõi học sinh',
+                              icon: Icons.monitor_heart_outlined,
+                              color: AppColors.danger,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => HomeroomMonitoringScreen(
+                                      token: widget
+                                          .authService
+                                          .currentSession!
+                                          .token,
+                                      classId: _classId!,
+                                      api: HomeroomMonitoringApiClient(
+                                        backend: _backend,
+                                      ),
+                                      academicApi: _homeroomAcademicApi,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           _FeatureButton(
                             title: 'Gửi thông báo lớp',
                             icon: Icons.campaign_outlined,

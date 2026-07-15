@@ -1885,3 +1885,28 @@ th:last-child, td:last-child { border-right: 0; }
 .review-reopen textarea { display: block; width: 100%; min-height: 84px; margin: 6px 0 10px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); resize: vertical; }
 .table-subtext { display: block; margin-top: 3px; color: var(--text-secondary); }
 @media (max-width: 700px) { .review-summary { grid-template-columns: 1fr; } }
+
+/* Homeroom monitoring */
+.monitoring-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.monitoring-config-grid, .severity-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.monitoring-config-grid label, .severity-grid label { color: var(--text-secondary); font-size: 12px; font-weight: 700; }
+.monitoring-config-grid input, .severity-grid select {
+  display: block; width: 100%; margin-top: 5px; padding: 9px 11px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text-primary);
+}
+.monitoring-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.monitoring-table-wrap { overflow-x: auto; }
+.monitoring-table { width: 100%; border-collapse: collapse; min-width: 760px; }
+.monitoring-table th, .monitoring-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.monitoring-table th { color: var(--text-secondary); font-size: 11px; letter-spacing: .03em; text-transform: uppercase; }
+.monitoring-table td { color: var(--text-primary); font-size: 13px; }
+.risk-badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.risk-badge.open { color: var(--danger); background: var(--danger-soft); }
+.risk-badge.acknowledged { color: #7a4f00; background: #fff4cc; }
+.risk-badge.resolved { color: var(--success); background: var(--success-soft); }
+@media (max-width: 900px) {
+  .monitoring-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .monitoring-config-grid, .severity-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) { .monitoring-summary { grid-template-columns: 1fr; } }

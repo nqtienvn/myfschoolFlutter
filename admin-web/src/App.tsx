@@ -16,6 +16,7 @@ import GradeConfigurationPage from './pages/GradeConfigurationPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import PaymentSettingsPage from './pages/PaymentSettingsPage';
 import PeriodicReviewsPage from './pages/PeriodicReviewsPage';
+import HomeroomMonitoringPage from './pages/HomeroomMonitoringPage';
 import { getAnnouncements as getAdminAnnouncements } from './api/announcement';
 import SetupWizardShell, { type WizardStepKey } from './components/SetupWizardShell';
 
@@ -61,6 +62,7 @@ type ModuleKey =
   | 'timetables'
   | 'payments'
   | 'reviews'
+  | 'monitoring'
   | 'announcements';
 
 /* ─── SVG Icons ──────────────────────────────────────────────── */
@@ -113,6 +115,12 @@ const OPS_MODULES = [
     label: 'Nhận xét định kỳ',
     description: 'Theo dõi tiến độ nhận xét môn, báo cáo GVCN và hạnh kiểm đã công bố.',
     Icon: GradeIcon,
+  },
+  {
+    key: 'monitoring' as ModuleKey,
+    label: 'Theo dõi học sinh',
+    description: 'Theo dõi cảnh báo, chỉ số lớp và cấu hình ngưỡng rủi ro theo năm học, học kỳ.',
+    Icon: AttendanceIcon,
   },
   {
     key: 'announcements' as ModuleKey,
@@ -511,6 +519,10 @@ export default function App() {
       <div className="page-content">
         <PeriodicReviewsPage selectedYearId={yearId} selectedSemesterId={semesterId} />
       </div>
+    ) : module === 'monitoring' ? (
+      <div className="page-content">
+        <HomeroomMonitoringPage selectedYearId={yearId} selectedSemesterId={semesterId} />
+      </div>
     ) : module === 'announcements' ? (
       <div className="page-content">
         <AnnouncementsPage selectedYearId={yearId} />
@@ -671,6 +683,18 @@ export default function App() {
               <span className="module-label">Nhận xét định kỳ</span>
             </button>
 
+            {/* Homeroom monitoring */}
+            <button
+              className={module === 'monitoring' ? 'active' : ''}
+              onClick={() => navigate('monitoring')}
+              title="Theo dõi học sinh"
+              aria-current={module === 'monitoring' ? 'page' : undefined}
+              aria-label="Theo dõi học sinh"
+            >
+              <span className="module-icon" aria-hidden="true"><AttendanceIcon /></span>
+              <span className="module-label">Theo dõi học sinh</span>
+            </button>
+
             {/* Announcements */}
             <button
               className={module === 'announcements' ? 'active' : ''}
@@ -743,6 +767,7 @@ export default function App() {
                : module === 'timetables' ? 'Thời khóa biểu'
                : module === 'payments' ? 'Thanh toán & học phí'
                : module === 'reviews' ? 'Nhận xét định kỳ'
+               : module === 'monitoring' ? 'Theo dõi học sinh'
                : 'Thông báo'}
             </span>
 

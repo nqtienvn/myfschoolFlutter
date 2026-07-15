@@ -13,6 +13,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/periodic_reviews_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_engagement_screen.dart';
 
 class HomeStudent extends StatefulWidget {
   const HomeStudent({super.key, required this.authService, this.backend});
@@ -459,6 +460,24 @@ class _HomeStudentState extends State<HomeStudent> {
                                   builder: (_) => PeriodicReviewsScreen(
                                     authService: widget.authService,
                                     backend: _backend,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'Khen thưởng & vi phạm',
+                            icon: Icons.emoji_events_outlined,
+                            iconColor: AppColors.fptOrange,
+                            iconBgColor: AppColors.primarySoft,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => StudentEngagementScreen(
+                                    authService: widget.authService,
+                                    api: HomeroomMonitoringApiClient(
+                                      backend: _backend,
+                                    ),
                                   ),
                                 ),
                               );

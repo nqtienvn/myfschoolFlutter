@@ -66,6 +66,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     private final AttendanceCorrectionRequestRepository correctionRequestRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final StudentRiskService studentRiskService;
 
     @Value("${app.attendance.enforce-current-day:true}")
     private boolean enforceCurrentDay;
@@ -371,6 +372,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             attendanceRepository.save(attendance);
         }
         synchronizeExistingSessions(cls, request.date(), request.shift());
+        studentRiskService.recalculateForDate(request.academicYearId(), cls.getId(), request.date());
         return toAdminDayDto(cls, request.date(), request.shift(), slots.size());
     }
 
@@ -513,7 +515,12 @@ public class AttendanceServiceImpl implements AttendanceService {
         correction.setReviewedAt(LocalDateTime.now());
         correction.setReviewedBy(userRepository.findById(reviewerUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", reviewerUserId)));
-        return toCorrectionDto(correctionRequestRepository.save(correction));
+        AttendanceCorrectionRequest saved = correctionRequestRepository.save(correction);
+        if (approve) {
+            studentRiskService.recalculateForDate(correction.getCls().getAcademicYear().getId(),
+                correction.getCls().getId(), correction.getDate());
+        }
+        return toCorrectionDto(saved);
     }
 
     private Student resolveAccessibleStudent(Long requestedStudentId, Long requestUserId) {

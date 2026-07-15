@@ -15,6 +15,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/models/auth_session.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/periodic_reviews_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_engagement_screen.dart';
 
 class HomeParent extends StatefulWidget {
   const HomeParent({super.key, required this.authService, this.backend});
@@ -629,6 +630,26 @@ class _HomeParentState extends State<HomeParent> {
                                   builder: (_) => PeriodicReviewsScreen(
                                     authService: widget.authService,
                                     backend: _backend,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'Lịch họp & tuyên dương',
+                            icon: Icons.event_note_outlined,
+                            iconColor: AppColors.fptOrange,
+                            iconBgColor: AppColors.primarySoft,
+                            onTap: () {
+                              if (student == null) return;
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => StudentEngagementScreen(
+                                    authService: widget.authService,
+                                    studentId: student.id,
+                                    api: HomeroomMonitoringApiClient(
+                                      backend: _backend,
+                                    ),
                                   ),
                                 ),
                               );

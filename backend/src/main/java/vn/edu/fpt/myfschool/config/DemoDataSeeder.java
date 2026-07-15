@@ -874,6 +874,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         pending.setShift(Shift.MORNING);
         pending.setProposedEntries("[{\"studentId\":" + student.getId()
             + ",\"status\":\"PRESENT\",\"note\":\"Học sinh vào lớp sau khi kiểm tra lại\"}]");
+        pending.setReason("Điều chỉnh sau khi giáo viên xác minh lại tình trạng có mặt");
         pending.setStatus(AttendanceCorrectionStatus.PENDING);
         persist(pending);
 
@@ -884,6 +885,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         approved.setShift(Shift.AFTERNOON);
         approved.setProposedEntries("[{\"studentId\":" + student.getId()
             + ",\"status\":\"ABSENT_WITHOUT_LEAVE\"}]");
+        approved.setReason("Cập nhật lại kết quả điểm danh theo biên bản lớp");
         approved.setStatus(AttendanceCorrectionStatus.APPROVED);
         approved.setReviewedAt(LocalDateTime.now(SCHOOL_ZONE).minusDays(1));
         persist(approved);
