@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.CalculateSemesterResultResponse;
 import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
 import vn.edu.fpt.myfschool.common.enums.AssessmentType;
+import vn.edu.fpt.myfschool.common.enums.ConductSource;
 import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
@@ -90,7 +91,12 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
             result.setRank(rank);
             result.setHonor(calculateHonor(sg.gpa()));
             result.setAcademicAbility(calculateAcademicAbility(sg.gpa()));
-            result.setConduct(calculateConduct(sg.student().getId(), attendanceRecords));
+            String suggestedConduct = calculateConduct(sg.student().getId(), attendanceRecords);
+            result.setSuggestedConduct(suggestedConduct);
+            if (result.getConductSource() != ConductSource.HOMEROOM) {
+                result.setConduct(suggestedConduct);
+                result.setConductSource(ConductSource.SUGGESTED);
+            }
             semesterResultRepository.save(result);
             updated++;
         }

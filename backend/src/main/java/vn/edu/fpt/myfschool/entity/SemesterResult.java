@@ -12,6 +12,9 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import vn.edu.fpt.myfschool.common.enums.ConductSource;
 
 import java.math.BigDecimal;
 
@@ -51,6 +54,13 @@ public class SemesterResult extends BaseEntity {
 
     @Column(length = 50)
     private String conduct;
+
+    @Column(name = "suggested_conduct", length = 50)
+    private String suggestedConduct;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "conduct_source", nullable = false, length = 20)
+    private ConductSource conductSource = ConductSource.SUGGESTED;
 
     @Column(name = "academic_ability", length = 50)
     private String academicAbility;

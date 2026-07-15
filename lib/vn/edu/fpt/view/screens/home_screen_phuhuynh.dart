@@ -14,6 +14,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/models/auth_session.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/periodic_reviews_screen.dart';
 
 class HomeParent extends StatefulWidget {
   const HomeParent({super.key, required this.authService, this.backend});
@@ -611,6 +612,23 @@ class _HomeParentState extends State<HomeParent> {
                                         .token,
                                     studentId: student.id,
                                     studentName: student.name,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          _FeatureButton(
+                            title: 'Nhận xét học kỳ',
+                            icon: Icons.rate_review_outlined,
+                            iconColor: AppColors.fptOrange,
+                            iconBgColor: AppColors.primarySoft,
+                            onTap: () {
+                              if (student == null) return;
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => PeriodicReviewsScreen(
+                                    authService: widget.authService,
+                                    backend: _backend,
                                   ),
                                 ),
                               );

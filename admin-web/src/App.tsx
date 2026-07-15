@@ -15,6 +15,7 @@ import GradesManagementPage from './pages/GradesManagementPage';
 import GradeConfigurationPage from './pages/GradeConfigurationPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import PaymentSettingsPage from './pages/PaymentSettingsPage';
+import PeriodicReviewsPage from './pages/PeriodicReviewsPage';
 import { getAnnouncements as getAdminAnnouncements } from './api/announcement';
 import SetupWizardShell, { type WizardStepKey } from './components/SetupWizardShell';
 
@@ -59,6 +60,7 @@ type ModuleKey =
   | 'grades'
   | 'timetables'
   | 'payments'
+  | 'reviews'
   | 'announcements';
 
 /* ─── SVG Icons ──────────────────────────────────────────────── */
@@ -105,6 +107,12 @@ const OPS_MODULES = [
     label: 'Thanh toán & học phí',
     description: 'Cấu hình tài khoản ngân hàng nhận chuyển khoản theo từng năm học.',
     Icon: PaymentIcon,
+  },
+  {
+    key: 'reviews' as ModuleKey,
+    label: 'Nhận xét định kỳ',
+    description: 'Theo dõi tiến độ nhận xét môn, báo cáo GVCN và hạnh kiểm đã công bố.',
+    Icon: GradeIcon,
   },
   {
     key: 'announcements' as ModuleKey,
@@ -499,6 +507,10 @@ export default function App() {
           selectedYearStatus={selectedYear?.status}
         />
       </div>
+    ) : module === 'reviews' ? (
+      <div className="page-content">
+        <PeriodicReviewsPage selectedYearId={yearId} selectedSemesterId={semesterId} />
+      </div>
     ) : module === 'announcements' ? (
       <div className="page-content">
         <AnnouncementsPage selectedYearId={yearId} />
@@ -649,6 +661,18 @@ export default function App() {
 
             {/* Announcements */}
             <button
+              className={module === 'reviews' ? 'active' : ''}
+              onClick={() => navigate('reviews')}
+              title="Nhận xét định kỳ"
+              aria-current={module === 'reviews' ? 'page' : undefined}
+              aria-label="Nhận xét định kỳ"
+            >
+              <span className="module-icon" aria-hidden="true"><GradeIcon /></span>
+              <span className="module-label">Nhận xét định kỳ</span>
+            </button>
+
+            {/* Announcements */}
+            <button
               className={module === 'announcements' ? 'active' : ''}
               onClick={() => navigate('announcements')}
               title="Thông báo"
@@ -718,6 +742,7 @@ export default function App() {
                : module === 'grades' ? 'Quản lý điểm số'
                : module === 'timetables' ? 'Thời khóa biểu'
                : module === 'payments' ? 'Thanh toán & học phí'
+               : module === 'reviews' ? 'Nhận xét định kỳ'
                : 'Thông báo'}
             </span>
 

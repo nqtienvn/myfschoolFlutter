@@ -26,6 +26,7 @@ export 'client/tuition_bill_api_client.dart';
 export 'client/dashboard_api_client.dart';
 export 'client/homeroom_academic_api_client.dart';
 export 'client/announcement_api_client.dart';
+export 'client/periodic_review_api_client.dart';
 export 'exception/backend_api_exception.dart';
 export 'exception/parse_exception.dart';
 export 'exception/student_not_found_exception.dart';
