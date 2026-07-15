@@ -1,9 +1,13 @@
 package vn.edu.fpt.myfschool.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.AnnouncementDto;
+import vn.edu.fpt.myfschool.common.dto.AnnouncementRecipientDto;
 import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
 import vn.edu.fpt.myfschool.common.enums.TargetRole;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
@@ -15,6 +19,7 @@ import vn.edu.fpt.myfschool.service.AnnouncementService;
 import vn.edu.fpt.myfschool.service.NotificationService;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,8 +31,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private final AnnouncementClassRepository announcementClassRepository;
     private final AnnouncementReadRepository announcementReadRepository;
     private final TeacherRepository teacherRepository;
-    private final StudentRepository studentRepository;
-    private final ParentRepository parentRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final StudentGuardianRepository studentGuardianRepository;
     private final TeachingAssignmentRepository teachingAssignmentRepository;
     private final HomeroomAssignmentRepository homeroomAssignmentRepository;
@@ -59,12 +63,12 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
     @Override
     public AnnouncementDto updateAnnouncement(Long id, String title, String body, TargetRole targetRole,
-            Long academicYearId, List<Long> classIds, Long userId) {
+            boolean requiresReply, Long academicYearId, List<Long> classIds, Long userId) {
         Announcement ann = ownedByTeacher(id, userId);
         academicYearId = resolveYearId(academicYearId, classIds);
         if ("APPROVED".equals(ann.getApprovalStatus())) throw new ForbiddenException("Thông báo đã duyệt không thể sửa");
         validateTeacherClasses(ann.getTeacher(), academicYearId, classIds);
-        ann.setTitle(title); ann.setBody(body); ann.setTargetRole(targetRole);
+        ann.setTitle(title); ann.setBody(body); ann.setTargetRole(targetRole); ann.setRequiresReply(requiresReply);
         ann.setAcademicYear(year(academicYearId)); ann.setApprovalStatus("PENDING"); ann.setRejectionReason(null);
         ann.setSenderType(isHomeroomTeacher(ann.getTeacher().getId(), academicYearId, classIds)
                 ? "HOMEROOM_TEACHER" : "SUBJECT_TEACHER");
@@ -107,30 +111,29 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     @Override
     public AnnouncementDto createAdminAnnouncement(String title, String body, Long academicYearId,
             String recipientScope, TargetRole targetRole, List<Long> classIds,
-            String teacherAudience, Long subjectId, Long adminUserId) {
+            String teacherAudience, Long subjectId, boolean requiresReply, Long adminUserId) {
         year(academicYearId);
         String scope = recipientScope == null ? "SCHOOL" : recipientScope.toUpperCase(Locale.ROOT);
         if (!Set.of("SCHOOL", "CLASSES", "TEACHERS").contains(scope))
             throw new IllegalArgumentException("Phạm vi người nhận không hợp lệ");
         TargetRole role = targetRole == null ? TargetRole.ALL : targetRole;
         Announcement ann = base(title, body, role, academicYearId, adminUserId);
-        ann.setApprovalStatus("APPROVED"); ann.setSenderType("ADMIN"); ann.setRequiresReply(false);
+        ann.setApprovalStatus("APPROVED"); ann.setSenderType("ADMIN"); ann.setRequiresReply(requiresReply);
         ann.setRecipientScope(scope);
-        Set<Long> recipientIds = new LinkedHashSet<>();
+        Map<Long, RecipientSnapshot> recipients = new LinkedHashMap<>();
 
         if ("SCHOOL".equals(scope)) {
-            teacherRepository.findAll().stream().map(Teacher::getUser).filter(Objects::nonNull)
-                    .forEach(user -> recipientIds.add(user.getId()));
+            collectYearTeacherRecipients(academicYearId, recipients);
             List<Long> yearClassIds = schoolClassRepository.findByAcademicYearId(academicYearId).stream()
                     .map(SchoolClass::getId).toList();
-            collectClassRecipients(yearClassIds, TargetRole.ALL, recipientIds);
-            recipientIds.remove(adminUserId);
+            collectClassRecipients(yearClassIds, TargetRole.ALL, academicYearId, recipients);
+            recipients.remove(adminUserId);
         } else if ("CLASSES".equals(scope)) {
             List<Long> selectedClasses = classIds == null ? List.of() : classIds;
             validateAdminClasses(academicYearId, selectedClasses);
             ann = announcementRepository.save(ann);
             replaceClasses(ann, selectedClasses);
-            collectClassRecipients(selectedClasses, role, recipientIds);
+            collectClassRecipients(selectedClasses, role, academicYearId, recipients);
         } else {
             String audience = teacherAudience == null ? "ALL" : teacherAudience.toUpperCase(Locale.ROOT);
             if (!Set.of("ALL", "SUBJECT", "HOMEROOM").contains(audience))
@@ -143,20 +146,23 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                         .orElseThrow(() -> new ResourceNotFoundException("Subject", "id", subjectId));
                 ann.setRecipientSubject(subject);
                 teachingAssignmentRepository.findByAcademicYearId(academicYearId).stream()
+                        .filter(assignment -> assignment.getStatus() == AssignmentStatus.ACTIVE)
                         .filter(assignment -> assignment.getSubject().getId().equals(subjectId))
                         .map(TeachingAssignment::getTeacher).map(Teacher::getUser).filter(Objects::nonNull)
-                        .forEach(user -> recipientIds.add(user.getId()));
+                        .forEach(user -> addRecipient(recipients, user, null, null));
             } else if ("HOMEROOM".equals(audience)) {
                 homeroomAssignmentRepository.findAll().stream()
                         .filter(h -> h.getAcademicYear().getId().equals(academicYearId))
-                        .forEach(h -> recipientIds.add(h.getTeacher().getUser().getId()));
+                        .filter(this::isActiveHomeroomAssignment)
+                        .forEach(h -> addRecipient(recipients, h.getTeacher().getUser(), null, h.getCls()));
             } else {
-                teacherRepository.findAll().forEach(t -> recipientIds.add(t.getUser().getId()));
+                collectYearTeacherRecipients(academicYearId, recipients);
             }
         }
         if (ann.getId() == null) ann = announcementRepository.save(ann);
+        saveRecipientSnapshot(ann, recipients);
         Long announcementId = ann.getId();
-        recipientIds.forEach(id -> notificationService.createNotification(id, title, body,
+        recipients.keySet().forEach(id -> notificationService.createNotification(id, title, body,
                 "Nhà trường", announcementId, "ANNOUNCEMENT"));
         return toDto(ann, false);
     }
@@ -175,44 +181,126 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     @Override @Transactional(readOnly = true)
-    public List<AnnouncementDto> getMyAnnouncements(Long userId) {
+    public List<AnnouncementDto> getMyAnnouncements(Long userId, Long academicYearId) {
         Teacher teacher = teacherByUser(userId);
         return announcementRepository.findByTeacherIdOrderByCreatedAtDesc(teacher.getId()).stream()
+                .filter(a -> academicYearId == null || a.getAcademicYear().getId().equals(academicYearId))
                 .map(a -> toDto(a, false)).toList();
     }
 
-    @Override @Transactional(readOnly = true)
+    @Override
     public AnnouncementDto getAnnouncementDetail(Long id, Long userId, UserRole role) {
         Announcement ann = announcementRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Announcement", "id", id));
         if (role != UserRole.ADMIN && !canViewAnnouncement(ann, userId, role))
             throw new ForbiddenException("Bạn không có quyền xem thông báo này");
-        return toDto(ann, announcementReadRepository.existsByAnnouncementIdAndUserId(id, userId));
+        if (role == UserRole.PARENT || role == UserRole.STUDENT) {
+            markAsRead(id, userId, role);
+        }
+        AnnouncementRead recipient = announcementReadRepository.findByAnnouncementIdAndUserId(id, userId).orElse(null);
+        return toDto(ann, recipient);
     }
 
     @Override @Transactional(readOnly = true)
     public List<AnnouncementDto> getAnnouncements(Long userId, UserRole role) {
-        List<Long> ids = getVisibleClassIds(userId, role);
-        if (ids.isEmpty()) return List.of();
-        return announcementRepository.findByClassesAndTargetRoles(ids, targetRolesFor(role)).stream()
-                .map(a -> toDto(a, announcementReadRepository.existsByAnnouncementIdAndUserId(a.getId(), userId))).toList();
+        requireRecipientRole(role);
+        return announcementReadRepository.findByUserIdOrderByAnnouncementCreatedAtDesc(userId).stream()
+                .filter(read -> "APPROVED".equals(read.getAnnouncement().getApprovalStatus()))
+                .map(read -> toDto(read.getAnnouncement(), read))
+                .toList();
     }
 
     @Override public void markAsRead(Long id, Long userId, UserRole role) {
         Announcement ann = announcementRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Announcement", "id", id));
         if (!canViewAnnouncement(ann, userId, role)) throw new ForbiddenException("Bạn không có quyền đọc thông báo này");
-        AnnouncementRead read = announcementReadRepository.findByAnnouncementIdAndUserId(id, userId).orElseGet(() -> {
-            AnnouncementRead value = new AnnouncementRead(); value.setAnnouncement(ann);
-            User user = new User(); user.setId(userId); value.setUser(user); return value;
-        });
-        read.setReadAt(LocalDateTime.now()); announcementReadRepository.save(read);
+        AnnouncementRead read = requireRecipient(id, userId, role);
+        if (read.getReadAt() == null) {
+            read.setReadAt(LocalDateTime.now());
+            announcementReadRepository.save(read);
+        }
     }
 
     @Override @Transactional(readOnly = true)
     public long getUnreadCount(Long userId, UserRole role) {
-        List<Long> ids = getVisibleClassIds(userId, role);
-        return ids.isEmpty() ? 0 : announcementRepository.countUnread(ids, targetRolesFor(role), userId);
+        requireRecipientRole(role);
+        return announcementReadRepository.countByUserIdAndReadAtIsNull(userId);
+    }
+
+    @Override
+    public void acknowledge(Long id, Long userId, UserRole role) {
+        AnnouncementRead recipient = requireRecipient(id, userId, role);
+        if (!Boolean.TRUE.equals(recipient.getAnnouncement().getRequiresReply())) {
+            throw new IllegalArgumentException("Thông báo này không yêu cầu xác nhận");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (recipient.getReadAt() == null) recipient.setReadAt(now);
+        if (recipient.getAcknowledgedAt() == null) recipient.setAcknowledgedAt(now);
+        announcementReadRepository.save(recipient);
+    }
+
+    @Override
+    public void reply(Long id, String replyText, Long userId, UserRole role) {
+        AnnouncementRead recipient = requireRecipient(id, userId, role);
+        if (!Boolean.TRUE.equals(recipient.getAnnouncement().getRequiresReply())) {
+            throw new IllegalArgumentException("Thông báo này không yêu cầu phản hồi");
+        }
+        String value = replyText == null ? "" : replyText.trim();
+        if (value.isEmpty() || value.length() > 1000) {
+            throw new IllegalArgumentException("Phản hồi phải có từ 1 đến 1.000 ký tự");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (recipient.getReadAt() == null) recipient.setReadAt(now);
+        if (recipient.getAcknowledgedAt() == null) recipient.setAcknowledgedAt(now);
+        recipient.setReplyText(value);
+        recipient.setRepliedAt(now);
+        announcementReadRepository.save(recipient);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AnnouncementRecipientDto> getRecipients(Long announcementId, Long academicYearId,
+            Long classId, UserRole role, String status, String keyword, int page, int size,
+            Long requesterId, UserRole requesterRole) {
+        Announcement announcement = announcementRepository.findById(announcementId)
+                .orElseThrow(() -> new ResourceNotFoundException("Announcement", "id", announcementId));
+        if (!announcement.getAcademicYear().getId().equals(academicYearId)) {
+            throw new ForbiddenException("Thông báo không thuộc năm học đã chọn");
+        }
+        if (requesterRole == UserRole.TEACHER && !announcement.getSender().getId().equals(requesterId)) {
+            throw new ForbiddenException("Giáo viên chỉ được xem người nhận thông báo do mình gửi");
+        }
+        if (requesterRole != UserRole.ADMIN && requesterRole != UserRole.TEACHER) {
+            throw new ForbiddenException("Không có quyền xem danh sách người nhận");
+        }
+        if (classId != null) {
+            SchoolClass selectedClass = schoolClassRepository.findById(classId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
+            if (!selectedClass.getAcademicYear().getId().equals(academicYearId)) {
+                throw new ForbiddenException("Lớp không thuộc năm học đã chọn");
+            }
+        }
+        String normalizedStatus = normalizeRecipientStatus(status);
+        String normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
+        List<AnnouncementRecipientDto> filtered = announcementReadRepository.findByAnnouncementId(announcementId).stream()
+                .filter(item -> role == null || item.getRecipientRole() == role)
+                .filter(item -> classId == null || splitLongs(item.getClassIds()).contains(classId))
+                .filter(item -> normalizedKeyword.isEmpty() || recipientSearchText(item).contains(normalizedKeyword))
+                .filter(item -> normalizedStatus == null || matchesStatus(item, normalizedStatus))
+                .map(this::toRecipientDto)
+                .toList();
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int start = Math.min(safePage * safeSize, filtered.size());
+        int end = Math.min(start + safeSize, filtered.size());
+        return new PageImpl<>(filtered.subList(start, end), PageRequest.of(safePage, safeSize), filtered.size());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long getPendingActionCount(Long userId, UserRole role) {
+        requireRecipientRole(role);
+        return announcementReadRepository.countPendingActionByUserId(userId);
     }
 
     private Announcement base(String title, String body, TargetRole target, Long yearId, Long senderId) {
@@ -249,12 +337,72 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         if (classes.size() != new HashSet<>(classIds).size() || classes.stream().anyMatch(c -> !c.getAcademicYear().getId().equals(yearId)))
             throw new ForbiddenException("Lớp không thuộc năm học đã chọn");
     }
-    private void collectClassRecipients(List<Long> classIds, TargetRole role, Set<Long> users) {
-        for (Long classId : classIds) for (Student student : studentRepository.findByCurrentClassId(classId)) {
-            if (role != TargetRole.PARENT && student.getUser() != null) users.add(student.getUser().getId());
-            if (role != TargetRole.STUDENT) studentGuardianRepository.findByStudentId(student.getId()).stream()
-                    .map(StudentGuardian::getGuardian).map(Parent::getUser).filter(Objects::nonNull)
-                    .forEach(user -> users.add(user.getId()));
+    private void collectClassRecipients(List<Long> classIds, TargetRole role, Long academicYearId,
+            Map<Long, RecipientSnapshot> recipients) {
+        for (Long classId : classIds) {
+            SchoolClass schoolClass = schoolClassRepository.findById(classId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
+            if (!schoolClass.getAcademicYear().getId().equals(academicYearId)) {
+                throw new ForbiddenException("Lớp không thuộc năm học đã chọn");
+            }
+            for (Student student : enrollmentRepository.findActiveStudentsByClassAndYear(classId, academicYearId)) {
+                if (role != TargetRole.PARENT && student.getUser() != null) {
+                    addRecipient(recipients, student.getUser(), student, schoolClass);
+                }
+                if (role != TargetRole.STUDENT) {
+                    studentGuardianRepository.findByStudentId(student.getId()).stream()
+                            .map(StudentGuardian::getGuardian)
+                            .map(Parent::getUser)
+                            .filter(Objects::nonNull)
+                            .forEach(user -> addRecipient(recipients, user, student, schoolClass));
+                }
+            }
+        }
+    }
+
+    private void collectYearTeacherRecipients(Long academicYearId, Map<Long, RecipientSnapshot> recipients) {
+        teachingAssignmentRepository.findByAcademicYearId(academicYearId).stream()
+                .filter(assignment -> assignment.getStatus() == AssignmentStatus.ACTIVE)
+                .forEach(assignment -> addRecipient(recipients, assignment.getTeacher().getUser(), null,
+                        assignment.getCls()));
+        homeroomAssignmentRepository.findAll().stream()
+                .filter(assignment -> assignment.getAcademicYear().getId().equals(academicYearId))
+                .filter(this::isActiveHomeroomAssignment)
+                .forEach(assignment -> addRecipient(recipients, assignment.getTeacher().getUser(), null,
+                        assignment.getCls()));
+    }
+
+    private void addRecipient(Map<Long, RecipientSnapshot> recipients, User user, Student student,
+            SchoolClass schoolClass) {
+        if (user == null) return;
+        RecipientSnapshot snapshot = recipients.computeIfAbsent(user.getId(), ignored -> new RecipientSnapshot(user));
+        if (student != null) snapshot.studentNames.add(student.getUser().getName());
+        if (schoolClass != null) {
+            snapshot.classIds.add(schoolClass.getId());
+            snapshot.classNames.add(schoolClass.getName());
+        }
+    }
+
+    private boolean isActiveHomeroomAssignment(HomeroomAssignment assignment) {
+        LocalDate today = LocalDate.now();
+        return !assignment.getEffectiveFrom().isAfter(today)
+                && (assignment.getEffectiveTo() == null || !assignment.getEffectiveTo().isBefore(today));
+    }
+
+    private void saveRecipientSnapshot(Announcement announcement, Map<Long, RecipientSnapshot> recipients) {
+        for (RecipientSnapshot snapshot : recipients.values()) {
+            if (announcementReadRepository.existsByAnnouncementIdAndUserId(announcement.getId(), snapshot.user.getId())) {
+                continue;
+            }
+            AnnouncementRead read = new AnnouncementRead();
+            read.setAnnouncement(announcement);
+            read.setUser(snapshot.user);
+            read.setRecipientRole(snapshot.user.getRole());
+            read.setUserName(snapshot.user.getName());
+            read.setStudentNames(String.join("\n", snapshot.studentNames));
+            read.setClassNames(String.join("\n", snapshot.classNames));
+            read.setClassIds(snapshot.classIds.stream().map(String::valueOf).collect(Collectors.joining(",")));
+            announcementReadRepository.save(read);
         }
     }
     private boolean isHomeroomTeacher(Long teacherId, Long yearId, List<Long> ids) {
@@ -272,49 +420,123 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             notificationService.createNotification(u.getId(), "Thông báo mới chờ phê duyệt",
                     a.getSender().getName() + ": " + a.getTitle(), "Chờ phê duyệt", a.getId(), "ANNOUNCEMENT_APPROVAL")); }
     private void publish(Announcement a) {
-        Set<Long> users = new HashSet<>();
-        for (AnnouncementClass ac : announcementClassRepository.findByAnnouncementId(a.getId())) {
-            for (Student s : studentRepository.findByCurrentClassId(ac.getCls().getId())) {
-                if (a.getTargetRole() != TargetRole.PARENT && s.getUser() != null) users.add(s.getUser().getId());
-                if (a.getTargetRole() != TargetRole.STUDENT) studentGuardianRepository.findByStudentId(s.getId()).stream()
-                        .map(StudentGuardian::getGuardian).map(Parent::getUser).filter(Objects::nonNull)
-                        .forEach(u -> users.add(u.getId()));
-            }
-        }
+        Map<Long, RecipientSnapshot> recipients = new LinkedHashMap<>();
+        List<Long> classIds = announcementClassRepository.findByAnnouncementId(a.getId()).stream()
+                .map(ac -> ac.getCls().getId()).toList();
+        collectClassRecipients(classIds, a.getTargetRole(), a.getAcademicYear().getId(), recipients);
+        saveRecipientSnapshot(a, recipients);
         String tag = "HOMEROOM_TEACHER".equals(a.getSenderType()) ? "GVCN" : "GV bộ môn";
-        users.forEach(id -> notificationService.createNotification(id, a.getTitle(), a.getBody(), tag, a.getId(), "ANNOUNCEMENT"));
+        recipients.keySet().forEach(id -> notificationService.createNotification(id, a.getTitle(), a.getBody(), tag,
+                a.getId(), "ANNOUNCEMENT"));
         notificationService.createNotification(a.getSender().getId(), "Thông báo đã được duyệt", a.getTitle(), "Quản trị viên", a.getId(), "ANNOUNCEMENT");
     }
     private boolean canViewAnnouncement(Announcement a, Long userId, UserRole role) {
-        if (role == UserRole.TEACHER) return a.getSender().getId().equals(userId);
-        return "APPROVED".equals(a.getApprovalStatus()) && targetRolesFor(role).contains(a.getTargetRole()) &&
-                a.getAnnouncementClasses().stream().anyMatch(ac -> getVisibleClassIds(userId, role).contains(ac.getCls().getId()));
+        if (role == UserRole.TEACHER && a.getSender().getId().equals(userId)) return true;
+        return "APPROVED".equals(a.getApprovalStatus())
+                && announcementReadRepository.existsByAnnouncementIdAndUserId(a.getId(), userId);
     }
-    private List<Long> getVisibleClassIds(Long userId, UserRole role) {
-        if (role == UserRole.STUDENT) { Student s = studentRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student", "userId", userId));
-            return s.getCurrentClass() == null ? List.of() : List.of(s.getCurrentClass().getId()); }
-        if (role == UserRole.PARENT) { Parent p = parentRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Parent", "userId", userId));
-            return studentGuardianRepository.findByGuardianId(p.getId()).stream().map(StudentGuardian::getStudent)
-                    .filter(s -> s.getCurrentClass() != null).map(s -> s.getCurrentClass().getId()).distinct().toList(); }
-        return List.of();
+    private AnnouncementDto toDto(Announcement announcement, boolean ignoredReadFlag) {
+        return toDto(announcement, (AnnouncementRead) null);
     }
-    private List<TargetRole> targetRolesFor(UserRole role) {
-        return role == UserRole.PARENT ? List.of(TargetRole.PARENT, TargetRole.ALL)
-                : role == UserRole.STUDENT ? List.of(TargetRole.STUDENT, TargetRole.ALL) : List.of();
-    }
-    private AnnouncementDto toDto(Announcement a, boolean read) {
+
+    private AnnouncementDto toDto(Announcement a, AnnouncementRead recipient) {
         List<String> names = announcementClassRepository.findByAnnouncementId(a.getId()).stream()
                 .map(ac -> ac.getCls().getName()).distinct().toList();
+        List<Long> classIds = announcementClassRepository.findByAnnouncementId(a.getId()).stream()
+                .map(ac -> ac.getCls().getId()).distinct().toList();
         String recipientScope = "ADMIN".equals(a.getSenderType()) && names.isEmpty()
                 && "CLASSES".equals(a.getRecipientScope()) ? "SCHOOL" : a.getRecipientScope();
+        int totalRecipients = (int) announcementReadRepository.countByAnnouncementId(a.getId());
+        int readCount = (int) announcementReadRepository.countByAnnouncementIdAndReadAtIsNotNull(a.getId());
+        int acknowledgedCount = (int) announcementReadRepository.countByAnnouncementIdAndAcknowledgedAtIsNotNull(a.getId());
+        int repliedCount = (int) announcementReadRepository.countByAnnouncementIdAndRepliedAtIsNotNull(a.getId());
         return new AnnouncementDto(a.getId(), a.getTitle(), a.getBody(), a.getTargetRole(), a.getRequiresReply(),
-                a.getTeacher() == null ? null : a.getTeacher().getId(), a.getSender().getName(), names, read,
-                0, (int) announcementReadRepository.countByAnnouncementIdAndReadAtIsNotNull(a.getId()), a.getCreatedAt(),
+                a.getTeacher() == null ? null : a.getTeacher().getId(), a.getSender().getName(), names, classIds,
+                recipient != null && recipient.getReadAt() != null,
+                recipient != null && recipient.getAcknowledgedAt() != null,
+                recipient == null ? null : recipient.getReplyText(),
+                recipient == null ? null : recipient.getRepliedAt(),
+                recipient == null ? null : recipientStatus(recipient),
+                totalRecipients, readCount, acknowledgedCount, repliedCount, a.getCreatedAt(),
                 a.getAcademicYear().getId(), a.getApprovalStatus(), a.getRejectionReason(), a.getSenderType(),
                 recipientScope, a.getTeacherAudience(),
                 a.getRecipientSubject() == null ? null : a.getRecipientSubject().getId(),
                 a.getRecipientSubject() == null ? null : a.getRecipientSubject().getName());
+    }
+
+    private AnnouncementRead requireRecipient(Long announcementId, Long userId, UserRole role) {
+        requireRecipientRole(role);
+        AnnouncementRead recipient = announcementReadRepository.findByAnnouncementIdAndUserId(announcementId, userId)
+                .orElseThrow(() -> new ForbiddenException("Bạn không thuộc danh sách người nhận thông báo"));
+        if (!"APPROVED".equals(recipient.getAnnouncement().getApprovalStatus())) {
+            throw new ForbiddenException("Thông báo chưa được phê duyệt");
+        }
+        return recipient;
+    }
+
+    private void requireRecipientRole(UserRole role) {
+        if (role != UserRole.PARENT && role != UserRole.STUDENT) {
+            throw new ForbiddenException("Chức năng này chỉ dành cho phụ huynh và học sinh");
+        }
+    }
+
+    private String normalizeRecipientStatus(String status) {
+        if (status == null || status.isBlank()) return null;
+        String normalized = status.trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("UNREAD", "READ", "ACKNOWLEDGED", "REPLIED", "PENDING").contains(normalized)) {
+            throw new IllegalArgumentException("Trạng thái người nhận không hợp lệ");
+        }
+        return normalized;
+    }
+
+    private boolean matchesStatus(AnnouncementRead recipient, String status) {
+        if ("PENDING".equals(status)) {
+            return Boolean.TRUE.equals(recipient.getAnnouncement().getRequiresReply())
+                    && (recipient.getRecipientRole() == UserRole.PARENT || recipient.getRecipientRole() == UserRole.STUDENT)
+                    && recipient.getAcknowledgedAt() == null && recipient.getRepliedAt() == null;
+        }
+        return recipientStatus(recipient).equals(status);
+    }
+
+    private String recipientStatus(AnnouncementRead recipient) {
+        if (recipient.getRepliedAt() != null) return "REPLIED";
+        if (recipient.getAcknowledgedAt() != null) return "ACKNOWLEDGED";
+        if (recipient.getReadAt() != null) return "READ";
+        return "UNREAD";
+    }
+
+    private AnnouncementRecipientDto toRecipientDto(AnnouncementRead recipient) {
+        return new AnnouncementRecipientDto(recipient.getUser().getId(), recipient.getUserName(),
+                recipient.getRecipientRole(), splitText(recipient.getStudentNames()), splitText(recipient.getClassNames()),
+                recipient.getReadAt(), recipient.getAcknowledgedAt(), recipient.getReplyText(), recipient.getRepliedAt(),
+                recipientStatus(recipient));
+    }
+
+    private String recipientSearchText(AnnouncementRead recipient) {
+        return String.join(" ", Objects.toString(recipient.getUserName(), ""),
+                Objects.toString(recipient.getStudentNames(), ""), Objects.toString(recipient.getClassNames(), ""))
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private List<String> splitText(String value) {
+        if (value == null || value.isBlank()) return List.of();
+        return Arrays.stream(value.split("\\n")).map(String::trim).filter(item -> !item.isEmpty()).toList();
+    }
+
+    private Set<Long> splitLongs(String value) {
+        if (value == null || value.isBlank()) return Set.of();
+        return Arrays.stream(value.split(",")).map(String::trim).filter(item -> !item.isEmpty())
+                .map(Long::valueOf).collect(Collectors.toSet());
+    }
+
+    private static final class RecipientSnapshot {
+        private final User user;
+        private final Set<String> studentNames = new LinkedHashSet<>();
+        private final Set<String> classNames = new LinkedHashSet<>();
+        private final Set<Long> classIds = new LinkedHashSet<>();
+
+        private RecipientSnapshot(User user) {
+            this.user = user;
+        }
     }
 }

@@ -11,5 +11,6 @@ public record AdminAnnouncementRequest(
     TargetRole targetRole,
     List<Long> classIds,
     String teacherAudience,
-    Long subjectId
+    Long subjectId,
+    Boolean requiresReply
 ) {}

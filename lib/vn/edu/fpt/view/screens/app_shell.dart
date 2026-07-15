@@ -11,6 +11,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen_phuhuynh.dar
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen_hocsinh.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/messages_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/announcement_inbox_screen.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({
@@ -34,6 +35,7 @@ class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
   late final List<GlobalKey<NavigatorState>> _navigatorKeys;
   NotificationService? _notificationService;
+  AnnouncementInboxService? _announcementInboxService;
   AcademicPeriodController? _academicPeriodController;
 
   @override
@@ -54,6 +56,12 @@ class _AppShellState extends State<AppShell> {
       );
       unawaited(_academicPeriodController!.load());
       widget.authService?.addListener(_syncAcademicPeriodStudent);
+      _announcementInboxService = AnnouncementInboxService(
+        api: AnnouncementApiClient(backend: BackendApiClient()),
+        token: session.token,
+        teacher: session.actor == AppActor.teacher,
+      );
+      unawaited(_announcementInboxService!.start());
     }
     if (session != null && chatService != null) {
       _notificationService = NotificationService(
@@ -69,6 +77,7 @@ class _AppShellState extends State<AppShell> {
   void dispose() {
     widget.authService?.removeListener(_syncAcademicPeriodStudent);
     _notificationService?.dispose();
+    _announcementInboxService?.dispose();
     _academicPeriodController?.dispose();
     super.dispose();
   }
@@ -113,13 +122,8 @@ class _AppShellState extends State<AppShell> {
                     chatService: widget.chatService!,
                   );
                 case 2:
-                  return AnnouncementsScreen(
-                    actor: widget.actor,
-                    service: _notificationService!,
-                    token:
-                        widget.session?.token ??
-                        widget.authService?.currentSession?.token ??
-                        widget.chatService?.session?.token,
+                  return AnnouncementInboxScreen(
+                    service: _announcementInboxService!,
                   );
                 case 3:
                   return AccountProfileScreen(
@@ -138,7 +142,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _selectTab(int index) {
-    if (index == 2) unawaited(_notificationService?.markAllAsRead());
+    if (index == 2) unawaited(_announcementInboxService?.load());
     if (_selectedIndex == index) {
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
     } else {
@@ -174,6 +178,7 @@ class _AppShellState extends State<AppShell> {
           child: AnimatedBuilder(
             animation: Listenable.merge([
               ?_notificationService,
+              ?_announcementInboxService,
               ?widget.chatService,
             ]),
             builder: (context, _) => BottomNavigationBar(
@@ -213,13 +218,51 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _notificationIcon(IconData icon) {
-    final count = _notificationService?.unreadCount ?? 0;
-    return Badge(
-      isLabelVisible: count > 0,
-      label: Text(count > 99 ? '99+' : '$count'),
-      child: Icon(icon),
+    final unread = _announcementInboxService?.unreadCount ?? 0;
+    final pending = _announcementInboxService?.pendingActionCount ?? 0;
+    return SizedBox(
+      width: 32,
+      height: 28,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Icon(icon),
+          if (unread > 0)
+            Positioned(
+              right: -5,
+              top: -6,
+              child: _countBadge(unread, Colors.red),
+            ),
+          if (pending > 0)
+            Positioned(
+              right: -5,
+              bottom: -5,
+              child: _countBadge(pending, Colors.orange),
+            ),
+        ],
+      ),
     );
   }
+
+  Widget _countBadge(int count, Color color) => Container(
+    key: ValueKey('announcement-badge-$color'),
+    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(9),
+    ),
+    alignment: Alignment.center,
+    child: Text(
+      count > 99 ? '99+' : '$count',
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 9,
+        fontWeight: FontWeight.w800,
+      ),
+    ),
+  );
 
   Widget _chatIcon(IconData icon) {
     final count = widget.chatService?.totalUnreadCount ?? 0;
