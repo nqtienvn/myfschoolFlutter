@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../view/design_system/app_colors.dart';
 import '../../../view/screens/student_models.dart';
 import '../exception/parse_exception.dart';
+import '../dto/attendance_correction_dto.dart';
 import 'backend_api_client.dart';
 
 class AttendanceApiClient {
@@ -61,12 +62,37 @@ class AttendanceApiClient {
     );
   }
 
+  Future<List<AttendanceCorrectionDto>> getCorrectionHistory({
+    required String token,
+    required int academicYearId,
+  }) async {
+    final data = await _backend.getData(
+      '/api/attendance/corrections/history',
+      token: token,
+      query: {'academicYearId': academicYearId.toString()},
+    );
+    if (data is! List) {
+      throw const ParseException('Lịch sử sửa điểm danh không hợp lệ.');
+    }
+    return data
+        .map((item) {
+          if (item is! Map<String, dynamic>) {
+            throw const ParseException(
+              'Một yêu cầu sửa điểm danh không hợp lệ.',
+            );
+          }
+          return AttendanceCorrectionDto.fromJson(item);
+        })
+        .toList(growable: false);
+  }
+
   Future<void> requestAttendanceCorrection({
     required String token,
     required int classId,
     required String date,
     required String shift,
     required List<Map<String, dynamic>> entries,
+    required String reason,
   }) async {
     await _backend.postData(
       '/api/attendance/corrections',
@@ -76,6 +102,7 @@ class AttendanceApiClient {
         'date': date,
         'shift': shift,
         'entries': entries,
+        'reason': reason,
       },
     );
   }

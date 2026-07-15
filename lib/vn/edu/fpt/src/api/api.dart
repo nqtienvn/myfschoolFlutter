@@ -12,6 +12,7 @@ export 'dto/teacher_dashboard_stats_dto.dart';
 export 'dto/student_dashboard_stats_dto.dart';
 export 'dto/teacher_tuition_summary_dto.dart';
 export 'dto/homeroom_academic_dto.dart';
+export 'dto/attendance_correction_dto.dart';
 export 'client/auth_api_client.dart';
 export 'client/backend_api_client.dart';
 export 'client/chat_api_client.dart';

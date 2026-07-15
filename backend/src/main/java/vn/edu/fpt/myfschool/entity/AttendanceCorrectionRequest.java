@@ -33,10 +33,21 @@ public class AttendanceCorrectionRequest extends BaseEntity {
     @Column(name = "proposed_entries", nullable = false, columnDefinition = "LONGTEXT")
     private String proposedEntries;
 
+    @Lob
+    @Column(name = "original_entries", columnDefinition = "LONGTEXT")
+    private String originalEntries;
+
+    @Column(nullable = false, length = 500)
+    private String reason;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AttendanceCorrectionStatus status = AttendanceCorrectionStatus.PENDING;
 
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reviewed_by")
+    private User reviewedBy;
 }

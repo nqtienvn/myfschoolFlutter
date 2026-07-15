@@ -15,4 +15,10 @@ public interface AttendanceCorrectionRequestRepository
 
     List<AttendanceCorrectionRequest> findByClsAcademicYearIdAndDateAndStatusOrderByCreatedAtAsc(
         Long academicYearId, LocalDate date, AttendanceCorrectionStatus status);
+
+    List<AttendanceCorrectionRequest> findByTeacherIdAndClsAcademicYearIdOrderByCreatedAtDesc(
+        Long teacherId, Long academicYearId);
+
+    List<AttendanceCorrectionRequest> findByClsAcademicYearIdAndDateOrderByCreatedAtDesc(
+        Long academicYearId, LocalDate date);
 }

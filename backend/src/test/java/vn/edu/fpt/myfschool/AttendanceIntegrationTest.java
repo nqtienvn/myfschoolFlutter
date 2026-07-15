@@ -8,6 +8,7 @@ import vn.edu.fpt.myfschool.entity.HomeroomAssignment;
 import vn.edu.fpt.myfschool.entity.LeaveRequest;
 import vn.edu.fpt.myfschool.entity.Schedule;
 import vn.edu.fpt.myfschool.entity.Timetable;
+import vn.edu.fpt.myfschool.entity.AcademicYear;
 import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
 import vn.edu.fpt.myfschool.common.enums.LeaveShift;
@@ -214,6 +215,8 @@ class AttendanceIntegrationTest extends BaseIntegrationTest {
             "MORNING", entry(testStudent1.getId(), "ABSENT_WITHOUT_LEAVE") + ","
                 + entry(testStudent2.getId(), "PRESENT") + ","
                 + entry(testStudent3.getId(), "PRESENT"));
+        correctionBody = correctionBody.substring(0, correctionBody.length() - 1)
+            + ",\"reason\":\"Nhập nhầm trạng thái của học sinh\"}";
         String correctionJson = mockMvc.perform(post("/api/attendance/corrections")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -237,7 +240,43 @@ class AttendanceIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(put("/api/attendance/admin/corrections/" + correctionId + "/approve")
                 .header("Authorization", authHeader(adminToken)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.status").value("APPROVED"));
+            .andExpect(jsonPath("$.data.status").value("APPROVED"))
+            .andExpect(jsonPath("$.data.reason").value("Nhập nhầm trạng thái của học sinh"))
+            .andExpect(jsonPath("$.data.originalPresentCount").value(3))
+            .andExpect(jsonPath("$.data.presentCount").value(2))
+            .andExpect(jsonPath("$.data.changes[0].studentId").value(testStudent1.getId()))
+            .andExpect(jsonPath("$.data.changes[0].oldStatus").value("PRESENT"))
+            .andExpect(jsonPath("$.data.changes[0].newStatus").value("ABSENT_WITHOUT_LEAVE"))
+            .andExpect(jsonPath("$.data.reviewedByName").isNotEmpty())
+            .andExpect(jsonPath("$.data.reviewedAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/attendance/corrections/history")
+                .header("Authorization", authHeader(token))
+                .param("academicYearId", testAcademicYear.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].status").value("APPROVED"));
+
+        mockMvc.perform(get("/api/attendance/admin/corrections/history")
+                .header("Authorization", authHeader(adminToken))
+                .param("academicYearId", testAcademicYear.getId().toString())
+                .param("date", "2026-09-24"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].changes.length()").value(1));
+
+        AcademicYear otherYear = new AcademicYear();
+        otherYear.setName("2027-2028");
+        otherYear.setStartDate(java.time.LocalDate.of(2027, 8, 1));
+        otherYear.setEndDate(java.time.LocalDate.of(2028, 5, 31));
+        otherYear.setStatus(vn.edu.fpt.myfschool.common.enums.AcademicYearStatus.DRAFT);
+        otherYear = academicYearRepository.save(otherYear);
+        mockMvc.perform(get("/api/attendance/admin/corrections/history")
+                .header("Authorization", authHeader(adminToken))
+                .param("academicYearId", otherYear.getId().toString())
+                .param("date", "2026-09-24"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(0));
 
         mockMvc.perform(get("/api/attendance/daily")
                 .header("Authorization", authHeader(token))

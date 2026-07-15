@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.CalculateSemesterResultResponse;
 import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
+import vn.edu.fpt.myfschool.common.enums.AssessmentType;
 import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
@@ -107,7 +108,11 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
             for (Enrollment enrollment : enrollments) for (GradeItem item : requiredItems) {
                 Student student = enrollment.getStudent();
                 StudentScore score = studentScoreRepository.findByGradeItemIdAndStudentId(item.getId(), student.getId()).orElse(null);
-                if (score == null || score.getScore() == null || !Boolean.TRUE.equals(score.getIsGraded()))
+                boolean hasRequiredValue = score != null && Boolean.TRUE.equals(score.getIsGraded())
+                    && (item.getAssessmentType() == AssessmentType.SCORE
+                        ? score.getScore() != null
+                        : score.getComment() != null && !score.getComment().isBlank());
+                if (!hasRequiredValue)
                     missing.add(student.getStudentCode() + " - " + book.getSubject().getName() + " - " + item.getName());
             }
         }
@@ -140,6 +145,7 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
             int totalWeight = 0;
 
             for (GradeItem item : items) {
+                if (item.getAssessmentType() != AssessmentType.SCORE) continue;
                 StudentScore score = studentScoreRepository
                     .findByGradeItemIdAndStudentId(item.getId(), studentId)
                     .orElse(null);

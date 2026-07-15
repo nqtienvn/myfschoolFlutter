@@ -4,21 +4,27 @@ import '../design_system/app_colors.dart';
 import 'academic_period_scope.dart';
 
 class GradesWebScreen extends StatefulWidget {
-  const GradesWebScreen({super.key, required this.token});
+  const GradesWebScreen({super.key, required this.token, this.apiClient});
+
   final String token;
+  final GradebookApiClient? apiClient;
+
   @override
   State<GradesWebScreen> createState() => _GradesWebScreenState();
 }
 
 class _GradesWebScreenState extends State<GradesWebScreen> {
-  final api = GradebookApiClient();
+  late final GradebookApiClient api = widget.apiClient ?? GradebookApiClient();
   List<Map<String, dynamic>> assignments = [], scoreRows = [];
   Map<String, dynamic>? assignment, book, item;
-  final values = <int, double?>{};
+  final scoreValues = <int, double?>{};
+  final textValues = <int, String>{};
   bool loading = false, saving = false;
   String? error;
   int? loadedYear;
   String? loadedPeriod;
+
+  String get assessmentType => item?['assessmentType'] as String? ?? 'SCORE';
 
   @override
   void didChangeDependencies() {
@@ -37,19 +43,31 @@ class _GradesWebScreenState extends State<GradesWebScreen> {
   }
 
   Future<void> _loadAssignments(int yearId) async {
-    setState(() => loading = true);
+    setState(() {
+      loading = true;
+      error = null;
+      assignments = [];
+      assignment = null;
+      book = null;
+      item = null;
+      scoreRows = [];
+    });
     try {
       final rows = await api.getMyAssignments(
         token: widget.token,
         academicYearId: yearId,
       );
-      if (!mounted) return;
+      if (!mounted || loadedYear != yearId) return;
       setState(() => assignments = rows);
       if (rows.isNotEmpty) await _selectClass(rows.first['classId'] as int);
-    } catch (e) {
-      if (mounted) setState(() => error = '$e');
+    } catch (exception) {
+      if (mounted && loadedYear == yearId) {
+        setState(() => error = _errorText(exception));
+      }
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted && loadedYear == yearId) {
+        setState(() => loading = false);
+      }
     }
   }
 
@@ -60,12 +78,14 @@ class _GradesWebScreenState extends State<GradesWebScreen> {
 
   List<Map<String, dynamic>> get subjects =>
       assignments.where((a) => a['classId'] == assignment?['classId']).toList();
+
   List<Map<String, dynamic>> get editableItems => book == null
       ? []
       : (book!['items'] as List)
             .whereType<Map<String, dynamic>>()
             .where((i) => i['entryRole'] != 'ADMIN')
             .toList();
+
   List<Map<String, dynamic>> get students => item == null
       ? []
       : scoreRows.where((r) => r['gradeItemId'] == item!['id']).toList();
@@ -91,12 +111,18 @@ class _GradesWebScreenState extends State<GradesWebScreen> {
   Future<void> _loadBook() async {
     final period = AcademicPeriodScope.maybeOf(context)?.selected;
     if (assignment == null || period == null) return;
-    setState(() => loading = true);
+    final requestKey = '${period.academicYearId}-${period.semesterId}';
+    final requestedClass = assignment!['classId'] as int;
+    final requestedSubject = assignment!['subjectId'] as int;
+    setState(() {
+      loading = true;
+      error = null;
+    });
     try {
       final loaded = await api.getGradeBook(
         token: widget.token,
-        classId: assignment!['classId'] as int,
-        subjectId: assignment!['subjectId'] as int,
+        classId: requestedClass,
+        subjectId: requestedSubject,
         semesterId: period.semesterId,
       );
       final rows = await api.getStudents(
@@ -107,25 +133,43 @@ class _GradesWebScreenState extends State<GradesWebScreen> {
           .whereType<Map<String, dynamic>>()
           .where((i) => i['entryRole'] != 'ADMIN')
           .toList();
-      if (!mounted) return;
+      if (!mounted ||
+          loadedPeriod != requestKey ||
+          assignment?['classId'] != requestedClass ||
+          assignment?['subjectId'] != requestedSubject) {
+        return;
+      }
       setState(() {
         book = loaded;
         scoreRows = rows;
         item = allowed.isEmpty ? null : allowed.first;
         _fillValues();
       });
-    } catch (e) {
-      if (mounted) setState(() => error = '$e');
+    } catch (exception) {
+      if (mounted &&
+          loadedPeriod == requestKey &&
+          assignment?['classId'] == requestedClass &&
+          assignment?['subjectId'] == requestedSubject) {
+        setState(() => error = _errorText(exception));
+      }
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted &&
+          loadedPeriod == requestKey &&
+          assignment?['classId'] == requestedClass &&
+          assignment?['subjectId'] == requestedSubject) {
+        setState(() => loading = false);
+      }
     }
   }
 
   void _fillValues() {
-    values.clear();
+    scoreValues.clear();
+    textValues.clear();
     if (item == null) return;
     for (final row in scoreRows.where((r) => r['gradeItemId'] == item!['id'])) {
-      values[row['studentId'] as int] = (row['score'] as num?)?.toDouble();
+      final studentId = row['studentId'] as int;
+      scoreValues[studentId] = (row['score'] as num?)?.toDouble();
+      textValues[studentId] = row['comment'] as String? ?? '';
     }
   }
 
@@ -138,33 +182,44 @@ class _GradesWebScreenState extends State<GradesWebScreen> {
 
   Future<void> _upload() async {
     if (item == null) return;
-    if (values.values.any((v) => v != null && (v < 0 || v > 10))) {
+    if (assessmentType == 'SCORE' &&
+        scoreValues.values.any((v) => v != null && (v < 0 || v > 10))) {
       setState(() => error = 'Điểm phải từ 0 đến 10.');
       return;
     }
-    setState(() => saving = true);
+    setState(() {
+      saving = true;
+      error = null;
+    });
     try {
       await api.updateScores(
         token: widget.token,
         gradeItemId: item!['id'] as int,
-        entries: students
-            .map(
-              (s) => {
-                'studentId': s['studentId'],
-                'score': values[s['studentId']],
-                'isGraded': values[s['studentId']] != null,
-              },
-            )
-            .toList(),
+        entries: students.map((student) {
+          final studentId = student['studentId'] as int;
+          if (assessmentType == 'SCORE') {
+            return <String, dynamic>{
+              'studentId': studentId,
+              'score': scoreValues[studentId],
+              'isGraded': scoreValues[studentId] != null,
+            };
+          }
+          final value = textValues[studentId]?.trim() ?? '';
+          return <String, dynamic>{
+            'studentId': studentId,
+            'comment': value.isEmpty ? null : value,
+            'isGraded': value.isNotEmpty,
+          };
+        }).toList(),
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã upload điểm cho admin.')),
+          const SnackBar(content: Text('Đã lưu đầu điểm cho nhà trường.')),
         );
         await _loadBook();
       }
-    } catch (e) {
-      if (mounted) setState(() => error = '$e');
+    } catch (exception) {
+      if (mounted) setState(() => error = _errorText(exception));
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -175,7 +230,7 @@ class _GradesWebScreenState extends State<GradesWebScreen> {
     final period = AcademicPeriodScope.maybeOf(context)?.selected;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Nhập & upload điểm')),
+      appBar: AppBar(title: const Text('Nhập đầu điểm')),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -183,6 +238,7 @@ class _GradesWebScreenState extends State<GradesWebScreen> {
                   ? Future.value()
                   : _loadAssignments(loadedYear!),
               child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 children: [
                   if (period != null)
@@ -215,8 +271,8 @@ class _GradesWebScreenState extends State<GradesWebScreen> {
                           ),
                         )
                         .toList(),
-                    onChanged: (v) {
-                      if (v != null) _selectClass(v);
+                    onChanged: (value) {
+                      if (value != null) _selectClass(value);
                     },
                   ),
                   const SizedBox(height: 12),
@@ -233,8 +289,8 @@ class _GradesWebScreenState extends State<GradesWebScreen> {
                           ),
                         )
                         .toList(),
-                    onChanged: (v) {
-                      if (v != null) _selectSubject(v);
+                    onChanged: (value) {
+                      if (value != null) _selectSubject(value);
                     },
                   ),
                   const SizedBox(height: 12),
@@ -246,122 +302,174 @@ class _GradesWebScreenState extends State<GradesWebScreen> {
                       ),
                       items: editableItems
                           .map(
-                            (i) => DropdownMenuItem(
-                              value: i['id'] as int,
+                            (gradeItem) => DropdownMenuItem(
+                              value: gradeItem['id'] as int,
                               child: Text(
-                                '${i['name']} · hệ số ${i['weight']} · môn ${assignment?['subjectName']}',
+                                '${gradeItem['name']} · ${_typeLabel(gradeItem['assessmentType'] as String?)}',
                               ),
                             ),
                           )
                           .toList(),
-                      onChanged: (v) {
-                        if (v != null) _selectItem(v);
+                      onChanged: (value) {
+                        if (value != null) _selectItem(value);
                       },
                     ),
                   const SizedBox(height: 16),
-                  if (book != null) ...[
-                    Card(
-                      child: ExpansionTile(
-                        leading: const Icon(
-                          Icons.calculate_outlined,
-                          color: AppColors.blue,
-                        ),
-                        title: const Text(
-                          'Cách hệ thống tính điểm',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        subtitle: const Text('Nhấn để xem công thức'),
-                        childrenPadding: const EdgeInsets.fromLTRB(
-                          16,
-                          0,
-                          16,
-                          16,
-                        ),
-                        children: [
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              'ĐTB môn ${assignment?['subjectName']} = Tổng (điểm × hệ số) / Tổng hệ số. Hệ thống làm tròn 1 chữ số thập phân.',
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              (book!['items'] as List)
-                                  .whereType<Map<String, dynamic>>()
-                                  .map((i) => '${i['name']} × ${i['weight']}')
-                                  .join(' + '),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                  if (book != null)
+                    _FormulaCard(
+                      book: book!,
+                      subjectName: '${assignment?['subjectName']}',
                     ),
-                    const SizedBox(height: 12),
-                  ],
                   if (assignments.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(32),
                       child: Center(
                         child: Text(
-                          'Bạn chưa được admin phân công lớp/môn trong năm học này.',
+                          'Bạn chưa được Admin phân công lớp/môn trong năm học này.',
                         ),
                       ),
                     ),
                   if (item != null) ...[
+                    const SizedBox(height: 12),
                     Card(
                       color: AppColors.blueSoft,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Text(
-                          '${assignment?['className']} · ${assignment?['subjectName']} · ${item?['name']} (hệ số ${item?['weight']})',
+                          '${assignment?['className']} · ${assignment?['subjectName']} · ${item?['name']} · ${_typeLabel(assessmentType)}',
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                       ),
                     ),
-                    ...students.map(
-                      (student) => Card(
-                        child: ListTile(
-                          title: Text(student['studentName'] as String),
-                          subtitle: Text(student['studentCode'] as String),
-                          trailing: SizedBox(
-                            width: 82,
-                            child: TextFormField(
-                              key: ValueKey(
-                                '${item!['id']}-${student['studentId']}',
-                              ),
-                              initialValue: values[student['studentId']]
-                                  ?.toString(),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: const InputDecoration(
-                                hintText: '0–10',
-                              ),
-                              onChanged: (v) =>
-                                  values[student['studentId'] as int] =
-                                      double.tryParse(v),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                    ...students.map(_studentEditor),
                     const SizedBox(height: 12),
                     FilledButton.icon(
                       onPressed: saving ? null : _upload,
                       icon: const Icon(Icons.cloud_upload),
-                      label: Text(
-                        saving ? 'Đang upload…' : 'Upload điểm cho admin',
-                      ),
+                      label: Text(saving ? 'Đang lưu…' : 'Lưu đầu điểm'),
                     ),
                   ],
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _studentEditor(Map<String, dynamic> student) {
+    final studentId = student['studentId'] as int;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              student['studentName'] as String,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            Text(
+              student['studentCode'] as String,
+              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            if (assessmentType == 'SCORE')
+              TextFormField(
+                key: ValueKey('${item!['id']}-$studentId-score'),
+                initialValue: scoreValues[studentId]?.toString(),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Điểm số',
+                  hintText: '0–10',
+                ),
+                onChanged: (value) =>
+                    scoreValues[studentId] = double.tryParse(value),
+              )
+            else if (assessmentType == 'PASS_FAIL')
+              DropdownButtonFormField<String>(
+                key: ValueKey('${item!['id']}-$studentId-pass-fail'),
+                initialValue: textValues[studentId]?.isEmpty == true
+                    ? null
+                    : textValues[studentId],
+                decoration: const InputDecoration(labelText: 'Kết quả'),
+                items: const [
+                  DropdownMenuItem(value: 'PASS', child: Text('Đạt')),
+                  DropdownMenuItem(value: 'FAIL', child: Text('Chưa đạt')),
+                ],
+                onChanged: (value) => textValues[studentId] = value ?? '',
+              )
+            else
+              TextFormField(
+                key: ValueKey('${item!['id']}-$studentId-comment'),
+                initialValue: textValues[studentId],
+                maxLength: 255,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Nhận xét',
+                  hintText: 'Nhập nhận xét cho học sinh',
+                  alignLabelWithHint: true,
+                ),
+                onChanged: (value) => textValues[studentId] = value,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _typeLabel(String? type) => switch (type) {
+    'PASS_FAIL' => 'Đạt / Chưa đạt',
+    'COMMENT' => 'Nhận xét',
+    _ => 'Điểm số',
+  };
+
+  static String _errorText(Object error) =>
+      error.toString().replaceFirst(RegExp(r'^[A-Za-z]+Exception:\s*'), '');
+}
+
+class _FormulaCard extends StatelessWidget {
+  const _FormulaCard({required this.book, required this.subjectName});
+
+  final Map<String, dynamic> book;
+  final String subjectName;
+
+  @override
+  Widget build(BuildContext context) {
+    final numericItems = (book['items'] as List)
+        .whereType<Map<String, dynamic>>()
+        .where((item) => item['assessmentType'] == 'SCORE')
+        .toList();
+    return Card(
+      child: ExpansionTile(
+        leading: const Icon(Icons.calculate_outlined, color: AppColors.blue),
+        title: const Text(
+          'Cách hệ thống tính điểm',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        subtitle: const Text('Nhận xét và Đạt/Chưa đạt không tính vào ĐTB'),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'ĐTB môn $subjectName = Tổng (điểm số × hệ số) / Tổng hệ số, làm tròn 1 chữ số thập phân.',
+            ),
+          ),
+          if (numericItems.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                numericItems
+                    .map((item) => '${item['name']} × ${item['weight']}')
+                    .join(' + '),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

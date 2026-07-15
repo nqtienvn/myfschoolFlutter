@@ -199,6 +199,12 @@ class _AttendanceApi extends AttendanceApiClient {
   final List<String> dailyDates = [];
 
   @override
+  Future<List<AttendanceCorrectionDto>> getCorrectionHistory({
+    required String token,
+    required int academicYearId,
+  }) async => const [];
+
+  @override
   Future<Map<String, dynamic>> getHomeroomContext({
     required String token,
     String? date,
@@ -246,8 +252,15 @@ class _DelayedAttendanceApi extends AttendanceApiClient {
   }) async => {
     'classId': 12,
     'className': '12A1',
+    'academicYearId': 26,
     'shifts': ['MORNING'],
   };
+
+  @override
+  Future<List<AttendanceCorrectionDto>> getCorrectionHistory({
+    required String token,
+    required int academicYearId,
+  }) async => const [];
 
   @override
   Future<Map<String, dynamic>> getDailyAttendance({
@@ -279,6 +292,47 @@ class _DelayedAttendanceApi extends AttendanceApiClient {
     'scheduledPeriods': 1,
     'correctionPending': false,
   };
+}
+
+class _SubmittedAttendanceApi extends _AttendanceApi {
+  String? correctionReason;
+
+  @override
+  Future<Map<String, dynamic>> getDailyAttendance({
+    required String token,
+    required int classId,
+    required String date,
+    required String shift,
+  }) async {
+    dailyDates.add(date);
+    return {
+      'students': [
+        {
+          'studentId': 1,
+          'studentName': 'Nguyễn An',
+          'studentCode': 'HS001',
+          'status': 'PRESENT',
+          'hasApprovedLeave': false,
+        },
+      ],
+      'submitted': true,
+      'canEdit': true,
+      'scheduledPeriods': 1,
+      'correctionPending': correctionReason != null,
+    };
+  }
+
+  @override
+  Future<void> requestAttendanceCorrection({
+    required String token,
+    required int classId,
+    required String date,
+    required String shift,
+    required List<Map<String, dynamic>> entries,
+    required String reason,
+  }) async {
+    correctionReason = reason;
+  }
 }
 
 void main() {
@@ -334,6 +388,39 @@ void main() {
     expect(api.contextDates, ['2025-09-08']);
     expect(api.dailyDates, ['2025-09-08']);
     expect(find.textContaining('08/09/2025'), findsOneWidget);
+  });
+
+  testWidgets('teacher must explain an attendance correction', (tester) async {
+    final api = _SubmittedAttendanceApi();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TeacherAttendanceScreen(
+          token: 'teacher-token',
+          date: DateTime(2025, 9, 8),
+          apiClient: api,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sửa điểm danh'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Lưu thay đổi điểm danh'));
+    await tester.tap(find.text('Lưu thay đổi điểm danh'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lý do sửa điểm danh'), findsOneWidget);
+    await tester.tap(find.text('Gửi yêu cầu'));
+    await tester.pump();
+    expect(
+      find.text('Vui lòng nhập lý do để Admin có căn cứ duyệt.'),
+      findsOneWidget,
+    );
+    await tester.enterText(find.byType(TextFormField), 'Điểm danh nhầm');
+    await tester.tap(find.text('Gửi yêu cầu'));
+    await tester.pumpAndSettle();
+
+    expect(api.correctionReason, 'Điểm danh nhầm');
   });
 
   testWidgets('teacher home distinguishes a backend error from no homeroom', (

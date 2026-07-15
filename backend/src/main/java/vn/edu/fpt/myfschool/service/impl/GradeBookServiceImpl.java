@@ -55,14 +55,36 @@ public class GradeBookServiceImpl implements GradeBookService {
         List<Long> allowed=enrollments.findActiveStudentsByClassAndYear(book.getCls().getId(),book.getCls().getAcademicYear().getId()).stream().map(Student::getId).toList();
         List<StudentScoreDto> result=new ArrayList<>();
         for(UpdateScoreEntry entry:request.entries()){
+            if(entry.studentId()==null) throw new BadRequestException("Thiếu học sinh cần nhập đầu điểm");
             if(!allowed.contains(entry.studentId())) throw new BadRequestException("Học sinh không thuộc lớp/năm học của bảng điểm");
-            if(entry.score()!=null&&(entry.score().compareTo(BigDecimal.ZERO)<0||entry.score().compareTo(BigDecimal.TEN)>0)) throw new BadRequestException("Điểm phải từ 0 đến 10");
+            CanonicalAssessment value=canonicalAssessment(item.getAssessmentType(),entry);
             StudentScore score=scores.findByGradeItemIdAndStudentId(item.getId(),entry.studentId()).orElseGet(()->{StudentScore s=new StudentScore();s.setGradeItem(item);s.setStudent(students.findById(entry.studentId()).orElseThrow(()->new ResourceNotFoundException("Student","id",entry.studentId())));return s;});
-            BigDecimal old=score.getScore();score.setScore(entry.score());score.setIsGraded(entry.isGraded()!=null?entry.isGraded():entry.score()!=null);score.setNote(entry.note());score.setIsCommentBased(item.getAssessmentType()!=AssessmentType.SCORE);score.setComment(entry.comment());score.setEnteredBy(actor);score=scores.save(score);
-            if(!Objects.equals(old,score.getScore())){StudentScoreAudit audit=new StudentScoreAudit();audit.setStudentScore(score);audit.setOldScore(old);audit.setNewScore(score.getScore());audit.setChangedBy(actor);audit.setReason(request.reason());audit.setChangedAt(LocalDateTime.now());audits.save(audit);}
+            BigDecimal oldScore=score.getScore();String oldComment=score.getComment();Boolean oldIsGraded=score.getIsGraded();
+            score.setScore(value.score());score.setIsGraded(value.graded());score.setNote(trimToNull(entry.note()));score.setIsCommentBased(item.getAssessmentType()!=AssessmentType.SCORE);score.setComment(value.comment());score.setEnteredBy(actor);score=scores.save(score);
+            if(!Objects.equals(oldScore,score.getScore())||!Objects.equals(oldComment,score.getComment())||!Objects.equals(oldIsGraded,score.getIsGraded())){StudentScoreAudit audit=new StudentScoreAudit();audit.setStudentScore(score);audit.setOldScore(oldScore);audit.setNewScore(score.getScore());audit.setOldComment(oldComment);audit.setNewComment(score.getComment());audit.setOldIsGraded(oldIsGraded);audit.setNewIsGraded(score.getIsGraded());audit.setChangedBy(actor);audit.setReason(trimToNull(request.reason()));audit.setChangedAt(LocalDateTime.now());audits.save(audit);}
             result.add(scoreDto(score));
         } return result;
     }
+
+    private CanonicalAssessment canonicalAssessment(AssessmentType type,UpdateScoreEntry entry){
+        if(type==AssessmentType.SCORE){
+            if(trimToNull(entry.comment())!=null)throw new BadRequestException("Đầu điểm số không nhận nội dung nhận xét");
+            if(entry.score()!=null&&(entry.score().compareTo(BigDecimal.ZERO)<0||entry.score().compareTo(BigDecimal.TEN)>0))throw new BadRequestException("Điểm phải từ 0 đến 10");
+            return new CanonicalAssessment(entry.score(),null,entry.score()!=null);
+        }
+        if(entry.score()!=null)throw new BadRequestException(type==AssessmentType.PASS_FAIL?"Đầu điểm Đạt/Chưa đạt không nhận điểm số":"Đầu nhận xét không nhận điểm số");
+        String comment=trimToNull(entry.comment());
+        if(comment!=null&&comment.length()>255)throw new BadRequestException("Nội dung đánh giá không được vượt quá 255 ký tự");
+        if(type==AssessmentType.PASS_FAIL&&comment!=null){
+            comment=comment.toUpperCase(Locale.ROOT);
+            if(!comment.equals("PASS")&&!comment.equals("FAIL"))throw new BadRequestException("Kết quả Đạt/Chưa đạt phải là PASS hoặc FAIL");
+        }
+        return new CanonicalAssessment(null,comment,comment!=null);
+    }
+
+    private String trimToNull(String value){return value==null||value.trim().isEmpty()?null:value.trim();}
+
+    private record CanonicalAssessment(BigDecimal score,String comment,boolean graded){}
 
     @Override @Transactional(readOnly=true) public BigDecimal calculateAverage(Long studentId,Long bookId){
         BigDecimal sum=BigDecimal.ZERO;int weights=0;for(GradeItem item:items.findByGradeBookIdOrderByOrderAsc(bookId)){StudentScore score=scores.findByGradeItemIdAndStudentId(item.getId(),studentId).orElse(null);if(score!=null&&score.getScore()!=null&&Boolean.TRUE.equals(score.getIsGraded())&&item.getAssessmentType()==AssessmentType.SCORE){sum=sum.add(score.getScore().multiply(BigDecimal.valueOf(item.getWeight())));weights+=item.getWeight();}}
@@ -87,7 +109,7 @@ public class GradeBookServiceImpl implements GradeBookService {
         List<String> missing=new ArrayList<>();
         for(Student student:students)for(GradeItem item:requiredItems){
             StudentScore score=scores.findByGradeItemIdAndStudentId(item.getId(),student.getId()).orElse(null);
-            if(score==null||score.getScore()==null||!Boolean.TRUE.equals(score.getIsGraded()))missing.add(student.getStudentCode()+" - "+student.getUser().getName()+" - "+item.getName());
+            if(!isComplete(item,score))missing.add(student.getStudentCode()+" - "+student.getUser().getName()+" - "+item.getName());
         }
         if(!missing.isEmpty()){
             String details=missing.stream().limit(10).collect(java.util.stream.Collectors.joining(", "));
@@ -95,6 +117,7 @@ public class GradeBookServiceImpl implements GradeBookService {
             throw new ConflictException("Không thể tính điểm vì còn "+missing.size()+" điểm bắt buộc chưa nhập: "+details);
         }
     }
+    private boolean isComplete(GradeItem item,StudentScore score){if(score==null||!Boolean.TRUE.equals(score.getIsGraded()))return false;return item.getAssessmentType()==AssessmentType.SCORE?score.getScore()!=null:trimToNull(score.getComment())!=null;}
     private void authorizeEntry(GradeItem item){UserRole role=SecurityUtil.getCurrentUserRole();boolean allowed=role==UserRole.ADMIN&&(item.getEntryRole()==GradeEntryRole.ADMIN||item.getEntryRole()==GradeEntryRole.SUBJECT_TEACHER_AND_ADMIN);if(role==UserRole.TEACHER){authorizeAssignment(item.getGradeBook().getCls(),item.getGradeBook().getSubject());allowed=item.getEntryRole()==GradeEntryRole.SUBJECT_TEACHER||item.getEntryRole()==GradeEntryRole.SUBJECT_TEACHER_AND_ADMIN;}if(!allowed)throw new UnauthorizedException("Tài khoản không có quyền nhập đầu điểm này");}
     private void authorizeAssignment(SchoolClass cls,Subject subject){if(SecurityUtil.getCurrentUserRole()==UserRole.ADMIN)return;if(SecurityUtil.getCurrentUserRole()!=UserRole.TEACHER)throw new UnauthorizedException("Không có quyền truy cập bảng điểm");Teacher teacher=teachers.findByUserId(SecurityUtil.getCurrentUserId()).orElseThrow(()->new UnauthorizedException("Không tìm thấy hồ sơ giáo viên"));TeachingAssignment assignment=assignments.findByClsIdAndSubjectId(cls.getId(),subject.getId()).orElseThrow(()->new UnauthorizedException("Giáo viên chưa được phân công lớp/môn này"));if(!assignment.getTeacher().getId().equals(teacher.getId())||assignment.getStatus()!=AssignmentStatus.ACTIVE)throw new UnauthorizedException("Giáo viên chưa được phân công lớp/môn này");}
     private void authorizeRead(GradeBook b){authorizeAssignment(b.getCls(),b.getSubject());}

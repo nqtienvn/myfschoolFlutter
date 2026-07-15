@@ -37,6 +37,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   bool _isEditing = false;
   int _scheduledPeriods = 0;
   bool _correctionPending = false;
+  List<AttendanceCorrectionDto> _correctionHistory = const [];
   int _loadVersion = 0;
 
   @override
@@ -63,7 +64,13 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       final shifts = (contextData['shifts'] as List? ?? const [])
           .whereType<String>()
           .toList(growable: false);
+      final academicYearId = contextData['academicYearId'] as int;
+      final history = await _apiClient.getCorrectionHistory(
+        token: widget.token,
+        academicYearId: academicYearId,
+      );
       if (!mounted || version != _loadVersion) return;
+      _correctionHistory = history.take(50).toList(growable: false);
       if (shifts.isEmpty) {
         setState(() {
           _classId = contextData['classId'] as int;
@@ -151,6 +158,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     final classId = _classId;
     final selectedShift = _selectedShift;
     if (classId == null || selectedShift == null) return;
+    final reason = _isSubmitted ? await _askCorrectionReason() : null;
+    if (_isSubmitted && reason == null) return;
     setState(() => _isLoading = true);
     try {
       final selectedDate = _dateString();
@@ -165,6 +174,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           date: selectedDate,
           shift: selectedShift,
           entries: entriesJson,
+          reason: reason!,
         );
       } else {
         await _apiClient.submitAttendance(
@@ -187,7 +197,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        await _loadDailyData();
+        await _loadContextAndData();
         if (mounted) setState(() => _isEditing = false);
       }
     } catch (e) {
@@ -196,6 +206,48 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<String?> _askCorrectionReason() async {
+    var reason = '';
+    final formKey = GlobalKey<FormState>();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Lý do sửa điểm danh'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            autofocus: true,
+            maxLength: 500,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Ví dụ: Giáo viên ghi nhầm trạng thái của học sinh',
+              alignLabelWithHint: true,
+            ),
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Vui lòng nhập lý do để Admin có căn cứ duyệt.'
+                : null,
+            onChanged: (value) => reason = value,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() == true) {
+                Navigator.pop(dialogContext, reason.trim());
+              }
+            },
+            child: const Text('Gửi yêu cầu'),
+          ),
+        ],
+      ),
+    );
+    return result;
   }
 
   String _dateString() {
@@ -473,11 +525,103 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                           : _submit,
                     ),
                   ],
+                  if (_correctionHistory.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    const SectionHeader(title: 'Lịch sử yêu cầu sửa điểm danh'),
+                    const SizedBox(height: AppSpacing.sm),
+                    for (final correction in _correctionHistory) ...[
+                      _CorrectionHistoryCard(correction: correction),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+                  ],
                 ],
               ),
       ),
     );
   }
+}
+
+class _CorrectionHistoryCard extends StatelessWidget {
+  const _CorrectionHistoryCard({required this.correction});
+
+  final AttendanceCorrectionDto correction;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = switch (correction.status) {
+      'APPROVED' => AppColors.green,
+      'REJECTED' => AppColors.danger,
+      _ => AppColors.warning,
+    };
+    final statusText = switch (correction.status) {
+      'APPROVED' => 'Đã duyệt',
+      'REJECTED' => 'Từ chối',
+      _ => 'Chờ duyệt',
+    };
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${correction.date} · ${correction.shift == 'MORNING' ? 'Buổi sáng' : 'Buổi chiều'}',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text('Lý do: ${correction.reason}'),
+          const SizedBox(height: 6),
+          Text(
+            'Có mặt ${correction.originalPresentCount} → ${correction.presentCount} · '
+            'Vắng phép ${correction.originalAbsentWithLeaveCount} → ${correction.absentWithLeaveCount} · '
+            'Vắng không phép ${correction.originalAbsentWithoutLeaveCount} → ${correction.absentWithoutLeaveCount}',
+            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+          ),
+          if (correction.changes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            for (final change in correction.changes)
+              Text(
+                '• ${change.studentName}: ${_statusLabel(change.oldStatus)} → ${_statusLabel(change.newStatus)}',
+                style: const TextStyle(fontSize: 12),
+              ),
+          ],
+          if (correction.reviewedByName != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Người duyệt: ${correction.reviewedByName}',
+              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _statusLabel(String? status) => switch (status) {
+    'PRESENT' => 'Có mặt',
+    'ABSENT_WITH_LEAVE' => 'Vắng có phép',
+    'ABSENT_WITHOUT_LEAVE' => 'Vắng không phép',
+    _ => 'Chưa điểm danh',
+  };
 }
 
 class _StudentAttendanceState {

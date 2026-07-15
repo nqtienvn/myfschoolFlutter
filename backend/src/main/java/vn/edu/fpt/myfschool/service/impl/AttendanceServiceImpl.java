@@ -64,6 +64,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     private final ScheduleRepository scheduleRepository;
     private final TimetableRepository timetableRepository;
     private final AttendanceCorrectionRequestRepository correctionRequestRepository;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
     @Value("${app.attendance.enforce-current-day:true}")
@@ -415,7 +416,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public AttendanceCorrectionRequestDto requestAttendanceCorrection(
-            SubmitAttendanceRequest request, Long teacherUserId) {
+            CreateAttendanceCorrectionRequest request, Long teacherUserId) {
         Teacher teacher = requireTeacher(teacherUserId);
         SchoolClass cls = classRepository.findById(request.classId())
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", request.classId()));
@@ -449,7 +450,12 @@ public class AttendanceServiceImpl implements AttendanceService {
         correction.setTeacher(teacher);
         correction.setDate(request.date());
         correction.setShift(request.shift());
+        correction.setOriginalEntries(writeEntries(existing.stream()
+            .map(attendance -> new AttendanceEntry(
+                attendance.getStudent().getId(), attendance.getStatus()))
+            .toList()));
         correction.setProposedEntries(writeEntries(request.entries()));
+        correction.setReason(request.reason().trim());
         correction.setStatus(AttendanceCorrectionStatus.PENDING);
         return toCorrectionDto(correctionRequestRepository.save(correction));
     }
@@ -464,8 +470,29 @@ public class AttendanceServiceImpl implements AttendanceService {
             .stream().map(this::toCorrectionDto).toList();
     }
 
+    @Transactional(readOnly = true)
     @Override
-    public AttendanceCorrectionRequestDto reviewAttendanceCorrection(Long requestId, boolean approve) {
+    public List<AttendanceCorrectionRequestDto> getTeacherCorrectionHistory(
+            Long academicYearId, Long teacherUserId) {
+        Teacher teacher = requireTeacher(teacherUserId);
+        return correctionRequestRepository
+            .findByTeacherIdAndClsAcademicYearIdOrderByCreatedAtDesc(
+                teacher.getId(), academicYearId)
+            .stream().limit(50).map(this::toCorrectionDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<AttendanceCorrectionRequestDto> getAdminCorrectionHistory(
+            Long academicYearId, LocalDate date) {
+        return correctionRequestRepository
+            .findByClsAcademicYearIdAndDateOrderByCreatedAtDesc(academicYearId, date)
+            .stream().map(this::toCorrectionDto).toList();
+    }
+
+    @Override
+    public AttendanceCorrectionRequestDto reviewAttendanceCorrection(
+            Long requestId, boolean approve, Long reviewerUserId) {
         AttendanceCorrectionRequest correction = correctionRequestRepository.findById(requestId)
             .orElseThrow(() -> new ResourceNotFoundException(
                 "AttendanceCorrectionRequest", "id", requestId));
@@ -484,6 +511,8 @@ public class AttendanceServiceImpl implements AttendanceService {
             correction.setStatus(AttendanceCorrectionStatus.REJECTED);
         }
         correction.setReviewedAt(LocalDateTime.now());
+        correction.setReviewedBy(userRepository.findById(reviewerUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", reviewerUserId)));
         return toCorrectionDto(correctionRequestRepository.save(correction));
     }
 
@@ -584,7 +613,29 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     private AttendanceCorrectionRequestDto toCorrectionDto(AttendanceCorrectionRequest correction) {
+        List<AttendanceEntry> originalEntries = readEntriesOrEmpty(correction.getOriginalEntries());
         List<AttendanceEntry> entries = readEntries(correction.getProposedEntries());
+        Map<Long, AttendanceStatus> originalByStudent = originalEntries.stream()
+            .collect(Collectors.toMap(AttendanceEntry::studentId, AttendanceEntry::status));
+        Map<Long, Student> rosterByStudent = enrollmentRepository
+            .findActiveStudentsByClassAndYear(
+                correction.getCls().getId(), correction.getCls().getAcademicYear().getId())
+            .stream().collect(Collectors.toMap(Student::getId, student -> student));
+        List<AttendanceCorrectionEntryDto> changes = entries.stream()
+            .filter(entry -> originalByStudent.get(entry.studentId()) != entry.status())
+            .map(entry -> {
+                Student student = rosterByStudent.get(entry.studentId());
+                return new AttendanceCorrectionEntryDto(
+                    entry.studentId(),
+                    student == null ? "Học sinh" : student.getUser().getName(),
+                    student == null ? "" : student.getStudentCode(),
+                    originalByStudent.get(entry.studentId()), entry.status());
+            }).toList();
+        int originalPresent = countStatus(originalEntries, AttendanceStatus.PRESENT);
+        int originalAbsentWithLeave = countStatus(
+            originalEntries, AttendanceStatus.ABSENT_WITH_LEAVE);
+        int originalAbsentWithoutLeave = countStatus(
+            originalEntries, AttendanceStatus.ABSENT_WITHOUT_LEAVE);
         int present = (int) entries.stream()
             .filter(entry -> entry.status() == AttendanceStatus.PRESENT).count();
         int absentWithLeave = (int) entries.stream()
@@ -594,8 +645,19 @@ public class AttendanceServiceImpl implements AttendanceService {
         return new AttendanceCorrectionRequestDto(
             correction.getId(), correction.getCls().getId(), correction.getCls().getName(),
             correction.getTeacher().getUser().getName(), correction.getDate(), correction.getShift(),
-            correction.getStatus(), present, absentWithLeave, absentWithoutLeave,
-            correction.getCreatedAt());
+            correction.getStatus(), originalPresent, originalAbsentWithLeave,
+            originalAbsentWithoutLeave, present, absentWithLeave, absentWithoutLeave,
+            correction.getReason(), changes, correction.getCreatedAt(),
+            correction.getReviewedBy() == null ? null : correction.getReviewedBy().getName(),
+            correction.getReviewedAt());
+    }
+
+    private int countStatus(List<AttendanceEntry> entries, AttendanceStatus status) {
+        return (int) entries.stream().filter(entry -> entry.status() == status).count();
+    }
+
+    private List<AttendanceEntry> readEntriesOrEmpty(String json) {
+        return json == null || json.isBlank() ? List.of() : readEntries(json);
     }
 
     private List<Shift> configuredShifts(SchoolClass cls) {

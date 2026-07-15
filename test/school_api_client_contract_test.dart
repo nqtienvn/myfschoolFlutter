@@ -255,6 +255,72 @@ void main() {
         'entries': entries,
       });
     });
+
+    test('submits a correction reason and maps year-scoped history', () async {
+      final history = <String, dynamic>{
+        'id': 9,
+        'classId': 3,
+        'className': '12A1',
+        'teacherName': 'Nguyễn Thu Hà',
+        'date': '2026-09-03',
+        'shift': 'MORNING',
+        'status': 'APPROVED',
+        'originalPresentCount': 1,
+        'originalAbsentWithLeaveCount': 0,
+        'originalAbsentWithoutLeaveCount': 0,
+        'presentCount': 0,
+        'absentWithLeaveCount': 1,
+        'absentWithoutLeaveCount': 0,
+        'reason': 'Ghi nhầm trạng thái',
+        'changes': [
+          {
+            'studentId': 7,
+            'studentName': 'Nguyễn An',
+            'studentCode': 'HS007',
+            'oldStatus': 'PRESENT',
+            'newStatus': 'ABSENT_WITH_LEAVE',
+          },
+        ],
+        'createdAt': '2026-09-03T08:00:00',
+        'reviewedByName': 'Admin FPT Schools',
+        'reviewedAt': '2026-09-03T09:00:00',
+      };
+      final backend = _RecordingBackendApiClient(
+        responses: [
+          null,
+          [history],
+        ],
+      );
+      final client = AttendanceApiClient(backend: backend);
+      final entries = [
+        <String, dynamic>{'studentId': 7, 'status': 'ABSENT_WITH_LEAVE'},
+      ];
+
+      await client.requestAttendanceCorrection(
+        token: 'teacher-token',
+        classId: 3,
+        date: '2026-09-03',
+        shift: 'MORNING',
+        entries: entries,
+        reason: 'Ghi nhầm trạng thái',
+      );
+      final corrections = await client.getCorrectionHistory(
+        token: 'teacher-token',
+        academicYearId: 26,
+      );
+
+      expect(backend.calls.first.body, {
+        'classId': 3,
+        'date': '2026-09-03',
+        'shift': 'MORNING',
+        'entries': entries,
+        'reason': 'Ghi nhầm trạng thái',
+      });
+      expect(backend.calls.last.query, {'academicYearId': '26'});
+      expect(corrections.single.reason, 'Ghi nhầm trạng thái');
+      expect(corrections.single.changes.single.oldStatus, 'PRESENT');
+      expect(corrections.single.reviewedByName, 'Admin FPT Schools');
+    });
   });
 
   group('LeaveRequestApiClient', () {

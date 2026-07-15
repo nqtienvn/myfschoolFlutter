@@ -38,8 +38,11 @@ public class TranscriptServiceImpl implements TranscriptService {
             for(GradeItem item:items.findByGradeBookIdOrderByOrderAsc(book.getId())) {
                 StudentScore score=scores.findByGradeItemIdAndStudentId(item.getId(),studentId).orElse(null);
                 BigDecimal value=score==null?null:score.getScore();
-                values.add(new TranscriptScoreDto(item.getId(),item.getCode(),item.getName(),item.getWeight(),value));
-                if(Boolean.TRUE.equals(item.getRequiredEntry())&&value==null) complete=false;
+                String comment=score==null?null:score.getComment();
+                boolean graded=score!=null&&Boolean.TRUE.equals(score.getIsGraded());
+                values.add(new TranscriptScoreDto(item.getId(),item.getCode(),item.getName(),item.getWeight(),item.getAssessmentType(),value,comment,graded));
+                boolean hasValue=graded&&(item.getAssessmentType()==AssessmentType.SCORE?value!=null:comment!=null&&!comment.isBlank());
+                if(Boolean.TRUE.equals(item.getRequiredEntry())&&!hasValue) complete=false;
                 if(value!=null&&item.getAssessmentType()==AssessmentType.SCORE){sum=sum.add(value.multiply(BigDecimal.valueOf(item.getWeight())));totalWeight+=item.getWeight();}
             }
             BigDecimal average=totalWeight==0?null:sum.divide(BigDecimal.valueOf(totalWeight),1,RoundingMode.HALF_UP);

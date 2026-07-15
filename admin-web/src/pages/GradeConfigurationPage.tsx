@@ -7,6 +7,12 @@ const defaults: GradeConfigItem[] = [
   { code: 'CK', displayName: 'Cuối kỳ', weight: 3, quantity: 1, entryRole: 'ADMIN', assessmentType: 'SCORE', requiredEntry: true, displayOrder: 2 },
 ];
 
+const assessmentLabel = (type: GradeConfigItem['assessmentType']) => ({
+  SCORE: 'Điểm số',
+  PASS_FAIL: 'Đạt / Chưa đạt',
+  COMMENT: 'Nhận xét',
+}[type]);
+
 export default function GradeConfigurationPage({ selectedYearId, selectedYearStatus }: { selectedYearId: string; selectedYearStatus?: string }) {
   const [templates, setTemplates] = useState<GradeConfig[]>([]);
   const [name, setName] = useState('Cấu hình chuẩn');
@@ -76,7 +82,7 @@ export default function GradeConfigurationPage({ selectedYearId, selectedYearSta
         <div>
           <span className="eyebrow">Bước 2</span>
           <h1>Cấu hình đầu điểm</h1>
-          <p>Tạo mẫu dùng lại cho nhiều năm học. Mỗi năm giữ một bản snapshot riêng.</p>
+          <p>Tạo mẫu dùng lại cho nhiều năm học. Chỉ loại Điểm số tham gia tính điểm trung bình.</p>
         </div>
         <div className="page-heading-actions">
           <button type="button" onClick={() => setShowForm(v => !v)}>
@@ -106,9 +112,16 @@ export default function GradeConfigurationPage({ selectedYearId, selectedYearSta
 
           <div style={{ display: 'grid', gap: '12px' }}>
             {items.map((item, index) => (
-              <div key={`${item.code}-${index}`} style={{ display: 'grid', gridTemplateColumns: '100px 2fr 100px 100px 2fr auto', gap: '16px', alignItems: 'end', padding: '12px 16px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid var(--border)' }}>
+              <div key={`${item.code}-${index}`} style={{ display: 'grid', gridTemplateColumns: '90px minmax(150px, 1.5fr) 150px 80px 80px minmax(150px, 1fr) 100px auto', gap: '12px', alignItems: 'end', padding: '12px 16px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid var(--border)' }}>
                 <div className="form-group" style={{ margin: 0 }}><label>Mã</label><input value={item.code} onChange={e => update(index, { code: e.target.value })} style={{ height: '36px' }} /></div>
                 <div className="form-group" style={{ margin: 0 }}><label>Tên đầu điểm</label><input value={item.displayName} onChange={e => update(index, { displayName: e.target.value })} style={{ height: '36px' }} /></div>
+                <div className="form-group" style={{ margin: 0 }}><label>Loại dữ liệu</label>
+                  <select value={item.assessmentType} onChange={e => update(index, { assessmentType: e.target.value as GradeConfigItem['assessmentType'] })} style={{ height: '36px' }}>
+                    <option value="SCORE">Điểm số (tính ĐTB)</option>
+                    <option value="PASS_FAIL">Đạt / Chưa đạt</option>
+                    <option value="COMMENT">Nhận xét</option>
+                  </select>
+                </div>
                 <div className="form-group" style={{ margin: 0 }}><label>Hệ số</label><input type="number" min={1} value={item.weight} onChange={e => update(index, { weight: Number(e.target.value) })} style={{ height: '36px' }} /></div>
                 <div className="form-group" style={{ margin: 0 }}><label>Số lượng</label><input type="number" min={1} value={item.quantity} onChange={e => update(index, { quantity: Number(e.target.value) })} style={{ height: '36px' }} /></div>
                 <div className="form-group" style={{ margin: 0 }}><label>Người nhập</label>
@@ -118,6 +131,9 @@ export default function GradeConfigurationPage({ selectedYearId, selectedYearSta
                     <option value="SUBJECT_TEACHER_AND_ADMIN">Giáo viên và admin</option>
                   </select>
                 </div>
+                <label style={{ height: '36px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700 }}>
+                  <input type="checkbox" checked={item.requiredEntry} onChange={e => update(index, { requiredEntry: e.target.checked })} /> Bắt buộc
+                </label>
                 <button className="danger" onClick={() => setItems(rows => rows.filter((_, i) => i !== index))} style={{ height: '36px', minHeight: '36px', padding: '0 12px' }}>Xóa</button>
               </div>
             ))}
@@ -140,7 +156,7 @@ export default function GradeConfigurationPage({ selectedYearId, selectedYearSta
                 <strong>{template.name}</strong>
                 <small style={{ display: 'block', color: 'var(--text-secondary)', marginTop: '4px', fontSize: '12px' }}>Phiên bản {template.version} · {template.items.length} loại đầu điểm</small>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
-                  {template.items.map(item => <span className="badge-status active" key={item.id}>{item.displayName} · HS {item.weight} · SL {item.quantity}</span>)}
+                  {template.items.map(item => <span className="badge-status active" key={item.id}>{item.displayName} · {assessmentLabel(item.assessmentType)} · SL {item.quantity}{item.assessmentType === 'SCORE' ? ` · HS ${item.weight}` : ''}{item.requiredEntry ? ' · Bắt buộc' : ''}</span>)}
                 </div>
               </div>
               {!yearConfig && (

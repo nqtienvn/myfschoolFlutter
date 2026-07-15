@@ -31,10 +31,17 @@ public interface AttendanceService {
     AdminAttendanceDayDto adjustAdminDailyAttendance(AdminAttendanceAdjustmentRequest request);
 
     AttendanceCorrectionRequestDto requestAttendanceCorrection(
-        SubmitAttendanceRequest request, Long teacherUserId);
+        CreateAttendanceCorrectionRequest request, Long teacherUserId);
 
     List<AttendanceCorrectionRequestDto> getPendingCorrections(Long academicYearId, LocalDate date);
 
-    AttendanceCorrectionRequestDto reviewAttendanceCorrection(Long requestId, boolean approve);
+    List<AttendanceCorrectionRequestDto> getTeacherCorrectionHistory(
+        Long academicYearId, Long teacherUserId);
+
+    List<AttendanceCorrectionRequestDto> getAdminCorrectionHistory(
+        Long academicYearId, LocalDate date);
+
+    AttendanceCorrectionRequestDto reviewAttendanceCorrection(
+        Long requestId, boolean approve, Long reviewerUserId);
 
 }

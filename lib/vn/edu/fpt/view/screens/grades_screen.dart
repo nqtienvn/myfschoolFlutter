@@ -9,16 +9,18 @@ class GradesScreen extends StatefulWidget {
     required this.token,
     this.studentId,
     this.studentName,
+    this.apiClient,
   });
   final String token;
   final int? studentId;
   final String? studentName;
+  final GradebookApiClient? apiClient;
   @override
   State<GradesScreen> createState() => _GradesScreenState();
 }
 
 class _GradesScreenState extends State<GradesScreen> {
-  final api = GradebookApiClient();
+  late final GradebookApiClient api = widget.apiClient ?? GradebookApiClient();
   Map<String, dynamic>? transcript;
   bool loading = true;
   String? error;
@@ -279,7 +281,7 @@ class _GradesScreenState extends State<GradesScreen> {
                                       children: [
                                         Text(s['name'] as String),
                                         Text(
-                                          'HS ${s['weight']}',
+                                          _scoreSubtitle(s),
                                           style: const TextStyle(
                                             fontSize: 10,
                                             color: AppColors.muted,
@@ -297,10 +299,7 @@ class _GradesScreenState extends State<GradesScreen> {
                                     ...scores.map(
                                       (s) => DataCell(
                                         Text(
-                                          (s['score'] as num?)?.toStringAsFixed(
-                                                1,
-                                              ) ??
-                                              '—',
+                                          _scoreDisplay(s),
                                           style: const TextStyle(
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -332,6 +331,29 @@ class _GradesScreenState extends State<GradesScreen> {
             ),
     );
   }
+
+  static String _scoreSubtitle(Map<String, dynamic> score) {
+    return switch (score['assessmentType']) {
+      'PASS_FAIL' => 'Đạt / Chưa đạt',
+      'COMMENT' => 'Nhận xét',
+      _ => 'HS ${score['weight']}',
+    };
+  }
+
+  static String _scoreDisplay(Map<String, dynamic> score) {
+    return switch (score['assessmentType']) {
+      'PASS_FAIL' => switch (score['comment']) {
+        'PASS' => 'Đạt',
+        'FAIL' => 'Chưa đạt',
+        _ => '—',
+      },
+      'COMMENT' =>
+        (score['comment'] as String?)?.trim().isNotEmpty == true
+            ? score['comment'] as String
+            : '—',
+      _ => (score['score'] as num?)?.toStringAsFixed(1) ?? '—',
+    };
+  }
 }
 
 class _GradeFormulaCard extends StatelessWidget {
@@ -344,6 +366,7 @@ class _GradeFormulaCard extends StatelessWidget {
     for (final subject in subjects) {
       for (final score in (subject['scores'] as List<dynamic>? ?? const [])) {
         if (score is Map<String, dynamic>) {
+          if (score['assessmentType'] != 'SCORE') continue;
           configured['${score['name']}-${score['weight']}'] = score;
         }
       }
@@ -362,7 +385,9 @@ class _GradeFormulaCard extends StatelessWidget {
           'Cách hệ thống tính điểm',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
-        subtitle: const Text('Nhấn để xem công thức đang áp dụng'),
+        subtitle: const Text(
+          'Chỉ đầu điểm số được tính; nhận xét và Đạt/Chưa đạt không tính ĐTB',
+        ),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         children: [
           const Align(

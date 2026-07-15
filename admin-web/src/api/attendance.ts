@@ -33,10 +33,25 @@ export interface AttendanceCorrectionRequest {
   date: string;
   shift: 'MORNING' | 'AFTERNOON';
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  originalPresentCount: number;
+  originalAbsentWithLeaveCount: number;
+  originalAbsentWithoutLeaveCount: number;
   presentCount: number;
   absentWithLeaveCount: number;
   absentWithoutLeaveCount: number;
+  reason: string;
+  changes: AttendanceCorrectionEntry[];
   createdAt: string;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
+}
+
+export interface AttendanceCorrectionEntry {
+  studentId: number;
+  studentName: string;
+  studentCode: string;
+  oldStatus?: 'PRESENT' | 'ABSENT_WITH_LEAVE' | 'ABSENT_WITHOUT_LEAVE' | null;
+  newStatus: 'PRESENT' | 'ABSENT_WITH_LEAVE' | 'ABSENT_WITHOUT_LEAVE';
 }
 
 export async function getClassAttendanceSummary(
@@ -75,6 +90,11 @@ export function adjustAdminDailyAttendance(data: {
 export function getPendingAttendanceCorrections(academicYearId: number | string, date: string) {
   const query = new URLSearchParams({ academicYearId: String(academicYearId), date });
   return apiFetch(`/attendance/admin/corrections?${query}`) as Promise<AttendanceCorrectionRequest[]>;
+}
+
+export function getAttendanceCorrectionHistory(academicYearId: number | string, date: string) {
+  const query = new URLSearchParams({ academicYearId: String(academicYearId), date });
+  return apiFetch(`/attendance/admin/corrections/history?${query}`) as Promise<AttendanceCorrectionRequest[]>;
 }
 
 export function reviewAttendanceCorrection(id: number, approve: boolean) {

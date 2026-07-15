@@ -3,6 +3,7 @@ import { getClasses } from '../api/class';
 import {
   adjustAdminDailyAttendance,
   getAdminDailyAttendance,
+  getAttendanceCorrectionHistory,
   getClassAttendanceSummary,
   getPendingAttendanceCorrections,
   reviewAttendanceCorrection,
@@ -18,6 +19,12 @@ interface ClassItem {
 }
 
 const gradeOptions = Array.from({ length: 12 }, (_, index) => String(index + 1));
+
+const attendanceStatusLabel = (status?: string | null) => ({
+  PRESENT: 'Có mặt',
+  ABSENT_WITH_LEAVE: 'Vắng có phép',
+  ABSENT_WITHOUT_LEAVE: 'Vắng không phép',
+}[status || ''] || 'Chưa điểm danh');
 
 export default function StudentsAttendancePage({
   selectedYearId,
@@ -36,6 +43,7 @@ export default function StudentsAttendancePage({
   const [dailyDate, setDailyDate] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [dailyRows, setDailyRows] = useState<AdminAttendanceDay[]>([]);
   const [corrections, setCorrections] = useState<AttendanceCorrectionRequest[]>([]);
+  const [correctionHistory, setCorrectionHistory] = useState<AttendanceCorrectionRequest[]>([]);
   const [dailyLoading, setDailyLoading] = useState(false);
   const [showDailyForm, setShowDailyForm] = useState(false);
   const [savingKey, setSavingKey] = useState('');
@@ -51,12 +59,14 @@ export default function StudentsAttendancePage({
     if (!selectedYearId || !dailyDate) return;
     setDailyLoading(true);
     try {
-      const [rows, pending] = await Promise.all([
+      const [rows, pending, history] = await Promise.all([
         getAdminDailyAttendance(selectedYearId, dailyDate),
         getPendingAttendanceCorrections(selectedYearId, dailyDate),
+        getAttendanceCorrectionHistory(selectedYearId, dailyDate),
       ]);
       setDailyRows(rows || []);
       setCorrections(pending || []);
+      setCorrectionHistory((history || []).filter(item => item.status !== 'PENDING'));
       setDraftCounts(Object.fromEntries((rows || []).map((row) => [dailyKey(row), {
         presentCount: row.presentCount,
         absentWithLeaveCount: row.absentWithLeaveCount,
@@ -72,6 +82,7 @@ export default function StudentsAttendancePage({
   useEffect(() => {
     setDailyRows([]);
     setCorrections([]);
+    setCorrectionHistory([]);
     setDraftCounts({});
     loadDailyManagement();
   }, [selectedYearId, dailyDate]);
@@ -240,11 +251,44 @@ export default function StudentsAttendancePage({
                 <div style={{ flex: 1 }}>
                   <strong>{item.className} · {item.shift === 'MORNING' ? 'Buổi sáng' : 'Buổi chiều'}</strong>
                   <div style={{ fontSize: '13px', color: '#78350f', marginTop: '4px' }}>
-                    GV {item.teacherName} đề nghị: {item.presentCount} có mặt, {item.absentWithLeaveCount} vắng phép, {item.absentWithoutLeaveCount} vắng không phép.
+                    GV {item.teacherName} · Lý do: {item.reason}
                   </div>
+                  <div style={{ fontSize: '13px', color: '#78350f', marginTop: '4px' }}>
+                    Có mặt {item.originalPresentCount} → {item.presentCount} · Vắng phép {item.originalAbsentWithLeaveCount} → {item.absentWithLeaveCount} · Vắng không phép {item.originalAbsentWithoutLeaveCount} → {item.absentWithoutLeaveCount}
+                  </div>
+                  {item.changes.length > 0 && <div style={{ fontSize: '12px', color: '#78350f', marginTop: '6px' }}>
+                    {item.changes.map(change => <div key={change.studentId}>• {change.studentName}: {attendanceStatusLabel(change.oldStatus)} → {attendanceStatusLabel(change.newStatus)}</div>)}
+                  </div>
+                  }
                 </div>
                 <button disabled={savingKey === `correction-${item.id}`} onClick={() => reviewCorrection(item.id, false)} style={{ padding: '7px 12px' }}>Từ chối</button>
                 <button disabled={savingKey === `correction-${item.id}`} onClick={() => reviewCorrection(item.id, true)} style={{ padding: '7px 12px', background: '#16a34a', color: '#fff', border: 0, borderRadius: '6px' }}>Duyệt</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {correctionHistory.length > 0 && (
+          <div style={{ marginBottom: '20px', padding: '16px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px' }}>
+            <h3 style={{ margin: '0 0 12px', color: '#334155' }}>Lịch sử duyệt sửa điểm danh</h3>
+            {correctionHistory.map(item => (
+              <div key={item.id} style={{ padding: '12px 0', borderTop: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                  <strong>{item.className} · {item.shift === 'MORNING' ? 'Buổi sáng' : 'Buổi chiều'} · GV {item.teacherName}</strong>
+                  <span className={`badge-status ${item.status === 'APPROVED' ? 'active' : ''}`}>
+                    {item.status === 'APPROVED' ? 'ĐÃ DUYỆT' : item.status === 'REJECTED' ? 'ĐÃ TỪ CHỐI' : 'CHỜ DUYỆT'}
+                  </span>
+                </div>
+                <div style={{ marginTop: '6px', fontSize: '13px' }}>Lý do: {item.reason}</div>
+                <div style={{ marginTop: '4px', fontSize: '13px', color: '#475569' }}>
+                  Có mặt {item.originalPresentCount} → {item.presentCount} · Vắng phép {item.originalAbsentWithLeaveCount} → {item.absentWithLeaveCount} · Vắng không phép {item.originalAbsentWithoutLeaveCount} → {item.absentWithoutLeaveCount}
+                </div>
+                {item.changes.map(change => <div key={change.studentId} style={{ marginTop: '3px', fontSize: '12px', color: '#475569' }}>
+                  • {change.studentName} ({change.studentCode}): {attendanceStatusLabel(change.oldStatus)} → {attendanceStatusLabel(change.newStatus)}
+                </div>)}
+                {item.reviewedByName && <div style={{ marginTop: '6px', fontSize: '12px', color: '#64748b' }}>
+                  Người duyệt: {item.reviewedByName}{item.reviewedAt ? ` · ${new Date(item.reviewedAt).toLocaleString('vi-VN')}` : ''}
+                </div>}
               </div>
             ))}
           </div>
