@@ -158,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: _isLoading ? null : _login,
                           ),
                           const Spacer(), //ăn hết khoảng chống
-                          const Text('Copyright by Fpt School'),
+                          const Text('Copyright by FPT Schools'),
                           const Text('Version 1.0'),
                         ],
                       ),

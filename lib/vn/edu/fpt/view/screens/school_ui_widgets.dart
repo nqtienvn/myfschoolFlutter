@@ -406,6 +406,7 @@ class SharedHeader extends StatelessWidget {
         children: [
           Expanded(
             child: RichText(
+              key: const ValueKey('shared-header-brand'),
               text: TextSpan(
                 text: 'FPT',
                 style: TextStyle(
@@ -416,7 +417,7 @@ class SharedHeader extends StatelessWidget {
                 ),
                 children: [
                   TextSpan(
-                    text: ' School',
+                    text: ' Schools',
                     style: TextStyle(
                       color: AppColors.muted,
                       fontWeight: FontWeight.w600,

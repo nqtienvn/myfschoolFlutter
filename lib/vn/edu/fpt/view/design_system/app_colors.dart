@@ -23,6 +23,9 @@ abstract final class AppColors {
   static const Color danger = Color(0xFFB42318);
   static const Color dangerSoft = Color(0xFFFFF1F3);
 
+  static const Color sunrise = Color(0xFFB45309);
+  static const Color sunset = Color(0xFFBE123C);
+
   static const Color ink = Color(0xFF1F2937);
   static const Color muted = Color(0xFF667085);
   static const Color quiet = Color(0xFF98A2B3);

@@ -32,5 +32,6 @@ void main() {
 
     expect(find.byType(LoginScreen), findsOneWidget);
     expect(tester.getSize(find.byType(LoginScreen)).width, 520);
+    expect(find.text('Copyright by FPT Schools'), findsOneWidget);
   });
 }
