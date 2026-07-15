@@ -22,6 +22,7 @@ import vn.edu.fpt.myfschool.common.dto.ClassDto;
 import vn.edu.fpt.myfschool.common.dto.GenerateClassesRequest;
 import vn.edu.fpt.myfschool.common.dto.StudentSummaryDto;
 import vn.edu.fpt.myfschool.common.dto.UpdateClassRequest;
+import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.ClassService;
 
 import java.util.List;
@@ -43,14 +44,16 @@ public class ClassController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-                classService.listClasses(academicYearId, keyword, page, size)));
+                classService.listClasses(academicYearId, keyword, page, size,
+                        SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole())));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Chi tiết lớp")
     public ResponseEntity<ApiResponse<ClassDetailDto>> getClassDetail(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(classService.getClassDetail(id)));
+        return ResponseEntity.ok(ApiResponse.success(classService.getClassDetail(
+                id, SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole())));
     }
 
     @PostMapping("/generate")
@@ -78,9 +81,10 @@ public class ClassController {
     }
 
     @GetMapping("/{id}/students")
-    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Danh sách học sinh trong lớp")
     public ResponseEntity<ApiResponse<List<StudentSummaryDto>>> getStudents(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(classService.getStudentsInClass(id)));
+        return ResponseEntity.ok(ApiResponse.success(classService.getStudentsInClass(
+                id, SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole())));
     }
 }

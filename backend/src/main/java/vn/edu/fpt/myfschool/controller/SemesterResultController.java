@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
 import vn.edu.fpt.myfschool.common.dto.ClassRankingDto;
 import vn.edu.fpt.myfschool.common.dto.SemesterResultDto;
+import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.SemesterResultService;
 
 @RestController
@@ -23,18 +24,22 @@ public class SemesterResultController {
     private final SemesterResultService semesterResultService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Xem tổng kết học kỳ")
     public ResponseEntity<ApiResponse<SemesterResultDto>> getSemesterResult(
             @RequestParam Long studentId, @RequestParam Long semesterId) {
-        return ResponseEntity.ok(ApiResponse.success(semesterResultService.getStudentSemesterResult(studentId, semesterId)));
+        return ResponseEntity.ok(ApiResponse.success(semesterResultService.getStudentSemesterResult(
+                studentId, semesterId,
+                SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole())));
     }
 
     @GetMapping("/ranking")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     @Operation(summary = "Xếp hạng lớp")
     public ResponseEntity<ApiResponse<ClassRankingDto>> getClassRanking(
             @RequestParam Long classId, @RequestParam Long semesterId) {
-        return ResponseEntity.ok(ApiResponse.success(semesterResultService.getClassRanking(classId, semesterId)));
+        return ResponseEntity.ok(ApiResponse.success(semesterResultService.getClassRanking(
+                classId, semesterId,
+                SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole())));
     }
 }

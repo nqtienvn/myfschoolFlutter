@@ -9,18 +9,25 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
 import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
+import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
+import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.entity.AcademicYear;
 import vn.edu.fpt.myfschool.entity.SchoolClass;
 import vn.edu.fpt.myfschool.entity.HomeroomAssignment;
+import vn.edu.fpt.myfschool.entity.Parent;
+import vn.edu.fpt.myfschool.entity.Student;
+import vn.edu.fpt.myfschool.entity.Teacher;
 import vn.edu.fpt.myfschool.mapper.ClassMapper;
 import vn.edu.fpt.myfschool.repository.*;
 import vn.edu.fpt.myfschool.service.AcademicYearService;
 import vn.edu.fpt.myfschool.service.ClassService;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service("classService")
@@ -36,16 +43,27 @@ public class ClassServiceImpl implements ClassService {
     private final AcademicYearRepository academicYearRepository;
     private final AcademicYearService academicYearService;
     private final ClassMapper classMapper;
+    private final TeacherRepository teacherRepository;
+    private final StudentRepository studentRepository;
+    private final ParentRepository parentRepository;
+    private final StudentGuardianRepository studentGuardianRepository;
 
     @Transactional(readOnly = true)
     @Override
-    public Page<ClassDto> listClasses(Long academicYearId, String keyword, int page, int size) {
+    public Page<ClassDto> listClasses(Long academicYearId, String keyword, int page, int size,
+                                      Long requestUserId, UserRole requestRole) {
         Long yearId = resolveAcademicYearId(academicYearId);
         List<SchoolClass> classes;
         if (keyword != null && !keyword.isBlank()) {
             classes = classRepository.searchByYearAndKeyword(yearId, keyword.trim());
         } else {
             classes = classRepository.findByAcademicYearId(yearId);
+        }
+        Set<Long> visibleClassIds = visibleClassIds(yearId, requestUserId, requestRole);
+        if (visibleClassIds != null) {
+            classes = classes.stream()
+                .filter(cls -> visibleClassIds.contains(cls.getId()))
+                .toList();
         }
         int safePage = Math.max(page, 0);
         int safeSize = Math.max(1, size);
@@ -58,9 +76,10 @@ public class ClassServiceImpl implements ClassService {
 
     @Transactional(readOnly = true)
     @Override
-    public ClassDetailDto getClassDetail(Long classId) {
+    public ClassDetailDto getClassDetail(Long classId, Long requestUserId, UserRole requestRole) {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
+        authorizeClassRosterAccess(cls, requestUserId, requestRole);
         
         Long yearId = cls.getAcademicYear().getId();
 
@@ -151,14 +170,74 @@ public class ClassServiceImpl implements ClassService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<StudentSummaryDto> getStudentsInClass(Long classId) {
+    public List<StudentSummaryDto> getStudentsInClass(
+            Long classId, Long requestUserId, UserRole requestRole) {
         SchoolClass cls = classRepository.findById(classId)
             .orElseThrow(() -> new ResourceNotFoundException("Class", "id", classId));
+        authorizeClassRosterAccess(cls, requestUserId, requestRole);
         return enrollmentRepository.findActiveStudentsByClassAndYear(classId, cls.getAcademicYear().getId())
             .stream().map(s -> new StudentSummaryDto(
                 s.getId(), s.getUser().getName(), s.getStudentCode(),
                 cls.getName()))
             .collect(Collectors.toList());
+    }
+
+    private Set<Long> visibleClassIds(Long academicYearId, Long requestUserId, UserRole requestRole) {
+        if (requestRole == UserRole.ADMIN) return null;
+
+        Set<Long> classIds = new LinkedHashSet<>();
+        if (requestRole == UserRole.TEACHER) {
+            Teacher teacher = teacherRepository.findByUserId(requestUserId)
+                .orElseThrow(() -> new ForbiddenException("Tài khoản không có hồ sơ giáo viên"));
+            classIds.addAll(teachingAssignmentRepository
+                .findClassIdsByTeacherAndYear(teacher.getId(), academicYearId));
+            homeroomAssignmentRepository
+                .findByTeacherIdAndAcademicYearId(teacher.getId(), academicYearId)
+                .forEach(assignment -> classIds.add(assignment.getCls().getId()));
+            return classIds;
+        }
+
+        if (requestRole == UserRole.STUDENT) {
+            Student student = studentRepository.findByUserId(requestUserId)
+                .orElseThrow(() -> new ForbiddenException("Tài khoản không có hồ sơ học sinh"));
+            enrollmentRepository.findByStudentId(student.getId()).stream()
+                .filter(enrollment -> enrollment.getAcademicYear().getId().equals(academicYearId))
+                .forEach(enrollment -> classIds.add(enrollment.getCls().getId()));
+            return classIds;
+        }
+
+        if (requestRole == UserRole.PARENT) {
+            Parent parent = parentRepository.findByUserId(requestUserId)
+                .orElseThrow(() -> new ForbiddenException("Tài khoản không có hồ sơ phụ huynh"));
+            studentGuardianRepository.findByGuardianId(parent.getId()).stream()
+                .map(link -> link.getStudent().getId())
+                .flatMap(studentId -> enrollmentRepository.findByStudentId(studentId).stream())
+                .filter(enrollment -> enrollment.getAcademicYear().getId().equals(academicYearId))
+                .forEach(enrollment -> classIds.add(enrollment.getCls().getId()));
+            return classIds;
+        }
+
+        throw new ForbiddenException("Tài khoản không có quyền xem danh sách lớp");
+    }
+
+    private void authorizeClassRosterAccess(
+            SchoolClass cls, Long requestUserId, UserRole requestRole) {
+        if (requestRole == UserRole.ADMIN) return;
+        if (requestRole != UserRole.TEACHER) {
+            throw new ForbiddenException("Chỉ Admin hoặc giáo viên được xem danh sách học sinh lớp");
+        }
+
+        Teacher teacher = teacherRepository.findByUserId(requestUserId)
+            .orElseThrow(() -> new ForbiddenException("Tài khoản không có hồ sơ giáo viên"));
+        boolean subjectTeacher = teachingAssignmentRepository
+            .findClassIdsByTeacherAndYear(teacher.getId(), cls.getAcademicYear().getId())
+            .contains(cls.getId());
+        boolean homeroomTeacher = homeroomAssignmentRepository
+            .existsByTeacherIdAndClsIdAndAcademicYearId(
+                teacher.getId(), cls.getId(), cls.getAcademicYear().getId());
+        if (!subjectTeacher && !homeroomTeacher) {
+            throw new ForbiddenException("Giáo viên chưa được phân công lớp này");
+        }
     }
 
     private Long resolveAcademicYearId(Long academicYearId) {
