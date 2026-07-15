@@ -361,6 +361,7 @@ class OrangeTopBar extends StatelessWidget implements PreferredSizeWidget {
           padding: const EdgeInsets.only(right: AppSpacing.md),
           child: Center(
             child: RichText(
+              key: const ValueKey('orange-top-bar-brand'),
               text: const TextSpan(
                 style: TextStyle(
                   fontFamily: 'Roboto',
@@ -374,7 +375,7 @@ class OrangeTopBar extends StatelessWidget implements PreferredSizeWidget {
                     style: TextStyle(color: AppColors.fptOrange),
                   ),
                   TextSpan(
-                    text: 'school',
+                    text: ' Schools',
                     style: TextStyle(color: AppColors.muted),
                   ),
                 ],

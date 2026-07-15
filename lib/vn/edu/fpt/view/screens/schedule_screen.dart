@@ -304,89 +304,142 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     final detail = widget.mode == ScheduleViewMode.teacher
         ? 'Lớp ${lesson.className}'
         : lesson.teacherName;
+    final room = lesson.room.isEmpty ? lesson.className : lesson.room;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AppCard(
-        padding: 14,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 52,
-              padding: const EdgeInsets.symmetric(vertical: 9),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+        padding: 0,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(16),
+                  ),
+                ),
               ),
-              child: Column(
-                children: [
-                  Text(
-                    'TIẾT',
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: color,
-                      fontWeight: FontWeight.w800,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 14, 10, 14),
+                child: Semantics(
+                  label: lesson.periodName,
+                  child: Container(
+                    key: ValueKey('schedule-period-${lesson.id}'),
+                    width: 54,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: color.withValues(alpha: 0.18)),
                     ),
-                  ),
-                  Text(
-                    lesson.periodName,
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: color,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    lesson.subjectName,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    detail,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: AppColors.muted,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.meeting_room_outlined,
-                        size: 15,
-                        color: AppColors.muted,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        lesson.room.isEmpty ? lesson.className : lesson.room,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.muted,
-                          fontWeight: FontWeight.w600,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'TIẾT',
+                          style: TextStyle(
+                            fontSize: 9,
+                            height: 1,
+                            letterSpacing: 0.5,
+                            color: color,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${lesson.period}',
+                          style: TextStyle(
+                            fontSize: 24,
+                            height: 1,
+                            color: color,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(2, 14, 14, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        lesson.subjectName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          height: 1.2,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Flexible(
+                            flex: 3,
+                            child: _lessonMeta(
+                              widget.mode == ScheduleViewMode.teacher
+                                  ? Icons.groups_2_outlined
+                                  : Icons.person_outline,
+                              detail,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            flex: 2,
+                            child: _lessonMeta(
+                              Icons.meeting_room_outlined,
+                              room,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+
+  Widget _lessonMeta(IconData icon, String label) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+    decoration: BoxDecoration(
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: AppColors.muted),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: AppColors.muted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Color _lessonColor(String code) {
     const colors = [
