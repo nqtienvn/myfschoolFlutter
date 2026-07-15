@@ -35,6 +35,8 @@ class _HomeTeacherState extends State<HomeTeacher> {
   late final DashboardApiClient _dashboardApi = DashboardApiClient(
     backend: _backend,
   );
+  late final HomeroomAcademicApiClient _homeroomAcademicApi =
+      HomeroomAcademicApiClient(backend: _backend);
   late final TuitionBillApiClient _tuitionApi = TuitionBillApiClient(
     backend: _backend,
   );
@@ -566,8 +568,8 @@ class _HomeTeacherState extends State<HomeTeacher> {
                           ),
                           if (_classId != null)
                             _FeatureButton(
-                              title: 'Thống kê lớp học',
-                              icon: Icons.auto_graph_outlined,
+                              title: 'Hồ sơ lớp chủ nhiệm',
+                              icon: Icons.groups_2_outlined,
                               color: AppColors.teal,
                               onTap: () {
                                 Navigator.of(context).push(
@@ -578,6 +580,7 @@ class _HomeTeacherState extends State<HomeTeacher> {
                                           .currentSession!
                                           .token,
                                       apiClient: _dashboardApi,
+                                      academicApiClient: _homeroomAcademicApi,
                                     ),
                                   ),
                                 );

@@ -56,6 +56,31 @@ class _FakeDashboardClient extends DashboardApiClient {
   }) async => value;
 }
 
+class _FakeHomeroomAcademicClient extends HomeroomAcademicApiClient {
+  _FakeHomeroomAcademicClient()
+    : super(backend: BackendApiClient(baseUrl: 'http://localhost'));
+
+  @override
+  Future<HomeroomClassDetailDto> getClassDetail({
+    required String token,
+    required int classId,
+  }) async => _homeroomClass;
+
+  @override
+  Future<HomeroomClassRankingDto> getClassRanking({
+    required String token,
+    required int classId,
+    required int semesterId,
+  }) async => _homeroomRanking;
+
+  @override
+  Future<HomeroomStudentResultDto?> getStudentSemesterResult({
+    required String token,
+    required int studentId,
+    required int semesterId,
+  }) async => null;
+}
+
 class _FakeTuitionClient extends TuitionBillApiClient {
   _FakeTuitionClient(this.value)
     : super(backend: BackendApiClient(baseUrl: 'http://localhost'));
@@ -130,6 +155,41 @@ const _stats = TeacherDashboardStatsDto(
   attendanceRate: 92.5,
   averageGpa: 8.1,
   parentReadRate: 75,
+);
+
+const _homeroomClass = HomeroomClassDetailDto(
+  id: 12,
+  name: '12A1',
+  gradeLevel: 12,
+  academicYearId: 26,
+  academicYearName: '2026-2027',
+  schoolName: 'FPT Schools',
+  students: [
+    HomeroomStudentDto(
+      id: 9,
+      name: 'Nguyễn An',
+      studentCode: 'HS009',
+      className: '12A1',
+    ),
+  ],
+);
+
+const _homeroomRanking = HomeroomClassRankingDto(
+  classId: 12,
+  className: '12A1',
+  semesterId: 1,
+  semesterName: 'Học kỳ I',
+  rankings: [
+    HomeroomRankEntryDto(
+      rank: 1,
+      studentId: 9,
+      studentName: 'Nguyễn An',
+      studentCode: 'HS009',
+      gpa: 8.1,
+      academicAbility: 'Giỏi',
+      conduct: 'Tốt',
+    ),
+  ],
 );
 
 const _tuition = TeacherTuitionSummaryDto(
@@ -396,6 +456,7 @@ void main() {
           child: TeacherStatsScreen(
             token: 'teacher-token',
             apiClient: _FakeDashboardClient(_stats),
+            academicApiClient: _FakeHomeroomAcademicClient(),
           ),
         ),
       ),
@@ -403,7 +464,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(find.text('Chưa có kỳ học để tải thống kê.'), findsOneWidget);
+    expect(find.text('Chưa có kỳ học để tải hồ sơ lớp.'), findsOneWidget);
   });
 
   testWidgets(
@@ -432,6 +493,7 @@ void main() {
             child: TeacherStatsScreen(
               token: 'teacher-token',
               apiClient: _FakeDashboardClient(_stats),
+              academicApiClient: _FakeHomeroomAcademicClient(),
             ),
           ),
         ),
