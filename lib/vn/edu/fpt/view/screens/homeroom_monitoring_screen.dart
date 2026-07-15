@@ -10,12 +10,14 @@ class HomeroomMonitoringScreen extends StatefulWidget {
     required this.classId,
     this.api,
     this.academicApi,
+    this.reviewApi,
   });
 
   final String token;
   final int classId;
   final HomeroomMonitoringApi? api;
   final HomeroomAcademicApiClient? academicApi;
+  final PeriodicReviewApi? reviewApi;
 
   @override
   State<HomeroomMonitoringScreen> createState() =>
@@ -25,6 +27,7 @@ class HomeroomMonitoringScreen extends StatefulWidget {
 class _HomeroomMonitoringScreenState extends State<HomeroomMonitoringScreen> {
   late final HomeroomMonitoringApi _api;
   late final HomeroomAcademicApiClient _academicApi;
+  late final PeriodicReviewApi _reviewApi;
   AcademicPeriod? _period;
   HomeroomClassDetailDto? _classDetail;
   HomeroomClassSummary? _summary;
@@ -39,6 +42,7 @@ class _HomeroomMonitoringScreenState extends State<HomeroomMonitoringScreen> {
     _academicApi =
         widget.academicApi ??
         HomeroomAcademicApiClient(backend: BackendApiClient());
+    _reviewApi = widget.reviewApi ?? PeriodicReviewApiClient();
   }
 
   @override
@@ -196,6 +200,7 @@ class _HomeroomMonitoringScreenState extends State<HomeroomMonitoringScreen> {
           risks: _risks.where((risk) => risk.studentId == student.id).toList(),
           api: _api,
           academicApi: _academicApi,
+          reviewApi: _reviewApi,
         ),
       ),
     );
@@ -427,6 +432,7 @@ class AdvancedStudentProfileScreen extends StatelessWidget {
     required this.risks,
     required this.api,
     required this.academicApi,
+    required this.reviewApi,
   });
 
   final String token;
@@ -436,6 +442,7 @@ class AdvancedStudentProfileScreen extends StatelessWidget {
   final List<StudentRiskFlag> risks;
   final HomeroomMonitoringApi api;
   final HomeroomAcademicApiClient academicApi;
+  final PeriodicReviewApi reviewApi;
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
@@ -447,7 +454,7 @@ class AdvancedStudentProfileScreen extends StatelessWidget {
           isScrollable: true,
           tabs: [
             Tab(text: 'Tổng quan'),
-            Tab(text: 'Kết quả'),
+            Tab(text: 'Kết quả/nhận xét'),
             Tab(text: 'Liên hệ PH'),
             Tab(text: 'Lịch hẹn'),
             Tab(text: 'Khen thưởng/vi phạm'),
@@ -459,9 +466,11 @@ class AdvancedStudentProfileScreen extends StatelessWidget {
           _StudentOverview(student: student, period: period, risks: risks),
           _StudentResult(
             token: token,
+            classId: classId,
             student: student,
             period: period,
             api: academicApi,
+            reviewApi: reviewApi,
           ),
           _ContactLogsTab(
             token: token,
@@ -541,14 +550,18 @@ class _StudentOverview extends StatelessWidget {
 class _StudentResult extends StatefulWidget {
   const _StudentResult({
     required this.token,
+    required this.classId,
     required this.student,
     required this.period,
     required this.api,
+    required this.reviewApi,
   });
   final String token;
+  final int classId;
   final HomeroomStudentDto student;
   final AcademicPeriod period;
   final HomeroomAcademicApiClient api;
+  final PeriodicReviewApi reviewApi;
 
   @override
   State<_StudentResult> createState() => _StudentResultState();
@@ -556,6 +569,7 @@ class _StudentResult extends StatefulWidget {
 
 class _StudentResultState extends State<_StudentResult> {
   HomeroomStudentResultDto? _result;
+  StudentPeriodicReport? _report;
   String? _error;
   @override
   void initState() {
@@ -564,15 +578,40 @@ class _StudentResultState extends State<_StudentResult> {
   }
 
   Future<void> _load() async {
+    HomeroomStudentResultDto? result;
+    StudentPeriodicReport? report;
+    Object? failure;
     try {
-      final result = await widget.api.getStudentSemesterResult(
+      result = await widget.api.getStudentSemesterResult(
         token: widget.token,
         studentId: widget.student.id,
         semesterId: widget.period.semesterId,
       );
-      if (mounted) setState(() => _result = result);
     } catch (error) {
-      if (mounted) setState(() => _error = _message(error));
+      failure = error;
+    }
+    try {
+      final reports = await widget.reviewApi.getHomeroomReports(
+        token: widget.token,
+        academicYearId: widget.period.academicYearId,
+        semesterId: widget.period.semesterId,
+        classId: widget.classId,
+      );
+      report = reports.cast<StudentPeriodicReport?>().firstWhere(
+        (item) => item?.studentId == widget.student.id,
+        orElse: () => null,
+      );
+    } catch (error) {
+      failure ??= error;
+    }
+    if (mounted) {
+      setState(() {
+        _result = result;
+        _report = report;
+        _error = result == null && report == null && failure != null
+            ? _message(failure)
+            : null;
+      });
     }
   }
 
@@ -580,23 +619,55 @@ class _StudentResultState extends State<_StudentResult> {
   Widget build(BuildContext context) {
     if (_error != null) return _ErrorView(message: _error!, onRetry: _load);
     final result = _result;
-    if (result == null) {
+    final report = _report;
+    if (result == null && report == null) {
       return const _EmptyView(
         icon: Icons.hourglass_empty,
-        text: 'Chưa có kết quả tổng kết học kỳ.',
+        text: 'Chưa có kết quả hoặc nhận xét học kỳ.',
       );
     }
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _InfoTile(label: 'GPA', value: result.gpa?.toStringAsFixed(2) ?? '--'),
-        _InfoTile(
-          label: 'Xếp hạng',
-          value: result.rank == null ? '--' : '#${result.rank}',
-        ),
-        _InfoTile(label: 'Học lực', value: result.academicAbility ?? '--'),
-        _InfoTile(label: 'Hạnh kiểm', value: result.conduct ?? '--'),
-        _InfoTile(label: 'Danh hiệu', value: result.honor ?? '--'),
+        if (result != null) ...[
+          Text(
+            'Kết quả tổng kết',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          _InfoTile(
+            label: 'GPA',
+            value: result.gpa?.toStringAsFixed(2) ?? '--',
+          ),
+          _InfoTile(
+            label: 'Xếp hạng',
+            value: result.rank == null ? '--' : '#${result.rank}',
+          ),
+          _InfoTile(label: 'Học lực', value: result.academicAbility ?? '--'),
+          _InfoTile(label: 'Hạnh kiểm', value: result.conduct ?? '--'),
+          _InfoTile(label: 'Danh hiệu', value: result.honor ?? '--'),
+        ],
+        if (report != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Nhận xét định kỳ',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          Card(
+            child: ListTile(
+              title: const Text('Nhận xét của GVCN'),
+              subtitle: Text(_displayText(report.generalComment)),
+              trailing: Text(_displayText(report.conduct)),
+            ),
+          ),
+          ...report.subjectReviews.map(
+            (review) => Card(
+              child: ListTile(
+                title: Text(review.subjectName),
+                subtitle: Text(_displayText(review.comment)),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -653,6 +724,7 @@ class _ContactLogsTabState extends State<_ContactLogsTab> {
     final summary = TextEditingController(text: current?.summary);
     final result = TextEditingController(text: current?.result);
     var type = current?.contactType ?? 'CALL';
+    var nextActionAt = current?.nextActionAt;
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -688,6 +760,39 @@ class _ContactLogsTabState extends State<_ContactLogsTab> {
                   controller: result,
                   decoration: const InputDecoration(labelText: 'Kết quả'),
                 ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.event_outlined),
+                        label: Text(
+                          nextActionAt == null
+                              ? 'Chọn hành động tiếp theo'
+                              : 'Tiếp theo: ${_shortDateTime(nextActionAt!)}',
+                        ),
+                        onPressed: () async {
+                          final selected = await _pickDateTime(
+                            context,
+                            current: nextActionAt ?? _periodDate(widget.period),
+                            firstDate: widget.period.startDate,
+                            lastDate: widget.period.endDate,
+                          );
+                          if (selected != null) {
+                            setDialogState(() => nextActionAt = selected);
+                          }
+                        },
+                      ),
+                    ),
+                    if (nextActionAt != null)
+                      IconButton(
+                        tooltip: 'Bỏ hành động tiếp theo',
+                        onPressed: () =>
+                            setDialogState(() => nextActionAt = null),
+                        icon: const Icon(Icons.clear),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -721,6 +826,7 @@ class _ContactLogsTabState extends State<_ContactLogsTab> {
         summary: summary.text.trim(),
         result: result.text.trim(),
         contactedAt: current?.contactedAt ?? _periodDate(widget.period),
+        nextActionAt: nextActionAt,
         logId: current?.id,
       );
       await _load();
@@ -748,7 +854,8 @@ class _ContactLogsTabState extends State<_ContactLogsTab> {
       child: ListTile(
         title: Text(item.subject),
         subtitle: Text(
-          '${_contactLabel(item.contactType)} · ${_shortDate(item.contactedAt)}\n${item.summary}',
+          '${_contactLabel(item.contactType)} · ${_shortDate(item.contactedAt)}\n${item.summary}'
+          '${item.nextActionAt == null ? '' : '\nTiếp theo: ${_shortDateTime(item.nextActionAt!)}'}',
         ),
         isThreeLine: true,
         onTap: () => _edit(item),
@@ -812,44 +919,82 @@ class _MeetingsTabState extends State<_MeetingsTab> {
     }
   }
 
-  Future<void> _create() async {
-    final title = TextEditingController();
-    final location = TextEditingController();
-    final agenda = TextEditingController();
+  Future<void> _edit([ParentMeeting? current]) async {
+    final title = TextEditingController(text: current?.title);
+    final location = TextEditingController(text: current?.location);
+    final agenda = TextEditingController(text: current?.agenda);
+    var startsAt = current?.startsAt ?? _periodDate(widget.period, hour: 17);
+    var status = current?.status ?? 'SCHEDULED';
     final accepted = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Tạo lịch hẹn phụ huynh'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: title,
-                decoration: const InputDecoration(labelText: 'Tiêu đề'),
-              ),
-              TextField(
-                controller: location,
-                decoration: const InputDecoration(labelText: 'Địa điểm'),
-              ),
-              TextField(
-                controller: agenda,
-                maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Nội dung'),
-              ),
-            ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(
+            current == null ? 'Tạo lịch hẹn phụ huynh' : 'Cập nhật lịch hẹn',
           ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: title,
+                  decoration: const InputDecoration(labelText: 'Tiêu đề'),
+                ),
+                TextField(
+                  controller: location,
+                  decoration: const InputDecoration(labelText: 'Địa điểm'),
+                ),
+                TextField(
+                  controller: agenda,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: 'Nội dung'),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.schedule_outlined),
+                    label: Text(_shortDateTime(startsAt)),
+                    onPressed: () async {
+                      final selected = await _pickDateTime(
+                        context,
+                        current: startsAt,
+                        firstDate: widget.period.startDate,
+                        lastDate: widget.period.endDate,
+                      );
+                      if (selected != null) {
+                        setDialogState(() => startsAt = selected);
+                      }
+                    },
+                  ),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: const InputDecoration(labelText: 'Trạng thái'),
+                  items: const ['SCHEDULED', 'COMPLETED', 'CANCELLED']
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(_meetingStatusLabel(value)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => setDialogState(() => status = value!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(current == null ? 'Tạo lịch' : 'Lưu thay đổi'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Tạo lịch'),
-          ),
-        ],
       ),
     );
     if (accepted != true || title.text.trim().isEmpty) return;
@@ -861,9 +1006,11 @@ class _MeetingsTabState extends State<_MeetingsTab> {
         classId: widget.classId,
         studentId: widget.student.id,
         title: title.text.trim(),
-        startsAt: _periodDate(widget.period, hour: 17),
+        startsAt: startsAt,
         location: location.text.trim(),
         agenda: agenda.text.trim(),
+        meetingId: current?.id,
+        status: status,
       );
       await _load();
     } catch (error) {
@@ -892,7 +1039,7 @@ class _MeetingsTabState extends State<_MeetingsTab> {
     onRetry: _load,
     emptyText: 'Chưa có lịch hẹn.',
     action: FloatingActionButton.small(
-      onPressed: _create,
+      onPressed: _edit,
       child: const Icon(Icons.add),
     ),
     itemBuilder: (item) => Card(
@@ -901,8 +1048,24 @@ class _MeetingsTabState extends State<_MeetingsTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(item.title, style: Theme.of(context).textTheme.titleMedium),
-            Text('${_shortDateTime(item.startsAt)} · ${item.location}'),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Sửa lịch hẹn',
+                  onPressed: () => _edit(item),
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              ],
+            ),
+            Text(
+              '${_shortDateTime(item.startsAt)} · ${item.location} · ${_meetingStatusLabel(item.status)}',
+            ),
             if (item.agenda.isNotEmpty) Text(item.agenda),
             const Divider(),
             ...item.participants.map(
@@ -983,15 +1146,19 @@ class _StudentEventsTabState extends State<_StudentEventsTab> {
     }
   }
 
-  Future<void> _create() async {
-    final title = TextEditingController();
-    final description = TextEditingController();
-    var type = 'REWARD';
+  Future<void> _edit([StudentEvent? current]) async {
+    final title = TextEditingController(text: current?.title);
+    final category = TextEditingController(text: current?.category);
+    final description = TextEditingController(text: current?.description);
+    var type = current?.eventType ?? 'REWARD';
+    var eventDate = current?.eventDate ?? widget.period.referenceDate;
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Thêm sự kiện học sinh'),
+          title: Text(
+            current == null ? 'Thêm sự kiện học sinh' : 'Sửa sự kiện học sinh',
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1013,9 +1180,32 @@ class _StudentEventsTabState extends State<_StudentEventsTab> {
                   decoration: const InputDecoration(labelText: 'Tiêu đề'),
                 ),
                 TextField(
+                  controller: category,
+                  decoration: const InputDecoration(labelText: 'Nhóm sự kiện'),
+                ),
+                TextField(
                   controller: description,
                   maxLines: 3,
                   decoration: const InputDecoration(labelText: 'Mô tả'),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.event_outlined),
+                    label: Text(_shortDate(eventDate)),
+                    onPressed: () async {
+                      final selected = await showDatePicker(
+                        context: context,
+                        initialDate: eventDate,
+                        firstDate: widget.period.startDate,
+                        lastDate: widget.period.endDate,
+                      );
+                      if (selected != null) {
+                        setDialogState(() => eventDate = selected);
+                      }
+                    },
+                  ),
                 ),
               ],
             ),
@@ -1027,7 +1217,7 @@ class _StudentEventsTabState extends State<_StudentEventsTab> {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Lưu nháp'),
+              child: Text(current == null ? 'Lưu nháp' : 'Lưu thay đổi'),
             ),
           ],
         ),
@@ -1042,10 +1232,11 @@ class _StudentEventsTabState extends State<_StudentEventsTab> {
         semesterId: widget.period.semesterId,
         classId: widget.classId,
         eventType: type,
-        category: '',
+        category: category.text.trim(),
         title: title.text.trim(),
         description: description.text.trim(),
-        eventDate: widget.period.referenceDate,
+        eventDate: eventDate,
+        eventId: current?.id,
       );
       await _load();
     } catch (error) {
@@ -1072,7 +1263,7 @@ class _StudentEventsTabState extends State<_StudentEventsTab> {
     onRetry: _load,
     emptyText: 'Chưa có khen thưởng hoặc vi phạm.',
     action: FloatingActionButton.small(
-      onPressed: _create,
+      onPressed: _edit,
       child: const Icon(Icons.add),
     ),
     itemBuilder: (item) => Card(
@@ -1089,10 +1280,27 @@ class _StudentEventsTabState extends State<_StudentEventsTab> {
           '${_eventLabel(item.eventType)} · ${_shortDate(item.eventDate)}\n${item.description}',
         ),
         isThreeLine: true,
-        trailing: item.status == 'DRAFT' && item.eventType != 'NOTE'
-            ? TextButton(
-                onPressed: () => _publish(item),
-                child: const Text('Công bố'),
+        trailing: item.status == 'DRAFT'
+            ? PopupMenuButton<String>(
+                tooltip: 'Thao tác sự kiện',
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _edit(item);
+                  } else {
+                    _publish(item);
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Text('Sửa bản nháp'),
+                  ),
+                  if (item.eventType != 'NOTE')
+                    const PopupMenuItem(
+                      value: 'publish',
+                      child: Text('Công bố'),
+                    ),
+                ],
               )
             : Text(_statusLabel(item.status)),
       ),
@@ -1217,6 +1425,8 @@ class _EmptyView extends StatelessWidget {
 
 String _message(Object error) =>
     error.toString().replaceFirst('Exception: ', '');
+String _displayText(String? value) =>
+    value == null || value.trim().isEmpty ? 'Chưa cập nhật' : value.trim();
 void _snack(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 String _shortDate(DateTime value) =>
@@ -1233,6 +1443,27 @@ DateTime _periodDate(AcademicPeriod period, {int? hour}) {
     hour ?? now.hour,
     hour == null ? now.minute : 0,
   );
+}
+
+Future<DateTime?> _pickDateTime(
+  BuildContext context, {
+  required DateTime current,
+  required DateTime firstDate,
+  required DateTime lastDate,
+}) async {
+  final date = await showDatePicker(
+    context: context,
+    initialDate: current,
+    firstDate: firstDate,
+    lastDate: lastDate,
+  );
+  if (date == null || !context.mounted) return null;
+  final time = await showTimePicker(
+    context: context,
+    initialTime: TimeOfDay.fromDateTime(current),
+  );
+  if (time == null) return null;
+  return DateTime(date.year, date.month, date.day, time.hour, time.minute);
 }
 
 String _riskLabel(String value) =>
@@ -1273,6 +1504,13 @@ String _responseLabel(String value) =>
       'PENDING': 'Chờ phản hồi',
       'ACCEPTED': 'Tham gia',
       'DECLINED': 'Từ chối',
+    }[value] ??
+    value;
+String _meetingStatusLabel(String value) =>
+    const {
+      'SCHEDULED': 'Đã lên lịch',
+      'COMPLETED': 'Đã hoàn thành',
+      'CANCELLED': 'Đã hủy',
     }[value] ??
     value;
 String _attendanceLabel(String value) =>

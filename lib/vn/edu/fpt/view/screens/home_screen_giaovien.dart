@@ -585,6 +585,9 @@ class _HomeTeacherState extends State<HomeTeacher> {
                                         backend: _backend,
                                       ),
                                       academicApi: _homeroomAcademicApi,
+                                      reviewApi: PeriodicReviewApiClient(
+                                        backend: _backend,
+                                      ),
                                     ),
                                   ),
                                 );

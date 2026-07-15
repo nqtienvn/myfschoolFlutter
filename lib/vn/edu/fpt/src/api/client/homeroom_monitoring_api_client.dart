@@ -44,6 +44,7 @@ abstract class HomeroomMonitoringApi {
     required String summary,
     required String result,
     required DateTime contactedAt,
+    DateTime? nextActionAt,
     int? logId,
   });
   Future<void> deleteContactLog({required String token, required int logId});
@@ -204,6 +205,7 @@ class HomeroomMonitoringApiClient implements HomeroomMonitoringApi {
     required String summary,
     required String result,
     required DateTime contactedAt,
+    DateTime? nextActionAt,
     int? logId,
   }) async {
     final body = {
@@ -215,6 +217,7 @@ class HomeroomMonitoringApiClient implements HomeroomMonitoringApi {
       'summary': summary,
       'result': result,
       'contactedAt': contactedAt.toIso8601String(),
+      'nextActionAt': nextActionAt?.toIso8601String(),
     };
     final data = logId == null
         ? await _backend.postData(
