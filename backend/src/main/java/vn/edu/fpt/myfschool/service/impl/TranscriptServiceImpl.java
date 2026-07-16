@@ -37,9 +37,10 @@ public class TranscriptServiceImpl implements TranscriptService {
             List<TranscriptScoreDto> values=new ArrayList<>(); BigDecimal sum=BigDecimal.ZERO; int totalWeight=0; boolean complete=true;
             for(GradeItem item:items.findByGradeBookIdOrderByOrderAsc(book.getId())) {
                 StudentScore score=scores.findByGradeItemIdAndStudentId(item.getId(),studentId).orElse(null);
-                BigDecimal value=score==null?null:score.getScore();
-                String comment=score==null?null:score.getComment();
-                boolean graded=score!=null&&Boolean.TRUE.equals(score.getIsGraded());
+                boolean published=score!=null&&score.getPublishedAt()!=null;
+                BigDecimal value=published?score.getScore():null;
+                String comment=published?score.getComment():null;
+                boolean graded=published&&Boolean.TRUE.equals(score.getIsGraded());
                 values.add(new TranscriptScoreDto(item.getId(),item.getCode(),item.getName(),item.getWeight(),item.getAssessmentType(),value,comment,graded));
                 boolean hasValue=graded&&(item.getAssessmentType()==AssessmentType.SCORE?value!=null:comment!=null&&!comment.isBlank());
                 if(Boolean.TRUE.equals(item.getRequiredEntry())&&!hasValue) complete=false;

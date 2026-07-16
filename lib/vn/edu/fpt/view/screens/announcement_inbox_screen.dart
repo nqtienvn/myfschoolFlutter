@@ -38,28 +38,15 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
 
   Future<void> _open(SchoolAnnouncement item) async {
     try {
-      final detail = widget.service.isTeacher
-          ? item
-          : await widget.service.open(item.id);
+      final detail = await widget.service.open(item.id);
       if (!mounted) return;
-      if (widget.service.isTeacher) {
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => TeacherAnnouncementRecipientsScreen(
-              announcement: detail,
-              service: widget.service,
-            ),
-          ),
-        );
-      } else {
-        await showDialog<void>(
-          context: context,
-          builder: (_) => _AnnouncementDetailDialog(
-            announcement: detail,
-            service: widget.service,
-          ),
-        );
-      }
+      await showDialog<void>(
+        context: context,
+        builder: (_) => _AnnouncementDetailDialog(
+          announcement: detail,
+          service: widget.service,
+        ),
+      );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -75,7 +62,7 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
       backgroundColor: AppColors.background,
       appBar: OrangeTopBar(
         title: widget.service.isTeacher
-            ? 'Thông báo đã gửi'
+            ? 'Thông báo nhà trường'
             : 'Thông báo nhà trường',
         actions: [
           if (!widget.service.isTeacher &&
@@ -142,9 +129,7 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (_, index) {
         final item = widget.service.announcements[index];
-        return widget.service.isTeacher
-            ? _TeacherAnnouncementCard(item: item, onTap: () => _open(item))
-            : _RecipientAnnouncementCard(item: item, onTap: () => _open(item));
+        return _RecipientAnnouncementCard(item: item, onTap: () => _open(item));
       },
     );
   }
@@ -225,62 +210,6 @@ class _RecipientAnnouncementCard extends StatelessWidget {
               ),
             ),
             const Icon(Icons.chevron_right, color: AppColors.muted),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _TeacherAnnouncementCard extends StatelessWidget {
-  const _TeacherAnnouncementCard({required this.item, required this.onTap});
-  final SchoolAnnouncement item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => AppCard(
-    padding: 0,
-    child: InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    item.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                _Pill(
-                  label: _approvalLabel(item.approvalStatus),
-                  color: item.approvalStatus == 'APPROVED'
-                      ? AppColors.success
-                      : AppColors.fptOrange,
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Text(
-              item.classNames.join(', '),
-              style: const TextStyle(color: AppColors.muted),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _MiniStat(label: 'Nhận', value: item.totalRecipients),
-                _MiniStat(label: 'Đọc', value: item.readCount),
-                _MiniStat(label: 'Xác nhận', value: item.acknowledgedCount),
-                _MiniStat(label: 'Phản hồi', value: item.repliedCount),
-              ],
-            ),
           ],
         ),
       ),
@@ -646,30 +575,6 @@ class _TeacherAnnouncementRecipientsScreenState
   );
 }
 
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.label, required this.value});
-  final String label;
-  final int value;
-  @override
-  Widget build(BuildContext context) => Expanded(
-    child: Column(
-      children: [
-        Text(
-          '$value',
-          style: const TextStyle(
-            fontWeight: FontWeight.w900,
-            color: AppColors.fptOrange,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: AppColors.muted),
-        ),
-      ],
-    ),
-  );
-}
-
 class _Pill extends StatelessWidget {
   const _Pill({required this.label, required this.color});
   final String label;
@@ -694,11 +599,6 @@ String _actionLabel(SchoolAnnouncement item) {
   return 'Chờ xác nhận';
 }
 
-String _approvalLabel(String status) => switch (status) {
-  'APPROVED' => 'Đã duyệt',
-  'REJECTED' => 'Từ chối',
-  _ => 'Chờ duyệt',
-};
 String _recipientStatus(String status) => switch (status) {
   'REPLIED' => 'Đã phản hồi',
   'ACKNOWLEDGED' => 'Đã xác nhận',

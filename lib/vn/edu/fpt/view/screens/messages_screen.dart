@@ -49,11 +49,7 @@ class _ServiceConversationsScreen extends StatelessWidget {
         final conversations = chatService.conversations;
         return Scaffold(
           backgroundColor: AppColors.background,
-          appBar: OrangeTopBar(
-            title: actor == AppActor.teacher
-                ? 'Tin nhắn phụ huynh'
-                : 'Tin nhắn liên lạc',
-          ),
+          appBar: const OrangeTopBar(title: 'Tin nhắn liên lạc'),
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: chatService.loadConversations,

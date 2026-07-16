@@ -98,10 +98,13 @@ abstract class HomeroomMonitoringApi {
     required DateTime eventDate,
     int? eventId,
   });
-  Future<StudentEvent> publishStudentEvent({
+  Future<void> deleteStudentEvent({
     required String token,
     required int eventId,
-  });
+    required int academicYearId,
+  }) => Future<void>.error(
+    UnsupportedError('API hiện tại không hỗ trợ xóa vi phạm.'),
+  );
 }
 
 class HomeroomMonitoringApiClient implements HomeroomMonitoringApi {
@@ -379,16 +382,15 @@ class HomeroomMonitoringApiClient implements HomeroomMonitoringApi {
   }
 
   @override
-  Future<StudentEvent> publishStudentEvent({
+  Future<void> deleteStudentEvent({
     required String token,
     required int eventId,
-  }) async {
-    final data = await _backend.postData(
-      '/api/student-events/$eventId/publish',
-      token: token,
-    );
-    return StudentEvent.fromJson(data as Map<String, dynamic>);
-  }
+    required int academicYearId,
+  }) => _backend.deleteData(
+    '/api/student-events/$eventId',
+    token: token,
+    query: {'academicYearId': '$academicYearId'},
+  );
 
   Iterable<Map<String, dynamic>> _list(Object? data) =>
       (data as List<dynamic>? ?? const []).whereType<Map<String, dynamic>>();

@@ -57,10 +57,10 @@ describe('apiFetch', () => {
     expect(options?.headers).not.toHaveProperty('Content-Type');
   });
 
-  it('clears the session and reloads when the backend rejects authorization', async () => {
+  it('clears the session and reloads when authentication expires', async () => {
     setToken('expired-token');
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ success: false }), {
-      status: 403,
+      status: 401,
       headers: { 'Content-Type': 'application/json' },
     }));
 
@@ -68,6 +68,19 @@ describe('apiFetch', () => {
 
     expect(getToken()).toBeNull();
     expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the session when the current role is forbidden', async () => {
+    setToken('valid-token');
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ success: false }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    await expect(apiFetch('/users')).rejects.toThrow('HTTP 403');
+
+    expect(getToken()).toBe('valid-token');
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it('surfaces API, invalid JSON, and network failures', async () => {

@@ -108,6 +108,7 @@ class StudentPeriodicReport {
   final List<SubjectPeriodicReview> subjectReviews;
 
   bool get isPublished => status == 'PUBLISHED';
+  bool get isSubmitted => status == 'SUBMITTED' || isPublished;
   bool get subjectsComplete =>
       totalSubjects > 0 && submittedSubjects == totalSubjects;
 

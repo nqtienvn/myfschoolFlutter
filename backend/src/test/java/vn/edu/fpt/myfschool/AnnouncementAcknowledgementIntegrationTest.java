@@ -80,7 +80,7 @@ class AnnouncementAcknowledgementIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void repeated_open_counts_once_and_reply_also_acknowledges() throws Exception {
+    void teacher_announcement_counts_reads_once_and_never_requires_reply() throws Exception {
         Long id = createTeacherAnnouncement("STUDENT", true);
         approve(id);
         String studentToken = loginAsStudent1();
@@ -104,24 +104,13 @@ class AnnouncementAcknowledgementIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/announcements/pending-action-count")
                         .header("Authorization", authHeader(studentToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").value(1));
+                .andExpect(jsonPath("$.data").value(0));
 
         mockMvc.perform(put("/api/announcements/{id}/reply", id)
                         .header("Authorization", authHeader(studentToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"replyText\":\"Em da nhan thong bao\"}"))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(get("/api/announcements/{id}/recipients", id)
-                        .header("Authorization", authHeader(teacherToken))
-                        .param("academicYearId", testAcademicYear.getId().toString())
-                        .param("role", "STUDENT")
-                        .param("status", "REPLIED")
-                        .param("keyword", "HS 1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.totalElements").value(1))
-                .andExpect(jsonPath("$.data.content[0].replyText").value("Em da nhan thong bao"))
-                .andExpect(jsonPath("$.data.content[0].acknowledgedAt").isNotEmpty());
+                .andExpect(status().isBadRequest());
 
         mockMvc.perform(get("/api/announcements/pending-action-count")
                         .header("Authorization", authHeader(studentToken)))
@@ -168,6 +157,47 @@ class AnnouncementAcknowledgementIntegrationTest extends BaseIntegrationTest {
                         .param("status", "PENDING"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
+    void teacher_inbox_and_unread_count_are_scoped_to_the_selected_year() throws Exception {
+        mockMvc.perform(post("/api/announcements/admin/broadcast")
+                        .header("Authorization", authHeader(loginAsAdmin()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Thong bao giao vien\",\"body\":\"Noi dung\",\"academicYearId\":"
+                                + testAcademicYear.getId() + ",\"recipientScope\":\"TEACHERS\",\"targetRole\":\"ALL\","
+                                + "\"teacherAudience\":\"ALL\",\"requiresReply\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalRecipients").value(1));
+        String teacherToken = loginAsTeacher();
+
+        mockMvc.perform(get("/api/announcements")
+                        .header("Authorization", authHeader(teacherToken)))
+                .andExpect(status().isBadRequest());
+        var inbox = mockMvc.perform(get("/api/announcements")
+                        .header("Authorization", authHeader(teacherToken))
+                        .param("academicYearId", testAcademicYear.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andReturn();
+        Long id = responseData(inbox.getResponse().getContentAsString()).get(0).get("id").asLong();
+
+        mockMvc.perform(get("/api/announcements/unread-count")
+                        .header("Authorization", authHeader(teacherToken)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/announcements/unread-count")
+                        .header("Authorization", authHeader(teacherToken))
+                        .param("academicYearId", testAcademicYear.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(1));
+        mockMvc.perform(get("/api/announcements/{id}", id)
+                        .header("Authorization", authHeader(teacherToken)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/announcements/unread-count")
+                        .header("Authorization", authHeader(teacherToken))
+                        .param("academicYearId", testAcademicYear.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(0));
     }
 
     private Long createTeacherAnnouncement(String targetRole, boolean requiresReply) throws Exception {

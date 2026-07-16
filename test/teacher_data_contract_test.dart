@@ -6,7 +6,6 @@ import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/models/payment_configuration.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_stats_screen.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_tuition_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/tuition_payment_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
 
@@ -79,20 +78,6 @@ class _FakeHomeroomAcademicClient extends HomeroomAcademicApiClient {
     required int studentId,
     required int semesterId,
   }) async => null;
-}
-
-class _FakeTuitionClient extends TuitionBillApiClient {
-  _FakeTuitionClient(this.value)
-    : super(backend: BackendApiClient(baseUrl: 'http://localhost'));
-
-  final TeacherTuitionSummaryDto value;
-
-  @override
-  Future<TeacherTuitionSummaryDto> getTeacherClassSummary({
-    required String token,
-    required int classId,
-    required int semesterId,
-  }) async => value;
 }
 
 class _FakeStudentTuitionClient extends TuitionBillApiClient {
@@ -188,60 +173,6 @@ const _homeroomRanking = HomeroomClassRankingDto(
       gpa: 8.1,
       academicAbility: 'Giỏi',
       conduct: 'Tốt',
-    ),
-  ],
-);
-
-const _tuition = TeacherTuitionSummaryDto(
-  classId: 12,
-  className: '12A1',
-  semesterId: 1,
-  semesterName: 'Học kỳ I',
-  totalStudents: 3,
-  paidStudents: 1,
-  outstandingStudents: 1,
-  studentsWithoutBills: 1,
-  students: [
-    TeacherTuitionStudentDto(
-      studentId: 1,
-      studentName: 'Nguyễn An',
-      studentCode: 'HS001',
-      paymentState: 'PAID',
-      outstandingAmount: 0,
-    ),
-    TeacherTuitionStudentDto(
-      studentId: 2,
-      studentName: 'Trần Bình',
-      studentCode: 'HS002',
-      paymentState: 'UNPAID',
-      outstandingAmount: 1500000,
-    ),
-    TeacherTuitionStudentDto(
-      studentId: 3,
-      studentName: 'Lê Chi',
-      studentCode: 'HS003',
-      paymentState: 'NO_BILLS',
-      outstandingAmount: 0,
-    ),
-  ],
-);
-
-const _processingTuition = TeacherTuitionSummaryDto(
-  classId: 12,
-  className: '12A1',
-  semesterId: 1,
-  semesterName: 'Học kỳ I',
-  totalStudents: 1,
-  paidStudents: 0,
-  outstandingStudents: 1,
-  studentsWithoutBills: 0,
-  students: [
-    TeacherTuitionStudentDto(
-      studentId: 4,
-      studentName: 'Phạm Dũng',
-      studentCode: 'HS004',
-      paymentState: 'PROCESSING',
-      outstandingAmount: 2500000,
     ),
   ],
 );
@@ -503,56 +434,7 @@ void main() {
       expect(find.text('Tổng quan lớp 12A1'), findsOneWidget);
       expect(find.text('92.5%'), findsOneWidget);
       expect(find.text('8.1 / 10'), findsOneWidget);
-      expect(find.text('75.0%'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'teacher tuition screen renders canonical summary without fake reminder',
-    (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: TeacherTuitionScreen(
-            token: 'teacher-token',
-            classId: 12,
-            semesterId: 1,
-            apiClient: _FakeTuitionClient(_tuition),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Lớp 12A1 · Học kỳ I'), findsOneWidget);
-      expect(find.textContaining('Đã hoàn tất 1/3'), findsOneWidget);
-      expect(find.text('Nguyễn An'), findsOneWidget);
-      expect(find.text('Trần Bình'), findsOneWidget);
-      expect(find.byIcon(Icons.notifications_active), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'teacher tuition keeps processing students in outstanding filter',
-    (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: TeacherTuitionScreen(
-            token: 'teacher-token',
-            classId: 12,
-            semesterId: 1,
-            apiClient: _FakeTuitionClient(_processingTuition),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Phạm Dũng'), findsOneWidget);
-      expect(find.text('Đang xử lý'), findsOneWidget);
-
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Còn phải thu'));
-      await tester.pump();
-
-      expect(find.text('Phạm Dũng'), findsOneWidget);
-      expect(find.text('Đang xử lý'), findsOneWidget);
+      expect(find.textContaining('Tương tác phụ huynh'), findsNothing);
     },
   );
 

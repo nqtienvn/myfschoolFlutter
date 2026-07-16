@@ -22,5 +22,5 @@ public record StudentEventDto(
         StudentEventStatus status,
         Long createdBy,
         String createdByName,
-        LocalDateTime publishedAt
+        LocalDateTime submittedAt
 ) {}

@@ -19,6 +19,7 @@ import vn.edu.fpt.myfschool.common.dto.ConversationDto;
 import vn.edu.fpt.myfschool.common.dto.CreateConversationRequest;
 import vn.edu.fpt.myfschool.common.dto.MessageDto;
 import vn.edu.fpt.myfschool.common.dto.SearchResultDto;
+import vn.edu.fpt.myfschool.common.dto.SendMessageRequest;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.ConversationService;
 import vn.edu.fpt.myfschool.service.MessageService;
@@ -63,6 +64,16 @@ public class ConversationController {
         Long userId = SecurityUtil.getCurrentUserId();
         return ResponseEntity.ok(ApiResponse.success(
                 messageService.getMessages(id, userId, beforeMessageId, afterSeq, limit)));
+    }
+
+    @PostMapping("/{id}/messages")
+    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
+    @Operation(summary = "Gửi tin nhắn qua REST")
+    public ResponseEntity<ApiResponse<MessageDto>> sendMessage(
+            @PathVariable Long id,
+            @Valid @RequestBody SendMessageRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                conversationService.sendMessage(id, SecurityUtil.getCurrentUserId(), request)));
     }
 
     @PutMapping("/{id}/read")

@@ -52,7 +52,7 @@ public class AnnouncementController {
             @Valid @RequestBody CreateAnnouncementRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Tạo thông báo thành công",
                 announcementService.createAnnouncement(request.title(), request.body(),
-                        request.targetRole(), request.requiresReply() != null ? request.requiresReply() : false,
+                        request.targetRole(), false,
                         request.academicYearId(), request.classIds(), SecurityUtil.getCurrentUserId())));
     }
 
@@ -62,7 +62,7 @@ public class AnnouncementController {
             @Valid @RequestBody CreateAnnouncementRequest request) {
         return ResponseEntity.ok(ApiResponse.success(announcementService.updateAnnouncement(id,
                 request.title(), request.body(), request.targetRole(),
-                request.requiresReply() != null && request.requiresReply(), request.academicYearId(),
+                false, request.academicYearId(),
                 request.classIds(), SecurityUtil.getCurrentUserId())));
     }
 
@@ -115,16 +115,17 @@ public class AnnouncementController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Thông báo cho tôi")
-    public ResponseEntity<ApiResponse<List<AnnouncementDto>>> getAnnouncements() {
+    public ResponseEntity<ApiResponse<List<AnnouncementDto>>> getAnnouncements(
+            @RequestParam(required = false) Long academicYearId) {
         UserRole role = SecurityUtil.getCurrentUserRole();
         return ResponseEntity.ok(ApiResponse.success(
-                announcementService.getAnnouncements(SecurityUtil.getCurrentUserId(), role)));
+                announcementService.getAnnouncements(SecurityUtil.getCurrentUserId(), role, academicYearId)));
     }
 
     @PutMapping("/{id}/read")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Đánh dấu đã đọc")
     public ResponseEntity<ApiResponse<Void>> markAsRead(@PathVariable Long id) {
         announcementService.markAsRead(id, SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole());
@@ -171,11 +172,12 @@ public class AnnouncementController {
     }
 
     @GetMapping("/unread-count")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
+    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT', 'TEACHER')")
     @Operation(summary = "Số chưa đọc")
-    public ResponseEntity<ApiResponse<Long>> getUnreadCount() {
+    public ResponseEntity<ApiResponse<Long>> getUnreadCount(
+            @RequestParam(required = false) Long academicYearId) {
         UserRole role = SecurityUtil.getCurrentUserRole();
         return ResponseEntity.ok(ApiResponse.success(
-                announcementService.getUnreadCount(SecurityUtil.getCurrentUserId(), role)));
+                announcementService.getUnreadCount(SecurityUtil.getCurrentUserId(), role, academicYearId)));
     }
 }

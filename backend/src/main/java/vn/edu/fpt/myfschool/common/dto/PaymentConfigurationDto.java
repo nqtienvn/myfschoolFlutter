@@ -12,6 +12,8 @@ public record PaymentConfigurationDto(
     String branch,
     String transferContentTemplate,
     Boolean enabled,
+    Boolean reminderEnabled,
+    Integer reminderIntervalDays,
     String method,
     String displayMode,
     Boolean qrAvailable,

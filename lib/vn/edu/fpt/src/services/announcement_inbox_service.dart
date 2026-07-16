@@ -47,24 +47,22 @@ class AnnouncementInboxService extends ChangeNotifier {
         teacher: isTeacher,
         academicYearId: academicYearId,
       );
-      if (isTeacher) {
-        announcements = (await listFuture)
-            .map((item) => item.toDomain())
-            .toList(growable: false);
-        unreadCount = 0;
-        pendingActionCount = 0;
-      } else {
-        final results = await Future.wait<Object>([
-          listFuture,
-          _api.getUnreadCount(token: _token),
+      final results = await Future.wait<Object>([
+        listFuture,
+        _api.getUnreadCountForYear(
+          token: _token,
+          academicYearId: isTeacher ? academicYearId : null,
+        ),
+        if (isTeacher)
+          Future<Object>.value(0)
+        else
           _api.getPendingActionCount(token: _token),
-        ]);
-        announcements = (results[0] as List<AnnouncementDto>)
-            .map((item) => item.toDomain())
-            .toList(growable: false);
-        unreadCount = results[1] as int;
-        pendingActionCount = results[2] as int;
-      }
+      ]);
+      announcements = (results[0] as List<AnnouncementDto>)
+          .map((item) => item.toDomain())
+          .toList(growable: false);
+      unreadCount = results[1] as int;
+      pendingActionCount = results[2] as int;
     } catch (_) {
       errorMessage = 'Không thể tải thông báo.';
     } finally {

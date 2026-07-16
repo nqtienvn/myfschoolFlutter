@@ -10,6 +10,7 @@ public interface GradeBookService {
     List<StudentScoreDto> updateScores(UpdateStudentScoreRequest request);
     BigDecimal calculateAverage(Long studentId, Long gradeBookId);
     void changeStatus(Long gradeBookId, vn.edu.fpt.myfschool.common.enums.GradeBookStatus status);
+    void publishGradeItem(Long gradeBookId, Long gradeItemId);
     List<StudentScoreDto> getStudentScores(Long gradeBookId);
     List<GradeCalculationDto> calculateSubjectAverages(Long gradeBookId);
 }

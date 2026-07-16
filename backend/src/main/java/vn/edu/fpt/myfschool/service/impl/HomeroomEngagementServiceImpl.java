@@ -188,54 +188,59 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
             return values.stream().filter(item -> item.getCls().getId().equals(classId)).map(this::toEvent).toList();
         }
         if (requesterRole == UserRole.ADMIN) return values.stream().map(this::toEvent).toList();
-        authorizeStudent(studentId, requesterId, requesterRole);
-        return values.stream().filter(item -> item.getStatus() == StudentEventStatus.PUBLISHED)
-                .filter(item -> item.getEventType() != StudentEventType.NOTE).map(this::toEvent).toList();
+        throw new ForbiddenException("Vi phạm chỉ được sử dụng nội bộ bởi giáo viên và Admin");
     }
 
     @Override
-    public StudentEventDto createStudentEvent(Long studentId, SaveStudentEventRequest request, Long teacherUserId) {
+    public StudentEventDto createStudentEvent(Long studentId, SaveStudentEventRequest request,
+            Long requesterId, UserRole requesterRole) {
         Scope scope = requireScope(request.academicYearId(), request.semesterId(), request.classId());
-        requireHomeroom(scope, teacherUserId);
+        requireEventEditor(scope, requesterId, requesterRole);
+        requireViolation(request);
         Student student = requireActiveStudent(scope, studentId);
         StudentEvent event = new StudentEvent();
         applyEvent(event, scope, student, request);
-        event.setCreatedBy(requireUser(teacherUserId));
+        if (requesterRole == UserRole.ADMIN) {
+            event.setStatus(StudentEventStatus.SUBMITTED);
+            event.setSubmittedAt(LocalDateTime.now());
+        }
+        event.setCreatedBy(requireUser(requesterId));
         return toEvent(events.save(event));
     }
 
     @Override
-    public StudentEventDto updateStudentEvent(Long id, SaveStudentEventRequest request, Long teacherUserId) {
+    public StudentEventDto updateStudentEvent(Long id, SaveStudentEventRequest request,
+            Long requesterId, UserRole requesterRole) {
         StudentEvent event = requireEvent(id);
-        if (event.getStatus() == StudentEventStatus.PUBLISHED) {
-            throw new ConflictException("Sự kiện đã công bố không thể sửa");
+        if (requesterRole == UserRole.TEACHER && event.getStatus() == StudentEventStatus.SUBMITTED) {
+            throw new ConflictException("Vi phạm đã Submit; Admin phải mở lại trước khi sửa");
         }
         Scope scope = requireScope(request.academicYearId(), request.semesterId(), request.classId());
         if (!sameScope(event.getAcademicYear().getId(), event.getSemester().getId(), event.getCls().getId(), scope)) {
             throw new ForbiddenException("Không được chuyển sự kiện sang phạm vi khác");
         }
-        requireHomeroom(scope, teacherUserId);
+        requireEventEditor(scope, requesterId, requesterRole);
+        requireViolation(request);
         applyEvent(event, scope, event.getStudent(), request);
+        if (requesterRole == UserRole.ADMIN) {
+            event.setStatus(StudentEventStatus.SUBMITTED);
+            event.setSubmittedAt(LocalDateTime.now());
+        }
         return toEvent(events.save(event));
     }
 
     @Override
-    public StudentEventDto publishStudentEvent(Long id, Long teacherUserId) {
+    public void deleteStudentEvent(Long id, Long academicYearId, Long requesterId, UserRole requesterRole) {
         StudentEvent event = requireEvent(id);
-        Scope scope = requireScope(event.getAcademicYear().getId(), event.getSemester().getId(), event.getCls().getId());
-        requireHomeroom(scope, teacherUserId);
-        if (event.getEventType() == StudentEventType.NOTE) {
-            throw new ConflictException("Ghi chú nội bộ không được công bố");
+        if (!event.getAcademicYear().getId().equals(academicYearId)) {
+            throw new ForbiddenException("Vi phạm không thuộc năm học đã chọn");
         }
-        event.setStatus(StudentEventStatus.PUBLISHED);
-        event.setPublishedAt(LocalDateTime.now());
-        StudentEvent published = events.save(event);
-        notifications.createNotification(published.getStudent().getUser().getId(), published.getTitle(),
-                published.getDescription(), "Hồ sơ học sinh", published.getId(), "STUDENT_EVENT");
-        guardians.findGuardiansByStudentId(published.getStudent().getId()).forEach(parent ->
-                notifications.createNotification(parent.getUser().getId(), published.getTitle(), published.getDescription(),
-                        "Hồ sơ học sinh", published.getId(), "STUDENT_EVENT"));
-        return toEvent(published);
+        Scope scope = requireScope(event.getAcademicYear().getId(), event.getSemester().getId(), event.getCls().getId());
+        requireEventEditor(scope, requesterId, requesterRole);
+        if (requesterRole == UserRole.TEACHER && event.getStatus() == StudentEventStatus.SUBMITTED) {
+            throw new ConflictException("Vi phạm đã Submit; Admin phải mở lại trước khi xóa");
+        }
+        events.delete(event);
     }
 
     private void applyContact(ParentContactLog log, Scope scope, Student student, SaveParentContactLogRequest request) {
@@ -261,7 +266,7 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
         event.setAcademicYear(scope.year()); event.setSemester(scope.semester()); event.setCls(scope.cls());
         event.setStudent(student); event.setEventType(request.eventType()); event.setCategory(trim(request.category()));
         event.setTitle(request.title().trim()); event.setDescription(trim(request.description()));
-        event.setEventDate(request.eventDate()); event.setStatus(StudentEventStatus.DRAFT); event.setPublishedAt(null);
+        event.setEventDate(request.eventDate()); event.setStatus(StudentEventStatus.DRAFT); event.setSubmittedAt(null);
     }
 
     private Scope requireScope(Long academicYearId, Long semesterId, Long classId) {
@@ -296,6 +301,24 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
             throw new ForbiddenException("Giáo viên chỉ được quản lý hồ sơ lớp chủ nhiệm");
         }
         return teacher;
+    }
+
+    private void requireEventEditor(Scope scope, Long requesterId, UserRole requesterRole) {
+        if (requesterRole == UserRole.ADMIN) {
+            requireUser(requesterId);
+            return;
+        }
+        if (requesterRole == UserRole.TEACHER) {
+            requireHomeroom(scope, requesterId);
+            return;
+        }
+        throw new ForbiddenException("Chỉ GVCN và Admin được quản lý vi phạm");
+    }
+
+    private void requireViolation(SaveStudentEventRequest request) {
+        if (request.eventType() != StudentEventType.VIOLATION) {
+            throw new BadRequestException("Màn hình kết quả chỉ tiếp nhận lỗi vi phạm");
+        }
     }
 
     private Student requireActiveStudent(Scope scope, Long studentId) {
@@ -355,7 +378,7 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
         return new StudentEventDto(value.getId(), value.getStudent().getId(), value.getStudent().getUser().getName(),
                 value.getAcademicYear().getId(), value.getSemester().getId(), value.getCls().getId(), value.getCls().getName(),
                 value.getEventType(), value.getCategory(), value.getTitle(), value.getDescription(), value.getEventDate(),
-                value.getStatus(), value.getCreatedBy().getId(), value.getCreatedBy().getName(), value.getPublishedAt());
+                value.getStatus(), value.getCreatedBy().getId(), value.getCreatedBy().getName(), value.getSubmittedAt());
     }
 
     private boolean sameScope(Long yearId, Long semesterId, Long classId, Scope scope) {

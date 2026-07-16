@@ -42,6 +42,32 @@ class GradeBookIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(token)).contentType(MediaType.APPLICATION_JSON).content(scores(adminItem,8,6))).andExpect(status().isUnauthorized());
     }
 
+    @Test void component_publication_never_leaks_draft_or_edited_scores() throws Exception {
+        String teacherToken=loginAsTeacher();var data=book(teacherToken);Long bookId=data.get("id").asLong();
+        Long firstItem=data.get("items").get(0).get("id").asLong();Long secondItem=data.get("items").get(1).get("id").asLong();
+        mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(teacherToken)).contentType(MediaType.APPLICATION_JSON).content(scores(firstItem,8,6))).andExpect(status().isOk());
+        mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(teacherToken)).contentType(MediaType.APPLICATION_JSON).content(scores(secondItem,7,5))).andExpect(status().isOk());
+
+        String adminToken=loginAsAdmin();
+        mockMvc.perform(post("/api/grade-books/{bookId}/items/{itemId}/publish",bookId,firstItem)
+                .header("Authorization",authHeader(adminToken))).andExpect(status().isOk());
+        String studentToken=loginAsStudent1();
+        mockMvc.perform(get("/api/transcripts/me").header("Authorization",authHeader(studentToken))
+                .param("academicYearId",testAcademicYear.getId().toString()).param("semesterId",testSemester.getId().toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.subjects[0].scores[0].score").value(8))
+            .andExpect(jsonPath("$.data.subjects[0].scores[1].score").doesNotExist());
+
+        mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(teacherToken)).contentType(MediaType.APPLICATION_JSON).content(scores(firstItem,9,6))).andExpect(status().isOk());
+        mockMvc.perform(get("/api/transcripts/me").header("Authorization",authHeader(studentToken))
+                .param("academicYearId",testAcademicYear.getId().toString()).param("semesterId",testSemester.getId().toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.subjects[0].scores[0].score").doesNotExist());
+        mockMvc.perform(post("/api/grade-books/{bookId}/items/{itemId}/publish",bookId,firstItem)
+                .header("Authorization",authHeader(adminToken))).andExpect(status().isOk());
+        mockMvc.perform(get("/api/transcripts/me").header("Authorization",authHeader(studentToken))
+                .param("academicYearId",testAcademicYear.getId().toString()).param("semesterId",testSemester.getId().toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.subjects[0].scores[0].score").value(9));
+    }
+
     @Test void published_or_locked_book_requires_all_mandatory_scores() throws Exception {
         String token=loginAsAdmin();var data=book(token);Long id=data.get("id").asLong();
         mockMvc.perform(post("/api/grade-books/"+id+"/status/LOCKED").header("Authorization",authHeader(token))).andExpect(status().isConflict());

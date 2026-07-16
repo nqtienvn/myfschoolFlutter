@@ -90,14 +90,14 @@ class _TranscriptApi extends GradebookApiClient {
         'complete': true,
         'scores': [
           {
-            'name': 'Bài kiểm tra',
+            'name': 'Kiểm tra miệng',
             'weight': 1,
             'assessmentType': 'SCORE',
             'score': 8.5,
             'comment': null,
           },
           {
-            'name': 'Thực hành',
+            'name': 'Kiểm tra 15 phút',
             'weight': 1,
             'assessmentType': 'PASS_FAIL',
             'score': null,
@@ -205,12 +205,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Đạt'), findsOneWidget);
-    expect(find.text('Chủ động và hợp tác tốt'), findsOneWidget);
+    expect(find.text('Đ'), findsOneWidget);
+    expect(find.text('Chủ động và hợp tác tốt'), findsNothing);
     expect(find.text('8.5'), findsWidgets);
-    expect(
-      find.textContaining('nhận xét và Đạt/Chưa đạt không tính ĐTB'),
-      findsOneWidget,
-    );
+    expect(find.text('BẢNG TỔNG KẾT HỌC LỰC'), findsOneWidget);
+    expect(find.text('BẢNG ĐIỂM CHI TIẾT'), findsOneWidget);
   });
 }

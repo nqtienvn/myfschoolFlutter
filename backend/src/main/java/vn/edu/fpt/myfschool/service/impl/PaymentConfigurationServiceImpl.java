@@ -69,6 +69,12 @@ public class PaymentConfigurationServiceImpl implements PaymentConfigurationServ
         configuration.setBranch(normalizeOptional(request.branch()));
         configuration.setTransferContentTemplate(request.transferContentTemplate().trim());
         configuration.setEnabled(request.enabled());
+        if (request.reminderEnabled() != null) {
+            configuration.setReminderEnabled(request.reminderEnabled());
+        }
+        if (request.reminderIntervalDays() != null) {
+            configuration.setReminderIntervalDays(request.reminderIntervalDays());
+        }
         return toDto(paymentConfigurationRepository.save(configuration));
     }
 
@@ -113,6 +119,8 @@ public class PaymentConfigurationServiceImpl implements PaymentConfigurationServ
             configuration.getBranch(),
             configuration.getTransferContentTemplate(),
             configuration.getEnabled(),
+            configuration.getReminderEnabled(),
+            configuration.getReminderIntervalDays(),
             METHOD,
             DISPLAY_MODE,
             false,

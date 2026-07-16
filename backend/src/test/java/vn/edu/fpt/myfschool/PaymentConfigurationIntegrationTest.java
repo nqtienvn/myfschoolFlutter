@@ -40,7 +40,9 @@ class PaymentConfigurationIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.data.academicYearId")
                 .value(testAcademicYear.getId().intValue()))
             .andExpect(jsonPath("$.data.bankCode").value("TPB"))
-            .andExpect(jsonPath("$.data.accountNumber").value("1234567890"));
+            .andExpect(jsonPath("$.data.accountNumber").value("1234567890"))
+            .andExpect(jsonPath("$.data.reminderEnabled").value(true))
+            .andExpect(jsonPath("$.data.reminderIntervalDays").value(7));
 
         mockMvc.perform(get("/api/payment-configurations/academic-years/"
                 + otherYear.getId())
@@ -119,7 +121,9 @@ class PaymentConfigurationIntegrationTest extends BaseIntegrationTest {
               "accountHolder":"FPT SCHOOLS",
               "branch":"Ha Noi",
               "transferContentTemplate":"MFS {studentCode} {semester}",
-              "enabled":true
+              "enabled":true,
+              "reminderEnabled":true,
+              "reminderIntervalDays":7
             }
             """.formatted(bankCode, bankName, accountNumber);
     }

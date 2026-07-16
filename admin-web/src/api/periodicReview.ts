@@ -1,6 +1,6 @@
 import { apiFetch } from './client';
 
-export type PeriodicReportStatus = 'DRAFT' | 'PUBLISHED';
+export type PeriodicReportStatus = 'DRAFT' | 'SUBMITTED' | 'PUBLISHED';
 
 export interface SubjectReviewItem {
   id: number | null;
@@ -9,7 +9,7 @@ export interface SubjectReviewItem {
   comment: string | null;
   strengths: string | null;
   improvements: string | null;
-  status: 'DRAFT' | 'SUBMITTED' | 'RETURNED';
+  status: 'DRAFT' | 'SUBMITTED';
   returnReason: string | null;
 }
 

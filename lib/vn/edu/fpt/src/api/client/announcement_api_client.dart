@@ -19,6 +19,10 @@ abstract class AnnouncementApi {
     required String text,
   });
   Future<int> getUnreadCount({required String token});
+  Future<int> getUnreadCountForYear({
+    required String token,
+    int? academicYearId,
+  }) => getUnreadCount(token: token);
   Future<int> getPendingActionCount({required String token});
   Future<AnnouncementRecipientPage> getRecipients({
     required String token,
@@ -46,7 +50,7 @@ class AnnouncementApiClient implements AnnouncementApi {
     int? academicYearId,
   }) async {
     final data = await _backend.getData(
-      teacher ? '/api/announcements/mine' : '/api/announcements',
+      '/api/announcements',
       token: token,
       query: {'academicYearId': academicYearId?.toString()},
     );
@@ -92,11 +96,29 @@ class AnnouncementApiClient implements AnnouncementApi {
       _count('/api/announcements/unread-count', token);
 
   @override
+  Future<int> getUnreadCountForYear({
+    required String token,
+    int? academicYearId,
+  }) => _count(
+    '/api/announcements/unread-count',
+    token,
+    query: {'academicYearId': academicYearId?.toString()},
+  );
+
+  @override
   Future<int> getPendingActionCount({required String token}) =>
       _count('/api/announcements/pending-action-count', token);
 
-  Future<int> _count(String path, String token) async {
-    final data = await _backend.getData(path, token: token);
+  Future<int> _count(
+    String path,
+    String token, {
+    Map<String, String?>? query,
+  }) async {
+    final data = await _backend.getData(
+      path,
+      token: token,
+      query: query ?? const {},
+    );
     if (data is! int) {
       throw const ParseException('Announcement count must be an int.');
     }

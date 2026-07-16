@@ -8,11 +8,9 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_leave_requests_s
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_web_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/announcements_create_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_stats_screen.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_tuition_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/periodic_reviews_screen.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/homeroom_monitoring_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 
@@ -39,9 +37,6 @@ class _HomeTeacherState extends State<HomeTeacher> {
   );
   late final HomeroomAcademicApiClient _homeroomAcademicApi =
       HomeroomAcademicApiClient(backend: _backend);
-  late final TuitionBillApiClient _tuitionApi = TuitionBillApiClient(
-    backend: _backend,
-  );
   late final LeaveRequestApiClient _leaveApi = LeaveRequestApiClient(
     backend: _backend,
   );
@@ -52,15 +47,12 @@ class _HomeTeacherState extends State<HomeTeacher> {
   String? _employeeCode;
   int _pendingLeaveCount = 0;
   AcademicPeriod? _selectedPeriod;
-  TeacherTuitionSummaryDto? _tuitionSummary;
   String? _loadedPeriodKey;
   int _profileLoadGeneration = 0;
   int _periodLoadGeneration = 0;
   int _pendingLeaveLoadGeneration = 0;
-  int _tuitionLoadGeneration = 0;
   String? _classLoadError;
   bool _pendingLeaveLoadFailed = false;
-  bool _tuitionLoadFailed = false;
 
   @override
   void initState() {
@@ -78,7 +70,6 @@ class _HomeTeacherState extends State<HomeTeacher> {
       _selectedPeriod = null;
       _periodLoadGeneration++;
       _pendingLeaveLoadGeneration++;
-      _tuitionLoadGeneration++;
       if ((controller?.isLoading ?? false) || _loadedPeriodKey == 'none') {
         return;
       }
@@ -87,11 +78,9 @@ class _HomeTeacherState extends State<HomeTeacher> {
         _loadingClass = false;
         _classId = null;
         _className = null;
-        _tuitionSummary = null;
         _pendingLeaveCount = 0;
         _classLoadError = null;
         _pendingLeaveLoadFailed = false;
-        _tuitionLoadFailed = false;
       });
       return;
     }
@@ -192,17 +181,14 @@ class _HomeTeacherState extends State<HomeTeacher> {
     final key = '${period.academicYearId}:${period.semesterId}';
     final generation = ++_periodLoadGeneration;
     _pendingLeaveLoadGeneration++;
-    _tuitionLoadGeneration++;
     _loadedPeriodKey = key;
     setState(() {
       _loadingClass = true;
       _classId = null;
       _className = null;
-      _tuitionSummary = null;
       _pendingLeaveCount = 0;
       _classLoadError = null;
       _pendingLeaveLoadFailed = false;
-      _tuitionLoadFailed = false;
     });
     try {
       final stats = await _dashboardApi.getTeacherStats(
@@ -219,10 +205,7 @@ class _HomeTeacherState extends State<HomeTeacher> {
         _loadingClass = false;
         _classLoadError = null;
       });
-      await Future.wait<void>([
-        _loadPendingLeaveCount(period),
-        _loadTuitionSummary(period, stats.classId, key),
-      ]);
+      await _loadPendingLeaveCount(period);
     } on BackendApiException catch (error) {
       if (!_isCurrentPeriodLoad(generation, key, period, requestedToken)) {
         return;
@@ -230,7 +213,6 @@ class _HomeTeacherState extends State<HomeTeacher> {
       setState(() {
         _classId = null;
         _className = null;
-        _tuitionSummary = null;
         _loadingClass = false;
         _classLoadError = error.statusCode == 403
             ? 'Chưa được phân công chủ nhiệm trong học kỳ này.'
@@ -243,7 +225,6 @@ class _HomeTeacherState extends State<HomeTeacher> {
       setState(() {
         _classId = null;
         _className = null;
-        _tuitionSummary = null;
         _loadingClass = false;
         _classLoadError = 'Không thể đồng bộ dữ liệu lớp. Vui lòng thử lại.';
       });
@@ -259,63 +240,6 @@ class _HomeTeacherState extends State<HomeTeacher> {
       mounted &&
       generation == _periodLoadGeneration &&
       _loadedPeriodKey == requestKey &&
-      widget.authService.currentSession?.token == requestedToken &&
-      _samePeriod(period, _selectedPeriod);
-
-  Future<void> _loadTuitionSummary(
-    AcademicPeriod period,
-    int classId,
-    String requestKey,
-  ) async {
-    final session = widget.authService.currentSession;
-    if (session == null) return;
-    final requestedToken = session.token;
-    final generation = ++_tuitionLoadGeneration;
-    try {
-      final summary = await _tuitionApi.getTeacherClassSummary(
-        token: session.token,
-        classId: classId,
-        semesterId: period.semesterId,
-      );
-      if (_isCurrentTuitionLoad(
-        generation,
-        requestKey,
-        period,
-        classId,
-        requestedToken,
-      )) {
-        setState(() {
-          _tuitionSummary = summary;
-          _tuitionLoadFailed = false;
-        });
-      }
-    } catch (_) {
-      if (_isCurrentTuitionLoad(
-        generation,
-        requestKey,
-        period,
-        classId,
-        requestedToken,
-      )) {
-        setState(() {
-          _tuitionSummary = null;
-          _tuitionLoadFailed = true;
-        });
-      }
-    }
-  }
-
-  bool _isCurrentTuitionLoad(
-    int generation,
-    String requestKey,
-    AcademicPeriod period,
-    int classId,
-    String requestedToken,
-  ) =>
-      mounted &&
-      generation == _tuitionLoadGeneration &&
-      _loadedPeriodKey == requestKey &&
-      _classId == classId &&
       widget.authService.currentSession?.token == requestedToken &&
       _samePeriod(period, _selectedPeriod);
 
@@ -431,9 +355,6 @@ class _HomeTeacherState extends State<HomeTeacher> {
                   const SectionHeader(title: 'Chức năng giảng dạy & điều hành'),
                   Builder(
                     builder: (context) {
-                      final unpaidCount =
-                          _tuitionSummary?.outstandingStudents ?? 0;
-
                       return GridView.count(
                         crossAxisCount: 2,
                         shrinkWrap: true,
@@ -567,32 +488,6 @@ class _HomeTeacherState extends State<HomeTeacher> {
                               );
                             },
                           ),
-                          if (_classId != null)
-                            _FeatureButton(
-                              title: 'Theo dõi học sinh',
-                              icon: Icons.monitor_heart_outlined,
-                              color: AppColors.danger,
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => HomeroomMonitoringScreen(
-                                      token: widget
-                                          .authService
-                                          .currentSession!
-                                          .token,
-                                      classId: _classId!,
-                                      api: HomeroomMonitoringApiClient(
-                                        backend: _backend,
-                                      ),
-                                      academicApi: _homeroomAcademicApi,
-                                      reviewApi: PeriodicReviewApiClient(
-                                        backend: _backend,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
                           _FeatureButton(
                             title: 'Gửi thông báo lớp',
                             icon: Icons.campaign_outlined,
@@ -628,48 +523,6 @@ class _HomeTeacherState extends State<HomeTeacher> {
                                     ),
                                   ),
                                 );
-                              },
-                            ),
-                          if (_classId != null)
-                            _FeatureButton(
-                              title: 'QL Học phí',
-                              icon: Icons.request_quote_outlined,
-                              color: AppColors.fptOrange,
-                              badgeCount: unpaidCount > 0 ? unpaidCount : null,
-                              hasLoadError: _tuitionLoadFailed,
-                              onTap: () {
-                                final period = _selectedPeriod;
-                                final classId = _classId;
-                                if (period == null || classId == null) return;
-                                Navigator.of(context)
-                                    .push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) => TeacherTuitionScreen(
-                                          token: widget
-                                              .authService
-                                              .currentSession!
-                                              .token,
-                                          classId: classId,
-                                          semesterId: period.semesterId,
-                                          apiClient: _tuitionApi,
-                                        ),
-                                      ),
-                                    )
-                                    .then((_) {
-                                      if (!mounted) return;
-                                      final selected = _selectedPeriod;
-                                      final currentClassId = _classId;
-                                      final key = _loadedPeriodKey;
-                                      if (selected != null &&
-                                          currentClassId != null &&
-                                          key != null) {
-                                        _loadTuitionSummary(
-                                          selected,
-                                          currentClassId,
-                                          key,
-                                        );
-                                      }
-                                    });
                               },
                             ),
                         ],

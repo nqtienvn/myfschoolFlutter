@@ -10,6 +10,8 @@ export interface PaymentConfiguration {
   branch: string | null;
   transferContentTemplate: string;
   enabled: boolean;
+  reminderEnabled: boolean;
+  reminderIntervalDays: number;
   method: 'BANK_TRANSFER';
   displayMode: 'MANUAL' | 'MANUAL_AND_QR';
   qrAvailable: boolean;
@@ -24,6 +26,8 @@ export interface PaymentConfigurationInput {
   branch: string;
   transferContentTemplate: string;
   enabled: boolean;
+  reminderEnabled: boolean;
+  reminderIntervalDays: number;
 }
 
 export async function getPaymentConfiguration(

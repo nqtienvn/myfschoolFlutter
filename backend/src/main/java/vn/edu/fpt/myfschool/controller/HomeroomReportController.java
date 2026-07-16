@@ -46,18 +46,18 @@ public class HomeroomReportController {
                 service.saveHomeroomReport(studentId, request, SecurityUtil.getCurrentUserId())));
     }
 
-    @PostMapping("/students/{studentId}/publish")
-    public ResponseEntity<ApiResponse<HomeroomReportDto>> publishStudent(
+    @PostMapping("/students/{studentId}/submit")
+    public ResponseEntity<ApiResponse<HomeroomReportDto>> submitStudent(
             @PathVariable Long studentId,
             @Valid @RequestBody ReportScopeRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
-                service.publishStudent(studentId, request, SecurityUtil.getCurrentUserId())));
+                service.submitStudent(studentId, request, SecurityUtil.getCurrentUserId())));
     }
 
-    @PostMapping("/publish-class")
-    public ResponseEntity<ApiResponse<List<HomeroomReportDto>>> publishClass(
+    @PostMapping("/submit-class")
+    public ResponseEntity<ApiResponse<List<HomeroomReportDto>>> submitClass(
             @Valid @RequestBody ReportScopeRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
-                service.publishClass(request, SecurityUtil.getCurrentUserId())));
+                service.submitClass(request, SecurityUtil.getCurrentUserId())));
     }
 }

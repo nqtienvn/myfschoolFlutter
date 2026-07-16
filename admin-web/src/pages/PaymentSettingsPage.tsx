@@ -14,6 +14,8 @@ const EMPTY_FORM: PaymentConfigurationInput = {
   branch: '',
   transferContentTemplate: 'MFS {studentCode} {semester}',
   enabled: true,
+  reminderEnabled: true,
+  reminderIntervalDays: 7,
 };
 
 interface Props {
@@ -53,6 +55,8 @@ export default function PaymentSettingsPage({ selectedYearId, selectedYearStatus
           branch: configuration.branch ?? '',
           transferContentTemplate: configuration.transferContentTemplate,
           enabled: configuration.enabled,
+          reminderEnabled: configuration.reminderEnabled,
+          reminderIntervalDays: configuration.reminderIntervalDays,
         });
       })
       .catch((reason: Error) => {
@@ -108,6 +112,8 @@ export default function PaymentSettingsPage({ selectedYearId, selectedYearStatus
         branch: saved.branch ?? '',
         transferContentTemplate: saved.transferContentTemplate,
         enabled: saved.enabled,
+        reminderEnabled: saved.reminderEnabled,
+        reminderIntervalDays: saved.reminderIntervalDays,
       });
       setMessage('Đã lưu cấu hình chuyển khoản cho năm học đang chọn.');
     } catch (reason) {
@@ -177,6 +183,18 @@ export default function PaymentSettingsPage({ selectedYearId, selectedYearStatus
             <input type="checkbox" checked={form.enabled} disabled={readOnly || loading} onChange={event => patch('enabled', event.target.checked)} />
             Kích hoạt nhận xác nhận chuyển khoản trên app
           </label>
+
+          <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 18, display: 'grid', gap: 14 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700 }}>
+              <input type="checkbox" checked={form.reminderEnabled} disabled={readOnly || loading} onChange={event => patch('reminderEnabled', event.target.checked)} />
+              Tự động nhắc các khoản học phí quá hạn
+            </label>
+            <div className="form-group" style={{ maxWidth: 320 }}>
+              <label htmlFor="tuition-reminder-interval">Chu kỳ nhắc lại (ngày)</label>
+              <input id="tuition-reminder-interval" type="number" min={1} max={90} required disabled={readOnly || loading || !form.reminderEnabled} value={form.reminderIntervalDays} onChange={event => patch('reminderIntervalDays', Number(event.target.value))} />
+              <small>Job hệ thống chạy hằng ngày và chỉ gửi lại khi đã đủ chu kỳ này.</small>
+            </div>
+          </div>
 
           <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 18, background: 'var(--surface-muted, #f8fafc)' }}>
             <strong>Xem trước thông tin trên app</strong>

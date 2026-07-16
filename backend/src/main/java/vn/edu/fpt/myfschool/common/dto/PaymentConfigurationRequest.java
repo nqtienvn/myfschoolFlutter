@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 
 public record PaymentConfigurationRequest(
     @Size(max = 30) String bankCode,
@@ -13,5 +15,7 @@ public record PaymentConfigurationRequest(
     @NotBlank @Size(max = 150) String accountHolder,
     @Size(max = 150) String branch,
     @NotBlank @Size(max = 255) String transferContentTemplate,
-    @NotNull Boolean enabled
+    @NotNull Boolean enabled,
+    Boolean reminderEnabled,
+    @Min(1) @Max(90) Integer reminderIntervalDays
 ) {}

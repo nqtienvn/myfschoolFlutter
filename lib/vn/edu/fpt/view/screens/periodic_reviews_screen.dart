@@ -12,12 +12,14 @@ class PeriodicReviewsScreen extends StatefulWidget {
     required this.authService,
     this.backend,
     this.api,
+    this.monitoringApi,
     this.homeroomClassId,
   });
 
   final AuthService authService;
   final BackendApiClient? backend;
   final PeriodicReviewApi? api;
+  final HomeroomMonitoringApi? monitoringApi;
   final int? homeroomClassId;
 
   @override
@@ -27,11 +29,15 @@ class PeriodicReviewsScreen extends StatefulWidget {
 class _PeriodicReviewsScreenState extends State<PeriodicReviewsScreen> {
   AcademicPeriod? _period;
   late final PeriodicReviewApi _api;
+  late final HomeroomMonitoringApi _monitoringApi;
 
   @override
   void initState() {
     super.initState();
     _api = widget.api ?? PeriodicReviewApiClient(backend: widget.backend);
+    _monitoringApi =
+        widget.monitoringApi ??
+        HomeroomMonitoringApiClient(backend: widget.backend);
   }
 
   @override
@@ -73,6 +79,7 @@ class _PeriodicReviewsScreenState extends State<PeriodicReviewsScreen> {
               if (hasHomeroom)
                 _HomeroomReviewView(
                   api: _api,
+                  monitoringApi: _monitoringApi,
                   token: session.token,
                   period: period,
                   classId: widget.homeroomClassId!,
@@ -338,7 +345,7 @@ class _SubjectReviewViewState extends State<_SubjectReviewView> {
                                   (review.comment?.trim().isNotEmpty ?? false)
                               ? () => _submit(review)
                               : null,
-                          child: const Text('Gửi GVCN'),
+                          child: const Text('Gửi hệ thống'),
                         ),
                       ],
                     ),
@@ -360,11 +367,13 @@ class _SubjectReviewViewState extends State<_SubjectReviewView> {
 class _HomeroomReviewView extends StatefulWidget {
   const _HomeroomReviewView({
     required this.api,
+    required this.monitoringApi,
     required this.token,
     required this.period,
     required this.classId,
   });
   final PeriodicReviewApi api;
+  final HomeroomMonitoringApi monitoringApi;
   final String token;
   final AcademicPeriod period;
   final int classId;
@@ -404,9 +413,9 @@ class _HomeroomReviewViewState extends State<_HomeroomReviewView> {
     }
   }
 
-  Future<void> _publishClass() async {
+  Future<void> _submitClass() async {
     try {
-      await widget.api.publishClass(
+      await widget.api.submitHomeroomClass(
         token: widget.token,
         academicYearId: widget.period.academicYearId,
         semesterId: widget.period.semesterId,
@@ -436,9 +445,9 @@ class _HomeroomReviewViewState extends State<_HomeroomReviewView> {
         padding: const EdgeInsets.all(16),
         children: [
           FilledButton.icon(
-            onPressed: _reports.isEmpty ? null : _publishClass,
-            icon: const Icon(Icons.publish),
-            label: const Text('Công bố cả lớp'),
+            onPressed: _reports.isEmpty ? null : _submitClass,
+            icon: const Icon(Icons.send_outlined),
+            label: const Text('Submit cả lớp'),
           ),
           const SizedBox(height: 12),
           ..._reports.map(
@@ -460,6 +469,7 @@ class _HomeroomReviewViewState extends State<_HomeroomReviewView> {
                       MaterialPageRoute<void>(
                         builder: (_) => _HomeroomStudentReportScreen(
                           api: widget.api,
+                          monitoringApi: widget.monitoringApi,
                           token: widget.token,
                           period: widget.period,
                           report: report,
@@ -481,11 +491,13 @@ class _HomeroomReviewViewState extends State<_HomeroomReviewView> {
 class _HomeroomStudentReportScreen extends StatefulWidget {
   const _HomeroomStudentReportScreen({
     required this.api,
+    required this.monitoringApi,
     required this.token,
     required this.period,
     required this.report,
   });
   final PeriodicReviewApi api;
+  final HomeroomMonitoringApi monitoringApi;
   final String token;
   final AcademicPeriod period;
   final StudentPeriodicReport report;
@@ -501,13 +513,14 @@ class _HomeroomStudentReportScreenState
   late final TextEditingController _comment = TextEditingController(
     text: _report.generalComment,
   );
-  String? _conduct;
+  List<StudentEvent> _violations = const [];
+  bool _loadingViolations = true;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _conduct = _report.conduct ?? _report.suggestedConduct;
+    _loadViolations();
   }
 
   @override
@@ -517,7 +530,6 @@ class _HomeroomStudentReportScreenState
   }
 
   Future<bool> _save() async {
-    if (_conduct == null) return false;
     setState(() => _saving = true);
     try {
       _report = await widget.api.saveHomeroomReport(
@@ -527,7 +539,7 @@ class _HomeroomStudentReportScreenState
         semesterId: widget.period.semesterId,
         classId: _report.classId,
         generalComment: _comment.text.trim(),
-        conduct: _conduct!,
+        conduct: '',
       );
       if (mounted) setState(() {});
       return true;
@@ -539,61 +551,166 @@ class _HomeroomStudentReportScreenState
     }
   }
 
-  Future<void> _publish() async {
-    if (!await _save() || _comment.text.trim().isEmpty || _conduct == null) {
+  Future<void> _submit() async {
+    if (_comment.text.trim().isEmpty) {
+      _snack('Vui lòng nhập nhận xét chung trước khi Submit.');
       return;
     }
+    if (!await _save()) return;
     try {
-      _report = await widget.api.publishStudent(
+      _report = await widget.api.submitHomeroomReport(
         token: widget.token,
         studentId: _report.studentId,
         academicYearId: widget.period.academicYearId,
         semesterId: widget.period.semesterId,
         classId: _report.classId,
       );
-      if (mounted) setState(() {});
+      await _loadViolations();
+      if (mounted) {
+        setState(() {});
+        _snack('Đã Submit nhận xét và vi phạm cho Admin.');
+      }
     } catch (error) {
       if (mounted) _snack(_message(error));
     }
   }
 
-  Future<void> _returnReview(SubjectPeriodicReview review) async {
-    if (review.id == null) return;
-    final controller = TextEditingController();
-    final reason = await showDialog<String>(
+  Future<void> _loadViolations() async {
+    if (mounted) setState(() => _loadingViolations = true);
+    try {
+      final items = await widget.monitoringApi.getStudentEvents(
+        token: widget.token,
+        studentId: _report.studentId,
+        academicYearId: widget.period.academicYearId,
+        semesterId: widget.period.semesterId,
+        classId: _report.classId,
+      );
+      if (mounted) {
+        setState(() {
+          _violations = items
+              .where((item) => item.eventType == 'VIOLATION')
+              .toList(growable: false);
+        });
+      }
+    } catch (error) {
+      if (mounted) _snack(_message(error));
+    } finally {
+      if (mounted) setState(() => _loadingViolations = false);
+    }
+  }
+
+  Future<void> _editViolation([StudentEvent? current]) async {
+    final title = TextEditingController(text: current?.title);
+    final category = TextEditingController(text: current?.category);
+    final description = TextEditingController(text: current?.description);
+    var eventDate = current?.eventDate ?? DateTime.now();
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(current == null ? 'Thêm vi phạm' : 'Sửa vi phạm'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: title,
+                  maxLength: 200,
+                  decoration: const InputDecoration(labelText: 'Tiêu đề *'),
+                ),
+                TextField(
+                  controller: category,
+                  maxLength: 100,
+                  decoration: const InputDecoration(labelText: 'Phân loại'),
+                ),
+                TextField(
+                  controller: description,
+                  maxLength: 2000,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Mô tả chi tiết',
+                  ),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Ngày vi phạm'),
+                  subtitle: Text(_date(eventDate)),
+                  trailing: const Icon(Icons.calendar_month_outlined),
+                  onTap: () async {
+                    final selected = await showDatePicker(
+                      context: context,
+                      initialDate: eventDate,
+                      firstDate: widget.period.startDate,
+                      lastDate: widget.period.endDate,
+                    );
+                    if (selected != null) {
+                      setDialogState(() => eventDate = selected);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Lưu'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (save != true || title.text.trim().isEmpty) return;
+    try {
+      await widget.monitoringApi.saveStudentEvent(
+        token: widget.token,
+        studentId: _report.studentId,
+        academicYearId: widget.period.academicYearId,
+        semesterId: widget.period.semesterId,
+        classId: _report.classId,
+        eventType: 'VIOLATION',
+        category: category.text.trim(),
+        title: title.text.trim(),
+        description: description.text.trim(),
+        eventDate: eventDate,
+        eventId: current?.id,
+      );
+      await _loadViolations();
+    } catch (error) {
+      if (mounted) _snack(_message(error));
+    }
+  }
+
+  Future<void> _deleteViolation(StudentEvent violation) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Trả lại nhận xét ${review.subjectName}'),
-        content: TextField(
-          controller: controller,
-          maxLength: 500,
-          maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Lý do *'),
-        ),
+        title: const Text('Xóa vi phạm?'),
+        content: Text('Vi phạm “${violation.title}” sẽ bị xóa khỏi hồ sơ.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Hủy'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Trả lại'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xóa'),
           ),
         ],
       ),
     );
-    if (reason == null || reason.isEmpty) return;
+    if (confirmed != true) return;
     try {
-      await widget.api.returnSubjectReview(
+      await widget.monitoringApi.deleteStudentEvent(
         token: widget.token,
-        reviewId: review.id!,
+        eventId: violation.id,
         academicYearId: widget.period.academicYearId,
-        reason: reason,
       );
-      if (mounted) {
-        _snack('Đã trả lại nhận xét.');
-        Navigator.pop(context);
-      }
+      await _loadViolations();
     } catch (error) {
       if (mounted) _snack(_message(error));
     }
@@ -606,89 +723,130 @@ class _HomeroomStudentReportScreenState
       padding: const EdgeInsets.all(16),
       children: [
         AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Text(
-                'Tiến độ ${_report.submittedSubjects}/${_report.totalSubjects} môn',
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              if (_report.missingSubjects.isNotEmpty)
-                Text(
-                  'Còn thiếu: ${_report.missingSubjects.join(', ')}',
-                  style: const TextStyle(color: AppColors.danger),
+              const Icon(Icons.person_outline, color: AppColors.fptOrange),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _report.studentName,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    Text(
+                      '${_report.studentCode} · ${_report.className}',
+                      style: const TextStyle(color: AppColors.muted),
+                    ),
+                  ],
                 ),
+              ),
+              _StatusChip(status: _report.status),
             ],
           ),
         ),
         const SizedBox(height: 12),
-        ..._report.subjectReviews.map(
-          (review) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          review.subjectName,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                      _StatusChip(status: review.status),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(review.comment ?? 'Chưa gửi nhận xét'),
-                  if (review.status == 'SUBMITTED')
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => _returnReview(review),
-                        child: const Text('Trả lại'),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
+        const Text(
+          'Nhận xét chung của GVCN',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
         ),
+        const SizedBox(height: 8),
         TextField(
           controller: _comment,
           maxLength: 2000,
           maxLines: 5,
+          enabled: !_report.isSubmitted,
           decoration: const InputDecoration(
-            labelText: 'Nhận xét chung của GVCN',
+            hintText: 'Nhập nhận xét tổng quát về học tập và rèn luyện...',
           ),
         ),
-        DropdownButtonFormField<String>(
-          initialValue: _conduct,
-          decoration: InputDecoration(
-            labelText: 'Hạnh kiểm',
-            helperText:
-                'Gợi ý từ chuyên cần: ${_report.suggestedConduct ?? 'Chưa có'}',
-          ),
-          items: const ['Tốt', 'Khá', 'Trung bình', 'Yếu']
-              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-              .toList(),
-          onChanged: (value) => setState(() => _conduct = value),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Vi phạm trong học kỳ',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+              ),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: _report.isSubmitted ? null : _editViolation,
+              icon: const Icon(Icons.add),
+              label: const Text('Thêm vi phạm'),
+            ),
+          ],
         ),
+        const SizedBox(height: 8),
+        if (_loadingViolations)
+          const LinearProgressIndicator()
+        else if (_violations.isEmpty)
+          const AppCard(child: Text('Chưa ghi nhận vi phạm nào.'))
+        else
+          ..._violations.map(
+            (violation) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            violation.title,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                        _StatusChip(status: violation.status),
+                      ],
+                    ),
+                    Text(
+                      '${violation.category.isEmpty ? 'Vi phạm' : violation.category} · ${_date(violation.eventDate)}',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                      ),
+                    ),
+                    if (violation.description.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(violation.description),
+                    ],
+                    if (!_report.isSubmitted && violation.status == 'DRAFT')
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () => _editViolation(violation),
+                            icon: const Icon(Icons.edit_outlined),
+                            label: const Text('Sửa'),
+                          ),
+                          TextButton.icon(
+                            onPressed: () => _deleteViolation(violation),
+                            icon: const Icon(Icons.delete_outline),
+                            label: const Text('Xóa'),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: _saving || _report.isPublished ? null : _save,
+                onPressed: _saving || _report.isSubmitted ? null : _save,
                 child: const Text('Lưu nháp'),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: FilledButton(
-                onPressed: _saving || _report.isPublished ? null : _publish,
-                child: Text(_report.isPublished ? 'Đã công bố' : 'Công bố'),
+                onPressed: _saving || _report.isSubmitted ? null : _submit,
+                child: Text(_report.isSubmitted ? 'Đã Submit' : 'Submit'),
               ),
             ),
           ],
@@ -700,6 +858,9 @@ class _HomeroomStudentReportScreenState
   void _snack(String message) => ScaffoldMessenger.of(
     context,
   ).showSnackBar(SnackBar(content: Text(message)));
+
+  String _date(DateTime value) =>
+      '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
 }
 
 class _PublishedReportView extends StatefulWidget {
@@ -850,14 +1011,11 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = status == 'PUBLISHED' || status == 'SUBMITTED'
         ? AppColors.success
-        : status == 'RETURNED'
-        ? AppColors.danger
         : AppColors.warning;
     final label =
         {
           'PUBLISHED': 'Đã công bố',
           'SUBMITTED': 'Đã gửi',
-          'RETURNED': 'Trả lại',
           'DRAFT': 'Bản nháp',
         }[status] ??
         status;

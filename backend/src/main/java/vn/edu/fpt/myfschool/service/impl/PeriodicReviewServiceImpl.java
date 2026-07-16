@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.*;
 import vn.edu.fpt.myfschool.common.enums.*;
-import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
@@ -22,8 +21,6 @@ import java.util.*;
 @RequiredArgsConstructor
 @Transactional
 public class PeriodicReviewServiceImpl implements PeriodicReviewService {
-    private static final Set<String> CONDUCT_VALUES = Set.of("Tốt", "Khá", "Trung bình", "Yếu");
-
     private final AcademicYearRepository academicYears;
     private final SemesterRepository semesters;
     private final ClassRepository classes;
@@ -36,6 +33,7 @@ public class PeriodicReviewServiceImpl implements PeriodicReviewService {
     private final HomeroomAssignmentRepository homeroomAssignments;
     private final SubjectStudentReviewRepository subjectReviews;
     private final StudentPeriodicReportRepository reports;
+    private final StudentEventRepository events;
     private final SemesterResultRepository semesterResults;
     private final StudentReviewAuditRepository audits;
     private final UserRepository users;
@@ -78,7 +76,7 @@ public class PeriodicReviewServiceImpl implements PeriodicReviewService {
                 .findByStudentIdAndSubjectIdAndSemesterId(studentId, request.subjectId(), request.semesterId())
                 .orElseGet(SubjectStudentReview::new);
         if (review.getId() != null && review.getStatus() == SubjectReviewStatus.SUBMITTED) {
-            throw new ConflictException("Nhận xét đã gửi GVCN và chưa được trả lại");
+            throw new ConflictException("Nhận xét đã gửi hệ thống và không thể sửa");
         }
         Map<String, Object> oldValue = reviewSnapshot(review);
         review.setAcademicYear(scope.year());
@@ -121,37 +119,10 @@ public class PeriodicReviewServiceImpl implements PeriodicReviewService {
             review.setSubmittedAt(LocalDateTime.now());
             review = subjectReviews.save(review);
             audit("SUBJECT_REVIEW", review.getId(), oldValue, reviewSnapshot(review), actor,
-                    "SUBMIT_TO_HOMEROOM");
+                    "SUBMIT_TO_SYSTEM");
             result.add(toSubjectDto(review));
         }
         return result;
-    }
-
-    @Override
-    public SubjectReviewDto returnSubjectReview(Long reviewId, ReturnSubjectReviewRequest request,
-            Long teacherUserId) {
-        SubjectStudentReview review = subjectReviews.findById(reviewId)
-                .orElseThrow(() -> new ResourceNotFoundException("SubjectStudentReview", "id", reviewId));
-        if (!review.getAcademicYear().getId().equals(request.academicYearId())) {
-            throw new ForbiddenException("Nhận xét không thuộc năm học đã chọn");
-        }
-        requireHomeroomAssignment(review.getAcademicYear().getId(), review.getCls().getId(), teacherUserId);
-        if (review.getStatus() != SubjectReviewStatus.SUBMITTED) {
-            throw new ConflictException("Chỉ có thể trả lại nhận xét đã gửi");
-        }
-        reports.findByStudentIdAndSemesterId(review.getStudent().getId(), review.getSemester().getId())
-                .filter(report -> report.getStatus() == PeriodicReportStatus.PUBLISHED)
-                .ifPresent(report -> {
-                    throw new ConflictException("Báo cáo đã công bố; Admin phải mở lại trước khi trả nhận xét môn");
-                });
-        User actor = requireUser(teacherUserId);
-        Map<String, Object> oldValue = reviewSnapshot(review);
-        review.setStatus(SubjectReviewStatus.RETURNED);
-        review.setReturnReason(request.reason().trim());
-        review = subjectReviews.save(review);
-        audit("SUBJECT_REVIEW", review.getId(), oldValue, reviewSnapshot(review), actor,
-                request.reason().trim());
-        return toSubjectDto(review);
     }
 
     @Override
@@ -178,14 +149,10 @@ public class PeriodicReviewServiceImpl implements PeriodicReviewService {
         Scope scope = requireScope(request.academicYearId(), request.semesterId(), request.classId());
         Teacher homeroomTeacher = requireHomeroomAssignment(request.academicYearId(), request.classId(), teacherUserId);
         Student student = requireRosterStudent(scope, studentId);
-        String conduct = trim(request.conduct());
-        if (conduct != null && !CONDUCT_VALUES.contains(conduct)) {
-            throw new BadRequestException("Hạnh kiểm không hợp lệ");
-        }
         StudentPeriodicReport report = reports.findByStudentIdAndSemesterId(studentId, request.semesterId())
                 .orElseGet(StudentPeriodicReport::new);
-        if (report.getId() != null && report.getStatus() == PeriodicReportStatus.PUBLISHED) {
-            throw new ConflictException("Báo cáo đã công bố; Admin phải mở lại trước khi sửa");
+        if (report.getId() != null && report.getStatus() != PeriodicReportStatus.DRAFT) {
+            throw new ConflictException("Báo cáo đã Submit; Admin phải mở lại trước khi sửa");
         }
         Map<String, Object> oldValue = reportSnapshot(report);
         report.setAcademicYear(scope.year());
@@ -194,7 +161,6 @@ public class PeriodicReviewServiceImpl implements PeriodicReviewService {
         report.setStudent(student);
         report.setHomeroomTeacher(homeroomTeacher);
         report.setGeneralComment(trim(request.generalComment()));
-        report.setConduct(conduct);
         report.setStatus(PeriodicReportStatus.DRAFT);
         report = reports.save(report);
         audit("PERIODIC_REPORT", report.getId(), oldValue, reportSnapshot(report), requireUser(teacherUserId),
@@ -203,22 +169,22 @@ public class PeriodicReviewServiceImpl implements PeriodicReviewService {
     }
 
     @Override
-    public HomeroomReportDto publishStudent(Long studentId, ReportScopeRequest request, Long teacherUserId) {
+    public HomeroomReportDto submitStudent(Long studentId, ReportScopeRequest request, Long teacherUserId) {
         Scope scope = requireScope(request.academicYearId(), request.semesterId(), request.classId());
         Teacher homeroomTeacher = requireHomeroomAssignment(request.academicYearId(), request.classId(), teacherUserId);
         Student student = requireRosterStudent(scope, studentId);
-        publish(scope, student, homeroomTeacher, requireUser(teacherUserId));
+        submit(scope, student, requireUser(teacherUserId));
         return buildReport(scope, student, homeroomTeacher);
     }
 
     @Override
-    public List<HomeroomReportDto> publishClass(ReportScopeRequest request, Long teacherUserId) {
+    public List<HomeroomReportDto> submitClass(ReportScopeRequest request, Long teacherUserId) {
         Scope scope = requireScope(request.academicYearId(), request.semesterId(), request.classId());
         Teacher homeroomTeacher = requireHomeroomAssignment(request.academicYearId(), request.classId(), teacherUserId);
         User actor = requireUser(teacherUserId);
         List<Student> students = roster(scope);
-        students.forEach(student -> validatePublish(scope, student));
-        students.forEach(student -> publish(scope, student, homeroomTeacher, actor));
+        students.forEach(student -> validateSubmit(scope, student));
+        students.forEach(student -> submit(scope, student, actor));
         return students.stream().map(student -> buildReport(scope, student, homeroomTeacher)).toList();
     }
 
@@ -284,17 +250,31 @@ public class PeriodicReviewServiceImpl implements PeriodicReviewService {
         if (!report.getAcademicYear().getId().equals(request.academicYearId())) {
             throw new ForbiddenException("Báo cáo không thuộc năm học đã chọn");
         }
-        if (report.getStatus() != PeriodicReportStatus.PUBLISHED) {
-            throw new ConflictException("Chỉ có thể mở lại báo cáo đã công bố");
+        if (report.getStatus() == PeriodicReportStatus.DRAFT) {
+            throw new ConflictException("Báo cáo đang ở trạng thái bản nháp");
         }
         Map<String, Object> oldValue = reportSnapshot(report);
         report.setStatus(PeriodicReportStatus.DRAFT);
         report.setPublishedAt(null);
         report = reports.save(report);
+        Long reportClassId = report.getCls().getId();
+        events.findByStudentIdAndAcademicYearIdAndSemesterIdOrderByEventDateDesc(
+                        report.getStudent().getId(), report.getAcademicYear().getId(), report.getSemester().getId())
+                .stream()
+                .filter(event -> event.getCls().getId().equals(reportClassId))
+                .filter(event -> event.getEventType() == StudentEventType.VIOLATION)
+                .filter(event -> event.getStatus() == StudentEventStatus.SUBMITTED)
+                .forEach(event -> {
+                    event.setStatus(StudentEventStatus.DRAFT);
+                    event.setSubmittedAt(null);
+                    events.save(event);
+                });
         semesterResults.findByStudentIdAndSemesterId(report.getStudent().getId(), report.getSemester().getId())
                 .ifPresent(result -> {
                     result.setConduct(result.getSuggestedConduct());
                     result.setConductSource(ConductSource.SUGGESTED);
+                    result.setResultOverridden(false);
+                    result.setPublishedAt(null);
                     semesterResults.save(result);
                 });
         audit("PERIODIC_REPORT", report.getId(), oldValue, reportSnapshot(report), requireUser(adminUserId),
@@ -303,43 +283,35 @@ public class PeriodicReviewServiceImpl implements PeriodicReviewService {
                 report.getStudent(), report.getHomeroomTeacher());
     }
 
-    private void publish(Scope scope, Student student, Teacher homeroomTeacher, User actor) {
-        validatePublish(scope, student);
+    private void submit(Scope scope, Student student, User actor) {
+        validateSubmit(scope, student);
         StudentPeriodicReport report = reports.findByStudentIdAndSemesterId(student.getId(), scope.semester().getId())
-                .orElseThrow(() -> new ConflictException("Chưa có nhận xét chung và hạnh kiểm"));
-        if (report.getStatus() == PeriodicReportStatus.PUBLISHED) return;
+                .orElseThrow(() -> new ConflictException("Chưa có nhận xét chung"));
+        if (report.getStatus() == PeriodicReportStatus.SUBMITTED) return;
         Map<String, Object> oldValue = reportSnapshot(report);
-        report.setStatus(PeriodicReportStatus.PUBLISHED);
-        report.setPublishedAt(LocalDateTime.now());
+        report.setStatus(PeriodicReportStatus.SUBMITTED);
+        report.setPublishedAt(null);
         report = reports.save(report);
-        SemesterResult result = semesterResults.findByStudentIdAndSemesterId(student.getId(), scope.semester().getId())
-                .orElseGet(SemesterResult::new);
-        result.setStudent(student);
-        result.setSemester(scope.semester());
-        result.setCls(scope.cls());
-        result.setConduct(report.getConduct());
-        result.setConductSource(ConductSource.HOMEROOM);
-        semesterResults.save(result);
-        audit("PERIODIC_REPORT", report.getId(), oldValue, reportSnapshot(report), actor, "PUBLISH");
+        events.findByStudentIdAndAcademicYearIdAndSemesterIdOrderByEventDateDesc(
+                        student.getId(), scope.year().getId(), scope.semester().getId()).stream()
+                .filter(event -> event.getCls().getId().equals(scope.cls().getId()))
+                .filter(event -> event.getEventType() == StudentEventType.VIOLATION)
+                .filter(event -> event.getStatus() == StudentEventStatus.DRAFT)
+                .forEach(event -> {
+                    event.setStatus(StudentEventStatus.SUBMITTED);
+                    event.setSubmittedAt(LocalDateTime.now());
+                    events.save(event);
+                });
+        audit("PERIODIC_REPORT", report.getId(), oldValue, reportSnapshot(report), actor, "SUBMIT_TO_ADMIN");
     }
 
-    private void validatePublish(Scope scope, Student student) {
+    private void validateSubmit(Scope scope, Student student) {
         StudentPeriodicReport report = reports.findByStudentIdAndSemesterId(student.getId(), scope.semester().getId())
-                .orElseThrow(() -> new ConflictException("Chưa có nhận xét chung và hạnh kiểm cho "
+                .orElseThrow(() -> new ConflictException("Chưa có nhận xét chung cho "
                         + student.getStudentCode()));
-        if (trim(report.getGeneralComment()) == null || trim(report.getConduct()) == null) {
-            throw new ConflictException("Chưa đủ nhận xét chung hoặc hạnh kiểm cho " + student.getStudentCode());
+        if (trim(report.getGeneralComment()) == null) {
+            throw new ConflictException("Chưa nhập nhận xét chung cho " + student.getStudentCode());
         }
-        List<TeachingAssignment> required = requiredAssignments(scope);
-        if (required.isEmpty()) throw new ConflictException("Lớp chưa có phân công môn học");
-        Set<Long> submittedSubjectIds = subjectReviews
-                .findByStudentIdAndSemesterId(student.getId(), scope.semester().getId()).stream()
-                .filter(review -> review.getStatus() == SubjectReviewStatus.SUBMITTED)
-                .filter(review -> review.getCls().getId().equals(scope.cls().getId()))
-                .map(review -> review.getSubject().getId()).collect(java.util.stream.Collectors.toSet());
-        List<String> missing = required.stream().filter(item -> !submittedSubjectIds.contains(item.getSubject().getId()))
-                .map(item -> item.getSubject().getName()).distinct().toList();
-        if (!missing.isEmpty()) throw new ConflictException("Còn thiếu nhận xét môn: " + String.join(", ", missing));
     }
 
     private HomeroomReportDto buildReport(Scope scope, Student student, Teacher homeroomTeacher) {

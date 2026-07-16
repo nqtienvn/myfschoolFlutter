@@ -111,7 +111,7 @@ void main() {
       expect(find.text('PH Học Sinh'), findsOneWidget);
       expect(find.text('Chào cô giáo'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
-      expect(find.text('Tin nhắn phụ huynh'), findsOneWidget);
+      expect(find.text('Tin nhắn liên lạc'), findsOneWidget);
     },
   );
 

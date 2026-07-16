@@ -101,7 +101,7 @@ public class HomeroomClassReportServiceImpl implements HomeroomClassReportServic
         long attendedCount = meetingRows.stream().flatMap(item -> item.getParticipants().stream())
                 .filter(item -> item.getAttendance() == MeetingAttendance.ATTENDED).count();
         List<StudentEvent> eventRows = events.findByClsIdAndSemesterId(cls.getId(), semester.getId()).stream()
-                .filter(item -> item.getStatus() == StudentEventStatus.PUBLISHED).toList();
+                .filter(item -> item.getStatus() == StudentEventStatus.SUBMITTED).toList();
 
         return new ClassSummaryDto(year.getId(), semester.getId(), cls.getId(), cls.getName(), cls.getGradeLevel(),
                 roster.size(), attendanceRate, openRiskCount, averageGpa, ability, conduct, submittedReviews,

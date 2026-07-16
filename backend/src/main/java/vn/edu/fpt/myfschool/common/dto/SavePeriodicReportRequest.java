@@ -7,6 +7,5 @@ public record SavePeriodicReportRequest(
     @NotNull Long academicYearId,
     @NotNull Long semesterId,
     @NotNull Long classId,
-    @Size(max = 2000) String generalComment,
-    @Size(max = 50) String conduct
+    @Size(max = 2000) String generalComment
 ) {}

@@ -50,4 +50,10 @@ public class PaymentConfiguration extends BaseEntity {
 
     @Column(nullable = false)
     private Boolean enabled = true;
+
+    @Column(name = "reminder_enabled", nullable = false)
+    private Boolean reminderEnabled = true;
+
+    @Column(name = "reminder_interval_days", nullable = false)
+    private Integer reminderIntervalDays = 7;
 }

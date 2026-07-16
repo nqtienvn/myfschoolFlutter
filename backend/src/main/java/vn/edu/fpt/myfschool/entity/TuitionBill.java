@@ -64,6 +64,9 @@ public class TuitionBill extends BaseEntity {
 
     private LocalDateTime paidAt;
 
+    @Column(name = "last_reminder_at")
+    private LocalDateTime lastReminderAt;
+
     @OneToMany(mappedBy = "tuitionBill", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<PaymentTransaction> paymentTransactions = new ArrayList<>();
 }

@@ -132,44 +132,63 @@ class HomeroomMonitoringIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void publicStudentEventsExcludeDraftsAndInternalNotes() throws Exception {
-        String reward = eventBody("REWARD", "Khen thưởng", "Tiến bộ tốt");
-        var created = mockMvc.perform(post("/api/students/{studentId}/events", testStudent1.getId())
+    void studentEventsAreInternalViolationsOnly() throws Exception {
+        String violation = eventBody("VIOLATION", "Đi học muộn", "Ghi nhận nội bộ");
+        mockMvc.perform(post("/api/students/{studentId}/events", testStudent1.getId())
                         .header("Authorization", authHeader(teacherToken))
-                        .contentType(MediaType.APPLICATION_JSON).content(reward))
-                .andExpect(status().isOk()).andReturn();
-        Long rewardId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asLong();
+                        .contentType(MediaType.APPLICATION_JSON).content(violation))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.eventType").value("VIOLATION"))
+                .andExpect(jsonPath("$.data.status").value("DRAFT"));
 
         mockMvc.perform(get("/api/students/{studentId}/events", testStudent1.getId())
                         .header("Authorization", authHeader(loginAsParent()))
                         .param("academicYearId", testAcademicYear.getId().toString())
                         .param("semesterId", testSemester.getId().toString()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(0));
-        mockMvc.perform(post("/api/student-events/{id}/publish", rewardId)
-                        .header("Authorization", authHeader(teacherToken)))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
 
-        var note = mockMvc.perform(post("/api/students/{studentId}/events", testStudent1.getId())
+        mockMvc.perform(post("/api/students/{studentId}/events", testStudent1.getId())
                         .header("Authorization", authHeader(teacherToken))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(eventBody("NOTE", "Ghi chú nội bộ", "Không chia sẻ")))
-                .andExpect(status().isOk()).andReturn();
-        Long noteId = objectMapper.readTree(note.getResponse().getContentAsString()).path("data").path("id").asLong();
-        mockMvc.perform(post("/api/student-events/{id}/publish", noteId)
-                        .header("Authorization", authHeader(teacherToken)))
-                .andExpect(status().isConflict());
-
-        mockMvc.perform(get("/api/students/{studentId}/events", testStudent1.getId())
-                        .header("Authorization", authHeader(loginAsParent()))
-                        .param("academicYearId", testAcademicYear.getId().toString())
-                        .param("semesterId", testSemester.getId().toString()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].eventType").value("REWARD"));
+                        .content(eventBody("REWARD", "Khen thưởng", "Không còn thuộc luồng này")))
+                .andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/students/{studentId}/events", testStudent1.getId())
                         .header("Authorization", authHeader(loginAsStudent2()))
                         .param("academicYearId", testAcademicYear.getId().toString())
                         .param("semesterId", testSemester.getId().toString()))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminCanCorrectAndDeleteSubmittedViolations() throws Exception {
+        String adminToken = loginAsAdmin();
+        var created = mockMvc.perform(post("/api/students/{studentId}/events", testStudent1.getId())
+                        .header("Authorization", authHeader(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(eventBody("VIOLATION", "Đi học muộn", "Admin ghi nhận")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("SUBMITTED"))
+                .andExpect(jsonPath("$.data.submittedAt").isNotEmpty())
+                .andReturn();
+        Long id = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asLong();
+
+        mockMvc.perform(put("/api/student-events/{id}", id)
+                        .header("Authorization", authHeader(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(eventBody("VIOLATION", "Đi học muộn nhiều lần", "Admin điều chỉnh")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("SUBMITTED"))
+                .andExpect(jsonPath("$.data.submittedAt").isNotEmpty());
+        mockMvc.perform(delete("/api/student-events/{id}", id)
+                        .header("Authorization", authHeader(adminToken))
+                        .param("academicYearId", "999999"))
+                .andExpect(status().isForbidden());
+        assertThat(events.existsById(id)).isTrue();
+        mockMvc.perform(delete("/api/student-events/{id}", id)
+                        .header("Authorization", authHeader(adminToken))
+                        .param("academicYearId", testAcademicYear.getId().toString()))
+                .andExpect(status().isOk());
+        assertThat(events.existsById(id)).isFalse();
     }
 
     @Test
@@ -190,11 +209,11 @@ class HomeroomMonitoringIntegrationTest extends BaseIntegrationTest {
         log.setSummary("Đã liên hệ"); log.setContactedAt(LocalDateTime.now()); log.setCreatedBy(testTeacher.getUser());
         contactLogs.save(log);
 
-        StudentEvent reward = new StudentEvent();
-        reward.setStudent(testStudent1); reward.setAcademicYear(testAcademicYear); reward.setSemester(testSemester);
-        reward.setCls(testClass); reward.setEventType(StudentEventType.REWARD); reward.setTitle("Khen thưởng");
-        reward.setEventDate(LocalDate.of(2026, 10, 1)); reward.setStatus(StudentEventStatus.PUBLISHED);
-        reward.setCreatedBy(testTeacher.getUser()); reward.setPublishedAt(LocalDateTime.now()); events.save(reward);
+        StudentEvent violation = new StudentEvent();
+        violation.setStudent(testStudent1); violation.setAcademicYear(testAcademicYear); violation.setSemester(testSemester);
+        violation.setCls(testClass); violation.setEventType(StudentEventType.VIOLATION); violation.setTitle("Đi học muộn");
+        violation.setEventDate(LocalDate.of(2026, 10, 1)); violation.setStatus(StudentEventStatus.SUBMITTED);
+        violation.setCreatedBy(testTeacher.getUser()); violation.setSubmittedAt(LocalDateTime.now()); events.save(violation);
 
         mockMvc.perform(get("/api/homeroom/reports/class-summary")
                         .header("Authorization", authHeader(loginAsAdmin()))
@@ -207,7 +226,8 @@ class HomeroomMonitoringIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.data[0].averageGpa").value(8.0))
                 .andExpect(jsonPath("$.data[0].openRiskCount").value(1))
                 .andExpect(jsonPath("$.data[0].parentContactCount").value(1))
-                .andExpect(jsonPath("$.data[0].rewardCount").value(1));
+                .andExpect(jsonPath("$.data[0].rewardCount").value(0))
+                .andExpect(jsonPath("$.data[0].violationCount").value(1));
 
         AcademicYear otherYear = otherYear();
         Semester otherSemester = otherSemester(otherYear);

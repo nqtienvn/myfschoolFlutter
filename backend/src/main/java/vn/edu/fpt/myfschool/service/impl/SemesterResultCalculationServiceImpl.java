@@ -8,6 +8,9 @@ import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
 import vn.edu.fpt.myfschool.common.enums.AssessmentType;
 import vn.edu.fpt.myfschool.common.enums.ConductSource;
 import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
+import vn.edu.fpt.myfschool.common.enums.PeriodicReportStatus;
+import vn.edu.fpt.myfschool.common.enums.StudentEventStatus;
+import vn.edu.fpt.myfschool.common.enums.StudentEventType;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.entity.*;
@@ -36,6 +39,8 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
     private final GradeItemRepository gradeItemRepository;
     private final StudentScoreRepository studentScoreRepository;
     private final StudentRiskService studentRiskService;
+    private final StudentEventRepository studentEventRepository;
+    private final StudentPeriodicReportRepository studentPeriodicReportRepository;
 
     @Override
     public CalculateSemesterResultResponse calculate(Long classId, Long semesterId) {
@@ -58,6 +63,11 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
         // Attendance records are the single source of truth for conduct.
         List<Attendance> attendanceRecords = attendanceRepository
             .findByClsIdAndDateBetween(classId, semester.getStartDate(), semester.getEndDate());
+        List<StudentEvent> submittedViolations = studentEventRepository.findByClsIdAndSemesterId(classId, semesterId)
+            .stream()
+            .filter(event -> event.getEventType() == StudentEventType.VIOLATION)
+            .filter(event -> event.getStatus() == StudentEventStatus.SUBMITTED)
+            .toList();
 
         // Calculate GPA for each student
         List<StudentGPA> studentGPAs = new ArrayList<>();
@@ -85,21 +95,38 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
             SemesterResult result = semesterResultRepository
                 .findByStudentIdAndSemesterId(sg.student().getId(), semesterId)
                 .orElseGet(SemesterResult::new);
+            boolean wasPublished = result.getPublishedAt() != null;
 
             result.setStudent(sg.student());
             result.setSemester(semester);
             result.setCls(cls);
             result.setGpa(sg.gpa());
             result.setRank(rank);
-            result.setHonor(calculateHonor(sg.gpa()));
-            result.setAcademicAbility(calculateAcademicAbility(sg.gpa()));
-            String suggestedConduct = calculateConduct(sg.student().getId(), attendanceRecords);
+            String suggestedHonor = calculateHonor(sg.gpa());
+            String suggestedAcademicAbility = calculateAcademicAbility(sg.gpa());
+            result.setSuggestedHonor(suggestedHonor);
+            result.setSuggestedAcademicAbility(suggestedAcademicAbility);
+            String suggestedConduct = calculateConduct(
+                sg.student().getId(), attendanceRecords, submittedViolations);
             result.setSuggestedConduct(suggestedConduct);
-            if (result.getConductSource() != ConductSource.HOMEROOM) {
+            if (!Boolean.TRUE.equals(result.getResultOverridden())) {
+                result.setHonor(suggestedHonor);
+                result.setAcademicAbility(suggestedAcademicAbility);
                 result.setConduct(suggestedConduct);
                 result.setConductSource(ConductSource.SUGGESTED);
             }
+            result.setPublishedAt(null);
             semesterResultRepository.save(result);
+            if (wasPublished) {
+                studentPeriodicReportRepository.findByStudentIdAndSemesterId(sg.student().getId(), semesterId)
+                    .filter(report -> report.getStatus() == PeriodicReportStatus.PUBLISHED)
+                    .ifPresent(report -> {
+                        report.setStatus(PeriodicReportStatus.SUBMITTED);
+                        report.setConduct(null);
+                        report.setPublishedAt(null);
+                        studentPeriodicReportRepository.save(report);
+                    });
+            }
             updated++;
         }
 
@@ -196,26 +223,29 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
     }
 
     /**
-     * Tính hạnh kiểm từ tỷ lệ vắng không phép trong học kỳ.
-     * < 5%: Tốt | 5-15%: Khá | 15-30%: Trung bình | ≥ 30%: Yếu
+     * Tính hạnh kiểm theo mức xấu hơn giữa vi phạm và chuyên cần.
+     * Mỗi 3 vi phạm hạ một bậc; chuyên cần giữ các ngưỡng hiện hành.
      */
-    private String calculateConduct(Long studentId, List<Attendance> attendanceRecords) {
+    private String calculateConduct(Long studentId, List<Attendance> attendanceRecords,
+            List<StudentEvent> submittedViolations) {
+        long violationCount = submittedViolations.stream()
+            .filter(event -> event.getStudent().getId().equals(studentId))
+            .count();
+        int violationLevel = Math.min((int) (violationCount / 3), 3);
         long totalRecords = attendanceRecords.stream()
             .filter(record -> record.getStudent().getId().equals(studentId))
             .count();
-        if (totalRecords == 0) return "Tốt";
-
-        long absentWithoutLeave = attendanceRecords.stream()
-            .filter(record -> record.getStudent().getId().equals(studentId))
-            .filter(record -> record.getStatus() == AttendanceStatus.ABSENT_WITHOUT_LEAVE)
-            .count();
-
-        double absentRate = (double) absentWithoutLeave / totalRecords * 100.0;
-
-        if (absentRate < 5) return "Tốt";
-        if (absentRate < 15) return "Khá";
-        if (absentRate < 30) return "Trung bình";
-        return "Yếu";
+        int attendanceLevel = 0;
+        if (totalRecords > 0) {
+            long absentWithoutLeave = attendanceRecords.stream()
+                .filter(record -> record.getStudent().getId().equals(studentId))
+                .filter(record -> record.getStatus() == AttendanceStatus.ABSENT_WITHOUT_LEAVE)
+                .count();
+            double absentRate = (double) absentWithoutLeave / totalRecords * 100.0;
+            attendanceLevel = absentRate < 5 ? 0 : absentRate < 15 ? 1 : absentRate < 30 ? 2 : 3;
+        }
+        return List.of("Tốt", "Khá", "Trung bình", "Yếu")
+            .get(Math.max(violationLevel, attendanceLevel));
     }
 
     private record StudentGPA(Student student, BigDecimal gpa) {}

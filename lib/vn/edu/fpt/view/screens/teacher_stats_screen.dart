@@ -228,13 +228,6 @@ class _TeacherStatsScreenState extends State<TeacherStatsScreen> {
                   progress: _progress(stats.averageGpa, 10),
                   color: AppColors.blue,
                 ),
-                const Divider(height: AppSpacing.lg),
-                _StatItem(
-                  label: 'Tương tác phụ huynh (đã đọc)',
-                  value: _percent(stats.parentReadRate),
-                  progress: _progress(stats.parentReadRate, 100),
-                  color: AppColors.fptOrange,
-                ),
               ],
             ),
           ),

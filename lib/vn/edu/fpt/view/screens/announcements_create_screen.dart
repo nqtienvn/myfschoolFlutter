@@ -21,7 +21,6 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
   List<Map<String, dynamic>> _classes = const [], _sent = const [];
   final Set<int> _classIds = {};
   String _target = 'ALL';
-  bool _requiresReply = false;
   int? _editingId;
   bool _loading = true, _sending = false;
   int? _yearId;
@@ -52,7 +51,11 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
           token: widget.token,
           query: {'academicYearId': '$_yearId'},
         ),
-        _api.getData('/api/announcements/mine', token: widget.token),
+        _api.getData(
+          '/api/announcements/mine',
+          token: widget.token,
+          query: {'academicYearId': '$_yearId'},
+        ),
       ]);
       if (!mounted) return;
       setState(() {
@@ -82,7 +85,7 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
         'title': _title.text.trim(),
         'body': _body.text.trim(),
         'targetRole': _target,
-        'requiresReply': _requiresReply,
+        'requiresReply': false,
         'academicYearId': _yearId,
         'classIds': _classIds.toList(),
       };
@@ -115,7 +118,6 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
       _title.text = item['title'] as String? ?? '';
       _body.text = item['body'] as String? ?? '';
       _target = item['targetRole'] as String? ?? 'ALL';
-      _requiresReply = item['requiresReply'] == true;
       _classIds.clear();
       for (final c in _classes) {
         if ((item['classNames'] as List? ?? const []).contains(c['name'])) {
@@ -136,7 +138,6 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
       _title.clear();
       _body.clear();
       _target = 'ALL';
-      _requiresReply = false;
       _classIds.clear();
     });
   }
@@ -187,17 +188,6 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
                             setState(() => _target = v.first),
                       ),
                       const SizedBox(height: 14),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Yêu cầu xác nhận hoặc phản hồi'),
-                        subtitle: const Text(
-                          'Phụ huynh/học sinh sẽ thấy hành động bắt buộc.',
-                        ),
-                        value: _requiresReply,
-                        onChanged: (value) =>
-                            setState(() => _requiresReply = value),
-                      ),
-                      const SizedBox(height: 6),
                       const Text(
                         'Lớp được phân công',
                         style: TextStyle(fontWeight: FontWeight.bold),

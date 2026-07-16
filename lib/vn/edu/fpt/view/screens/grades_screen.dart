@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../../src/api/api.dart';
+import '../../src/models/periodic_review.dart';
+import '../../src/services/auth_service.dart';
 import '../design_system/app_colors.dart';
 import 'academic_period_scope.dart';
 
@@ -9,30 +12,51 @@ class GradesScreen extends StatefulWidget {
     required this.token,
     this.studentId,
     this.studentName,
+    this.authService,
+    this.backendApiClient,
     this.apiClient,
+    this.academicApiClient,
+    this.periodicReviewApi,
   });
+
   final String token;
   final int? studentId;
   final String? studentName;
+  final AuthService? authService;
+  final BackendApiClient? backendApiClient;
   final GradebookApiClient? apiClient;
+  final HomeroomAcademicApiClient? academicApiClient;
+  final PeriodicReviewApi? periodicReviewApi;
+
   @override
   State<GradesScreen> createState() => _GradesScreenState();
 }
 
 class _GradesScreenState extends State<GradesScreen> {
-  late final GradebookApiClient api = widget.apiClient ?? GradebookApiClient();
-  Map<String, dynamic>? transcript;
-  bool loading = true;
-  String? error;
-  String? loadedPeriod;
+  late final BackendApiClient _backend =
+      widget.backendApiClient ?? BackendApiClient();
+  late final GradebookApiClient _gradebookApi =
+      widget.apiClient ?? GradebookApiClient(backend: _backend);
+  late final HomeroomAcademicApiClient _academicApi =
+      widget.academicApiClient ?? HomeroomAcademicApiClient(backend: _backend);
+  late final PeriodicReviewApi _reviewApi =
+      widget.periodicReviewApi ?? PeriodicReviewApiClient(backend: _backend);
+
+  Map<String, dynamic>? _transcript;
+  HomeroomStudentResultDto? _semesterResult;
+  StudentPeriodicReport? _publishedReport;
+  bool _loading = true;
+  String? _error;
+  String? _loadedPeriod;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final period = AcademicPeriodScope.maybeOf(context)?.selected;
     if (period == null) return;
     final key = '${period.academicYearId}-${period.semesterId}';
-    if (key != loadedPeriod) {
-      loadedPeriod = key;
+    if (key != _loadedPeriod) {
+      _loadedPeriod = key;
       _load(period);
     }
   }
@@ -40,44 +64,79 @@ class _GradesScreenState extends State<GradesScreen> {
   Future<void> _load(AcademicPeriod period) async {
     final requestKey = '${period.academicYearId}-${period.semesterId}';
     setState(() {
-      loading = true;
-      error = null;
-      transcript = null;
+      _loading = true;
+      _error = null;
+      _transcript = null;
+      _semesterResult = null;
+      _publishedReport = null;
     });
     try {
-      final data = await api.getTranscript(
-        token: widget.token,
-        academicYearId: period.academicYearId,
-        semesterId: period.semesterId,
-        studentId: widget.studentId,
-      );
-      if (mounted && loadedPeriod == requestKey) {
-        setState(() => transcript = data);
-      }
-    } catch (e) {
-      if (mounted && loadedPeriod == requestKey) {
-        setState(() => error = '$e');
+      final studentId = await _resolveStudentId();
+      final results = await Future.wait<Object?>([
+        _gradebookApi.getTranscript(
+          token: widget.token,
+          academicYearId: period.academicYearId,
+          semesterId: period.semesterId,
+          studentId: widget.studentId,
+        ),
+        if (studentId == null)
+          Future<Object?>.value()
+        else
+          _academicApi
+              .getStudentSemesterResult(
+                token: widget.token,
+                studentId: studentId,
+                semesterId: period.semesterId,
+              )
+              .then<Object?>((value) => value, onError: (_, _) => null),
+        if (studentId == null)
+          Future<Object?>.value()
+        else
+          _reviewApi
+              .getPublishedReport(
+                token: widget.token,
+                studentId: studentId,
+                academicYearId: period.academicYearId,
+                semesterId: period.semesterId,
+              )
+              .then<Object?>((value) => value, onError: (_, _) => null),
+      ]);
+      if (!_isCurrent(requestKey)) return;
+      setState(() {
+        _transcript = results[0] as Map<String, dynamic>;
+        _semesterResult = results[1] as HomeroomStudentResultDto?;
+        _publishedReport = results[2] as StudentPeriodicReport?;
+      });
+    } catch (error) {
+      if (_isCurrent(requestKey)) {
+        setState(
+          () => _error = error.toString().replaceFirst('Exception: ', ''),
+        );
       }
     } finally {
-      if (mounted && loadedPeriod == requestKey) {
-        setState(() => loading = false);
-      }
+      if (_isCurrent(requestKey)) setState(() => _loading = false);
     }
   }
 
-  List<Map<String, dynamic>> get subjects =>
-      (transcript?['subjects'] as List<dynamic>? ?? const [])
-          .whereType<Map<String, dynamic>>()
-          .toList();
-  double? get overall {
-    final values = subjects
-        .map((s) => (s['average'] as num?)?.toDouble())
-        .whereType<double>()
-        .toList();
-    return values.isEmpty
-        ? null
-        : values.reduce((a, b) => a + b) / values.length;
+  Future<int?> _resolveStudentId() async {
+    if (widget.studentId != null) return widget.studentId;
+    final auth = widget.authService;
+    if (auth == null) return null;
+    if (auth.currentSession?.role == 'PARENT') return auth.selectedChild?.id;
+    return _reviewApi.resolveStudentId(token: widget.token);
   }
+
+  bool _isCurrent(String requestKey) => mounted && _loadedPeriod == requestKey;
+
+  List<Map<String, dynamic>> get _subjects =>
+      (_transcript?['subjects'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+
+  Map<String, SubjectPeriodicReview> get _reviewsBySubject => {
+    for (final review in _publishedReport?.subjectReviews ?? const [])
+      _normalize(review.subjectName): review,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -92,11 +151,12 @@ class _GradesScreenState extends State<GradesScreen> {
               : 'Bảng điểm · ${widget.studentName}',
         ),
       ),
-      body: loading
+      body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: () => period == null ? Future.value() : _load(period),
               child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 children: [
                   if (controller != null && controller.periods.isNotEmpty)
@@ -108,353 +168,496 @@ class _GradesScreenState extends State<GradesScreen> {
                       ),
                       items: controller.periods
                           .map(
-                            (p) => DropdownMenuItem(
-                              value: p,
-                              child: Text(p.label),
+                            (item) => DropdownMenuItem(
+                              value: item,
+                              child: Text(item.label),
                             ),
                           )
-                          .toList(),
-                      onChanged: (p) {
-                        if (p != null) controller.select(p);
+                          .toList(growable: false),
+                      onChanged: (value) {
+                        if (value != null) controller.select(value);
                       },
                     ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.fptOrange, Color(0xffff8a3d)],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.school, color: Colors.white, size: 42),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                transcript?['studentName'] as String? ??
-                                    widget.studentName ??
-                                    'Học sinh',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                period?.label ?? '',
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Column(
-                          children: [
-                            Text(
-                              overall?.toStringAsFixed(1) ?? '—',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 30,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const Text(
-                              'TB môn đã công bố',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (error != null)
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
                     Card(
                       color: AppColors.dangerSoft,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
-                        child: Text(error!),
+                        child: Text(_error!),
                       ),
                     ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StatCard(
-                          label: 'Môn đã công bố',
-                          value: '${subjects.length}',
-                          icon: Icons.menu_book,
-                          color: AppColors.blue,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _StatCard(
-                          label: 'Đã đủ điểm',
-                          value:
-                              '${subjects.where((s) => s['complete'] == true).length}',
-                          icon: Icons.verified,
-                          color: AppColors.green,
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                   const SizedBox(height: 18),
-                  const Text(
-                    'Bảng điểm chi tiết',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.ink,
-                    ),
+                  const _SectionTitle(
+                    index: '01',
+                    title: 'Bảng tổng kết học lực',
                   ),
                   const SizedBox(height: 10),
-                  _GradeFormulaCard(subjects: subjects),
-                  const SizedBox(height: 12),
-                  if (subjects.isEmpty)
+                  _SemesterSummaryTable(
+                    result: _semesterResult,
+                    report: _publishedReport,
+                  ),
+                  const SizedBox(height: 22),
+                  const _SectionTitle(index: '02', title: 'Bảng điểm chi tiết'),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Vuốt ngang để xem toàn bộ đầu điểm và nhận xét giáo viên.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12),
+                  ),
+                  const SizedBox(height: 10),
+                  if (_subjects.isEmpty)
                     const Card(
                       child: Padding(
                         padding: EdgeInsets.all(28),
                         child: Center(
                           child: Text(
                             'Chưa có bảng điểm nào được nhà trường công bố.',
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ),
+                    )
+                  else
+                    _AllSubjectsGradeTable(
+                      subjects: _subjects,
+                      reviewsBySubject: _reviewsBySubject,
                     ),
-                  ...subjects.map((subject) {
-                    final scores =
-                        (subject['scores'] as List<dynamic>? ?? const [])
-                            .whereType<Map<String, dynamic>>()
-                            .toList();
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ExpansionTile(
-                        initiallyExpanded: true,
-                        title: Text(
-                          subject['subjectName'] as String,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        subtitle: Text(
-                          subject['complete'] == true
-                              ? 'Đã đủ đầu điểm'
-                              : 'Đang cập nhật',
-                        ),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primarySoft,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            (subject['average'] as num?)?.toStringAsFixed(1) ??
-                                '—',
-                            style: const TextStyle(
-                              color: AppColors.fptOrange,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                        children: [
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: DataTable(
-                              headingRowColor: WidgetStatePropertyAll(
-                                AppColors.background,
-                              ),
-                              columns: [
-                                ...scores.map(
-                                  (s) => DataColumn(
-                                    label: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(s['name'] as String),
-                                        Text(
-                                          _scoreSubtitle(s),
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            color: AppColors.muted,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const DataColumn(label: Text('ĐTB')),
-                              ],
-                              rows: [
-                                DataRow(
-                                  cells: [
-                                    ...scores.map(
-                                      (s) => DataCell(
-                                        Text(
-                                          _scoreDisplay(s),
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        (subject['average'] as num?)
-                                                ?.toStringAsFixed(1) ??
-                                            '—',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w900,
-                                          color: AppColors.fptOrange,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
                 ],
               ),
             ),
     );
   }
-
-  static String _scoreSubtitle(Map<String, dynamic> score) {
-    return switch (score['assessmentType']) {
-      'PASS_FAIL' => 'Đạt / Chưa đạt',
-      'COMMENT' => 'Nhận xét',
-      _ => 'HS ${score['weight']}',
-    };
-  }
-
-  static String _scoreDisplay(Map<String, dynamic> score) {
-    return switch (score['assessmentType']) {
-      'PASS_FAIL' => switch (score['comment']) {
-        'PASS' => 'Đạt',
-        'FAIL' => 'Chưa đạt',
-        _ => '—',
-      },
-      'COMMENT' =>
-        (score['comment'] as String?)?.trim().isNotEmpty == true
-            ? score['comment'] as String
-            : '—',
-      _ => (score['score'] as num?)?.toStringAsFixed(1) ?? '—',
-    };
-  }
 }
 
-class _GradeFormulaCard extends StatelessWidget {
-  const _GradeFormulaCard({required this.subjects});
-  final List<Map<String, dynamic>> subjects;
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.index, required this.title});
+
+  final String index;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Container(
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.primarySoft,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          index,
+          style: const TextStyle(
+            color: AppColors.fptOrange,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(
+          title.toUpperCase(),
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _SemesterSummaryTable extends StatelessWidget {
+  const _SemesterSummaryTable({required this.result, required this.report});
+
+  final HomeroomStudentResultDto? result;
+  final StudentPeriodicReport? report;
 
   @override
   Widget build(BuildContext context) {
-    final configured = <String, Map<String, dynamic>>{};
-    for (final subject in subjects) {
-      for (final score in (subject['scores'] as List<dynamic>? ?? const [])) {
-        if (score is Map<String, dynamic>) {
-          if (score['assessmentType'] != 'SCORE') continue;
-          configured['${score['name']}-${score['weight']}'] = score;
-        }
-      }
+    if (result == null) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Text('Chưa có kết quả tổng kết.'),
+        ),
+      );
     }
-    final terms = configured.values
-        .map((score) => '${score['name']} × ${score['weight']}')
-        .join(' + ');
-    final weights = configured.values.fold<int>(
-      0,
-      (sum, score) => sum + (score['weight'] as num).toInt(),
-    );
+    final comment = report?.generalComment?.trim();
+    final teacher = report?.homeroomTeacherName?.trim();
+    final rows = <(String, Widget)>[
+      ('Danh hiệu', _value(result!.honor)),
+      ('Điểm TB', _value(result!.gpa?.toStringAsFixed(1))),
+      ('Hạnh kiểm', _value(result!.conduct)),
+      ('Học lực', _value(result!.academicAbility)),
+      ('Xếp hạng', _value(result!.rank?.toString())),
+      (
+        'Nhận xét GVCN',
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              comment?.isNotEmpty == true ? comment! : 'Chưa có nhận xét.',
+              style: const TextStyle(fontStyle: FontStyle.italic),
+            ),
+            if (teacher?.isNotEmpty == true) ...[
+              const SizedBox(height: 5),
+              Text(
+                '— $teacher',
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ];
     return Card(
-      child: ExpansionTile(
-        leading: const Icon(Icons.calculate_outlined, color: AppColors.blue),
-        title: const Text(
-          'Cách hệ thống tính điểm',
-          style: TextStyle(fontWeight: FontWeight.w800),
+      clipBehavior: Clip.antiAlias,
+      child: Table(
+        columnWidths: const {0: FixedColumnWidth(128), 1: FlexColumnWidth()},
+        border: const TableBorder(
+          horizontalInside: BorderSide(color: AppColors.line),
+          verticalInside: BorderSide(color: AppColors.line),
         ),
-        subtitle: const Text(
-          'Chỉ đầu điểm số được tính; nhận xét và Đạt/Chưa đạt không tính ĐTB',
-        ),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Điểm trung bình môn = Tổng (điểm × hệ số) / Tổng hệ số. Kết quả được làm tròn 1 chữ số thập phân.',
+          for (final row in rows)
+            TableRow(
+              decoration: const BoxDecoration(color: Colors.white),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(13),
+                  child: Text(
+                    row.$1,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Padding(padding: const EdgeInsets.all(13), child: row.$2),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _value(String? value) => Text(
+    value?.trim().isNotEmpty == true ? value! : '—',
+    style: const TextStyle(fontWeight: FontWeight.w800),
+  );
+}
+
+class _AllSubjectsGradeTable extends StatelessWidget {
+  const _AllSubjectsGradeTable({
+    required this.subjects,
+    required this.reviewsBySubject,
+  });
+
+  static const double _headerHeight = 54;
+  static const double _rowHeight = 66;
+  final List<Map<String, dynamic>> subjects;
+  final Map<String, SubjectPeriodicReview> reviewsBySubject;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = subjects
+        .map(
+          (subject) => _SubjectGradeRow(
+            subject: subject,
+            review:
+                reviewsBySubject[_normalize(
+                  subject['subjectName'] as String? ?? '',
+                )],
+          ),
+        )
+        .toList(growable: false);
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 138,
+            child: Column(
+              children: [
+                _headerCell('Môn học', height: _headerHeight, left: true),
+                for (final row in rows)
+                  _bodyCell(
+                    row.subjectName,
+                    height: _rowHeight,
+                    left: true,
+                    bold: true,
+                  ),
+              ],
             ),
           ),
-          if (configured.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Theo cấu hình hiện tại: ($terms) / $weights',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: 700,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        _headerCell('Đ. miệng', width: 92),
+                        _headerCell('Đ. 15p', width: 92),
+                        _headerCell('Đ. 1 tiết', width: 92),
+                        _headerCell('Học kỳ', width: 84),
+                        _headerCell('TBM', width: 70),
+                        _headerCell('Nhận xét GV', width: 270),
+                      ],
+                    ),
+                    for (final row in rows)
+                      Row(
+                        children: [
+                          _bodyCell(row.oral, width: 92),
+                          _bodyCell(row.shortTest, width: 92),
+                          _bodyCell(row.midTerm, width: 92),
+                          _bodyCell(row.finalTerm, width: 84),
+                          _bodyCell(
+                            row.average,
+                            width: 70,
+                            bold: true,
+                            color: AppColors.fptOrange,
+                          ),
+                          _ReviewCell(
+                            text: row.comment,
+                            teacherName: row.teacherName,
+                            width: 270,
+                            height: _rowHeight,
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
-          const SizedBox(height: 8),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Điểm trung bình học kỳ = Tổng điểm trung bình các môn / số môn có điểm. Admin thực hiện tính và công bố trước khi bảng điểm hiển thị tại đây.',
             ),
           ),
         ],
       ),
     );
   }
+
+  static Widget _headerCell(
+    String text, {
+    double width = 138,
+    double height = _headerHeight,
+    bool left = false,
+  }) => Container(
+    width: width,
+    height: height,
+    alignment: left ? Alignment.centerLeft : Alignment.center,
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    decoration: const BoxDecoration(
+      color: AppColors.primarySoft,
+      border: Border(
+        right: BorderSide(color: AppColors.line),
+        bottom: BorderSide(color: AppColors.line),
+      ),
+    ),
+    child: Text(
+      text,
+      textAlign: left ? TextAlign.left : TextAlign.center,
+      style: const TextStyle(
+        color: AppColors.ink,
+        fontSize: 12,
+        fontWeight: FontWeight.w900,
+      ),
+    ),
+  );
+
+  static Widget _bodyCell(
+    String text, {
+    double width = 138,
+    double height = _rowHeight,
+    bool left = false,
+    bool bold = false,
+    Color color = AppColors.ink,
+  }) => Container(
+    width: width,
+    height: height,
+    alignment: left ? Alignment.centerLeft : Alignment.center,
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    decoration: const BoxDecoration(
+      color: Colors.white,
+      border: Border(
+        right: BorderSide(color: AppColors.line),
+        bottom: BorderSide(color: AppColors.line),
+      ),
+    ),
+    child: Text(
+      text,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      textAlign: left ? TextAlign.left : TextAlign.center,
+      style: TextStyle(
+        color: color,
+        fontSize: 12,
+        fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+      ),
+    ),
+  );
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
+class _ReviewCell extends StatelessWidget {
+  const _ReviewCell({
+    required this.text,
+    required this.teacherName,
+    required this.width,
+    required this.height,
   });
-  final String label, value;
-  final IconData icon;
-  final Color color;
+
+  final String text;
+  final String teacherName;
+  final double width;
+  final double height;
+
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
+  Widget build(BuildContext context) => InkWell(
+    onTap: text == '—'
+        ? null
+        : () => showDialog<void>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Nhận xét giáo viên'),
+              content: SingleChildScrollView(child: Text(text)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Đóng'),
                 ),
-              ),
-              Text(
-                label,
-                style: const TextStyle(fontSize: 11, color: AppColors.muted),
-              ),
-            ],
+              ],
+            ),
           ),
+    child: Container(
+      width: width,
+      height: height,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          right: BorderSide(color: AppColors.line),
+          bottom: BorderSide(color: AppColors.line),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12),
+          ),
+          if (teacherName.isNotEmpty)
+            Text(
+              teacherName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.muted, fontSize: 10),
+            ),
         ],
       ),
     ),
   );
+}
+
+class _SubjectGradeRow {
+  _SubjectGradeRow({
+    required Map<String, dynamic> subject,
+    required SubjectPeriodicReview? review,
+  }) : subjectName = subject['subjectName'] as String? ?? '—',
+       oral = _scoreGroup(subject, _ScoreColumn.oral),
+       shortTest = _scoreGroup(subject, _ScoreColumn.shortTest),
+       midTerm = _scoreGroup(subject, _ScoreColumn.midTerm),
+       finalTerm = _scoreGroup(subject, _ScoreColumn.finalTerm),
+       average = _average(subject),
+       comment = review?.comment?.trim().isNotEmpty == true
+           ? review!.comment!.trim()
+           : '—',
+       teacherName = review?.subjectTeacherName.trim() ?? '';
+
+  final String subjectName;
+  final String oral;
+  final String shortTest;
+  final String midTerm;
+  final String finalTerm;
+  final String average;
+  final String comment;
+  final String teacherName;
+
+  static String _scoreGroup(Map<String, dynamic> subject, _ScoreColumn column) {
+    final scores = (subject['scores'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .where((score) => _columnFor(score['name'] as String? ?? '') == column)
+        .map(_scoreDisplay)
+        .where((value) => value != '—')
+        .toList(growable: false);
+    return scores.isEmpty ? '—' : scores.join('  ');
+  }
+
+  static String _average(Map<String, dynamic> subject) {
+    final scores = (subject['scores'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
+    if (scores.isNotEmpty &&
+        scores.every((score) => score['assessmentType'] == 'PASS_FAIL')) {
+      final values = scores.map(_scoreDisplay).where((value) => value != '—');
+      if (values.contains('CĐ')) return 'CĐ';
+      return values.isEmpty ? '—' : 'Đ';
+    }
+    if (scores.isNotEmpty &&
+        scores.every((score) => score['assessmentType'] == 'COMMENT')) {
+      return '—';
+    }
+    return (subject['average'] as num?)?.toStringAsFixed(1) ?? '—';
+  }
+
+  static String _scoreDisplay(Map<String, dynamic> score) =>
+      switch (score['assessmentType']) {
+        'PASS_FAIL' => switch (score['comment']) {
+          'PASS' => 'Đ',
+          'FAIL' => 'CĐ',
+          _ => '—',
+        },
+        'COMMENT' => '—',
+        _ => (score['score'] as num?)?.toStringAsFixed(1) ?? '—',
+      };
+
+  static _ScoreColumn? _columnFor(String name) {
+    final value = _normalize(name);
+    if (value.contains('mieng')) return _ScoreColumn.oral;
+    if (value.contains('15')) return _ScoreColumn.shortTest;
+    if (value.contains('hoc ky') || value.contains('cuoi ky')) {
+      return _ScoreColumn.finalTerm;
+    }
+    if (value.contains('1 tiet') || value.contains('giua ky')) {
+      return _ScoreColumn.midTerm;
+    }
+    return null;
+  }
+}
+
+enum _ScoreColumn { oral, shortTest, midTerm, finalTerm }
+
+String _normalize(String value) {
+  var normalized = value.trim().toLowerCase();
+  const source =
+      'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
+  const target =
+      'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd';
+  for (var index = 0; index < source.length; index++) {
+    normalized = normalized.replaceAll(source[index], target[index]);
+  }
+  return normalized.replaceAll(RegExp(r'\s+'), ' ');
 }

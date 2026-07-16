@@ -65,9 +65,20 @@ class _RecordingBackendApiClient extends BackendApiClient {
   }
 
   @override
-  Future<Object?> deleteData(String path, {String? token, Object? body}) async {
+  Future<Object?> deleteData(
+    String path, {
+    String? token,
+    Map<String, String?> query = const {},
+    Object? body,
+  }) async {
     calls.add(
-      _BackendCall(method: 'DELETE', path: path, token: token, body: body),
+      _BackendCall(
+        method: 'DELETE',
+        path: path,
+        token: token,
+        query: query,
+        body: body,
+      ),
     );
     return _nextResponse();
   }

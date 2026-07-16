@@ -88,7 +88,7 @@ void main() {
     },
   );
 
-  testWidgets('teacher opens recipient tracking and sees the reply', (
+  testWidgets('teacher receives announcements without recipient tracking', (
     tester,
   ) async {
     final api = _FakeAnnouncementApi();
@@ -106,9 +106,8 @@ void main() {
     await tester.tap(find.text('Họp phụ huynh').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Theo dõi người nhận'), findsOneWidget);
-    expect(find.text('PH Nguyễn An'), findsOneWidget);
-    expect(find.text('Phản hồi: Tôi sẽ tham gia'), findsOneWidget);
+    expect(find.text('Theo dõi người nhận'), findsNothing);
+    expect(find.text('Nhà trường kính mời phụ huynh tham dự.'), findsWidgets);
   });
 }
 
@@ -202,6 +201,12 @@ class _FakeAnnouncementApi implements AnnouncementApi {
 
   @override
   Future<int> getUnreadCount({required String token}) async => read ? 0 : 1;
+
+  @override
+  Future<int> getUnreadCountForYear({
+    required String token,
+    int? academicYearId,
+  }) => getUnreadCount(token: token);
 
   @override
   Future<void> markRead({required String token, required int id}) async {

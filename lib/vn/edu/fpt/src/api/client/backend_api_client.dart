@@ -43,8 +43,13 @@ class BackendApiClient {
     return _send('PUT', path, token: token, body: body);
   }
 
-  Future<Object?> deleteData(String path, {String? token, Object? body}) {
-    return _send('DELETE', path, token: token, body: body);
+  Future<Object?> deleteData(
+    String path, {
+    String? token,
+    Map<String, String?> query = const {},
+    Object? body,
+  }) {
+    return _send('DELETE', path, token: token, query: query, body: body);
   }
 
   Uri wsUri(String path, {required String token}) {

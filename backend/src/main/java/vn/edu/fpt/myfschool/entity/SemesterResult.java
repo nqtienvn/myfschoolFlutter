@@ -17,6 +17,7 @@ import jakarta.persistence.Enumerated;
 import vn.edu.fpt.myfschool.common.enums.ConductSource;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "semester_results",
@@ -52,6 +53,9 @@ public class SemesterResult extends BaseEntity {
     @Column(length = 50)
     private String honor;
 
+    @Column(name = "suggested_honor", length = 50)
+    private String suggestedHonor;
+
     @Column(length = 50)
     private String conduct;
 
@@ -64,4 +68,13 @@ public class SemesterResult extends BaseEntity {
 
     @Column(name = "academic_ability", length = 50)
     private String academicAbility;
+
+    @Column(name = "suggested_academic_ability", length = 50)
+    private String suggestedAcademicAbility;
+
+    @Column(name = "result_overridden", nullable = false)
+    private Boolean resultOverridden = false;
+
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
 }

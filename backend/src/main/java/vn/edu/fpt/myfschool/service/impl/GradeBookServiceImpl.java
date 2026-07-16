@@ -60,8 +60,11 @@ public class GradeBookServiceImpl implements GradeBookService {
             CanonicalAssessment value=canonicalAssessment(item.getAssessmentType(),entry);
             StudentScore score=scores.findByGradeItemIdAndStudentId(item.getId(),entry.studentId()).orElseGet(()->{StudentScore s=new StudentScore();s.setGradeItem(item);s.setStudent(students.findById(entry.studentId()).orElseThrow(()->new ResourceNotFoundException("Student","id",entry.studentId())));return s;});
             BigDecimal oldScore=score.getScore();String oldComment=score.getComment();Boolean oldIsGraded=score.getIsGraded();
-            score.setScore(value.score());score.setIsGraded(value.graded());score.setNote(trimToNull(entry.note()));score.setIsCommentBased(item.getAssessmentType()!=AssessmentType.SCORE);score.setComment(value.comment());score.setEnteredBy(actor);score=scores.save(score);
-            if(!Objects.equals(oldScore,score.getScore())||!Objects.equals(oldComment,score.getComment())||!Objects.equals(oldIsGraded,score.getIsGraded())){StudentScoreAudit audit=new StudentScoreAudit();audit.setStudentScore(score);audit.setOldScore(oldScore);audit.setNewScore(score.getScore());audit.setOldComment(oldComment);audit.setNewComment(score.getComment());audit.setOldIsGraded(oldIsGraded);audit.setNewIsGraded(score.getIsGraded());audit.setChangedBy(actor);audit.setReason(trimToNull(request.reason()));audit.setChangedAt(LocalDateTime.now());audits.save(audit);}
+            score.setScore(value.score());score.setIsGraded(value.graded());score.setNote(trimToNull(entry.note()));score.setIsCommentBased(item.getAssessmentType()!=AssessmentType.SCORE);score.setComment(value.comment());score.setEnteredBy(actor);
+            boolean changed=!Objects.equals(oldScore,score.getScore())||!Objects.equals(oldComment,score.getComment())||!Objects.equals(oldIsGraded,score.getIsGraded());
+            if(changed)score.setPublishedAt(null);
+            score=scores.save(score);
+            if(changed){StudentScoreAudit audit=new StudentScoreAudit();audit.setStudentScore(score);audit.setOldScore(oldScore);audit.setNewScore(score.getScore());audit.setOldComment(oldComment);audit.setNewComment(score.getComment());audit.setOldIsGraded(oldIsGraded);audit.setNewIsGraded(score.getIsGraded());audit.setChangedBy(actor);audit.setReason(trimToNull(request.reason()));audit.setChangedAt(LocalDateTime.now());audits.save(audit);}
             result.add(scoreDto(score));
         } return result;
     }
@@ -97,6 +100,18 @@ public class GradeBookServiceImpl implements GradeBookService {
         if(status==GradeBookStatus.PUBLISHED||status==GradeBookStatus.LOCKED) requireComplete(book);
         book.setStatus(status);book.setIsFinalized(status==GradeBookStatus.LOCKED);books.save(book);
         if(status==GradeBookStatus.PUBLISHED||status==GradeBookStatus.LOCKED) for(StudentScore score:scores.findByGradeItemGradeBookId(id)){score.setPublishedAt(LocalDateTime.now());scores.save(score);}
+    }
+
+    @Override public void publishGradeItem(Long gradeBookId,Long gradeItemId){
+        if(SecurityUtil.getCurrentUserRole()!=UserRole.ADMIN)throw new UnauthorizedException("Chỉ admin được công bố điểm");
+        GradeBook book=books.findById(gradeBookId).orElseThrow(()->new ResourceNotFoundException("GradeBook","id",gradeBookId));
+        if(book.getStatus()==GradeBookStatus.LOCKED)throw new ConflictException("Bảng điểm đã khóa");
+        GradeItem item=items.findById(gradeItemId).orElseThrow(()->new ResourceNotFoundException("GradeItem","id",gradeItemId));
+        if(!item.getGradeBook().getId().equals(gradeBookId))throw new BadRequestException("Đầu điểm không thuộc bảng điểm đã chọn");
+        LocalDateTime now=LocalDateTime.now();
+        scores.findByGradeItemId(gradeItemId).stream().filter(score->Boolean.TRUE.equals(score.getIsGraded()))
+            .forEach(score->{score.setPublishedAt(now);scores.save(score);});
+        book.setStatus(GradeBookStatus.PUBLISHED);books.save(book);
     }
 
     @Override @Transactional(readOnly=true) public List<StudentScoreDto> getStudentScores(Long id){GradeBook book=books.findById(id).orElseThrow(()->new ResourceNotFoundException("GradeBook","id",id));authorizeRead(book);List<StudentScoreDto> out=new ArrayList<>();for(Student student:enrollments.findActiveStudentsByClassAndYear(book.getCls().getId(),book.getCls().getAcademicYear().getId()))for(GradeItem item:items.findByGradeBookIdOrderByOrderAsc(id)){StudentScore score=scores.findByGradeItemIdAndStudentId(item.getId(),student.getId()).orElse(null);out.add(score==null?new StudentScoreDto(null,student.getId(),student.getUser().getName(),student.getStudentCode(),item.getId(),null,false,null,false,null,calculateAverage(student.getId(),id)):scoreDto(score));}return out;}

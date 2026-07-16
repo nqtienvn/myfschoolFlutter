@@ -51,11 +51,4 @@ public class SubjectReviewController {
                 service.submitSubjectReviews(request, SecurityUtil.getCurrentUserId())));
     }
 
-    @PutMapping("/{id}/return")
-    public ResponseEntity<ApiResponse<SubjectReviewDto>> returnReview(
-            @PathVariable Long id,
-            @Valid @RequestBody ReturnSubjectReviewRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(
-                service.returnSubjectReview(id, request, SecurityUtil.getCurrentUserId())));
-    }
 }

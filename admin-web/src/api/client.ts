@@ -21,8 +21,42 @@ export function clearToken() {
   localStorage.removeItem('admin_token');
 }
 
+export function getTeacherToken(): string | null {
+  return localStorage.getItem('teacher_token');
+}
+
+export function setTeacherToken(token: string) {
+  localStorage.setItem('teacher_token', token);
+}
+
+export function clearTeacherToken() {
+  localStorage.removeItem('teacher_token');
+}
+
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
-  const token = getToken();
+  return authenticatedFetch(path, options, getToken(), () => {
+    clearToken();
+    window.location.reload();
+  });
+}
+
+export async function teacherApiFetch(path: string, options: RequestInit = {}): Promise<any> {
+  return authenticatedFetch(path, options, getTeacherToken(), () => {
+    clearTeacherToken();
+    localStorage.removeItem('teacher_user');
+    if (window.location.pathname !== '/teacher/login') {
+      window.history.replaceState({}, '', '/teacher/login');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  });
+}
+
+async function authenticatedFetch(
+  path: string,
+  options: RequestInit,
+  token: string | null,
+  onUnauthorized: () => void,
+): Promise<any> {
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),
   };
@@ -38,9 +72,8 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     throw new Error('Không thể kết nối tới máy chủ. Vui lòng kiểm tra backend và thử lại.');
   }
 
-  if (res.status === 401 || res.status === 403) {
-    clearToken();
-    window.location.reload();
+  if (res.status === 401) {
+    onUnauthorized();
     throw new Error('Unauthorized');
   }
 

@@ -27,7 +27,7 @@ public interface AnnouncementService {
 
     AnnouncementDto getAnnouncementDetail(Long announcementId, Long userId, UserRole role);
 
-    List<AnnouncementDto> getAnnouncements(Long userId, UserRole role);
+    List<AnnouncementDto> getAnnouncements(Long userId, UserRole role, Long academicYearId);
 
     void markAsRead(Long announcementId, Long userId, UserRole role);
 
@@ -39,7 +39,7 @@ public interface AnnouncementService {
             Long classId, UserRole role, String status, String keyword, int page, int size,
             Long requesterId, UserRole requesterRole);
 
-    long getUnreadCount(Long userId, UserRole role);
+    long getUnreadCount(Long userId, UserRole role, Long academicYearId);
 
     long getPendingActionCount(Long userId, UserRole role);
 }

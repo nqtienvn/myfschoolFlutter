@@ -67,6 +67,15 @@ public class GradeBookController {
         return ResponseEntity.ok(ApiResponse.success("Đã cập nhật trạng thái bảng điểm", null));
     }
 
+    @PostMapping("/{id}/items/{itemId}/publish")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Công bố linh hoạt một đầu điểm đã nhập")
+    public ResponseEntity<ApiResponse<Void>> publishGradeItem(
+            @PathVariable Long id, @PathVariable Long itemId) {
+        gradeBookService.publishGradeItem(id, itemId);
+        return ResponseEntity.ok(ApiResponse.success("Đã công bố đầu điểm", null));
+    }
+
     @PostMapping("/{id}/calculate")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<vn.edu.fpt.myfschool.common.dto.GradeCalculationDto>>> calculate(@PathVariable Long id) {

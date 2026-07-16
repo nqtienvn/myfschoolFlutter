@@ -336,7 +336,7 @@ class _SubmittedAttendanceApi extends _AttendanceApi {
 }
 
 void main() {
-  testWidgets('teacher home uses backend class and tuition summary', (
+  testWidgets('teacher home uses backend class without tuition management', (
     tester,
   ) async {
     final backend = _TeacherBackend();
@@ -360,14 +360,7 @@ void main() {
 
     expect(find.text('GVCN 12A1'), findsOneWidget);
     expect(find.textContaining('GV-DEMO-01'), findsOneWidget);
-    await tester.ensureVisible(find.text('QL Học phí'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('QL Học phí'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Lớp 12A1 · Học kỳ I'), findsOneWidget);
-    expect(find.text('Nguyễn An'), findsOneWidget);
-    expect(find.text('Trần Bình'), findsOneWidget);
+    expect(find.text('QL Học phí'), findsNothing);
   });
 
   testWidgets('teacher attendance uses the selected period reference date', (

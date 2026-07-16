@@ -21,7 +21,9 @@ public interface HomeroomEngagementService {
 
     List<StudentEventDto> getStudentEvents(Long studentId, Long academicYearId, Long semesterId,
             Long classId, Long requesterId, UserRole requesterRole);
-    StudentEventDto createStudentEvent(Long studentId, SaveStudentEventRequest request, Long teacherUserId);
-    StudentEventDto updateStudentEvent(Long id, SaveStudentEventRequest request, Long teacherUserId);
-    StudentEventDto publishStudentEvent(Long id, Long teacherUserId);
+    StudentEventDto createStudentEvent(Long studentId, SaveStudentEventRequest request,
+            Long requesterId, UserRole requesterRole);
+    StudentEventDto updateStudentEvent(Long id, SaveStudentEventRequest request,
+            Long requesterId, UserRole requesterRole);
+    void deleteStudentEvent(Long id, Long academicYearId, Long requesterId, UserRole requesterRole);
 }

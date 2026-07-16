@@ -36,6 +36,6 @@ public class StudentEvent extends BaseEntity {
     private StudentEventStatus status = StudentEventStatus.DRAFT;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
-    @Column(name = "published_at")
-    private LocalDateTime publishedAt;
+    @Column(name = "submitted_at")
+    private LocalDateTime submittedAt;
 }

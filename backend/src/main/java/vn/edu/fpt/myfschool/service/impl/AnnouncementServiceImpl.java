@@ -11,6 +11,7 @@ import vn.edu.fpt.myfschool.common.dto.AnnouncementRecipientDto;
 import vn.edu.fpt.myfschool.common.enums.AssignmentStatus;
 import vn.edu.fpt.myfschool.common.enums.TargetRole;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
+import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ForbiddenException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.entity.*;
@@ -194,7 +195,9 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 .orElseThrow(() -> new ResourceNotFoundException("Announcement", "id", id));
         if (role != UserRole.ADMIN && !canViewAnnouncement(ann, userId, role))
             throw new ForbiddenException("Bạn không có quyền xem thông báo này");
-        if (role == UserRole.PARENT || role == UserRole.STUDENT) {
+        if (role == UserRole.PARENT || role == UserRole.STUDENT
+                || (role == UserRole.TEACHER
+                    && announcementReadRepository.existsByAnnouncementIdAndUserId(id, userId))) {
             markAsRead(id, userId, role);
         }
         AnnouncementRead recipient = announcementReadRepository.findByAnnouncementIdAndUserId(id, userId).orElse(null);
@@ -202,10 +205,15 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     @Override @Transactional(readOnly = true)
-    public List<AnnouncementDto> getAnnouncements(Long userId, UserRole role) {
+    public List<AnnouncementDto> getAnnouncements(Long userId, UserRole role, Long academicYearId) {
         requireRecipientRole(role);
+        if (role == UserRole.TEACHER && academicYearId == null) {
+            throw new BadRequestException("Giáo viên phải chọn năm học khi xem thông báo");
+        }
         return announcementReadRepository.findByUserIdOrderByAnnouncementCreatedAtDesc(userId).stream()
                 .filter(read -> "APPROVED".equals(read.getAnnouncement().getApprovalStatus()))
+                .filter(read -> academicYearId == null
+                        || read.getAnnouncement().getAcademicYear().getId().equals(academicYearId))
                 .map(read -> toDto(read.getAnnouncement(), read))
                 .toList();
     }
@@ -222,9 +230,16 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     @Override @Transactional(readOnly = true)
-    public long getUnreadCount(Long userId, UserRole role) {
+    public long getUnreadCount(Long userId, UserRole role, Long academicYearId) {
         requireRecipientRole(role);
-        return announcementReadRepository.countByUserIdAndReadAtIsNull(userId);
+        if (role == UserRole.TEACHER && academicYearId == null) {
+            throw new BadRequestException("Giáo viên phải chọn năm học khi đếm thông báo chưa đọc");
+        }
+        return announcementReadRepository.findByUserIdOrderByAnnouncementCreatedAtDesc(userId).stream()
+                .filter(read -> read.getReadAt() == null)
+                .filter(read -> academicYearId == null
+                        || read.getAnnouncement().getAcademicYear().getId().equals(academicYearId))
+                .count();
     }
 
     @Override
@@ -475,8 +490,8 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     private void requireRecipientRole(UserRole role) {
-        if (role != UserRole.PARENT && role != UserRole.STUDENT) {
-            throw new ForbiddenException("Chức năng này chỉ dành cho phụ huynh và học sinh");
+        if (role != UserRole.PARENT && role != UserRole.STUDENT && role != UserRole.TEACHER) {
+            throw new ForbiddenException("Tài khoản không thuộc nhóm người nhận thông báo");
         }
     }
 

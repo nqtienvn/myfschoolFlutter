@@ -47,20 +47,14 @@ abstract class PeriodicReviewApi {
     required String generalComment,
     required String conduct,
   });
-  Future<void> returnSubjectReview({
-    required String token,
-    required int reviewId,
-    required int academicYearId,
-    required String reason,
-  });
-  Future<StudentPeriodicReport> publishStudent({
+  Future<StudentPeriodicReport> submitHomeroomReport({
     required String token,
     required int studentId,
     required int academicYearId,
     required int semesterId,
     required int classId,
   });
-  Future<void> publishClass({
+  Future<void> submitHomeroomClass({
     required String token,
     required int academicYearId,
     required int semesterId,
@@ -205,28 +199,13 @@ class PeriodicReviewApiClient implements PeriodicReviewApi {
         'semesterId': semesterId,
         'classId': classId,
         'generalComment': generalComment,
-        'conduct': conduct,
       },
     );
     return StudentPeriodicReport.fromJson(data as Map<String, dynamic>);
   }
 
   @override
-  Future<void> returnSubjectReview({
-    required String token,
-    required int reviewId,
-    required int academicYearId,
-    required String reason,
-  }) async {
-    await _backend.putData(
-      '/api/subject-reviews/$reviewId/return',
-      token: token,
-      body: {'academicYearId': academicYearId, 'reason': reason},
-    );
-  }
-
-  @override
-  Future<StudentPeriodicReport> publishStudent({
+  Future<StudentPeriodicReport> submitHomeroomReport({
     required String token,
     required int studentId,
     required int academicYearId,
@@ -234,7 +213,7 @@ class PeriodicReviewApiClient implements PeriodicReviewApi {
     required int classId,
   }) async {
     final data = await _backend.postData(
-      '/api/homeroom-reports/students/$studentId/publish',
+      '/api/homeroom-reports/students/$studentId/submit',
       token: token,
       body: {
         'academicYearId': academicYearId,
@@ -246,14 +225,14 @@ class PeriodicReviewApiClient implements PeriodicReviewApi {
   }
 
   @override
-  Future<void> publishClass({
+  Future<void> submitHomeroomClass({
     required String token,
     required int academicYearId,
     required int semesterId,
     required int classId,
   }) async {
     await _backend.postData(
-      '/api/homeroom-reports/publish-class',
+      '/api/homeroom-reports/submit-class',
       token: token,
       body: {
         'academicYearId': academicYearId,
