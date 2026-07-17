@@ -53,7 +53,7 @@ export default function TeacherAnnouncementsPage() {
   }
 
   return <main className="teacher-page page-stack">
-    <div className="page-heading"><div><p className="teacher-eyebrow">Kết nối nhà trường</p><h1>Thông báo</h1><p>Hòm thư đã nhận và lịch sử thông báo lớp được quản lý cùng một nơi.</p></div></div>
+    <div className="page-heading"><div><span className="eyebrow">Kết nối nhà trường</span><h1>Thông báo</h1><p>Hòm thư đã nhận và lịch sử thông báo lớp được quản lý cùng một nơi.</p></div></div>
     {error && <div className="notice error">{error}</div>}{message && <div className="notice success">{message}</div>}
     <div className="teacher-announcement-grid">
       <section className="panel"><h2>Thông báo đã nhận</h2><div className="teacher-inbox-list">{received.map(item => <button key={item.id} className={item.isRead ? '' : 'unread'} onClick={() => openReceived(item)}><span><strong>{item.title}</strong><small>{item.senderName || 'Nhà trường'} · {new Date(item.createdAt).toLocaleString('vi-VN')}</small></span>{!item.isRead && <b>Mới</b>}</button>)}</div>{!received.length && <div className="empty-state">Chưa có thông báo từ Nhà trường/Admin.</div>}</section>

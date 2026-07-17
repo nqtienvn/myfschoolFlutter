@@ -1398,7 +1398,7 @@ th:last-child, td:last-child { border-right: 0; }
   .workflow-sidebar { width: var(--sidebar-collapsed); padding: 0; overflow: hidden; }
   .brand { justify-content: center; padding: 16px 0; }
   .brand-mark { width: 38px; flex: 0 0 38px; }
-  .brand-copy, .workflow-nav-label, .module-label, .logout-label, .sidebar-user-info { display: none; }
+  .brand-copy, .workflow-nav-label, .sidebar-section-label, .module-label, .logout-label, .sidebar-user-info { display: none; }
   .workflow-nav { gap: 4px; padding: 0 8px; }
   .workflow-nav button { min-height: 48px; justify-content: center; padding: 8px; }
   .module-icon { width: 34px; height: 34px; }
@@ -2031,3 +2031,127 @@ th:last-child, td:last-child { border-right: 0; }
 @media (max-width: 1050px) { .teacher-kpi-grid { grid-template-columns: repeat(2, 1fr); } .teacher-announcement-grid { grid-template-columns: 1fr; } }
 @media (max-width: 820px) { .teacher-portal-shell { grid-template-columns: 76px minmax(0, 1fr); } .teacher-sidebar-brand div, .teacher-sidebar nav span, .teacher-sidebar-user strong, .teacher-sidebar-user small { display: none; } .teacher-sidebar nav button { justify-content: center; } .teacher-sidebar-user button { font-size: 0; } .teacher-sidebar-user button::after { content: '↪'; font-size: 18px; } .homeroom-review-layout { grid-template-columns: 1fr; } .homeroom-review-layout aside { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); max-height: 230px; } }
 @media (max-width: 650px) { .teacher-topbar { align-items: flex-start; flex-direction: column; } .teacher-period-selectors { width: 100%; } .teacher-period-selectors label { flex: 1; } .teacher-period-selectors select { min-width: 0; width: 100%; } .teacher-kpi-grid { grid-template-columns: 1fr; } .review-two-cols { grid-template-columns: 1fr; } .teacher-chat-shell { grid-template-columns: 1fr; height: auto; } .teacher-chat-shell > aside { max-height: 260px; border-right: 0; border-bottom: 1px solid var(--border); } .teacher-chat-shell > section { min-height: 500px; } }
+
+/* Teacher portal — shared Admin shell and responsive design system */
+.teacher-app-shell { background: var(--background); }
+.teacher-context-control { display: flex; align-items: center; gap: 8px; }
+.teacher-context-error { max-width: 1320px; margin: 0 auto 16px; }
+.teacher-app-shell .stat-card > span:last-child { min-width: 0; }
+.teacher-app-shell .stat-value { overflow-wrap: anywhere; }
+.teacher-stat-detail { display: block; margin-top: 4px; color: var(--text-disabled); font-size: 10px; font-weight: 600; }
+.teacher-action-description { display: block; color: var(--text-secondary); font-size: 12px; line-height: 1.55; word-break: break-word; }
+.teacher-app-shell .ops-card-arrow svg { width: 18px; height: 18px; }
+
+.teacher-filter-row { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.teacher-filter-row label { min-width: min(320px, 100%); color: var(--text-secondary); font-size: 11px; font-weight: 700; }
+.teacher-filter-row select { display: block; width: 100%; margin-top: 5px; }
+.teacher-file-button { min-width: 0 !important; min-height: 42px; display: inline-flex; align-items: center; padding: 9px 14px; border: 1.5px dashed var(--brand-primary); border-radius: var(--radius-md); background: var(--brand-primary-soft); color: var(--brand-primary) !important; cursor: pointer; }
+.teacher-file-button:hover { background: #E7F0FF; }
+.teacher-file-button input { display: none; }
+
+.teacher-grades-table { min-width: 1100px; }
+.teacher-grades-table th:first-child, .teacher-grades-table td:first-child { position: sticky; left: 0; z-index: 2; min-width: 190px; background: var(--surface); box-shadow: 1px 0 0 var(--border); }
+.teacher-grades-table th:first-child { z-index: 3; background: var(--surface-2); }
+.teacher-grades-table th:not(:first-child) { min-width: 145px; }
+.teacher-grades-table input, .teacher-grades-table select, .teacher-grades-table textarea { width: 100%; min-width: 96px; }
+.teacher-grades-table textarea { min-width: 180px; resize: vertical; }
+.teacher-grades-table th button { width: 100%; margin-top: 8px; padding: 6px 8px; font-size: 10px; }
+
+.review-editor-list { display: grid; gap: 12px; margin-top: 14px; }
+.review-editor-list article { min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.review-editor-list header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.review-editor-list header small, .homeroom-review-layout aside small { display: block; color: var(--text-secondary); }
+.review-editor-list label, .homeroom-student-editor label { color: var(--text-secondary); font-size: 11px; font-weight: 700; }
+.review-editor-list textarea, .homeroom-student-editor textarea { display: block; width: 100%; margin-top: 5px; }
+.review-two-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+.homeroom-review-layout { display: grid; grid-template-columns: minmax(230px, 280px) minmax(0, 1fr); gap: 16px; margin-top: 14px; }
+.homeroom-review-layout aside { min-width: 0; display: grid; align-content: start; gap: 5px; max-height: 720px; overflow: auto; }
+.homeroom-review-layout aside button { display: flex; justify-content: space-between; gap: 8px; min-width: 0; padding: 10px 12px; text-align: left; background: var(--surface-2); color: var(--text-primary); border-color: transparent; }
+.homeroom-review-layout aside button > span { min-width: 0; }
+.homeroom-review-layout aside button strong, .homeroom-review-layout aside button small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.homeroom-review-layout aside button.active { color: var(--brand-primary); border-color: var(--brand-primary); background: var(--brand-primary-soft); }
+.homeroom-review-layout aside b { flex: 0 0 auto; font-size: 9px; }
+.homeroom-student-editor { min-width: 0; padding: 18px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.violation-list article > div:first-child { min-width: 0; }
+
+.teacher-announcement-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, .85fr); gap: 16px; align-items: start; }
+.teacher-announcement-grid > .panel { min-width: 0; }
+.teacher-inbox-list { display: grid; gap: 5px; max-height: 560px; overflow: auto; }
+.teacher-inbox-list button { display: flex; justify-content: space-between; gap: 10px; min-width: 0; padding: 12px; text-align: left; background: var(--surface-2); color: var(--text-primary); border-color: transparent; }
+.teacher-inbox-list button > span { min-width: 0; }
+.teacher-inbox-list button.unread { border-color: var(--brand-primary); background: var(--brand-primary-soft); }
+.teacher-inbox-list strong, .teacher-inbox-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.teacher-inbox-list small { margin-top: 4px; color: var(--text-secondary); }
+.teacher-inbox-list b { flex: 0 0 auto; color: var(--brand-primary); font-size: 10px; }
+.teacher-announcement-form { display: grid; gap: 12px; }
+.teacher-announcement-form label { color: var(--text-secondary); font-size: 11px; font-weight: 700; }
+.teacher-announcement-form input, .teacher-announcement-form textarea, .teacher-announcement-form select { display: block; width: 100%; margin-top: 5px; }
+.teacher-announcement-form fieldset { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.teacher-announcement-form .check-row { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 7px 9px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
+.teacher-announcement-form .check-row input { width: auto; margin: 0; }
+.announcement-detail-body { white-space: pre-wrap; line-height: 1.65; }
+.teacher-student-list-heading { margin-bottom: 16px; }
+.table-search { width: min(320px, 100%); }
+.teacher-student-table { min-width: 760px; }
+
+.teacher-chat-page { display: grid; gap: 24px; max-width: 1320px; margin: 0 auto; }
+.teacher-chat-shell { height: calc(100dvh - 210px); min-height: 540px; display: grid; grid-template-columns: 310px minmax(0, 1fr); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); overflow: hidden; }
+.teacher-chat-shell > aside { min-width: 0; border-right: 1px solid var(--border); overflow: auto; }
+.chat-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; padding: 10px; border-bottom: 1px solid var(--border); }
+.chat-search input { min-width: 0; }
+.chat-search-result, .chat-conversation-list button { display: flex; justify-content: space-between; gap: 8px; width: 100%; min-width: 0; padding: 12px; text-align: left; background: transparent; color: var(--text-primary); border: 0; border-radius: 0; border-bottom: 1px solid var(--border); }
+.chat-search-result > span, .chat-conversation-list button > span { min-width: 0; }
+.chat-search-result:hover, .chat-conversation-list button:hover, .chat-conversation-list button.active { background: var(--brand-primary-soft); }
+.chat-search-result small, .chat-conversation-list small { display: block; max-width: 220px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.teacher-chat-shell > section { min-width: 0; display: flex; flex-direction: column; }
+.teacher-chat-shell > section > header { padding: 13px 16px; border-bottom: 1px solid var(--border); }
+.teacher-chat-shell > section > header small { display: block; color: var(--text-secondary); }
+.chat-message-list { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 15px; overflow: auto; background: var(--surface-2); }
+.chat-message-list article { align-self: flex-start; max-width: min(75%, 640px); }
+.chat-message-list article.mine { align-self: flex-end; text-align: right; }
+.chat-message-list span { display: block; padding: 9px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); overflow-wrap: anywhere; }
+.chat-message-list article.mine span { background: var(--brand-primary); color: #fff; border-color: var(--brand-primary); }
+.chat-message-list small { color: var(--text-secondary); font-size: 9px; }
+.teacher-chat-shell form { display: flex; align-items: flex-end; gap: 8px; padding: 10px; border-top: 1px solid var(--border); }
+.teacher-chat-shell form textarea { min-width: 0; flex: 1; resize: none; }
+
+.login-page.teacher-login-page { display: grid; grid-template-columns: 1fr 1fr; place-items: stretch; padding: 0; background: var(--surface); }
+.login-password-wrap input { padding-right: 70px; }
+.login-password-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); min-height: 32px !important; height: 32px; padding: 0 9px !important; border: 0 !important; background: transparent !important; color: var(--brand-primary) !important; font-size: 11px !important; font-weight: 800 !important; }
+.teacher-login-page .login-footer a { display: block; margin-top: 12px; color: var(--brand-primary); font-weight: 700; text-decoration: none; }
+.teacher-login-page .login-footer a:hover { text-decoration: underline; }
+
+@media (max-width: 1050px) {
+  .teacher-announcement-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  .homeroom-review-layout { grid-template-columns: 1fr; }
+  .homeroom-review-layout aside { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); max-height: 240px; }
+}
+
+@media (max-width: 700px) {
+  .teacher-app-shell .context-bar > div:not(.context-spacer) { flex: 1 1 180px; }
+  .teacher-app-shell .teacher-context-control, .teacher-app-shell .ctx-pill-select { width: 100%; }
+  .teacher-app-shell .teacher-context-control { align-items: stretch; flex-direction: column; gap: 5px; }
+  .teacher-app-shell .ctx-status-badge { align-self: flex-start; }
+  .teacher-filter-row { align-items: stretch; flex-direction: column; }
+  .teacher-filter-row label, .teacher-file-button { width: 100%; }
+  .review-two-cols { grid-template-columns: 1fr; }
+  .violation-list article { align-items: stretch; flex-direction: column; }
+  .teacher-student-list-heading { align-items: stretch; flex-direction: column; }
+  .table-search { width: 100%; max-width: none; }
+  .teacher-chat-shell { height: auto; min-height: 0; grid-template-columns: 1fr; }
+  .teacher-chat-shell > aside { max-height: 300px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .teacher-chat-shell > section { min-height: 520px; }
+  .login-page.teacher-login-page { grid-template-columns: 1fr; }
+  .teacher-login-page .login-brand-panel { display: none; }
+}
+
+@media (max-width: 480px) {
+  .teacher-app-shell .context-bar > div:not(.context-spacer) { flex-basis: 100%; }
+  .homeroom-review-layout aside { grid-template-columns: 1fr; }
+  .teacher-chat-shell > section { min-height: 460px; }
+  .teacher-chat-shell form { align-items: stretch; flex-direction: column; }
+  .teacher-chat-shell form button { width: 100%; }
+}
