@@ -71,7 +71,7 @@ export const getSentAnnouncements = (academicYearId: number) =>
 export const markAnnouncementRead = (id: number) => teacherApiFetch(`/announcements/${id}/read`, { method: 'PUT' });
 export const saveTeacherAnnouncement = (payload: unknown, id?: number) => teacherApiFetch(
   id ? `/announcements/${id}` : '/announcements',
-  { method: id ? 'PUT' : 'POST', body: JSON.stringify({ ...(payload as object), requiresReply: false }) },
+  { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) },
 );
 export const deleteTeacherAnnouncement = (id: number) => teacherApiFetch(`/announcements/${id}`, { method: 'DELETE' });
 

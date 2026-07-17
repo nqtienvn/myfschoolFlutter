@@ -12,8 +12,5 @@ public record AnnouncementRecipientDto(
     List<String> studentNames,
     List<String> classNames,
     LocalDateTime readAt,
-    LocalDateTime acknowledgedAt,
-    String replyText,
-    LocalDateTime repliedAt,
     String status
 ) {}

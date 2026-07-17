@@ -130,7 +130,7 @@ Students can toggle "Simulation" to preview grades without saving to DB — clie
 PH creates → GV approves/rejects → attendance auto-updates to "ABSENT_WITH_LEAVE"
 
 ### Announcements
-GV selects multiple classes (M:N via `announcement_classes`). `target_role` filters who sees it (PARENT/STUDENT/ALL). `requires_reply` triggers red badge for unread confirmation.
+GV selects multiple assigned classes (M:N via `announcement_classes`) and `target_role` filters PARENT/STUDENT/ALL. The announcement stays `PENDING` until Admin approves it, then it is published. Admin can also publish directly to every non-Admin account. Announcements support read/unread only; acknowledgement and reply workflows do not exist.
 
 ## Docs Index
 

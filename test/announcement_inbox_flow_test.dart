@@ -1,0 +1,159 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/client/announcement_api_client.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/dto/announcement_dto.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/models/school_announcement.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/announcement_inbox_service.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/announcement_inbox_screen.dart';
+
+void main() {
+  test('announcement dto maps the published notification fields', () {
+    final announcement = AnnouncementDto.fromJson({
+      'id': 9,
+      'title': 'Lịch họp phụ huynh',
+      'body': 'Nhà trường kính mời phụ huynh tham dự.',
+      'teacherName': 'Cô Mai',
+      'classNames': ['12A'],
+      'classIds': [3],
+      'targetRole': 'PARENT',
+      'isRead': true,
+      'createdAt': '2026-07-14T08:00:00',
+      'academicYearId': 1,
+      'approvalStatus': 'APPROVED',
+    }).toDomain();
+
+    expect(announcement.classIds, [3]);
+    expect(announcement.isRead, isTrue);
+    expect(announcement.approvalStatus, 'APPROVED');
+  });
+
+  testWidgets(
+    'recipient opens and reads a notification without action prompts',
+    (tester) async {
+      final api = _FakeAnnouncementApi();
+      final service = AnnouncementInboxService(
+        api: api,
+        token: 'token',
+        teacher: false,
+      );
+      await service.start();
+
+      await tester.pumpWidget(
+        MaterialApp(home: AnnouncementInboxScreen(service: service)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Chờ xác nhận'), findsNothing);
+      expect(find.text('Gửi phản hồi'), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('announcement-1')));
+      await tester.pumpAndSettle();
+
+      expect(api.markReadCalls, 1);
+      expect(service.unreadCount, 0);
+      expect(find.text('Nhà trường kính mời phụ huynh tham dự.'), findsWidgets);
+      expect(find.text('Xác nhận đã đọc'), findsNothing);
+      expect(find.text('Gửi phản hồi'), findsNothing);
+    },
+  );
+
+  testWidgets('teacher recipient tracking only shows read status', (
+    tester,
+  ) async {
+    final api = _FakeAnnouncementApi()..read = true;
+    final service = AnnouncementInboxService(
+      api: api,
+      token: 'token',
+      teacher: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TeacherAnnouncementRecipientsScreen(
+          announcement: api.current.toDomain(),
+          service: service,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Đã đọc'), findsWidgets);
+    expect(find.text('Đã xác nhận'), findsNothing);
+    expect(find.text('Đã phản hồi'), findsNothing);
+  });
+}
+
+class _FakeAnnouncementApi implements AnnouncementApi {
+  bool read = false;
+  int markReadCalls = 0;
+
+  AnnouncementDto get current => AnnouncementDto(
+    id: 1,
+    title: 'Lịch họp phụ huynh',
+    body: 'Nhà trường kính mời phụ huynh tham dự.',
+    senderName: 'Cô Mai',
+    classNames: const ['12A'],
+    classIds: const [3],
+    targetRole: 'PARENT',
+    isRead: read,
+    createdAt: DateTime(2026, 7, 14),
+    academicYearId: 1,
+    approvalStatus: 'APPROVED',
+  );
+
+  @override
+  Future<AnnouncementDto> getDetail({
+    required String token,
+    required int id,
+  }) async => current;
+
+  @override
+  Future<List<AnnouncementDto>> getAnnouncements({
+    required String token,
+    required bool teacher,
+    int? academicYearId,
+  }) async => [current];
+
+  @override
+  Future<AnnouncementRecipientPage> getRecipients({
+    required String token,
+    required int announcementId,
+    required int academicYearId,
+    int? classId,
+    String? role,
+    String? status,
+    String? keyword,
+    int page = 0,
+    int size = 20,
+  }) async => AnnouncementRecipientPage(
+    content: [
+      AnnouncementRecipient(
+        userId: 7,
+        userName: 'PH Nguyễn An',
+        role: 'PARENT',
+        studentNames: const ['Nguyễn An'],
+        classNames: const ['12A'],
+        status: read ? 'READ' : 'UNREAD',
+        readAt: read ? DateTime(2026, 7, 15) : null,
+      ),
+    ],
+    totalElements: 1,
+    totalPages: 1,
+    page: page,
+  );
+
+  @override
+  Future<int> getUnreadCount({required String token}) async => read ? 0 : 1;
+
+  @override
+  Future<int> getUnreadCountForYear({
+    required String token,
+    int? academicYearId,
+  }) => getUnreadCount(token: token);
+
+  @override
+  Future<void> markRead({required String token, required int id}) async {
+    markReadCalls++;
+    read = true;
+  }
+}

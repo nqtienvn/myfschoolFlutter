@@ -19,12 +19,16 @@ class ParentNotificationsScreen extends StatelessWidget {
     final filteredNotifications = unpaidSum > 0
         ? student.notifications
         : student.notifications
-            .where((n) => n.tag != 'Học phí' && !n.title.toLowerCase().contains('học phí'))
-            .toList();
+              .where(
+                (n) =>
+                    n.tag != 'Học phí' &&
+                    !n.title.toLowerCase().contains('học phí'),
+              )
+              .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const OrangeTopBar(title: 'Thông báo & Phản hồi'),
+      appBar: const OrangeTopBar(title: 'Thông báo'),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -51,17 +55,10 @@ class ParentNotificationsScreen extends StatelessWidget {
   }
 }
 
-class _NotificationTile extends StatefulWidget {
+class _NotificationTile extends StatelessWidget {
   const _NotificationTile({required this.notification});
 
   final ParentNotification notification;
-
-  @override
-  State<_NotificationTile> createState() => _NotificationTileState();
-}
-
-class _NotificationTileState extends State<_NotificationTile> {
-  bool _confirmed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +70,7 @@ class _NotificationTileState extends State<_NotificationTile> {
             children: [
               Expanded(
                 child: Text(
-                  widget.notification.title,
+                  notification.title,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
@@ -82,59 +79,22 @@ class _NotificationTileState extends State<_NotificationTile> {
                 ),
               ),
               StatusPill(
-                label: widget.notification.tag,
-                foreground: widget.notification.color,
-                background: widget.notification.color.withValues(alpha: 0.12),
+                label: notification.tag,
+                foreground: notification.color,
+                background: notification.color.withValues(alpha: 0.12),
                 compact: true,
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            widget.notification.body,
+            notification.body,
             style: const TextStyle(
               fontSize: 13,
               color: AppColors.ink,
               height: 1.35,
             ),
           ),
-          if (widget.notification.requiresReply) ...[
-            const Divider(height: AppSpacing.lg),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Yêu cầu xác nhận họp:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.muted,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: _confirmed
-                      ? null
-                      : () {
-                          setState(() => _confirmed = true);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Đã xác nhận tham gia họp phụ huynh!'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                  icon: Icon(
-                    _confirmed ? Icons.check_circle : Icons.verified_outlined,
-                    size: 16,
-                  ),
-                  label: Text(_confirmed ? 'Đã xác nhận' : 'Xác nhận tham gia'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: _confirmed ? AppColors.green : AppColors.fptOrange,
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );

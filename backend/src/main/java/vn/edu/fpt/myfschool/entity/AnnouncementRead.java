@@ -53,12 +53,4 @@ public class AnnouncementRead extends BaseEntity {
     @Column(name = "read_at")
     private LocalDateTime readAt;
 
-    @Column(name = "acknowledged_at")
-    private LocalDateTime acknowledgedAt;
-
-    @Column(name = "reply_text", length = 1000)
-    private String replyText;
-
-    @Column(name = "replied_at")
-    private LocalDateTime repliedAt;
 }

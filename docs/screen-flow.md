@@ -426,12 +426,11 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
         │      ├── Form: Tiêu đề (TextField, required)
         │      ├── Form: Nội dung (TextField, required, multiline)
         │      ├── Selector: Lớp nhận (Dropdown: 12A, SE1913...)
-        │      ├── Checkbox: "Bắt buộc xác nhận từ PH"
-        │      └── [BUTTON: "Gửi thông báo"]
+        │      └── [BUTTON: "Gửi duyệt"]
         │            ├── Validate: tiêu đề/nội dung rỗng → SnackBar lỗi
         │            ├── API: POST /api/announcements
-        │            ├── Pop → SnackBar: "Đã gửi thông báo..."
-        │            └── requiresReply = true → PH thấy badge đỏ
+        │            ├── Trạng thái ban đầu: PENDING
+        │            └── Admin duyệt → phát hành đến PH/HS đã chọn
         │
         ├──► [BUTTON 6: "Thống kê lớp học"]
         │         │
@@ -482,8 +481,8 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
   │     └── HS thấy 'Vắng có phép' trong AttendanceScreen
   │
   ├── Gửi thông báo lớp → API POST /api/announcements
-  │     ├── PH thấy trong Tab 2: Thông báo (requiresReply: true → badge đỏ)
-  │     └── HS thấy trong Tab 2: Thông báo
+  │     ├── Admin duyệt hoặc từ chối
+  │     └── Nếu duyệt, PH/HS mục tiêu thấy trong Tab 2: Thông báo
   │
   ├── Nhập/Upload điểm → API POST /api/grades
   │     ├── PH thấy điểm mới trong GradesScreen
@@ -554,13 +553,9 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
   │            │     ├── Body (nội dung chi tiết)
   │            │     └── Tag pill:
   │            │           ├── "Quan trọng" (orange) — TB từ nhà trường
-  │            │           ├── "Cần phản hồi" (yellow) — requiresReply: true
-  │            │           │     └── Nếu chưa xác nhận → badge đỏ trên Tab
-  │            │           │     └── Tap → [BOTTOM SHEET: Xác nhận]
-  │            │           │           └── [BUTTON: "Xác nhận đã đọc"]
-  │            │           │                 ├── API: PUT /api/announcements/{id}/read
-  │            │           │                 └── Badge đỏ biến mất
   │            │           └── "Tin hệ thống" (blue) — TB chung
+  │            │
+  │            │     Tap → mở chi tiết và gọi PUT /api/announcements/{id}/read
   │            │
   │            └── includes: TB học phí từ GV gửi
   │                  └── (đã hiển thị ở HomeParent bottom sheet)
@@ -642,10 +637,9 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
 ```text
 [CROSS-ACTOR: Thông báo (Tab 2)]
   │
-  ├── GV tạo thông báo → PH/HS thấy trong AnnouncementsScreen
-  │     └── requiresReply: true → badge đỏ cho đến khi xác nhận
+  ├── GV tạo thông báo → Admin duyệt → PH/HS mục tiêu thấy trong AnnouncementsScreen
   │
-  └── PH xác nhận → Badge đỏ biến mất (cả tabs đều realtime update)
+  └── Admin gửi trực tiếp → toàn bộ tài khoản không phải Admin nhận thông báo
 ```
 
 ### Qua Học phí

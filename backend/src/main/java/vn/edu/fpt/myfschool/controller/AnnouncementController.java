@@ -22,7 +22,6 @@ import vn.edu.fpt.myfschool.common.dto.CreateAnnouncementRequest;
 import vn.edu.fpt.myfschool.common.dto.ReviewAnnouncementRequest;
 import vn.edu.fpt.myfschool.common.dto.AdminAnnouncementRequest;
 import vn.edu.fpt.myfschool.common.dto.AnnouncementRecipientDto;
-import vn.edu.fpt.myfschool.common.dto.AnnouncementReplyRequest;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.AnnouncementService;
@@ -52,8 +51,8 @@ public class AnnouncementController {
             @Valid @RequestBody CreateAnnouncementRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Tạo thông báo thành công",
                 announcementService.createAnnouncement(request.title(), request.body(),
-                        request.targetRole(), false,
-                        request.academicYearId(), request.classIds(), SecurityUtil.getCurrentUserId())));
+                        request.targetRole(), request.academicYearId(), request.classIds(),
+                        SecurityUtil.getCurrentUserId())));
     }
 
     @PutMapping("/{id}")
@@ -61,8 +60,7 @@ public class AnnouncementController {
     public ResponseEntity<ApiResponse<AnnouncementDto>> update(@PathVariable Long id,
             @Valid @RequestBody CreateAnnouncementRequest request) {
         return ResponseEntity.ok(ApiResponse.success(announcementService.updateAnnouncement(id,
-                request.title(), request.body(), request.targetRole(),
-                false, request.academicYearId(),
+                request.title(), request.body(), request.targetRole(), request.academicYearId(),
                 request.classIds(), SecurityUtil.getCurrentUserId())));
     }
 
@@ -92,9 +90,7 @@ public class AnnouncementController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AnnouncementDto>> broadcast(@Valid @RequestBody AdminAnnouncementRequest request) {
         return ResponseEntity.ok(ApiResponse.success(announcementService.createAdminAnnouncement(request.title(),
-                request.body(), request.academicYearId(), request.recipientScope(), request.targetRole(),
-                request.classIds(), request.teacherAudience(), request.subjectId(),
-                request.requiresReply() != null && request.requiresReply(), SecurityUtil.getCurrentUserId())));
+                request.body(), request.academicYearId(), SecurityUtil.getCurrentUserId())));
     }
 
     @GetMapping("/mine")
@@ -132,24 +128,8 @@ public class AnnouncementController {
         return ResponseEntity.ok(ApiResponse.success("Đã đánh dấu đọc", null));
     }
 
-    @PutMapping("/{id}/acknowledge")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
-    public ResponseEntity<ApiResponse<Void>> acknowledge(@PathVariable Long id) {
-        announcementService.acknowledge(id, SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole());
-        return ResponseEntity.ok(ApiResponse.success("Đã xác nhận thông báo", null));
-    }
-
-    @PutMapping("/{id}/reply")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
-    public ResponseEntity<ApiResponse<Void>> reply(@PathVariable Long id,
-            @Valid @RequestBody AnnouncementReplyRequest request) {
-        announcementService.reply(id, request.replyText(), SecurityUtil.getCurrentUserId(),
-                SecurityUtil.getCurrentUserRole());
-        return ResponseEntity.ok(ApiResponse.success("Đã gửi phản hồi", null));
-    }
-
     @GetMapping("/{id}/recipients")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<ApiResponse<Page<AnnouncementRecipientDto>>> recipients(
             @PathVariable Long id,
             @RequestParam Long academicYearId,
@@ -162,13 +142,6 @@ public class AnnouncementController {
         return ResponseEntity.ok(ApiResponse.success(announcementService.getRecipients(id, academicYearId,
                 classId, role, status, keyword, page, size, SecurityUtil.getCurrentUserId(),
                 SecurityUtil.getCurrentUserRole())));
-    }
-
-    @GetMapping("/pending-action-count")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
-    public ResponseEntity<ApiResponse<Long>> pendingActionCount() {
-        return ResponseEntity.ok(ApiResponse.success(announcementService.getPendingActionCount(
-                SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole())));
     }
 
     @GetMapping("/unread-count")

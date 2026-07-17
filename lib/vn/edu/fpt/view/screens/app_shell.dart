@@ -219,7 +219,6 @@ class _AppShellState extends State<AppShell> {
 
   Widget _notificationIcon(IconData icon) {
     final unread = _announcementInboxService?.unreadCount ?? 0;
-    final pending = _announcementInboxService?.pendingActionCount ?? 0;
     return SizedBox(
       width: 32,
       height: 28,
@@ -233,12 +232,6 @@ class _AppShellState extends State<AppShell> {
               right: -5,
               top: -6,
               child: _countBadge(unread, Colors.red),
-            ),
-          if (pending > 0)
-            Positioned(
-              right: -5,
-              bottom: -5,
-              child: _countBadge(pending, Colors.orange),
             ),
         ],
       ),

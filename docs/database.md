@@ -503,20 +503,27 @@ CREATE TABLE payment_transactions (
 
 ```sql
 CREATE TABLE announcements (
-  id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  teacher_id     BIGINT UNSIGNED NOT NULL COMMENT 'Người tạo thông báo',
-  title          VARCHAR(500) NOT NULL,
-  body           TEXT NOT NULL,
-  target_role    ENUM('PARENT','STUDENT','ALL') NOT NULL DEFAULT 'ALL',
-  requires_reply TINYINT(1) NOT NULL DEFAULT 0,
-  created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  teacher_id        BIGINT UNSIGNED NULL COMMENT 'Giáo viên tạo; NULL khi Admin gửi',
+  sender_user_id    BIGINT UNSIGNED NOT NULL,
+  academic_year_id  BIGINT UNSIGNED NOT NULL,
+  approval_status   VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+  rejection_reason  VARCHAR(1000) NULL,
+  sender_type       VARCHAR(20) NOT NULL,
+  recipient_scope   VARCHAR(20) NOT NULL DEFAULT 'CLASSES',
+  title             VARCHAR(500) NOT NULL,
+  body              TEXT NOT NULL,
+  target_role       ENUM('PARENT','STUDENT','ALL') NOT NULL DEFAULT 'ALL',
+  created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (id),
   INDEX idx_ann_teacher (teacher_id),
   INDEX idx_ann_created (created_at),
-  CONSTRAINT fk_ann_teacher FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT fk_ann_teacher FOREIGN KEY (teacher_id) REFERENCES teachers(id),
+  CONSTRAINT fk_ann_sender FOREIGN KEY (sender_user_id) REFERENCES users(id),
+  CONSTRAINT fk_ann_year FOREIGN KEY (academic_year_id) REFERENCES academic_years(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='Thông báo (GV tạo → gửi nhiều lớp)';
+  COMMENT='Thông báo do GV gửi duyệt hoặc Admin phát hành trực tiếp';
 ```
 
 #### `announcement_reads`
@@ -526,6 +533,11 @@ CREATE TABLE announcement_reads (
   id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   announcement_id BIGINT UNSIGNED NOT NULL,
   user_id         BIGINT UNSIGNED NOT NULL,
+  recipient_role  VARCHAR(20) NULL,
+  user_name       VARCHAR(255) NULL,
+  student_names   TEXT NULL,
+  class_names     TEXT NULL,
+  class_ids       TEXT NULL,
   read_at         TIMESTAMP NULL,
   created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -962,9 +974,14 @@ INSERT INTO tuition_bills (student_id, class_id, semester_id, name, amount, due_
 ### 6.14. Announcements
 
 ```sql
-INSERT INTO announcements (teacher_id, title, body, target_role, requires_reply) VALUES
-(1, 'Lịch thi cuối kỳ II', 'Thông báo lịch thi cuối kỳ học kỳ II năm học 2026-2027', 'ALL', 0),
-(2, 'Họp phụ huynh cuối kỳ', 'Thời gian: 15/05/2027. Địa điểm: Hội trường.', 'PARENT', 1);
+INSERT INTO announcements
+  (teacher_id, sender_user_id, academic_year_id, approval_status, sender_type,
+   recipient_scope, title, body, target_role)
+VALUES
+  (1, 2, 1, 'APPROVED', 'SUBJECT_TEACHER', 'CLASSES',
+   'Lịch thi cuối kỳ II', 'Thông báo lịch thi cuối kỳ học kỳ II năm học 2026-2027', 'ALL'),
+  (NULL, 1, 1, 'APPROVED', 'ADMIN', 'SCHOOL',
+   'Bảo trì hệ thống', 'Hệ thống bảo trì lúc 22:00.', 'ALL');
 ```
 
 ---

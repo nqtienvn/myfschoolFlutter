@@ -110,7 +110,7 @@ Màn hình nhận xét học sinh của GVCN (`_HomeroomStudentReportScreen`) đ
 
 #### 3. Nghiệp vụ Thông báo của Giáo viên
 - **Gửi thông báo**:
-  - Loại bỏ hoàn toàn tùy chọn *"Yêu cầu xác nhận hoặc phản hồi"* khi tạo/sửa thông báo (Xóa SwitchListTile `requiresReply` trên UI). Giá trị `requiresReply` sẽ luôn được truyền là `false` khi lưu hoặc cập nhật.
+  - Loại bỏ tận gốc tùy chọn *"Yêu cầu xác nhận hoặc phản hồi"* khi tạo/sửa thông báo; trường dữ liệu và API liên quan không còn tồn tại.
 - **Xem thông báo**:
   - Trang **Thông báo** chính của Giáo viên (hiển thị từ AppShell tab Thông báo) sẽ hiển thị danh sách **thông báo đã nhận** (nhận từ Admin/Nhà trường gửi cho giáo viên) giống như giao diện hiển thị của phụ huynh và học sinh.
   - Danh sách **Thông báo đã gửi** trước đây sẽ được di chuyển vào bên trong trang **"Gửi thông báo lớp"** (`AnnouncementsCreateScreen`) để giáo viên có thể vừa tạo thông báo mới, vừa theo dõi lịch sử và trạng thái duyệt của các thông báo mình đã gửi ở cùng một nơi.
@@ -334,7 +334,7 @@ Thay đổi giao diện của GVCN:
 - Xóa tận gốc file này do nghiệp vụ quản lý học phí của GVCN đã được tự động hóa bằng cron job của Admin.
 
 ### 9. `lib/vn/edu/fpt/view/screens/announcements_create_screen.dart` — MODIFY
-- Loại bỏ SwitchListTile `requiresReply` và hardcode `_requiresReply = false` khi lưu/sửa.
+- Loại bỏ tùy chọn xác nhận/phản hồi cùng toàn bộ trường dữ liệu liên quan khi lưu/sửa.
 - Danh sách thông báo đã gửi vẫn giữ nguyên tại màn hình này.
 
 ### 10. `lib/vn/edu/fpt/view/screens/announcement_inbox_screen.dart` — MODIFY
@@ -351,7 +351,7 @@ Thay đổi giao diện của GVCN:
   - `TeacherDashboardPage.tsx`: Trang chủ/Tổng quan của Giáo viên.
   - `TeacherGradesPage.tsx`: Xem lớp dạy, nhập điểm thủ công, upload CSV/Excel.
   - `TeacherPeriodicReviewsPage.tsx`: GVBM nhập nhận xét môn học. GVCN nhập nhận xét chung, thêm/sửa/xóa vi phạm của học sinh, nhấn **Submit** (giao diện đơn giản không chia tab).
-  - `TeacherAnnouncementsPage.tsx`: Gửi thông báo lớp (bỏ requiresReply), xem danh sách đã gửi, xem hòm thư thông báo đã nhận.
+  - `TeacherAnnouncementsPage.tsx`: Gửi thông báo lớp, xem danh sách đã gửi, xem hòm thư thông báo đã nhận.
   - `TeacherHomeroomProfilePage.tsx`: Hồ sơ lớp chủ nhiệm, xem danh sách học sinh và xếp hạng (không có tỷ lệ đọc thông báo).
   - `TeacherLeaveRequestsPage.tsx`: Duyệt/từ chối đơn nghỉ học.
   - `TeacherChatPage.tsx`: Nhắn tin với học sinh/phụ huynh.

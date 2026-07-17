@@ -85,7 +85,6 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
         'title': _title.text.trim(),
         'body': _body.text.trim(),
         'targetRole': _target,
-        'requiresReply': false,
         'academicYearId': _yearId,
         'classIds': _classIds.toList(),
       };

@@ -199,14 +199,12 @@ class ParentNotification {
     required this.title,
     required this.body,
     required this.tag,
-    required this.requiresReply,
     required this.color,
   });
 
   final String title;
   final String body;
   final String tag;
-  final bool requiresReply;
   final Color color;
 }
 
@@ -387,21 +385,18 @@ final mockStudents = [
         body:
             'Nhà trường bắt đầu thu học phí học kỳ Fall 2026 từ ngày 15/06/2026.',
         tag: 'Học phí',
-        requiresReply: false,
         color: AppColors.danger,
       ),
       ParentNotification(
         title: 'Xác nhận họp phụ huynh',
         body: 'Lớp 12A1 họp trực tuyến lúc 15:30 ngày 18/06.',
-        tag: 'Cần xác nhận',
-        requiresReply: true,
+        tag: 'Họp phụ huynh',
         color: AppColors.fptOrange,
       ),
       ParentNotification(
         title: 'Lịch kiểm tra Toán',
         body: 'Bài kiểm tra 45 phút diễn ra vào tiết 2 thứ sáu.',
         tag: 'Lịch kiểm tra',
-        requiresReply: false,
         color: AppColors.blue,
       ),
     ],
@@ -548,7 +543,6 @@ final mockStudents = [
         title: 'Nhắc nhở học phí tháng 6',
         body: 'Vui lòng hoàn thành học phí trước ngày 20/06.',
         tag: 'Học phí',
-        requiresReply: false,
         color: AppColors.warning,
       ),
     ],

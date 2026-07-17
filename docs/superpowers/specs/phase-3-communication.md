@@ -1,5 +1,7 @@
 # Phase 3 — Communication (Messaging + Announcements + Notifications + WebSocket)
 
+> **Lưu ý hiện hành:** Phần thông báo trong tài liệu lịch sử này đã được thay thế bởi luồng giáo viên gửi duyệt → Admin duyệt và publish; Admin cũng có thể broadcast trực tiếp tới mọi tài khoản không phải Admin. Thông báo chỉ theo dõi đã đọc/chưa đọc, không còn xác nhận hoặc phản hồi.
+
 > Tables: `conversations`, `conversation_participants`, `messages`, `announcements`, `announcement_classes`, `announcement_reads`, `notifications`
 > Tổng: **7 tables**, **~45 API endpoints + WebSocket**
 
@@ -520,9 +522,6 @@ public class Announcement extends BaseEntity {
     @Column(nullable = false, length = 20)
     private TargetRole targetRole;  // PARENT | STUDENT | ALL
 
-    @Column(nullable = false)
-    private Boolean requiresReply = false;
-
     @OneToMany(mappedBy = "announcement", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<AnnouncementClass> announcementClasses = new ArrayList<>();
 
@@ -575,7 +574,6 @@ public record CreateAnnouncementRequest(
     @NotBlank @Size(max = 500) String title,
     @NotBlank String body,
     @NotNull TargetRole targetRole,
-    Boolean requiresReply,
     @NotEmpty List<Long> classIds   // Gửi tới lớp nào
 ) {}
 
@@ -585,7 +583,6 @@ public record AnnouncementDto(
     String title,
     String body,
     TargetRole targetRole,
-    Boolean requiresReply,
     Long teacherId,
     String teacherName,
     List<String> classNames,     // Lớp nhận thông báo
@@ -601,7 +598,6 @@ public record AnnouncementDetailDto(
     String title,
     String body,
     TargetRole targetRole,
-    Boolean requiresReply,
     Long teacherId,
     String teacherName,
     List<String> classNames,
@@ -738,7 +734,6 @@ public class AnnouncementService {
     public void markAsRead(Long announcementId, Long userId) {
         // 1. Check if already read (idempotent)
         // 2. If not: create AnnouncementRead with readAt = now
-        // 3. If requiresReply: clear red badge
     }
 
     // --- Get unread count (for badge) ---

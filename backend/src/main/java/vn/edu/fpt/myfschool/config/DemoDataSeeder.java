@@ -368,7 +368,7 @@ public class DemoDataSeeder implements ApplicationRunner {
 
         Map<String, Announcement> announcements = createAnnouncements(
             currentYear, admin, teacherMath, teacherLiterature,
-            subjects.get("TOAN"), class12A1, class12A2, class10A1
+            class12A1, class12A2, class10A1
         );
         createAnnouncementRead(announcements.get("MEETING"), studentAn.getUser(), LocalDateTime.now(SCHOOL_ZONE).minusHours(3));
         createAnnouncementRead(announcements.get("EXAM"), parentHung.getUser(), LocalDateTime.now(SCHOOL_ZONE).minusHours(1));
@@ -1108,69 +1108,73 @@ public class DemoDataSeeder implements ApplicationRunner {
     private Map<String, Announcement> createAnnouncements(AcademicYear year, User admin,
                                                            Teacher teacherMath,
                                                            Teacher teacherLiterature,
-                                                           Subject math,
                                                            SchoolClass class12A1,
                                                            SchoolClass class12A2,
                                                            SchoolClass class10A1) {
         Map<String, Announcement> announcements = new LinkedHashMap<>();
         Announcement meeting = createAnnouncement(
             year, teacherMath, teacherMath.getUser(), "APPROVED", null,
-            "HOMEROOM_TEACHER", "CLASSES", null, null,
+            "HOMEROOM_TEACHER", "CLASSES",
             "Họp phụ huynh đầu học kỳ",
             "Kính mời phụ huynh tham dự cuộc họp tại phòng D-A101 lúc 08:00 thứ Bảy.",
-            TargetRole.PARENT, true, List.of(class12A1)
+            TargetRole.PARENT, List.of(class12A1)
         );
         announcements.put("MEETING", meeting);
         Announcement exam = createAnnouncement(
             year, teacherMath, teacherMath.getUser(), "APPROVED", null,
-            "SUBJECT_TEACHER", "CLASSES", null, math,
+            "SUBJECT_TEACHER", "CLASSES",
             "Lịch kiểm tra Toán chương 1",
             "Bài kiểm tra 45 phút diễn ra vào tiết 2 thứ Tư. Học sinh chuẩn bị máy tính cầm tay.",
-            TargetRole.STUDENT, false, List.of(class12A1, class12A2)
+            TargetRole.STUDENT, List.of(class12A1, class12A2)
         );
         announcements.put("EXAM", exam);
         Announcement pending = createAnnouncement(
             year, teacherLiterature, teacherLiterature.getUser(), "PENDING", null,
-            "SUBJECT_TEACHER", "CLASSES", null, null,
+            "SUBJECT_TEACHER", "CLASSES",
             "Đề xuất hoạt động đọc sách",
             "Kế hoạch đọc sách theo nhóm dành cho học sinh khối 12.",
-            TargetRole.ALL, false, List.of(class12A1, class12A2)
+            TargetRole.ALL, List.of(class12A1, class12A2)
         );
         announcements.put("PENDING", pending);
         Announcement rejected = createAnnouncement(
             year, teacherLiterature, teacherLiterature.getUser(), "REJECTED",
             "Nội dung chưa ghi rõ thời gian và người phụ trách.",
-            "SUBJECT_TEACHER", "CLASSES", null, null,
+            "SUBJECT_TEACHER", "CLASSES",
             "Hoạt động ngoại khóa dự kiến",
             "Thông báo nháp để kiểm thử trạng thái từ chối.",
-            TargetRole.PARENT, false, List.of(class10A1)
+            TargetRole.PARENT, List.of(class10A1)
         );
         announcements.put("REJECTED", rejected);
         Announcement schoolWide = createAnnouncement(
             year, null, admin, "APPROVED", null,
-            "ADMIN", "SCHOOL", null, null,
+            "ADMIN", "SCHOOL",
             "Bảo trì hệ thống MyFschool",
             "Hệ thống tạm ngừng 30 phút từ 22:00 để nâng cấp định kỳ.",
-            TargetRole.ALL, false, List.of()
+            TargetRole.ALL, List.of()
         );
         announcements.put("SCHOOL", schoolWide);
-        Announcement teachers = createAnnouncement(
+        Announcement schoolPolicy = createAnnouncement(
             year, null, admin, "APPROVED", null,
-            "ADMIN", "TEACHERS", "ALL", null,
-            "Tập huấn nhập điểm học kỳ",
-            "Giáo viên tham gia tập huấn tại phòng D-LAB1 vào 15:30 thứ Sáu.",
-            TargetRole.ALL, true, List.of()
+            "ADMIN", "SCHOOL",
+            "Cập nhật quy định sử dụng MyFschool",
+            "Nhà trường cập nhật hướng dẫn bảo mật tài khoản dành cho toàn bộ phụ huynh, học sinh và giáo viên.",
+            TargetRole.ALL, List.of()
         );
-        announcements.put("TEACHERS", teachers);
+        announcements.put("SCHOOL_POLICY", schoolPolicy);
+        userRepository.findAll().stream()
+            .filter(user -> user.getRole() != UserRole.ADMIN)
+            .forEach(user -> {
+                createAnnouncementRead(schoolWide, user, null);
+                createAnnouncementRead(schoolPolicy, user, null);
+            });
         return announcements;
     }
 
     private Announcement createAnnouncement(AcademicYear year, Teacher teacher, User sender,
                                             String approvalStatus, String rejectionReason,
                                             String senderType, String recipientScope,
-                                            String teacherAudience, Subject recipientSubject,
                                             String title, String body, TargetRole targetRole,
-                                            boolean requiresReply, List<SchoolClass> classes) {
+                                            List<SchoolClass> classes) {
         Announcement announcement = new Announcement();
         announcement.setAcademicYear(year);
         announcement.setTeacher(teacher);
@@ -1179,12 +1183,9 @@ public class DemoDataSeeder implements ApplicationRunner {
         announcement.setRejectionReason(rejectionReason);
         announcement.setSenderType(senderType);
         announcement.setRecipientScope(recipientScope);
-        announcement.setTeacherAudience(teacherAudience);
-        announcement.setRecipientSubject(recipientSubject);
         announcement.setTitle(title);
         announcement.setBody(body);
         announcement.setTargetRole(targetRole);
-        announcement.setRequiresReply(requiresReply);
         persist(announcement);
         for (SchoolClass cls : classes) {
             AnnouncementClass link = new AnnouncementClass();
@@ -1200,6 +1201,8 @@ public class DemoDataSeeder implements ApplicationRunner {
         AnnouncementRead read = new AnnouncementRead();
         read.setAnnouncement(announcement);
         read.setUser(user);
+        read.setRecipientRole(user.getRole());
+        read.setUserName(user.getName());
         read.setReadAt(readAt);
         return persist(read);
     }

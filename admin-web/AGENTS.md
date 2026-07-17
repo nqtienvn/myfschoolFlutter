@@ -14,6 +14,10 @@ Every operational feature in `admin-web` must use the academic year selected in 
 - New backend integration tests must create at least two academic years and prove that reads and writes cannot leak or attach data across years.
 - Any intentional exception must be documented in the feature PR and must be limited to global security, identity, or catalog administration.
 
+### Intentional global-identity exception
+
+An Admin school-wide announcement still records the selected `academicYearId` for listing and audit, but its recipient snapshot contains every account whose role is not `ADMIN`. This is an explicit global identity broadcast; it must not be reused for teacher-created or class-scoped announcements.
+
 ## Review checklist
 
 Reject an admin feature if any answer is "no":

@@ -48,7 +48,7 @@ Toàn bộ logic nghiệp vụ của ứng dụng được mô phỏng trực ti
   2. **Điểm danh lớp:** Điểm danh theo từng buổi sáng/chiều có lịch học. Giáo viên chỉ điểm danh trong ngày; sửa sau khi đã lưu phải gửi Admin phê duyệt.
   3. **Duyệt đơn xin nghỉ:** Phê duyệt hoặc Từ chối đơn xin nghỉ phép gửi từ Phụ huynh.
   4. **Nhập & Upload điểm:** Nhập điểm trực tiếp hoặc import hàng loạt qua tệp Excel.
-  5. **Gửi thông báo lớp:** Soạn thông báo kèm cờ bắt buộc xác nhận từ phụ huynh.
+  5. **Gửi thông báo lớp:** Soạn thông báo cho các lớp được phân công và gửi Admin phê duyệt trước khi phát hành.
   6. **Thống kê lớp học:** Biểu đồ chuyên cần và học lực của cả lớp.
 * **Hộp thoại nhắn tin hợp nhất (Unified Messaging Inbox):** 
   * Đã loại bỏ hoàn toàn nút "Tin nhắn phụ huynh" trên lưới tiện ích.
@@ -62,7 +62,8 @@ Toàn bộ logic nghiệp vụ của ứng dụng được mô phỏng trực ti
   * Phụ huynh chỉ được xem dữ liệu các học sinh thuộc danh sách con đã liên kết (`mockStudents[0]` và `mockStudents[1]`).
   * Học sinh chỉ hiển thị thông tin cá nhân của chính mình (`mockStudents[0]`) và không có nút duyệt đơn phép hoặc điểm danh lớp học.
   * Giáo viên chỉ được truy cập vào giao diện quản lý lớp 12A và nhập điểm môn PRM393.
-* **Quy tắc phản hồi thông báo:** Các thông báo được cấu hình `requiresReply: true` sẽ hiển thị cảnh báo đỏ nổi bật trên UI phụ huynh và chỉ mất đi sau khi người dùng bấm nút "Xác nhận tham dự/Đã đọc".
+* **Quy tắc phát hành thông báo:** Thông báo của giáo viên chỉ được phát hành sau khi Admin duyệt. Admin có thể gửi trực tiếp đến toàn bộ tài khoản không phải Admin. Người nhận chỉ đọc thông báo; không có luồng xác nhận hoặc phản hồi.
+* **Ngoại lệ phạm vi Admin:** Thông báo toàn trường vẫn lưu năm học đang chọn để phục vụ danh sách và audit, nhưng snapshot người nhận được lấy từ toàn bộ tài khoản không phải Admin.
 
 ---
 
@@ -104,6 +105,6 @@ Nhằm nâng cấp MyFschool từ một Sổ liên lạc điện tử cơ bản 
 * **Đồng bộ Lịch báo giảng & Điểm danh tự động (Syllabus & Timetable Sync):**
   * Liên kết thời khóa biểu dạy học của giáo viên với khung chương trình đào tạo của Bộ/Trường.
   * Giáo viên có thể đính kèm giáo án của bài học ngay trên lịch dạy và tự động kích hoạt danh sách điểm danh tương ứng với học sinh của tiết học đó.
-* **Báo cáo đọc và ký nhận thông báo (Read-receipt Tracking Dashboard):**
-  * Thống kê chi tiết danh sách phụ huynh chưa đọc thông báo quan trọng.
-  * Tích hợp nút gửi thông báo nhắc nhở nhanh (Nudge) đến những phụ huynh chưa xác nhận đóng tiền học hoặc tham gia họp lớp.
+* **Báo cáo lượt đọc thông báo (Read Tracking Dashboard):**
+  * Giáo viên có thể xem trạng thái đã đọc/chưa đọc đối với thông báo do mình gửi.
+  * Không có thao tác ký nhận hoặc phản hồi trên thông báo.

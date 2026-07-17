@@ -63,7 +63,7 @@ Tài khoản trạng thái biên dành cho trang quản lý người dùng:
 | Đơn nghỉ | `PENDING`, `APPROVED`, `REJECTED`, có tệp đính kèm và liên kết điểm danh |
 | Bảng điểm | `DRAFT`, `SUBMITTED`, `PUBLISHED`, `LOCKED`; điểm đủ, điểm thiếu, lịch sử sửa điểm và xếp hạng học kỳ |
 | Học phí | `UNPAID`, `PROCESSING`, `PAID`; giao dịch `PENDING`, `SUCCESS`, `FAILED` |
-| Thông báo | Cấp lớp, toàn trường, giáo viên; chờ duyệt, đã duyệt, từ chối, yêu cầu xác nhận đọc |
+| Thông báo | Theo lớp hoặc toàn bộ tài khoản không phải Admin; chờ duyệt, đã duyệt, từ chối, đã đọc/chưa đọc |
 | Tin nhắn | Phụ huynh–giáo viên, học sinh–giáo viên, trạng thái đã đọc/chưa đọc và tệp đính kèm |
 | Hệ thống | Thông báo cá nhân và nhật ký thao tác admin |
 

@@ -49,13 +49,6 @@ public class Announcement extends BaseEntity {
     @Column(name = "recipient_scope", nullable = false, length = 20)
     private String recipientScope = "CLASSES";
 
-    @Column(name = "teacher_audience", length = 20)
-    private String teacherAudience;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "recipient_subject_id")
-    private Subject recipientSubject;
-
     @Column(nullable = false, length = 500)
     private String title;
 
@@ -65,9 +58,6 @@ public class Announcement extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TargetRole targetRole;
-
-    @Column(nullable = false)
-    private Boolean requiresReply = false;
 
     @OneToMany(mappedBy = "announcement", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<AnnouncementClass> announcementClasses = new ArrayList<>();

@@ -142,7 +142,7 @@ class ConversationIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/announcements")
                 .header("Authorization", authHeader(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Thong bao lich thi\",\"body\":\"Lich thi cuoi ky\",\"targetRole\":\"ALL\",\"requiresReply\":false,\"classIds\":[" + testClass.getId() + "]}"))
+                .content("{\"title\":\"Thong bao lich thi\",\"body\":\"Lich thi cuoi ky\",\"targetRole\":\"ALL\",\"classIds\":[" + testClass.getId() + "]}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.title").value("Thong bao lich thi"));
@@ -180,37 +180,8 @@ class ConversationIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.senderType").value("ADMIN"))
+            .andExpect(jsonPath("$.data.recipientScope").value("SCHOOL"))
             .andExpect(jsonPath("$.data.teacherId").doesNotExist());
-    }
-
-    @Test
-    void admin_can_send_to_selected_classes_and_parent_only() throws Exception {
-        String token = loginAsAdmin();
-        mockMvc.perform(post("/api/announcements/admin/broadcast")
-                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Thong bao lop\",\"body\":\"Noi dung\",\"academicYearId\":"
-                        + testAcademicYear.getId() + ",\"recipientScope\":\"CLASSES\",\"targetRole\":\"PARENT\",\"classIds\":[" + testClass.getId() + "]}"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.recipientScope").value("CLASSES"))
-            .andExpect(jsonPath("$.data.targetRole").value("PARENT"))
-            .andExpect(jsonPath("$.data.classNames[0]").value(testClass.getName()));
-    }
-
-    @Test
-    void admin_cannot_send_to_class_from_another_academic_year() throws Exception {
-        AcademicYear otherYear = new AcademicYear();
-        otherYear.setName("2028-2029"); otherYear.setStartDate(LocalDate.of(2028, 8, 1));
-        otherYear.setEndDate(LocalDate.of(2029, 5, 31)); otherYear.setStatus(AcademicYearStatus.DRAFT);
-        otherYear = academicYearRepository.save(otherYear);
-        SchoolClass otherClass = new SchoolClass(); otherClass.setName("11Z");
-        otherClass.setGradeLevel(11); otherClass.setAcademicYear(otherYear); otherClass = classRepository.save(otherClass);
-
-        String token = loginAsAdmin();
-        mockMvc.perform(post("/api/announcements/admin/broadcast")
-                .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Cross year\",\"body\":\"Blocked\",\"academicYearId\":"
-                        + testAcademicYear.getId() + ",\"recipientScope\":\"CLASSES\",\"targetRole\":\"ALL\",\"classIds\":[" + otherClass.getId() + "]}"))
-            .andExpect(status().isForbidden());
     }
 
     @Test

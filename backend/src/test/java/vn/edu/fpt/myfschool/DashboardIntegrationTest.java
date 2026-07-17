@@ -255,7 +255,6 @@ class DashboardIntegrationTest extends BaseIntegrationTest {
         announcement.setTitle(title);
         announcement.setBody(title);
         announcement.setTargetRole(TargetRole.PARENT);
-        announcement.setRequiresReply(false);
         announcement = announcementRepository.save(announcement);
 
         AnnouncementClass link = new AnnouncementClass();

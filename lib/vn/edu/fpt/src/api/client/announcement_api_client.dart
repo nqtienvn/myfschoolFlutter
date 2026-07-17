@@ -12,18 +12,11 @@ abstract class AnnouncementApi {
 
   Future<AnnouncementDto> getDetail({required String token, required int id});
   Future<void> markRead({required String token, required int id});
-  Future<void> acknowledge({required String token, required int id});
-  Future<void> reply({
-    required String token,
-    required int id,
-    required String text,
-  });
   Future<int> getUnreadCount({required String token});
   Future<int> getUnreadCountForYear({
     required String token,
     int? academicYearId,
   }) => getUnreadCount(token: token);
-  Future<int> getPendingActionCount({required String token});
   Future<AnnouncementRecipientPage> getRecipients({
     required String token,
     required int announcementId,
@@ -77,21 +70,6 @@ class AnnouncementApiClient implements AnnouncementApi {
       _backend.putData('/api/announcements/$id/read', token: token);
 
   @override
-  Future<void> acknowledge({required String token, required int id}) =>
-      _backend.putData('/api/announcements/$id/acknowledge', token: token);
-
-  @override
-  Future<void> reply({
-    required String token,
-    required int id,
-    required String text,
-  }) => _backend.putData(
-    '/api/announcements/$id/reply',
-    token: token,
-    body: {'replyText': text},
-  );
-
-  @override
   Future<int> getUnreadCount({required String token}) =>
       _count('/api/announcements/unread-count', token);
 
@@ -104,10 +82,6 @@ class AnnouncementApiClient implements AnnouncementApi {
     token,
     query: {'academicYearId': academicYearId?.toString()},
   );
-
-  @override
-  Future<int> getPendingActionCount({required String token}) =>
-      _count('/api/announcements/pending-action-count', token);
 
   Future<int> _count(
     String path,

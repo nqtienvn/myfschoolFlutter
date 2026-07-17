@@ -255,7 +255,6 @@ Tối ưu hiệu năng (index, partition) và dễ scale.
 │ title        │ Title card thông báo                                 │
 │ body         │ Body nội dung chi tiết                               │
 │ target_role  │ Filter: PARENT / STUDENT / ALL                       │
-│ requires_reply│ Tag "Cần phản hồi" + badge đỏ                      │
 │ teacher_id   │ (ẩn — GV tạo)                                        │
 │ announcement │ Liên kết lớp nhận thông báo                          │
 │   _classes   │                                                      │
@@ -691,7 +690,8 @@ Tối ưu hiệu năng (index, partition) và dễ scale.
 │ title            │ VARCHAR(500) NOT NULL             │
 │ body             │ TEXT NOT NULL                     │
 │ target_role      │ ENUM: PARENT, STUDENT, ALL        │
-│ requires_reply   │ BOOLEAN DEFAULT FALSE             │
+│ approval_status  │ PENDING / APPROVED / REJECTED     │
+│ recipient_scope  │ CLASSES / SCHOOL                  │
 │ created_at       │ TIMESTAMP DEFAULT CURRENT         │
 ├──────────────────┴──────────────────────────────────┤
 │ INDEX idx_ann_teacher (teacher_id) — GV xem đã gửi │

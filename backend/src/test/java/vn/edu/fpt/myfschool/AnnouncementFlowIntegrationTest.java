@@ -9,67 +9,48 @@ import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import vn.edu.fpt.myfschool.entity.AcademicYear;
 import vn.edu.fpt.myfschool.entity.Parent;
-import vn.edu.fpt.myfschool.entity.SchoolClass;
 import vn.edu.fpt.myfschool.entity.Teacher;
 import vn.edu.fpt.myfschool.entity.User;
 import vn.edu.fpt.myfschool.repository.AnnouncementReadRepository;
 
 import java.time.LocalDate;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class AnnouncementAcknowledgementIntegrationTest extends BaseIntegrationTest {
+class AnnouncementFlowIntegrationTest extends BaseIntegrationTest {
 
     @Autowired AnnouncementReadRepository announcementReadRepository;
 
     @Test
-    void pending_announcement_has_no_recipients_and_approval_creates_year_scoped_snapshot() throws Exception {
-        Long id = createTeacherAnnouncement("ALL", true);
-        String adminToken = loginAsAdmin();
+    void teacher_announcement_is_published_only_after_admin_approval() throws Exception {
+        Long id = createTeacherAnnouncement("ALL");
 
-        mockMvc.perform(get("/api/announcements/{id}/recipients", id)
-                        .header("Authorization", authHeader(adminToken))
-                        .param("academicYearId", testAcademicYear.getId().toString()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.totalElements").value(0));
+        assertEquals(0, announcementReadRepository.countByAnnouncementId(id));
 
         approve(id);
 
-        mockMvc.perform(get("/api/announcements/{id}/recipients", id)
-                        .header("Authorization", authHeader(adminToken))
-                        .param("academicYearId", testAcademicYear.getId().toString()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.totalElements").value(4));
-
-        org.junit.jupiter.api.Assertions.assertEquals(4, announcementReadRepository.countByAnnouncementId(id));
+        assertEquals(4, announcementReadRepository.countByAnnouncementId(id));
     }
 
     @Test
-    void user_outside_snapshot_cannot_read_acknowledge_or_reply() throws Exception {
-        Long id = createTeacherAnnouncement("PARENT", true);
+    void user_outside_published_audience_cannot_read_announcement() throws Exception {
+        Long id = createTeacherAnnouncement("PARENT");
         approve(id);
         String outsiderToken = createOutsideParentAndLogin();
 
         mockMvc.perform(put("/api/announcements/{id}/read", id)
                         .header("Authorization", authHeader(outsiderToken)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(put("/api/announcements/{id}/acknowledge", id)
-                        .header("Authorization", authHeader(outsiderToken)))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(put("/api/announcements/{id}/reply", id)
-                        .header("Authorization", authHeader(outsiderToken))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"replyText\":\"Ngoai lop\"}"))
-                .andExpect(status().isForbidden());
     }
 
     @Test
-    void another_teacher_cannot_view_tracking() throws Exception {
-        Long id = createTeacherAnnouncement("ALL", true);
+    void another_teacher_cannot_view_recipient_read_tracking() throws Exception {
+        Long id = createTeacherAnnouncement("ALL");
         approve(id);
         String otherTeacherToken = createOtherTeacherAndLogin();
 
@@ -80,8 +61,8 @@ class AnnouncementAcknowledgementIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void teacher_announcement_counts_reads_once_and_never_requires_reply() throws Exception {
-        Long id = createTeacherAnnouncement("STUDENT", true);
+    void opening_announcement_twice_records_one_read() throws Exception {
+        Long id = createTeacherAnnouncement("STUDENT");
         approve(id);
         String studentToken = loginAsStudent1();
 
@@ -93,34 +74,19 @@ class AnnouncementAcknowledgementIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", authHeader(studentToken)))
                 .andExpect(status().isOk());
 
-        String teacherToken = loginAsTeacher();
+        assertEquals(1, announcementReadRepository.countByAnnouncementIdAndReadAtIsNotNull(id));
+
         mockMvc.perform(get("/api/announcements/{id}/recipients", id)
-                        .header("Authorization", authHeader(teacherToken))
+                        .header("Authorization", authHeader(loginAsTeacher()))
                         .param("academicYearId", testAcademicYear.getId().toString())
                         .param("status", "READ"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalElements").value(1));
-
-        mockMvc.perform(get("/api/announcements/pending-action-count")
-                        .header("Authorization", authHeader(studentToken)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").value(0));
-
-        mockMvc.perform(put("/api/announcements/{id}/reply", id)
-                        .header("Authorization", authHeader(studentToken))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"replyText\":\"Em da nhan thong bao\"}"))
-                .andExpect(status().isBadRequest());
-
-        mockMvc.perform(get("/api/announcements/pending-action-count")
-                        .header("Authorization", authHeader(studentToken)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").value(0));
     }
 
     @Test
-    void recipient_tracking_rejects_another_academic_year_scope() throws Exception {
-        Long id = createTeacherAnnouncement("ALL", true);
+    void teacher_recipient_tracking_rejects_another_academic_year_scope() throws Exception {
+        Long id = createTeacherAnnouncement("ALL");
         approve(id);
         AcademicYear otherYear = new AcademicYear();
         otherYear.setName("2029-2030");
@@ -130,45 +96,45 @@ class AnnouncementAcknowledgementIntegrationTest extends BaseIntegrationTest {
         otherYear = academicYearRepository.save(otherYear);
 
         mockMvc.perform(get("/api/announcements/{id}/recipients", id)
-                        .header("Authorization", authHeader(loginAsAdmin()))
+                        .header("Authorization", authHeader(loginAsTeacher()))
                         .param("academicYearId", otherYear.getId().toString()))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void admin_direct_announcement_creates_snapshot_only_for_selected_year_class() throws Exception {
+    void admin_direct_announcement_reaches_every_non_admin_account() throws Exception {
+        createOutsideParentAndLogin();
+        createOtherTeacherAndLogin();
+        long expectedRecipients = userRepository.findAll().stream()
+                .filter(user -> user.getRole() != UserRole.ADMIN)
+                .count();
         String adminToken = loginAsAdmin();
+
         var result = mockMvc.perform(post("/api/announcements/admin/broadcast")
                         .header("Authorization", authHeader(adminToken))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Xac nhan\",\"body\":\"Noi dung\",\"academicYearId\":"
-                                + testAcademicYear.getId() + ",\"recipientScope\":\"CLASSES\",\"targetRole\":\"PARENT\","
-                                + "\"requiresReply\":true,\"classIds\":[" + testClass.getId() + "]}"))
+                        .content("{\"title\":\"Thong bao toan truong\",\"body\":\"Noi dung\",\"academicYearId\":"
+                                + testAcademicYear.getId() + "}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.totalRecipients").value(1))
+                .andExpect(jsonPath("$.data.recipientScope").value("SCHOOL"))
                 .andReturn();
         Long id = responseData(result.getResponse().getContentAsString()).get("id").asLong();
 
+        assertEquals(expectedRecipients, announcementReadRepository.countByAnnouncementId(id));
         mockMvc.perform(get("/api/announcements/{id}/recipients", id)
                         .header("Authorization", authHeader(adminToken))
-                        .param("academicYearId", testAcademicYear.getId().toString())
-                        .param("classId", testClass.getId().toString())
-                        .param("role", "PARENT")
-                        .param("status", "PENDING"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.totalElements").value(1));
+                        .param("academicYearId", testAcademicYear.getId().toString()))
+                .andExpect(status().isForbidden());
     }
 
     @Test
-    void teacher_inbox_and_unread_count_are_scoped_to_the_selected_year() throws Exception {
+    void teacher_inbox_and_unread_count_are_scoped_to_selected_year() throws Exception {
         mockMvc.perform(post("/api/announcements/admin/broadcast")
                         .header("Authorization", authHeader(loginAsAdmin()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"Thong bao giao vien\",\"body\":\"Noi dung\",\"academicYearId\":"
-                                + testAcademicYear.getId() + ",\"recipientScope\":\"TEACHERS\",\"targetRole\":\"ALL\","
-                                + "\"teacherAudience\":\"ALL\",\"requiresReply\":false}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.totalRecipients").value(1));
+                                + testAcademicYear.getId() + "}"))
+                .andExpect(status().isOk());
         String teacherToken = loginAsTeacher();
 
         mockMvc.perform(get("/api/announcements")
@@ -200,13 +166,13 @@ class AnnouncementAcknowledgementIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.data").value(0));
     }
 
-    private Long createTeacherAnnouncement(String targetRole, boolean requiresReply) throws Exception {
+    private Long createTeacherAnnouncement(String targetRole) throws Exception {
         var result = mockMvc.perform(post("/api/announcements")
                         .header("Authorization", authHeader(loginAsTeacher()))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Thong bao can xac nhan\",\"body\":\"Noi dung\",\"targetRole\":\""
-                                + targetRole + "\",\"requiresReply\":" + requiresReply + ",\"academicYearId\":"
-                                + testAcademicYear.getId() + ",\"classIds\":[" + testClass.getId() + "]}"))
+                        .content("{\"title\":\"Thong bao lop\",\"body\":\"Noi dung\",\"targetRole\":\""
+                                + targetRole + "\",\"academicYearId\":" + testAcademicYear.getId()
+                                + ",\"classIds\":[" + testClass.getId() + "]}"))
                 .andExpect(status().isOk())
                 .andReturn();
         return responseData(result.getResponse().getContentAsString()).get("id").asLong();

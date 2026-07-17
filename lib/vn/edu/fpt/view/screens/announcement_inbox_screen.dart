@@ -42,10 +42,7 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
       if (!mounted) return;
       await showDialog<void>(
         context: context,
-        builder: (_) => _AnnouncementDetailDialog(
-          announcement: detail,
-          service: widget.service,
-        ),
+        builder: (_) => _AnnouncementDetailDialog(announcement: detail),
       );
     } catch (error) {
       if (!mounted) return;
@@ -64,21 +61,6 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
         title: widget.service.isTeacher
             ? 'Thông báo nhà trường'
             : 'Thông báo nhà trường',
-        actions: [
-          if (!widget.service.isTeacher &&
-              widget.service.pendingActionCount > 0)
-            Padding(
-              key: const ValueKey('pending-action-badge'),
-              padding: const EdgeInsets.only(right: 12),
-              child: Center(
-                child: Badge(
-                  label: Text('${widget.service.pendingActionCount}'),
-                  backgroundColor: AppColors.danger,
-                  child: const Icon(Icons.task_alt, color: Colors.white),
-                ),
-              ),
-            ),
-        ],
       ),
       body: SafeArea(
         child: RefreshIndicator(onRefresh: widget.service.load, child: _body()),
@@ -197,13 +179,6 @@ class _RecipientAnnouncementCard extends StatelessWidget {
                     runSpacing: 6,
                     children: [
                       _Pill(label: item.senderName, color: AppColors.blue),
-                      if (item.requiresReply)
-                        _Pill(
-                          label: _actionLabel(item),
-                          color: item.acknowledged
-                              ? AppColors.success
-                              : AppColors.danger,
-                        ),
                     ],
                   ),
                 ],
@@ -217,55 +192,14 @@ class _RecipientAnnouncementCard extends StatelessWidget {
   );
 }
 
-class _AnnouncementDetailDialog extends StatefulWidget {
-  const _AnnouncementDetailDialog({
-    required this.announcement,
-    required this.service,
-  });
+class _AnnouncementDetailDialog extends StatelessWidget {
+  const _AnnouncementDetailDialog({required this.announcement});
+
   final SchoolAnnouncement announcement;
-  final AnnouncementInboxService service;
-
-  @override
-  State<_AnnouncementDetailDialog> createState() =>
-      _AnnouncementDetailDialogState();
-}
-
-class _AnnouncementDetailDialogState extends State<_AnnouncementDetailDialog> {
-  late SchoolAnnouncement item = widget.announcement;
-  final TextEditingController replyController = TextEditingController();
-  bool busy = false;
-
-  @override
-  void dispose() {
-    replyController.dispose();
-    super.dispose();
-  }
-
-  Future<void> acknowledge() async {
-    setState(() => busy = true);
-    try {
-      final updated = await widget.service.acknowledge(item.id);
-      if (mounted) setState(() => item = updated);
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
-  }
-
-  Future<void> reply() async {
-    final text = replyController.text.trim();
-    if (text.isEmpty) return;
-    setState(() => busy = true);
-    try {
-      final updated = await widget.service.reply(item.id, text);
-      if (mounted) setState(() => item = updated);
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(item.title),
+    title: Text(announcement.title),
     content: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 520),
       child: SingleChildScrollView(
@@ -273,70 +207,19 @@ class _AnnouncementDetailDialogState extends State<_AnnouncementDetailDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(item.body),
+            Text(announcement.body),
             const SizedBox(height: 12),
             Text(
-              'Gửi bởi ${item.senderName}',
+              'Gửi bởi ${announcement.senderName}',
               style: const TextStyle(color: AppColors.muted),
             ),
-            if (item.requiresReply) ...[
-              const Divider(height: 28),
-              if (item.acknowledged)
-                const Row(
-                  children: [
-                    Icon(Icons.check_circle, color: AppColors.success),
-                    SizedBox(width: 7),
-                    Text('Đã xác nhận đã đọc'),
-                  ],
-                )
-              else
-                FilledButton.icon(
-                  key: const ValueKey('acknowledge-announcement'),
-                  onPressed: busy ? null : acknowledge,
-                  icon: const Icon(Icons.task_alt),
-                  label: const Text('Xác nhận đã đọc'),
-                ),
-              const SizedBox(height: 12),
-              if (item.replyText != null)
-                Container(
-                  key: const ValueKey('sent-announcement-reply'),
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: .08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text('Phản hồi đã gửi: ${item.replyText}'),
-                )
-              else ...[
-                TextField(
-                  key: const ValueKey('announcement-reply-field'),
-                  controller: replyController,
-                  maxLength: 1000,
-                  minLines: 3,
-                  maxLines: 5,
-                  decoration: const InputDecoration(
-                    labelText: 'Phản hồi',
-                    hintText: 'Nhập nội dung phản hồi...',
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton(
-                    key: const ValueKey('send-announcement-reply'),
-                    onPressed: busy ? null : reply,
-                    child: const Text('Gửi phản hồi'),
-                  ),
-                ),
-              ],
-            ],
           ],
         ),
       ),
     ),
     actions: [
       TextButton(
-        onPressed: busy ? null : () => Navigator.pop(context),
+        onPressed: () => Navigator.pop(context),
         child: const Text('Đóng'),
       ),
     ],
@@ -457,24 +340,12 @@ class _TeacherAnnouncementRecipientsScreenState
                             child: Text('Tất cả'),
                           ),
                           DropdownMenuItem(
-                            value: 'PENDING',
-                            child: Text('Chờ hành động'),
-                          ),
-                          DropdownMenuItem(
                             value: 'UNREAD',
                             child: Text('Chưa đọc'),
                           ),
                           DropdownMenuItem(
                             value: 'READ',
                             child: Text('Đã đọc'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'ACKNOWLEDGED',
-                            child: Text('Đã xác nhận'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'REPLIED',
-                            child: Text('Đã phản hồi'),
                           ),
                         ],
                         onChanged: (value) {
@@ -537,10 +408,6 @@ class _TeacherAnnouncementRecipientsScreenState
                               '${recipient.studentNames.join(', ')} · ${recipient.classNames.join(', ')}',
                               style: const TextStyle(color: AppColors.muted),
                             ),
-                            if (recipient.replyText != null) ...[
-                              const Divider(),
-                              Text('Phản hồi: ${recipient.replyText}'),
-                            ],
                           ],
                         ),
                       );
@@ -593,15 +460,7 @@ class _Pill extends StatelessWidget {
   );
 }
 
-String _actionLabel(SchoolAnnouncement item) {
-  if (item.replyText != null) return 'Đã phản hồi';
-  if (item.acknowledged) return 'Đã xác nhận';
-  return 'Chờ xác nhận';
-}
-
 String _recipientStatus(String status) => switch (status) {
-  'REPLIED' => 'Đã phản hồi',
-  'ACKNOWLEDGED' => 'Đã xác nhận',
   'READ' => 'Đã đọc',
   _ => 'Chưa đọc',
 };

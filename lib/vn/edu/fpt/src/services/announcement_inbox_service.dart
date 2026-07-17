@@ -19,7 +19,6 @@ class AnnouncementInboxService extends ChangeNotifier {
 
   List<SchoolAnnouncement> announcements = const [];
   int unreadCount = 0;
-  int pendingActionCount = 0;
   int? academicYearId;
   bool isLoading = false;
   String? errorMessage;
@@ -42,27 +41,21 @@ class AnnouncementInboxService extends ChangeNotifier {
     errorMessage = null;
     notifyListeners();
     try {
-      final listFuture = _api.getAnnouncements(
-        token: _token,
-        teacher: isTeacher,
-        academicYearId: academicYearId,
-      );
       final results = await Future.wait<Object>([
-        listFuture,
+        _api.getAnnouncements(
+          token: _token,
+          teacher: isTeacher,
+          academicYearId: academicYearId,
+        ),
         _api.getUnreadCountForYear(
           token: _token,
           academicYearId: isTeacher ? academicYearId : null,
         ),
-        if (isTeacher)
-          Future<Object>.value(0)
-        else
-          _api.getPendingActionCount(token: _token),
       ]);
       announcements = (results[0] as List<AnnouncementDto>)
           .map((item) => item.toDomain())
           .toList(growable: false);
       unreadCount = results[1] as int;
-      pendingActionCount = results[2] as int;
     } catch (_) {
       errorMessage = 'Không thể tải thông báo.';
     } finally {
@@ -77,33 +70,11 @@ class AnnouncementInboxService extends ChangeNotifier {
     );
     await _api.markRead(token: _token, id: id);
     final detail = (await _api.getDetail(token: _token, id: id)).toDomain();
-    _replace(detail);
+    announcements = [
+      for (final item in announcements) item.id == detail.id ? detail : item,
+    ];
     if (wasUnread && unreadCount > 0) unreadCount--;
     notifyListeners();
     return detail;
-  }
-
-  Future<SchoolAnnouncement> acknowledge(int id) async {
-    await _api.acknowledge(token: _token, id: id);
-    final detail = (await _api.getDetail(token: _token, id: id)).toDomain();
-    _replace(detail);
-    pendingActionCount = await _api.getPendingActionCount(token: _token);
-    notifyListeners();
-    return detail;
-  }
-
-  Future<SchoolAnnouncement> reply(int id, String text) async {
-    await _api.reply(token: _token, id: id, text: text.trim());
-    final detail = (await _api.getDetail(token: _token, id: id)).toDomain();
-    _replace(detail);
-    pendingActionCount = await _api.getPendingActionCount(token: _token);
-    notifyListeners();
-    return detail;
-  }
-
-  void _replace(SchoolAnnouncement value) {
-    announcements = [
-      for (final item in announcements) item.id == value.id ? value : item,
-    ];
   }
 }
