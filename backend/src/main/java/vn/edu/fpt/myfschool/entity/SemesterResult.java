@@ -1,6 +1,7 @@
 package vn.edu.fpt.myfschool.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ForeignKey;
@@ -12,8 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import vn.edu.fpt.myfschool.common.converter.ConductSourceConverter;
 import vn.edu.fpt.myfschool.common.enums.ConductSource;
 
 import java.math.BigDecimal;
@@ -62,7 +62,7 @@ public class SemesterResult extends BaseEntity {
     @Column(name = "suggested_conduct", length = 50)
     private String suggestedConduct;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = ConductSourceConverter.class)
     @Column(name = "conduct_source", nullable = false, length = 20)
     private ConductSource conductSource = ConductSource.SUGGESTED;
 

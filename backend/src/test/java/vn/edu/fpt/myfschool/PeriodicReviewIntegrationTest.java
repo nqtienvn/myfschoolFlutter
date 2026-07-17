@@ -1,9 +1,11 @@
 package vn.edu.fpt.myfschool;
 
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import vn.edu.fpt.myfschool.common.enums.ConductSource;
 import vn.edu.fpt.myfschool.common.enums.PeriodicReportStatus;
 import vn.edu.fpt.myfschool.common.enums.StudentEventStatus;
@@ -30,6 +32,8 @@ class PeriodicReviewIntegrationTest extends BaseIntegrationTest {
     @Autowired private StudentEventRepository studentEvents;
     @Autowired private SemesterResultRepository semesterResults;
     @Autowired private StudentReviewAuditRepository audits;
+    @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private EntityManager entityManager;
 
     private String teacherToken;
 
@@ -156,6 +160,25 @@ class PeriodicReviewIntegrationTest extends BaseIntegrationTest {
                         .param("semesterId", testSemester.getId().toString())
                         .param("classId", testClass.getId().toString()))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void legacyHomeroomConductSourceIsReadAsAdmin() {
+        jdbcTemplate.update("""
+                INSERT INTO semester_results (
+                    student_id, semester_id, class_id, conduct, suggested_conduct,
+                    conduct_source, result_overridden
+                ) VALUES (?, ?, ?, ?, ?, 'HOMEROOM', TRUE)
+                """,
+                testStudent1.getId(), testSemester.getId(), testClass.getId(), "Tốt", "Tốt");
+        entityManager.clear();
+
+        SemesterResult legacyResult = semesterResults
+                .findByStudentIdAndSemesterId(testStudent1.getId(), testSemester.getId())
+                .orElseThrow();
+
+        assertThat(legacyResult.getConductSource()).isEqualTo(ConductSource.ADMIN);
+        assertThat(legacyResult.getResultOverridden()).isTrue();
     }
 
     private void saveSubjectReview(Student student, String comment) throws Exception {
