@@ -15,7 +15,7 @@ import GradesManagementPage from './pages/GradesManagementPage';
 import GradeConfigurationPage from './pages/GradeConfigurationPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import PaymentSettingsPage from './pages/PaymentSettingsPage';
-import { getAnnouncements as getAdminAnnouncements } from './api/announcement';
+import { getPendingAnnouncementCount } from './api/announcement';
 import SetupWizardShell, { type WizardStepKey } from './components/SetupWizardShell';
 import TeacherPortal from './teacher/TeacherPortal';
 
@@ -365,12 +365,12 @@ function AdminApp() {
     const poll = async () => {
       if (!yearId) { setPendingAnn(0); return; }
       try {
-        const rows = await getAdminAnnouncements(yearId, 'PENDING');
-        if (alive) setPendingAnn(rows.length);
+        const count = await getPendingAnnouncementCount(yearId);
+        if (alive) setPendingAnn(count);
       } catch { /* silent */ }
     };
     void poll();
-    const t = window.setInterval(poll, 15_000);
+    const t = window.setInterval(poll, 5_000);
     return () => { alive = false; clearInterval(t); };
   }, [yearId]);
 
@@ -506,7 +506,10 @@ function AdminApp() {
       </div>
     ) : module === 'announcements' ? (
       <div className="page-content">
-        <AnnouncementsPage selectedYearId={yearId} />
+        <AnnouncementsPage
+          selectedYearId={yearId}
+          onPendingCountChange={setPendingAnn}
+        />
       </div>
     ) : null;
 

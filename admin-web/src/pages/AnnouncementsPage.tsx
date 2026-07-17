@@ -7,9 +7,15 @@ import {
   reviewAnnouncement,
 } from '../api/announcement';
 
-export default function AnnouncementsPage({ selectedYearId }: { selectedYearId: string }) {
+export default function AnnouncementsPage({
+  selectedYearId,
+  onPendingCountChange,
+}: {
+  selectedYearId: string;
+  onPendingCountChange?: (count: number) => void;
+}) {
   const [items, setItems] = useState<AnnouncementItem[]>([]);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState('PENDING');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -20,16 +26,19 @@ export default function AnnouncementsPage({ selectedYearId }: { selectedYearId: 
   async function load() {
     if (!selectedYearId) {
       setItems([]);
+      onPendingCountChange?.(0);
       return;
     }
-    setItems(await getAnnouncements(selectedYearId, status));
+    const loaded = await getAnnouncements(selectedYearId, status);
+    setItems(loaded);
+    if (status === 'PENDING') onPendingCountChange?.(loaded.length);
   }
 
   useEffect(() => {
     setItems([]);
     setTitle('');
     setBody('');
-    setStatus('');
+    setStatus('PENDING');
     setError('');
     setMessage('');
     setShowForm(false);
@@ -113,8 +122,8 @@ export default function AnnouncementsPage({ selectedYearId }: { selectedYearId: 
       <div className="form-group">
         <label>Trạng thái</label>
         <select value={status} onChange={event => setStatus(event.target.value)}>
-          <option value="">Tất cả</option>
           <option value="PENDING">Chờ duyệt</option>
+          <option value="">Tất cả</option>
           <option value="APPROVED">Đã duyệt</option>
           <option value="REJECTED">Từ chối</option>
         </select>

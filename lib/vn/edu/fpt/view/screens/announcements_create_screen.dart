@@ -7,8 +7,11 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.da
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 
 class AnnouncementsCreateScreen extends StatefulWidget {
-  const AnnouncementsCreateScreen({super.key, required this.token});
+  const AnnouncementsCreateScreen({super.key, required this.token, this.api});
+
   final String token;
+  final BackendApiClient? api;
+
   @override
   State<AnnouncementsCreateScreen> createState() =>
       _AnnouncementsCreateScreenState();
@@ -17,13 +20,19 @@ class AnnouncementsCreateScreen extends StatefulWidget {
 class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
   final _title = TextEditingController();
   final _body = TextEditingController();
-  final _api = BackendApiClient();
+  late final BackendApiClient _api;
   List<Map<String, dynamic>> _classes = const [], _sent = const [];
   final Set<int> _classIds = {};
   String _target = 'ALL';
   int? _editingId;
   bool _loading = true, _sending = false;
   int? _yearId;
+
+  @override
+  void initState() {
+    super.initState();
+    _api = widget.api ?? BackendApiClient();
+  }
 
   @override
   void didChangeDependencies() {
@@ -127,8 +136,37 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
   }
 
   Future<void> _delete(int id) async {
-    await _api.deleteData('/api/announcements/$id', token: widget.token);
-    await _load();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa thông báo?'),
+        content: const Text(
+          'Thông báo sẽ bị xóa khỏi hệ thống. Hành động này không thể hoàn tác.',
+        ),
+        actions: [
+          TextButton(
+            key: const ValueKey('cancel-delete-announcement'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            key: const ValueKey('confirm-delete-announcement'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await _api.deleteData('/api/announcements/$id', token: widget.token);
+      if (_editingId == id) _clear();
+      await _load();
+      _message('Đã xóa thông báo.');
+    } catch (error) {
+      _message(error.toString());
+    }
   }
 
   void _clear() {
@@ -316,6 +354,9 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
                                   label: const Text('Sửa'),
                                 ),
                                 TextButton.icon(
+                                  key: ValueKey(
+                                    'delete-announcement-${a['id']}',
+                                  ),
                                   onPressed: () => _delete(a['id'] as int),
                                   icon: const Icon(Icons.delete),
                                   label: const Text('Xóa'),

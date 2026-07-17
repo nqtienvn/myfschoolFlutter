@@ -7,12 +7,18 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/announcements_create_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 
 class AnnouncementInboxScreen extends StatefulWidget {
-  const AnnouncementInboxScreen({super.key, required this.service});
+  const AnnouncementInboxScreen({
+    super.key,
+    required this.service,
+    this.teacherComposerBuilder,
+  });
 
   final AnnouncementInboxService service;
+  final WidgetBuilder? teacherComposerBuilder;
 
   @override
   State<AnnouncementInboxScreen> createState() =>
@@ -51,6 +57,31 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
       ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
+
+  Future<void> _openTeacherComposer() async {
+    final builder =
+        widget.teacherComposerBuilder ??
+        (_) => AnnouncementsCreateScreen(token: widget.service.token);
+    await Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute<void>(builder: builder));
+    if (mounted) await widget.service.load();
+  }
+
+  Widget _teacherComposeButton() => Align(
+    alignment: Alignment.centerRight,
+    child: OutlinedButton.icon(
+      key: const ValueKey('send-class-announcement'),
+      onPressed: _openTeacherComposer,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.fptOrange,
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      icon: const Icon(Icons.add_alert_outlined, size: 18),
+      label: const Text('Gửi thông báo lớp'),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -96,21 +127,33 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
     if (widget.service.announcements.isEmpty) {
       return ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
-        children: const [
-          SizedBox(height: 100),
-          Icon(Icons.notifications_none, size: 48, color: AppColors.muted),
-          SizedBox(height: 12),
-          Text('Chưa có thông báo nào.', textAlign: TextAlign.center),
+        children: [
+          if (widget.service.isTeacher) _teacherComposeButton(),
+          const SizedBox(height: 100),
+          const Icon(
+            Icons.notifications_none,
+            size: 48,
+            color: AppColors.muted,
+          ),
+          const SizedBox(height: 12),
+          const Text('Chưa có thông báo nào.', textAlign: TextAlign.center),
         ],
       );
     }
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(AppSpacing.lg),
-      itemCount: widget.service.announcements.length,
+      itemCount:
+          widget.service.announcements.length +
+          (widget.service.isTeacher ? 1 : 0),
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (_, index) {
-        final item = widget.service.announcements[index];
+        if (widget.service.isTeacher && index == 0) {
+          return _teacherComposeButton();
+        }
+        final item = widget
+            .service
+            .announcements[index - (widget.service.isTeacher ? 1 : 0)];
         return _RecipientAnnouncementCard(item: item, onTap: () => _open(item));
       },
     );

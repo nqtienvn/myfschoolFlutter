@@ -6,7 +6,6 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_attendance_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_leave_requests_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_web_screen.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/announcements_create_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_stats_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
@@ -483,23 +482,6 @@ class _HomeTeacherState extends State<HomeTeacher> {
                                     authService: widget.authService,
                                     backend: _backend,
                                     homeroomClassId: _classId,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          _FeatureButton(
-                            title: 'Gửi thông báo lớp',
-                            icon: Icons.campaign_outlined,
-                            color: AppColors.fptOrange,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => AnnouncementsCreateScreen(
-                                    token: widget
-                                        .authService
-                                        .currentSession!
-                                        .token,
                                   ),
                                 ),
                               );

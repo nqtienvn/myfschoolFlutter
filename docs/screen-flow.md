@@ -418,21 +418,7 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
         │                  ├── API: POST /api/grades/import
         │                  └── Rollback nếu có lỗi nghiêm trọng
         │
-        ├──► [BUTTON 5: "Gửi thông báo lớp"]
-        │         │
-        │         ▼
-        │    [SCR-GV-07: ANNOUNCEMENTS CREATE SCREEN]
-        │      ├── AppBar: "Tạo thông báo mới"
-        │      ├── Form: Tiêu đề (TextField, required)
-        │      ├── Form: Nội dung (TextField, required, multiline)
-        │      ├── Selector: Lớp nhận (Dropdown: 12A, SE1913...)
-        │      └── [BUTTON: "Gửi duyệt"]
-        │            ├── Validate: tiêu đề/nội dung rỗng → SnackBar lỗi
-        │            ├── API: POST /api/announcements
-        │            ├── Trạng thái ban đầu: PENDING
-        │            └── Admin duyệt → phát hành đến PH/HS đã chọn
-        │
-        ├──► [BUTTON 6: "Thống kê lớp học"]
+        ├──► [BUTTON 5: "Thống kê lớp học"]
         │         │
         │         ▼
         │    [SCR-GV-09: TEACHER STATS SCREEN]
@@ -445,7 +431,7 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
         │            ├── WarningItem (red): "3 HS vắng quá 2 buổi..."
         │            └── WarningItem (yellow): "Điểm TB Tiếng Anh giảm 0.4..."
         │
-        ├──► [BUTTON 7: "QL Học phí"] ← có badge count (unpaidCount)
+        ├──► [BUTTON 6: "QL Học phí"] ← có badge count (unpaidCount)
         │         │
         │         ▼
         │    [SCR-GV-TUITION: TEACHER TUITION SCREEN]
@@ -459,7 +445,7 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
         │                  └── API: POST /api/tuition/remind/{studentId}
         │                       └── SnackBar: "Đã gửi nhắc nhở..."
         │
-        └──► [BUTTON 8: "Lịch dạy"]
+        └──► [BUTTON 7: "Lịch dạy"]
                   │
                   ▼
              [SCR-GV-SCHEDULE: SCHEDULE SCREEN]
@@ -470,7 +456,7 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
                └── Section "Buổi chiều": LessonCards
 ```
 
-### Cross-actor triggers từ HomeTeacher:
+### Cross-actor triggers của giáo viên:
 
 ```text
 [HOME TEACHER — Cross-actor triggers]
@@ -480,7 +466,7 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
   │     ├── PH thấy status='Approved' trong LeaveRequestList
   │     └── HS thấy 'Vắng có phép' trong AttendanceScreen
   │
-  ├── Gửi thông báo lớp → API POST /api/announcements
+  ├── Gửi thông báo lớp từ tab Thông báo → API POST /api/announcements
   │     ├── Admin duyệt hoặc từ chối
   │     └── Nếu duyệt, PH/HS mục tiêu thấy trong Tab 2: Thông báo
   │
@@ -574,18 +560,14 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
             │
             ▼
        [SCR-COM-THONGBAO: ANNOUNCEMENTS SCREEN]
-         ├── AppBar: "Trung tâm thông báo"
-         └── "Thông báo đã gửi & Tracking" → AnnouncementCards
-               ├── Mỗi thông báo đã gửi:
-               │     ├── Title + Body
-               │     ├── Tag "Đã gửi" (green)
-               │     ├── Thống kê: "Đã đọc 78%"
-               │     └── Tap → Chi tiết tracking
-               │           ├── Tổng số PH nhận
-               │           ├── Đã đọc / Chưa đọc
-               │           └── Danh sách PH chưa đọc
-               │                 └── [BUTTON: "Nhắc nhở"]
-               │                       └── API: POST /api/announcements/{id}/nudge
+         ├── AppBar: "Thông báo nhà trường"
+         ├── [BUTTON nhỏ: "Gửi thông báo lớp"] → SCR-GV-07
+         │     ├── Form soạn + danh sách thông báo giáo viên đã gửi
+         │     ├── Sửa thông báo chưa duyệt → PUT /api/announcements/{id}
+         │     ├── Xóa thông báo chưa duyệt → modal xác nhận → DELETE /api/announcements/{id}
+         │     └── Back → trở lại đúng tab Thông báo
+         └── Danh sách thông báo nhà trường đã phát hành cho giáo viên
+               └── Tap → mở chi tiết và đánh dấu đã đọc
 ```
 
 ### 5.3. Tab 3: 👤 Tài khoản (AccountProfileScreen)

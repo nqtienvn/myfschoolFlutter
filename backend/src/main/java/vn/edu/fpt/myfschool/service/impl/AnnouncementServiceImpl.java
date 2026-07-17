@@ -70,6 +70,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         ann.setSenderType(isHomeroomTeacher(ann.getTeacher().getId(), academicYearId, classIds)
                 ? "HOMEROOM_TEACHER" : "SUBJECT_TEACHER");
         replaceClasses(ann, classIds);
+        notificationService.deleteByReference(ann.getId(), "ANNOUNCEMENT_APPROVAL");
         notifyAdmins(ann);
         return toDto(ann, false);
     }
@@ -80,6 +81,8 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 .orElseThrow(() -> new ResourceNotFoundException("Announcement", "id", id));
         if (role != UserRole.ADMIN && !ann.getSender().getId().equals(userId))
             throw new ForbiddenException("Bạn không có quyền xóa thông báo này");
+        notificationService.deleteByReference(ann.getId(), "ANNOUNCEMENT_APPROVAL");
+        notificationService.deleteByReference(ann.getId(), "ANNOUNCEMENT");
         announcementRepository.delete(ann);
     }
 
@@ -91,6 +94,12 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         return items.stream().map(a -> toDto(a, false)).toList();
     }
 
+    @Override @Transactional(readOnly = true)
+    public long getPendingCount(Long academicYearId) {
+        year(academicYearId);
+        return announcementRepository.countByAcademicYearIdAndApprovalStatus(academicYearId, "PENDING");
+    }
+
     @Override
     public AnnouncementDto review(Long id, boolean approve, String reason, Long adminUserId) {
         Announcement ann = announcementRepository.findById(id)
@@ -99,6 +108,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         if (!approve && (reason == null || reason.isBlank())) throw new IllegalArgumentException("Phải nhập lý do từ chối");
         ann.setApprovalStatus(approve ? "APPROVED" : "REJECTED");
         ann.setRejectionReason(approve ? null : reason.trim());
+        notificationService.deleteByReference(ann.getId(), "ANNOUNCEMENT_APPROVAL");
         if (approve) publish(ann);
         else notificationService.createNotification(ann.getSender().getId(), "Thông báo bị từ chối",
                 reason, "Quản trị viên", ann.getId(), "ANNOUNCEMENT");
@@ -330,9 +340,11 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         return homeroom.containsAll(ids);
     }
     private void replaceClasses(Announcement a, List<Long> ids) {
-        announcementClassRepository.deleteAll(announcementClassRepository.findByAnnouncementId(a.getId()));
-        for (Long id : ids) { AnnouncementClass ac = new AnnouncementClass(); ac.setAnnouncement(a);
+        a.getAnnouncementClasses().clear();
+        announcementRepository.flush();
+        for (Long id : new LinkedHashSet<>(ids)) { AnnouncementClass ac = new AnnouncementClass(); ac.setAnnouncement(a);
             ac.setCls(schoolClassRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Class", "id", id)));
+            a.getAnnouncementClasses().add(ac);
             announcementClassRepository.save(ac); }
     }
     private void notifyAdmins(Announcement a) { userRepository.findByRole(UserRole.ADMIN).forEach(u ->

@@ -20,6 +20,8 @@ public interface AnnouncementService {
 
     List<AnnouncementDto> getAdminAnnouncements(Long academicYearId, String status);
 
+    long getPendingCount(Long academicYearId);
+
     AnnouncementDto review(Long id, boolean approve, String reason, Long adminUserId);
 
     AnnouncementDto createAdminAnnouncement(String title, String body, Long academicYearId,

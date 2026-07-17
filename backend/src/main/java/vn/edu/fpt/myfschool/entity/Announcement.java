@@ -59,7 +59,8 @@ public class Announcement extends BaseEntity {
     @Column(nullable = false, length = 20)
     private TargetRole targetRole;
 
-    @OneToMany(mappedBy = "announcement", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "announcement", cascade = CascadeType.ALL,
+            orphanRemoval = true, fetch = FetchType.LAZY)
     private List<AnnouncementClass> announcementClasses = new ArrayList<>();
 
     @OneToMany(mappedBy = "announcement", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

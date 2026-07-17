@@ -14,6 +14,7 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
     List<Announcement> findByTeacherIdOrderByCreatedAtDesc(Long teacherId);
     List<Announcement> findByAcademicYearIdOrderByCreatedAtDesc(Long academicYearId);
     List<Announcement> findByAcademicYearIdAndApprovalStatusOrderByCreatedAtDesc(Long academicYearId, String approvalStatus);
+    long countByAcademicYearIdAndApprovalStatus(Long academicYearId, String approvalStatus);
 
     @Query("SELECT DISTINCT a FROM Announcement a JOIN a.announcementClasses ac " +
            "WHERE ac.cls.id IN :classIds AND a.targetRole IN :targetRoles AND a.approvalStatus = 'APPROVED' " +

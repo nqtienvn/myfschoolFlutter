@@ -19,6 +19,9 @@ export interface AnnouncementItem {
 export const getAnnouncements = (academicYearId: string, status?: string) =>
   apiFetch(`/announcements/admin?academicYearId=${academicYearId}${status ? `&status=${status}` : ''}`) as Promise<AnnouncementItem[]>;
 
+export const getPendingAnnouncementCount = (academicYearId: string) =>
+  apiFetch(`/announcements/admin/pending-count?academicYearId=${academicYearId}`) as Promise<number>;
+
 export const reviewAnnouncement = (id: number, approve: boolean, reason?: string) =>
   apiFetch(`/announcements/${id}/review`, { method: 'PUT', body: JSON.stringify({ approve, reason }) });
 

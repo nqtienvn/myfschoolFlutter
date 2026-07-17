@@ -78,6 +78,12 @@ public class AnnouncementController {
         return ResponseEntity.ok(ApiResponse.success(announcementService.getAdminAnnouncements(academicYearId, status)));
     }
 
+    @GetMapping("/admin/pending-count")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Long>> pendingCount(@RequestParam Long academicYearId) {
+        return ResponseEntity.ok(ApiResponse.success(announcementService.getPendingCount(academicYearId)));
+    }
+
     @PutMapping("/{id}/review")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AnnouncementDto>> review(@PathVariable Long id,

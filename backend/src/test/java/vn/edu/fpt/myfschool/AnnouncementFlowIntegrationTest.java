@@ -11,11 +11,14 @@ import vn.edu.fpt.myfschool.entity.AcademicYear;
 import vn.edu.fpt.myfschool.entity.Parent;
 import vn.edu.fpt.myfschool.entity.Teacher;
 import vn.edu.fpt.myfschool.entity.User;
+import vn.edu.fpt.myfschool.repository.AnnouncementClassRepository;
 import vn.edu.fpt.myfschool.repository.AnnouncementReadRepository;
+import vn.edu.fpt.myfschool.repository.NotificationRepository;
 
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -25,6 +28,58 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AnnouncementFlowIntegrationTest extends BaseIntegrationTest {
 
     @Autowired AnnouncementReadRepository announcementReadRepository;
+    @Autowired AnnouncementClassRepository announcementClassRepository;
+    @Autowired NotificationRepository notificationRepository;
+
+    @Test
+    void pending_announcement_can_be_edited_and_deleted_without_leaking_admin_state() throws Exception {
+        Long id = createTeacherAnnouncement("STUDENT");
+        AcademicYear otherYear = new AcademicYear();
+        otherYear.setName("2030-2031");
+        otherYear.setStartDate(LocalDate.of(2030, 8, 1));
+        otherYear.setEndDate(LocalDate.of(2031, 5, 31));
+        otherYear.setStatus(AcademicYearStatus.DRAFT);
+        otherYear = academicYearRepository.save(otherYear);
+        String adminToken = loginAsAdmin();
+
+        mockMvc.perform(get("/api/announcements/admin/pending-count")
+                        .header("Authorization", authHeader(adminToken))
+                        .param("academicYearId", testAcademicYear.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(1));
+        mockMvc.perform(get("/api/announcements/admin/pending-count")
+                        .header("Authorization", authHeader(adminToken))
+                        .param("academicYearId", otherYear.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(0));
+
+        mockMvc.perform(put("/api/announcements/{id}", id)
+                        .header("Authorization", authHeader(loginAsTeacher()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Thong bao da sua\",\"body\":\"Noi dung moi\","
+                                + "\"targetRole\":\"STUDENT\",\"academicYearId\":"
+                                + testAcademicYear.getId() + ",\"classIds\":[" + testClass.getId() + "]}"))
+                .andExpect(status().isOk());
+
+        assertEquals(1, announcementClassRepository.findByAnnouncementId(id).size());
+        assertEquals(1, notificationRepository.findByUserIdOrderByCreatedAtDesc(testAdminUser.getId()).stream()
+                .filter(item -> id.equals(item.getRelatedId()))
+                .filter(item -> "ANNOUNCEMENT_APPROVAL".equals(item.getRelatedType()))
+                .count());
+
+        mockMvc.perform(delete("/api/announcements/{id}", id)
+                        .header("Authorization", authHeader(loginAsTeacher())))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/announcements/admin/pending-count")
+                        .header("Authorization", authHeader(adminToken))
+                        .param("academicYearId", testAcademicYear.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(0));
+        assertEquals(0, notificationRepository.findByUserIdOrderByCreatedAtDesc(testAdminUser.getId()).stream()
+                .filter(item -> id.equals(item.getRelatedId()))
+                .filter(item -> "ANNOUNCEMENT_APPROVAL".equals(item.getRelatedType()))
+                .count());
+    }
 
     @Test
     void teacher_announcement_is_published_only_after_admin_approval() throws Exception {

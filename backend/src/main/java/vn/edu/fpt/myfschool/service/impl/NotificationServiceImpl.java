@@ -57,6 +57,11 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    public void deleteByReference(Long relatedId, String relatedType) {
+        notificationRepository.deleteByReference(relatedId, relatedType);
+    }
+
+    @Override
     public NotificationDto createNotification(Long userId, String title, String body, String tag) {
         return createNotification(userId, title, body, tag, null, null);
     }
