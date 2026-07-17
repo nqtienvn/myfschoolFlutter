@@ -153,3 +153,7 @@ GV selects multiple assigned classes (M:N via `announcement_classes`) and `targe
 - 🔲 Admin Web: Not yet built (React)
 - 🔲 Real authentication: Not yet implemented (JWT planned)
 - Only Edit, commit and push code on branch master
+
+## Manual Actions
+
+- Nếu một việc có thể được người dùng xử lý thủ công một cách đơn giản, nhanh và an toàn, hãy yêu cầu người dùng làm thủ công ngay; cung cấp chính xác các bước hoặc lệnh cần chạy và chờ người dùng xác nhận kết quả, không tự động hóa hoặc tự thực hiện thay.
