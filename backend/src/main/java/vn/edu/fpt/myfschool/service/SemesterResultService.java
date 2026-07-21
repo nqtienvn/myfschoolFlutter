@@ -17,4 +17,6 @@ public interface SemesterResultService {
     ResultSummaryDto overrideResult(Long studentId, ResultOverrideRequest request, Long adminUserId);
 
     List<ResultSummaryDto> publishResults(ResultPublishRequest request, Long adminUserId);
+
+    void closeSemester(ResultCloseRequest request);
 }

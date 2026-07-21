@@ -11,6 +11,7 @@ import vn.edu.fpt.myfschool.entity.Teacher;
 import vn.edu.fpt.myfschool.entity.Attendance;
 import vn.edu.fpt.myfschool.entity.StudentEvent;
 import vn.edu.fpt.myfschool.entity.StudentPeriodicReport;
+import vn.edu.fpt.myfschool.entity.GradeBook;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -45,6 +46,9 @@ public class SemesterResultServiceImpl implements SemesterResultService {
     private final StudentEventRepository studentEventRepository;
     private final StudentPeriodicReportRepository studentPeriodicReportRepository;
     private final PeriodicReviewService periodicReviewService;
+    private final GradeBookRepository gradeBookRepository;
+    private final AcademicYearSubjectRepository academicYearSubjectRepository;
+    private final NotificationService notificationService;
 
     @Override
     public SemesterResultDto getStudentSemesterResult(
@@ -134,6 +138,7 @@ public class SemesterResultServiceImpl implements SemesterResultService {
     @Transactional
     public ResultSummaryDto overrideResult(Long studentId, ResultOverrideRequest request, Long adminUserId) {
         ResultScope scope = requireResultScope(request.academicYearId(), request.semesterId(), request.classId());
+        requireEditable(scope);
         requireSummaryStudent(scope, studentId);
         validateClassification(request.academicAbility(), request.conduct());
         SemesterResult result = semesterResultRepository.findByStudentIdAndSemesterId(studentId, request.semesterId())
@@ -166,6 +171,7 @@ public class SemesterResultServiceImpl implements SemesterResultService {
     @Transactional
     public List<ResultSummaryDto> publishResults(ResultPublishRequest request, Long adminUserId) {
         ResultScope scope = requireResultScope(request.academicYearId(), request.semesterId(), request.classId());
+        requireEditable(scope);
         List<HomeroomReportDto> reports = periodicReviewService.getAdminReports(
                 request.academicYearId(), request.semesterId(), request.classId(), null);
         Map<Long, HomeroomReportDto> reportByStudent = new HashMap<>();
@@ -197,6 +203,7 @@ public class SemesterResultServiceImpl implements SemesterResultService {
         for (Student student : roster) {
             SemesterResult result = semesterResultRepository.findByStudentIdAndSemesterId(
                     student.getId(), request.semesterId()).orElseThrow();
+            boolean firstPublication = result.getPublishedAt() == null;
             result.setPublishedAt(publishedAt);
             semesterResultRepository.save(result);
             StudentPeriodicReport report = studentPeriodicReportRepository.findByStudentIdAndSemesterId(
@@ -205,8 +212,62 @@ public class SemesterResultServiceImpl implements SemesterResultService {
             report.setStatus(PeriodicReportStatus.PUBLISHED);
             report.setPublishedAt(publishedAt);
             studentPeriodicReportRepository.save(report);
+            if (firstPublication) sendPublishedNotifications(student, scope.semester(), result.getId());
         }
         return getResultSummary(request.academicYearId(), request.semesterId(), request.classId());
+    }
+
+    @Override
+    @Transactional
+    public void closeSemester(ResultCloseRequest request) {
+        Semester semester = semesterRepository.findById(request.semesterId())
+                .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", request.semesterId()));
+        if (!semester.getAcademicYear().getId().equals(request.academicYearId())) {
+            throw new ForbiddenException("Học kỳ không thuộc năm học đã chọn");
+        }
+        if (semester.getAcademicYear().getStatus() != AcademicYearStatus.ACTIVE
+                || semester.getStatus() != SemesterStatus.ACTIVE) {
+            throw new ConflictException("Chỉ học kỳ ACTIVE của năm học ACTIVE mới được đóng");
+        }
+        Set<Long> configuredSubjectIds = academicYearSubjectRepository
+                .findByAcademicYearId(request.academicYearId()).stream()
+                .map(item -> item.getSubject().getId()).collect(Collectors.toSet());
+        for (SchoolClass cls : classRepository.findByAcademicYearId(request.academicYearId())) {
+            List<Student> roster = enrollmentRepository.findByClsIdAndAcademicYearIdAndStatus(
+                            cls.getId(), request.academicYearId(), EnrollmentStatus.ACTIVE).stream()
+                    .map(Enrollment::getStudent).toList();
+            if (roster.isEmpty()) continue;
+            List<GradeBook> books = gradeBookRepository
+                    .findByClsIdAndSemesterId(cls.getId(), request.semesterId());
+            Set<Long> bookSubjectIds = books.stream().map(book -> book.getSubject().getId())
+                    .collect(Collectors.toSet());
+            if (!bookSubjectIds.containsAll(configuredSubjectIds)) {
+                throw new ConflictException("Lớp " + cls.getName()
+                        + " chưa có đủ bảng điểm các môn đã cấu hình");
+            }
+            for (Student student : roster) {
+                SemesterResult result = semesterResultRepository.findByStudentIdAndSemesterId(
+                                student.getId(), request.semesterId())
+                        .orElseThrow(() -> new ConflictException("Chưa tính kết quả cho "
+                                + student.getStudentCode()));
+                if (result.getPublishedAt() == null) {
+                    throw new ConflictException("Chưa công bố kết quả cho " + student.getStudentCode());
+                }
+            }
+            for (GradeBook book : books) {
+                if (book.getStatus() != GradeBookStatus.PUBLISHED
+                        && book.getStatus() != GradeBookStatus.LOCKED) {
+                    throw new ConflictException("Bảng điểm " + cls.getName() + " - "
+                            + book.getSubject().getName() + " chưa được công bố");
+                }
+                book.setStatus(GradeBookStatus.LOCKED);
+                book.setIsFinalized(true);
+                gradeBookRepository.save(book);
+            }
+        }
+        semester.setStatus(SemesterStatus.COMPLETED);
+        semester.setIsCurrent(false);
+        semesterRepository.save(semester);
     }
 
     private ResultSummaryDto toResultSummary(ResultScope scope, Student student,
@@ -258,13 +319,31 @@ public class SemesterResultServiceImpl implements SemesterResultService {
     }
 
     private void validateClassification(String academicAbility, String conduct) {
-        Set<String> values = Set.of("Giỏi", "Khá", "Trung bình", "Yếu");
+        Set<String> values = Set.of("Tốt", "Khá", "Đạt", "Chưa đạt", "Giỏi", "Trung bình", "Yếu");
         if (!values.contains(academicAbility.trim())) {
-            throw new BadRequestException("Học lực cuối không hợp lệ");
+            throw new BadRequestException("Kết quả học tập cuối không hợp lệ");
         }
-        if (!Set.of("Tốt", "Khá", "Trung bình", "Yếu").contains(conduct.trim())) {
-            throw new BadRequestException("Hạnh kiểm cuối không hợp lệ");
+        if (!values.contains(conduct.trim())) {
+            throw new BadRequestException("Kết quả rèn luyện cuối không hợp lệ");
         }
+    }
+
+    private void requireEditable(ResultScope scope) {
+        if (scope.semester().getStatus() == SemesterStatus.COMPLETED
+                || scope.cls().getAcademicYear().getStatus() == AcademicYearStatus.COMPLETED) {
+            throw new ConflictException("Kết quả đã đóng và chỉ còn quyền xem");
+        }
+    }
+
+    private void sendPublishedNotifications(Student student, Semester semester, Long resultId) {
+        String title = "Kết quả " + semester.getName() + " đã được công bố";
+        String body = "Nhà trường đã công bố điểm, kết quả học tập và rèn luyện của "
+                + student.getUser().getName() + ".";
+        notificationService.createNotification(student.getUser().getId(), title, body,
+                "ACADEMIC_RESULT", resultId, "SEMESTER_RESULT");
+        studentGuardianRepository.findGuardiansByStudentId(student.getId()).forEach(parent ->
+                notificationService.createNotification(parent.getUser().getId(), title, body,
+                        "ACADEMIC_RESULT", resultId, "SEMESTER_RESULT"));
     }
 
     private String firstNonBlank(String first, String second) {

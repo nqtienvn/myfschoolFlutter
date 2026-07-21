@@ -17,6 +17,7 @@ import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.repository.*;
 import vn.edu.fpt.myfschool.service.SemesterResultCalculationService;
 import vn.edu.fpt.myfschool.service.StudentRiskService;
+import vn.edu.fpt.myfschool.service.ResultClassificationPolicy;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -41,6 +42,7 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
     private final StudentRiskService studentRiskService;
     private final StudentEventRepository studentEventRepository;
     private final StudentPeriodicReportRepository studentPeriodicReportRepository;
+    private final AcademicYearSubjectRepository academicYearSubjectRepository;
 
     @Override
     public CalculateSemesterResultResponse calculate(Long classId, Long semesterId) {
@@ -50,6 +52,10 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
             .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
         if (!semester.getAcademicYear().getId().equals(cls.getAcademicYear().getId())) {
             throw new ConflictException("Học kỳ không thuộc năm học của lớp đã chọn");
+        }
+        if (semester.getStatus() == vn.edu.fpt.myfschool.common.enums.SemesterStatus.COMPLETED
+                || cls.getAcademicYear().getStatus() == vn.edu.fpt.myfschool.common.enums.AcademicYearStatus.COMPLETED) {
+            throw new ConflictException("Kết quả đã đóng và chỉ còn quyền xem");
         }
 
         List<Enrollment> enrollments = enrollmentRepository
@@ -73,7 +79,9 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
         List<StudentGPA> studentGPAs = new ArrayList<>();
         for (Enrollment enrollment : enrollments) {
             Student student = enrollment.getStudent();
-            BigDecimal gpa = calculateGPA(student.getId(), classId, semesterId);
+            List<GradeBook> books = gradeBookRepository.findByClsIdAndSemesterId(classId, semesterId);
+            List<BigDecimal> subjectAverages = calculateSubjectAverages(student.getId(), books);
+            BigDecimal gpa = average(subjectAverages);
             if (gpa == null) {
                 warnings.add(student.getStudentCode() + ": không có điểm");
                 skipped++;
@@ -102,8 +110,12 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
             result.setCls(cls);
             result.setGpa(sg.gpa());
             result.setRank(rank);
-            String suggestedHonor = calculateHonor(sg.gpa());
-            String suggestedAcademicAbility = calculateAcademicAbility(sg.gpa());
+            List<GradeBook> books = gradeBookRepository.findByClsIdAndSemesterId(classId, semesterId);
+            List<BigDecimal> subjectAverages = calculateSubjectAverages(sg.student().getId(), books);
+            int failedCommentSubjects = countFailedCommentSubjects(sg.student().getId(), books);
+            String suggestedAcademicAbility = ResultClassificationPolicy.academicAbility(
+                    subjectAverages, failedCommentSubjects);
+            String suggestedHonor = "Không";
             result.setSuggestedHonor(suggestedHonor);
             result.setSuggestedAcademicAbility(suggestedAcademicAbility);
             String suggestedConduct = calculateConduct(
@@ -138,6 +150,14 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
     private void validateScoresBeforeCalculation(SchoolClass cls, Semester semester, List<Enrollment> enrollments) {
         List<GradeBook> books = gradeBookRepository.findByClsIdAndSemesterId(cls.getId(), semester.getId());
         if (books.isEmpty()) throw new ConflictException("Không thể tính kết quả học kỳ vì lớp chưa có sổ điểm môn học");
+        java.util.Set<Long> configuredSubjects = academicYearSubjectRepository
+                .findByAcademicYearId(cls.getAcademicYear().getId()).stream()
+                .map(item -> item.getSubject().getId()).collect(java.util.stream.Collectors.toSet());
+        java.util.Set<Long> availableSubjects = books.stream().map(book -> book.getSubject().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        if (!availableSubjects.containsAll(configuredSubjects)) {
+            throw new ConflictException("Không thể tính kết quả học kỳ vì chưa có đủ bảng điểm các môn đã cấu hình");
+        }
         List<String> missing = new ArrayList<>();
         for (GradeBook book : books) {
             List<GradeItem> requiredItems = gradeItemRepository.findByGradeBookIdOrderByOrderAsc(book.getId())
@@ -206,23 +226,6 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
     }
 
     /**
-     * Xếp loại danh hiệu theo GPA.
-     */
-    private String calculateHonor(BigDecimal gpa) {
-        if (gpa.compareTo(BigDecimal.valueOf(8.0)) >= 0) return "Giỏi";
-        if (gpa.compareTo(BigDecimal.valueOf(6.5)) >= 0) return "Khá";
-        if (gpa.compareTo(BigDecimal.valueOf(5.0)) >= 0) return "Trung bình";
-        return "Yếu";
-    }
-
-    /**
-     * Xếp loại học lực (cùng logic với danh hiệu).
-     */
-    private String calculateAcademicAbility(BigDecimal gpa) {
-        return calculateHonor(gpa);
-    }
-
-    /**
      * Tính hạnh kiểm theo mức xấu hơn giữa vi phạm và chuyên cần.
      * Mỗi 3 vi phạm hạ một bậc; chuyên cần giữ các ngưỡng hiện hành.
      */
@@ -231,21 +234,50 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
         long violationCount = submittedViolations.stream()
             .filter(event -> event.getStudent().getId().equals(studentId))
             .count();
-        int violationLevel = Math.min((int) (violationCount / 3), 3);
-        long totalRecords = attendanceRecords.stream()
+        long absentWithoutLeave = attendanceRecords.stream()
             .filter(record -> record.getStudent().getId().equals(studentId))
+            .filter(record -> record.getStatus() == AttendanceStatus.ABSENT_WITHOUT_LEAVE)
             .count();
-        int attendanceLevel = 0;
-        if (totalRecords > 0) {
-            long absentWithoutLeave = attendanceRecords.stream()
-                .filter(record -> record.getStudent().getId().equals(studentId))
-                .filter(record -> record.getStatus() == AttendanceStatus.ABSENT_WITHOUT_LEAVE)
-                .count();
-            double absentRate = (double) absentWithoutLeave / totalRecords * 100.0;
-            attendanceLevel = absentRate < 5 ? 0 : absentRate < 15 ? 1 : absentRate < 30 ? 2 : 3;
+        return ResultClassificationPolicy.suggestedConduct(violationCount, absentWithoutLeave);
+    }
+
+    private List<BigDecimal> calculateSubjectAverages(Long studentId, List<GradeBook> books) {
+        List<BigDecimal> result = new ArrayList<>();
+        for (GradeBook book : books) {
+            BigDecimal weighted = BigDecimal.ZERO;
+            int totalWeight = 0;
+            for (GradeItem item : gradeItemRepository.findByGradeBookIdOrderByOrderAsc(book.getId())) {
+                if (item.getAssessmentType() != AssessmentType.SCORE) continue;
+                StudentScore score = studentScoreRepository
+                        .findByGradeItemIdAndStudentId(item.getId(), studentId).orElse(null);
+                if (score != null && score.getScore() != null && Boolean.TRUE.equals(score.getIsGraded())) {
+                    weighted = weighted.add(score.getScore().multiply(BigDecimal.valueOf(item.getWeight())));
+                    totalWeight += item.getWeight();
+                }
+            }
+            if (totalWeight > 0) result.add(weighted.divide(
+                    BigDecimal.valueOf(totalWeight), 2, RoundingMode.HALF_UP));
         }
-        return List.of("Tốt", "Khá", "Trung bình", "Yếu")
-            .get(Math.max(violationLevel, attendanceLevel));
+        return result;
+    }
+
+    private int countFailedCommentSubjects(Long studentId, List<GradeBook> books) {
+        int failures = 0;
+        for (GradeBook book : books) {
+            List<GradeItem> items = gradeItemRepository.findByGradeBookIdOrderByOrderAsc(book.getId());
+            if (items.stream().anyMatch(item -> item.getAssessmentType() == AssessmentType.SCORE)) continue;
+            boolean passed = items.stream().filter(item -> item.getAssessmentType() == AssessmentType.PASS_FAIL)
+                    .allMatch(item -> studentScoreRepository.findByGradeItemIdAndStudentId(item.getId(), studentId)
+                            .map(score -> "PASS".equalsIgnoreCase(score.getComment())).orElse(false));
+            if (!passed) failures++;
+        }
+        return failures;
+    }
+
+    private BigDecimal average(List<BigDecimal> values) {
+        if (values.isEmpty()) return null;
+        return values.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(values.size()), 2, RoundingMode.HALF_UP);
     }
 
     private record StudentGPA(Student student, BigDecimal gpa) {}

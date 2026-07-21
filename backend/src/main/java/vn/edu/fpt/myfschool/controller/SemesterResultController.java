@@ -19,8 +19,12 @@ import vn.edu.fpt.myfschool.common.dto.SemesterResultDto;
 import vn.edu.fpt.myfschool.common.dto.ResultOverrideRequest;
 import vn.edu.fpt.myfschool.common.dto.ResultPublishRequest;
 import vn.edu.fpt.myfschool.common.dto.ResultSummaryDto;
+import vn.edu.fpt.myfschool.common.dto.ResultCloseRequest;
+import vn.edu.fpt.myfschool.common.dto.AcademicYearResultDto;
+import vn.edu.fpt.myfschool.common.dto.AcademicYearResultRequest;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.SemesterResultService;
+import vn.edu.fpt.myfschool.service.AcademicYearResultService;
 
 import jakarta.validation.Valid;
 import java.util.List;
@@ -32,6 +36,7 @@ import java.util.List;
 public class SemesterResultController {
 
     private final SemesterResultService semesterResultService;
+    private final AcademicYearResultService academicYearResultService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'PARENT', 'STUDENT', 'TEACHER')")
@@ -78,5 +83,38 @@ public class SemesterResultController {
             @Valid @RequestBody ResultPublishRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Đã công bố kết quả học kỳ",
                 semesterResultService.publishResults(request, SecurityUtil.getCurrentUserId())));
+    }
+
+    @PostMapping("/admin/close")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> closeSemester(
+            @Valid @RequestBody ResultCloseRequest request) {
+        semesterResultService.closeSemester(request);
+        return ResponseEntity.ok(ApiResponse.success("Đã đóng kết quả học kỳ", null));
+    }
+
+    @GetMapping("/admin/annual")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<AcademicYearResultDto>>> getAnnualResults(
+            @RequestParam Long academicYearId,
+            @RequestParam Long classId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                academicYearResultService.getResults(academicYearId, classId)));
+    }
+
+    @PostMapping("/admin/annual/calculate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<AcademicYearResultDto>>> calculateAnnualResults(
+            @Valid @RequestBody AcademicYearResultRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Đã tính tổng kết năm học",
+                academicYearResultService.calculate(request)));
+    }
+
+    @PostMapping("/admin/annual/publish")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<AcademicYearResultDto>>> publishAnnualResults(
+            @Valid @RequestBody AcademicYearResultRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Đã công bố kết quả năm học",
+                academicYearResultService.publish(request)));
     }
 }

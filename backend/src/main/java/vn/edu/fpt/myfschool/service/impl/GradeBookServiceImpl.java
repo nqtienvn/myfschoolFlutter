@@ -33,7 +33,10 @@ public class GradeBookServiceImpl implements GradeBookService {
         if(!semester.getAcademicYear().getId().equals(yearId)) throw new BadRequestException("Học kỳ không thuộc năm học của lớp");
         if(!yearSubjects.existsByAcademicYearIdAndSubjectId(yearId,subjectId)) throw new BadRequestException("Môn học không được áp dụng trong năm học đã chọn");
         authorizeAssignment(cls,subject);
-        GradeBook book=books.findByClsIdAndSubjectIdAndSemesterId(classId,subjectId,semesterId).orElseGet(()->createBook(cls,subject,semester));
+        GradeBook existing=books.findByClsIdAndSubjectIdAndSemesterId(classId,subjectId,semesterId).orElse(null);
+        if(existing!=null)return dto(existing);
+        requireEditable(semester);
+        GradeBook book=createBook(cls,subject,semester);
         return dto(book);
     }
 
@@ -51,6 +54,7 @@ public class GradeBookServiceImpl implements GradeBookService {
     @Override public List<StudentScoreDto> updateScores(UpdateStudentScoreRequest request){
         GradeItem item=items.findById(request.gradeItemId()).orElseThrow(()->new ResourceNotFoundException("GradeItem","id",request.gradeItemId()));
         GradeBook book=item.getGradeBook(); if(book.getStatus()==GradeBookStatus.LOCKED) throw new ConflictException("Bảng điểm đã khóa");
+        requireEditable(book.getSemester());
         authorizeEntry(item); User actor=users.findById(SecurityUtil.getCurrentUserId()).orElseThrow(()->new UnauthorizedException("Không tìm thấy tài khoản"));
         List<Long> allowed=enrollments.findActiveStudentsByClassAndYear(book.getCls().getId(),book.getCls().getAcademicYear().getId()).stream().map(Student::getId).toList();
         List<StudentScoreDto> result=new ArrayList<>();
@@ -97,6 +101,7 @@ public class GradeBookServiceImpl implements GradeBookService {
     @Override public void changeStatus(Long id,GradeBookStatus status){
         if(SecurityUtil.getCurrentUserRole()!=UserRole.ADMIN) throw new UnauthorizedException("Chỉ admin được công bố hoặc khóa điểm");
         GradeBook book=books.findById(id).orElseThrow(()->new ResourceNotFoundException("GradeBook","id",id));
+        requireEditable(book.getSemester());
         if(status==GradeBookStatus.PUBLISHED||status==GradeBookStatus.LOCKED) requireComplete(book);
         book.setStatus(status);book.setIsFinalized(status==GradeBookStatus.LOCKED);books.save(book);
         if(status==GradeBookStatus.PUBLISHED||status==GradeBookStatus.LOCKED) for(StudentScore score:scores.findByGradeItemGradeBookId(id)){score.setPublishedAt(LocalDateTime.now());scores.save(score);}
@@ -106,6 +111,7 @@ public class GradeBookServiceImpl implements GradeBookService {
         if(SecurityUtil.getCurrentUserRole()!=UserRole.ADMIN)throw new UnauthorizedException("Chỉ admin được công bố điểm");
         GradeBook book=books.findById(gradeBookId).orElseThrow(()->new ResourceNotFoundException("GradeBook","id",gradeBookId));
         if(book.getStatus()==GradeBookStatus.LOCKED)throw new ConflictException("Bảng điểm đã khóa");
+        requireEditable(book.getSemester());
         GradeItem item=items.findById(gradeItemId).orElseThrow(()->new ResourceNotFoundException("GradeItem","id",gradeItemId));
         if(!item.getGradeBook().getId().equals(gradeBookId))throw new BadRequestException("Đầu điểm không thuộc bảng điểm đã chọn");
         LocalDateTime now=LocalDateTime.now();
@@ -133,6 +139,7 @@ public class GradeBookServiceImpl implements GradeBookService {
         }
     }
     private boolean isComplete(GradeItem item,StudentScore score){if(score==null||!Boolean.TRUE.equals(score.getIsGraded()))return false;return item.getAssessmentType()==AssessmentType.SCORE?score.getScore()!=null:trimToNull(score.getComment())!=null;}
+    private void requireEditable(Semester semester){if(semester.getStatus()==SemesterStatus.COMPLETED||semester.getAcademicYear().getStatus()==AcademicYearStatus.COMPLETED)throw new ConflictException("Kết quả đã đóng và chỉ còn quyền xem");}
     private void authorizeEntry(GradeItem item){UserRole role=SecurityUtil.getCurrentUserRole();boolean allowed=role==UserRole.ADMIN&&(item.getEntryRole()==GradeEntryRole.ADMIN||item.getEntryRole()==GradeEntryRole.SUBJECT_TEACHER_AND_ADMIN);if(role==UserRole.TEACHER){authorizeAssignment(item.getGradeBook().getCls(),item.getGradeBook().getSubject());allowed=item.getEntryRole()==GradeEntryRole.SUBJECT_TEACHER||item.getEntryRole()==GradeEntryRole.SUBJECT_TEACHER_AND_ADMIN;}if(!allowed)throw new UnauthorizedException("Tài khoản không có quyền nhập đầu điểm này");}
     private void authorizeAssignment(SchoolClass cls,Subject subject){if(SecurityUtil.getCurrentUserRole()==UserRole.ADMIN)return;if(SecurityUtil.getCurrentUserRole()!=UserRole.TEACHER)throw new UnauthorizedException("Không có quyền truy cập bảng điểm");Teacher teacher=teachers.findByUserId(SecurityUtil.getCurrentUserId()).orElseThrow(()->new UnauthorizedException("Không tìm thấy hồ sơ giáo viên"));TeachingAssignment assignment=assignments.findByClsIdAndSubjectId(cls.getId(),subject.getId()).orElseThrow(()->new UnauthorizedException("Giáo viên chưa được phân công lớp/môn này"));if(!assignment.getTeacher().getId().equals(teacher.getId())||assignment.getStatus()!=AssignmentStatus.ACTIVE)throw new UnauthorizedException("Giáo viên chưa được phân công lớp/môn này");}
     private void authorizeRead(GradeBook b){authorizeAssignment(b.getCls(),b.getSubject());}

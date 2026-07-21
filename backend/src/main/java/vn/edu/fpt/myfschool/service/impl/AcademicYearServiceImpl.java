@@ -16,11 +16,15 @@ import vn.edu.fpt.myfschool.entity.AcademicYear;
 import vn.edu.fpt.myfschool.entity.Semester;
 import vn.edu.fpt.myfschool.repository.AcademicYearRepository;
 import vn.edu.fpt.myfschool.repository.SemesterRepository;
+import vn.edu.fpt.myfschool.repository.AcademicYearResultRepository;
+import vn.edu.fpt.myfschool.repository.EnrollmentRepository;
+import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
 import vn.edu.fpt.myfschool.service.AcademicYearService;
 import vn.edu.fpt.myfschool.service.AcademicYearReadinessService;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 @Service("academicYearService")
 @RequiredArgsConstructor
@@ -32,6 +36,8 @@ public class AcademicYearServiceImpl implements AcademicYearService {
     private final SemesterRepository semesterRepository;
     private final EntityManager entityManager;
     private final AcademicYearReadinessService readinessService;
+    private final AcademicYearResultRepository academicYearResultRepository;
+    private final EnrollmentRepository enrollmentRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -185,14 +191,11 @@ public class AcademicYearServiceImpl implements AcademicYearService {
             .orElseThrow(() -> new ConflictException("Thiếu Học kỳ 1"));
         Semester semester2 = semesters.stream().filter(item -> item.getOrder() == 2).findFirst()
             .orElseThrow(() -> new ConflictException("Thiếu Học kỳ 2"));
-        if (semester1.getStatus() != SemesterStatus.ACTIVE || semester2.getStatus() != SemesterStatus.NOT_STARTED) {
-            throw new ConflictException("Trạng thái học kỳ không hợp lệ để mở Học kỳ 2");
+        if (semester1.getStatus() != SemesterStatus.COMPLETED || semester2.getStatus() != SemesterStatus.NOT_STARTED) {
+            throw new ConflictException("Phải đóng kết quả Học kỳ 1 trước khi mở Học kỳ 2");
         }
         for (Semester s : semesters) {
             if (s.getOrder() == 1) {
-                if (s.getStatus() == SemesterStatus.ACTIVE) {
-                    s.setStatus(SemesterStatus.COMPLETED);
-                }
                 s.setIsCurrent(false);
                 semesterRepository.save(s);
             } else if (s.getOrder() == 2) {
@@ -211,17 +214,20 @@ public class AcademicYearServiceImpl implements AcademicYearService {
             throw new ConflictException("Chỉ năm học ACTIVE mới được hoàn tất");
         }
         List<Semester> semesters = semesterRepository.findByAcademicYearId(id);
-        Semester semester2 = semesters.stream().filter(item -> item.getOrder() == 2).findFirst()
-            .orElseThrow(() -> new ConflictException("Thiếu Học kỳ 2"));
-        if (semester2.getStatus() != SemesterStatus.ACTIVE) {
-            throw new ConflictException("Học kỳ 2 phải ACTIVE trước khi hoàn tất năm học");
+        if (semesters.size() < 2 || semesters.stream().anyMatch(s -> s.getStatus() != SemesterStatus.COMPLETED)) {
+            throw new ConflictException("Phải đóng cả hai học kỳ trước khi hoàn tất năm học");
         }
-        for (Semester s : semesters) {
-            if (s.getOrder() == 2) {
-                s.setStatus(SemesterStatus.COMPLETED);
-                s.setIsCurrent(false);
-                semesterRepository.save(s);
-            }
+        List<vn.edu.fpt.myfschool.entity.AcademicYearResult> results = academicYearResultRepository.findByAcademicYearId(id);
+        Set<Long> publishedStudentIds = results.stream()
+                .filter(result -> result.getPublishedAt() != null)
+                .map(result -> result.getStudent().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        boolean hasUnpublishedStudent = enrollmentRepository
+                .findByAcademicYearIdAndStatus(id, EnrollmentStatus.ACTIVE).stream()
+                .map(enrollment -> enrollment.getStudent().getId())
+                .anyMatch(studentId -> !publishedStudentIds.contains(studentId));
+        if (hasUnpublishedStudent) {
+            throw new ConflictException("Phải tính và công bố kết quả năm học cho toàn bộ học sinh trước khi hoàn tất");
         }
         year.setStatus(AcademicYearStatus.COMPLETED);
         academicYearRepository.save(year);

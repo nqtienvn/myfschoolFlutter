@@ -40,6 +40,33 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   });
 }
 
+export async function apiDownload(path: string, options: RequestInit = {}): Promise<{ blob: Blob; filename: string | null }> {
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string> || {}),
+  };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let response: Response;
+  try {
+    response = await fetch(resolveApiUrl(path), { ...options, headers, cache: 'no-store' });
+  } catch {
+    throw new Error('Không thể kết nối tới máy chủ. Vui lòng kiểm tra backend và thử lại.');
+  }
+  if (response.status === 401) {
+    clearToken();
+    window.location.reload();
+    throw new Error('Unauthorized');
+  }
+  if (!response.ok) {
+    let message = `Tải file thất bại (HTTP ${response.status}).`;
+    try { message = (await response.json()).message || message; } catch { /* response is not JSON */ }
+    throw new Error(message);
+  }
+  const disposition = response.headers.get('content-disposition');
+  const filename = disposition?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i)?.[1] || null;
+  return { blob: await response.blob(), filename: filename ? decodeURIComponent(filename) : null };
+}
+
 export async function teacherApiFetch(path: string, options: RequestInit = {}): Promise<any> {
   return authenticatedFetch(path, options, getTeacherToken(), () => {
     clearTeacherToken();

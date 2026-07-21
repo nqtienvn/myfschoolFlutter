@@ -391,6 +391,10 @@ function AdminApp() {
     () => years.find(y => String(y.id) === yearId),
     [years, yearId],
   );
+  const selectedSemester = useMemo(
+    () => semesters.find(item => String(item.id) === semesterId),
+    [semesters, semesterId],
+  );
 
   /* Q1: Show "Cấu hình năm học" when any DRAFT year exists (not just selected year).
      This prevents confusion where user has to switch year to see the config entry. */
@@ -492,7 +496,17 @@ function AdminApp() {
       </div>
     ) : module === 'grades' ? (
       <div className="page-content">
-        <GradesManagementPage selectedYearId={yearId} selectedSemesterId={semesterId} />
+        <GradesManagementPage
+          selectedYearId={yearId}
+          selectedSemesterId={semesterId}
+          selectedYearStatus={selectedYear?.status}
+          selectedSemesterStatus={selectedSemester?.status}
+          semesters={semesters}
+          onContextRefresh={async () => {
+            await refreshYears(yearId);
+            await refreshSemesters(yearId);
+          }}
+        />
       </div>
     ) : module === 'timetables' ? (
       <div className="page-content">
