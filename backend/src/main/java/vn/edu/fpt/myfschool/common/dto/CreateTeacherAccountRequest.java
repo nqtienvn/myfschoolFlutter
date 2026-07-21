@@ -11,6 +11,6 @@ import java.util.List;
 public record CreateTeacherAccountRequest(
         @NotBlank @Pattern(regexp = "0[0-9]{9}", message = "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0") String phone,
         @NotBlank @Size(max = 100) String name,
-        @Email String email,
+        @NotBlank @Email String email,
         @NotEmpty List<Long> subjectIds) {
 }

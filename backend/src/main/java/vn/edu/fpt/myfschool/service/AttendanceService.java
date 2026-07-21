@@ -1,6 +1,7 @@
 package vn.edu.fpt.myfschool.service;
 
 import vn.edu.fpt.myfschool.common.dto.*;
+import vn.edu.fpt.myfschool.common.enums.AttendanceCorrectionStatus;
 import vn.edu.fpt.myfschool.common.enums.Shift;
 
 import java.time.LocalDate;
@@ -26,22 +27,22 @@ public interface AttendanceService {
     List<ClassAttendanceSummaryDto> getClassAttendanceSummary(
         Long classId, Long semesterId, Long academicYearId);
 
-    List<AdminAttendanceDayDto> getAdminDailyAttendance(Long academicYearId, LocalDate date);
-
-    AdminAttendanceDayDto adjustAdminDailyAttendance(AdminAttendanceAdjustmentRequest request);
-
     AttendanceCorrectionRequestDto requestAttendanceCorrection(
         CreateAttendanceCorrectionRequest request, Long teacherUserId);
 
-    List<AttendanceCorrectionRequestDto> getPendingCorrections(Long academicYearId, LocalDate date);
+    List<AttendanceCorrectionRequestDto> getAdminCorrections(
+        Long academicYearId,
+        AttendanceCorrectionStatus status,
+        LocalDate date,
+        Long classId,
+        Long teacherId);
+
+    long countPendingCorrections(Long academicYearId);
 
     List<AttendanceCorrectionRequestDto> getTeacherCorrectionHistory(
         Long academicYearId, Long teacherUserId);
 
-    List<AttendanceCorrectionRequestDto> getAdminCorrectionHistory(
-        Long academicYearId, LocalDate date);
-
     AttendanceCorrectionRequestDto reviewAttendanceCorrection(
-        Long requestId, boolean approve, Long reviewerUserId);
+        Long requestId, Long academicYearId, boolean approve, Long reviewerUserId);
 
 }

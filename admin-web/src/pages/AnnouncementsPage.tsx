@@ -12,8 +12,15 @@ import {
   getAnnouncementSummary,
   updateAnnouncementPolicy,
 } from '../api/announcement';
+import AttendanceCorrectionInbox from '../components/AttendanceCorrectionInbox';
 
-type TabKey = 'list' | 'policy';
+type TabKey = 'list' | 'attendance-corrections' | 'policy';
+
+interface AnnouncementsPageProps {
+  selectedYearId: string;
+  pendingAttendanceCorrectionCount: number;
+  onPendingAttendanceCorrectionCountChange: (count: number) => void;
+}
 
 interface EditableRule {
   key: string;
@@ -35,7 +42,11 @@ function newRule(rule?: Partial<EditableRule>): EditableRule {
   };
 }
 
-export default function AnnouncementsPage({ selectedYearId }: { selectedYearId: string }) {
+export default function AnnouncementsPage({
+  selectedYearId,
+  pendingAttendanceCorrectionCount,
+  onPendingAttendanceCorrectionCountChange,
+}: AnnouncementsPageProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('list');
   const [items, setItems] = useState<AnnouncementItem[]>([]);
   const [summary, setSummary] = useState<AnnouncementSummary>(EMPTY_SUMMARY);
@@ -245,7 +256,7 @@ export default function AnnouncementsPage({ selectedYearId }: { selectedYearId: 
       <div>
         <span className="eyebrow">Trung tâm thông báo</span>
         <h1>Quản lý thông báo</h1>
-        <p>Thông báo của giáo viên được hệ thống kiểm tra và phát hành tự động theo chính sách.</p>
+        <p>Quản lý thông báo và các yêu cầu nghiệp vụ cần Admin xử lý trong năm học.</p>
       </div>
       {activeTab === 'list' && <div className="page-heading-actions">
         <button type="button" disabled={!selectedYearId} onClick={() => setShowForm(value => !value)}>
@@ -259,6 +270,14 @@ export default function AnnouncementsPage({ selectedYearId }: { selectedYearId: 
         className={activeTab === 'list' ? 'active' : ''} onClick={() => { setActiveTab('list'); setError(''); setMessage(''); }}>
         Danh sách thông báo
       </button>
+      <button type="button" role="tab" aria-selected={activeTab === 'attendance-corrections'}
+        className={activeTab === 'attendance-corrections' ? 'active' : ''}
+        onClick={() => { setActiveTab('attendance-corrections'); setError(''); setMessage(''); }}>
+        Yêu cầu xử lý
+        {pendingAttendanceCorrectionCount > 0 && (
+          <span className="notification-count-badge">{pendingAttendanceCorrectionCount}</span>
+        )}
+      </button>
       <button type="button" role="tab" aria-selected={activeTab === 'policy'}
         className={activeTab === 'policy' ? 'active' : ''} onClick={() => { setActiveTab('policy'); setError(''); setMessage(''); }}>
         Cấu hình chính sách
@@ -268,6 +287,13 @@ export default function AnnouncementsPage({ selectedYearId }: { selectedYearId: 
     {!selectedYearId && <div className="notice info">Hãy chọn năm học để quản lý thông báo.</div>}
     {error && <div className="notice error" role="alert">{error}</div>}
     {message && <div className="notice success" role="status">{message}</div>}
+
+    {activeTab === 'attendance-corrections' && selectedYearId && (
+      <AttendanceCorrectionInbox
+        selectedYearId={selectedYearId}
+        onPendingCountChange={onPendingAttendanceCorrectionCountChange}
+      />
+    )}
 
     {activeTab === 'list' && <>
       {showForm && <form className="announcement-compose" onSubmit={submitBroadcast}>

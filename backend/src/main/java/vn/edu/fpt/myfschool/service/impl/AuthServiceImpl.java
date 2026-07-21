@@ -19,6 +19,7 @@ import vn.edu.fpt.myfschool.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.enums.UserStatus;
@@ -35,14 +36,20 @@ import vn.edu.fpt.myfschool.security.JwtTokenProvider;
 import vn.edu.fpt.myfschool.service.AuthService;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service("authService")
 @RequiredArgsConstructor
 @Transactional
 public class AuthServiceImpl implements AuthService {
+
+    @Value("${app.auth.self-registration-enabled:false}")
+    private boolean selfRegistrationEnabled;
 
     private final UserRepository userRepository;
     private final ParentRepository parentRepository;
@@ -69,7 +76,8 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Tài khoản đã bị khóa. Vui lòng liên hệ nhà trường");
         }
 
-        String token = jwtTokenProvider.generateToken(user.getId(), user.getRole(), user.getName());
+        String token = jwtTokenProvider.generateToken(
+                user.getId(), user.getRole(), user.getName(), user.getCredentialsUpdatedAt());
         UserDto profile = getProfile(user.getId());
 
         return new LoginResponse(token, "Bearer", jwtTokenProvider.getExpirationMs() / 1000, profile);
@@ -77,6 +85,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginResponse register(RegisterRequest request) {
+        if (!selfRegistrationEnabled) {
+            throw new BadRequestException("Tài khoản MyFschool do nhà trường cấp");
+        }
         if (request.role() == UserRole.ADMIN || request.role() == UserRole.TEACHER) {
             throw new BadRequestException("Không thể tự đăng ký tài khoản ADMIN hoặc TEACHER");
         }
@@ -85,7 +96,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         if (request.email() != null && !request.email().isBlank()
-                && userRepository.existsByEmail(request.email().trim())) {
+                && userRepository.existsByEmailIgnoreCase(request.email().trim())) {
             throw new ConflictException("Email đã được đăng ký");
         }
 
@@ -94,9 +105,10 @@ public class AuthServiceImpl implements AuthService {
         user.setPhone(request.phone());
         user.setPassword(passwordEncoder.encode(request.password()));
         user.setName(request.name());
-        user.setEmail(request.email());
+        user.setEmail(normalizeEmail(request.email()));
         user.setRole(request.role());
         user.setStatus(UserStatus.ACTIVE);
+        user.setCredentialsUpdatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS));
         user = userRepository.save(user);
 
         // Create role-specific profile
@@ -123,7 +135,8 @@ public class AuthServiceImpl implements AuthService {
             case TEACHER, ADMIN -> throw new BadRequestException("Không thể tự đăng ký tài khoản ADMIN hoặc TEACHER");
         }
 
-        String token = jwtTokenProvider.generateToken(user.getId(), user.getRole(), user.getName());
+        String token = jwtTokenProvider.generateToken(
+                user.getId(), user.getRole(), user.getName(), user.getCredentialsUpdatedAt());
         UserDto profile = getProfile(user.getId());
 
         return new LoginResponse(token, "Bearer", jwtTokenProvider.getExpirationMs() / 1000, profile);
@@ -224,6 +237,7 @@ public class AuthServiceImpl implements AuthService {
 
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         user.setMustChangePassword(false);
+        user.setCredentialsUpdatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS));
         userRepository.save(user);
     }
 
@@ -234,9 +248,12 @@ public class AuthServiceImpl implements AuthService {
 
         if (request.name() != null) user.setName(request.name());
         if (request.email() != null) {
-            String email = request.email().isBlank() ? null : request.email().trim();
-            if (email != null && !email.equalsIgnoreCase(user.getEmail()) && userRepository.existsByEmail(email)) {
+            String email = normalizeEmail(request.email());
+            if (email != null && !email.equalsIgnoreCase(user.getEmail()) && userRepository.existsByEmailIgnoreCase(email)) {
                 throw new ConflictException("Email đã được đăng ký");
+            }
+            if (user.getEmail() == null || !user.getEmail().equalsIgnoreCase(email == null ? "" : email)) {
+                user.setEmailVerifiedAt(null);
             }
             user.setEmail(email);
         }
@@ -271,5 +288,9 @@ public class AuthServiceImpl implements AuthService {
         sg.setGuardian(parent);
         sg.setRelationship(relationship);
         studentGuardianRepository.save(sg);
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null || email.isBlank() ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 }

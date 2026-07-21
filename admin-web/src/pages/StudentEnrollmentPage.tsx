@@ -11,7 +11,7 @@ import {
 interface ClassItem { id: number; name: string; gradeLevel: number; }
 
 const emptyForm = {
-  classId: '', studentCode: '', studentName: '', dateOfBirth: '', gender: 'MALE', studentAddress: '', studentCitizenId: '',
+  classId: '', studentCode: '', studentName: '', dateOfBirth: '', gender: 'MALE', studentAddress: '', studentCitizenId: '', studentEmail: '',
   parentName: '', relationship: 'FATHER', parentPhone: '', parentEmail: '', parentCitizenId: '', parentOccupation: '', parentAddress: '',
 };
 
@@ -116,8 +116,8 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
       <div className="success-check">✓</div>
       <div><strong>Đã thêm {result.studentCode} vào lớp {result.className}</strong><p>{result.parentReused ? 'Đã liên kết với tài khoản phụ huynh hiện có.' : 'Đã tạo mới tài khoản phụ huynh.'} Danh sách bên dưới đã được cập nhật.</p></div>
       <div className="created-accounts">
-        <span>Học sinh <strong>TK: {result.studentUsername}</strong><strong>MK: {result.studentInitialPassword}</strong></span>
-        <span>Phụ huynh <strong>TK: {result.parentUsername}</strong><strong>MK: {result.parentInitialPassword || 'Đã đổi / không hiển thị'}</strong></span>
+        <span>Học sinh <strong>TK: {result.studentUsername}</strong><strong>{result.studentCredentialsEmailed ? 'Đã gửi thông tin qua email' : 'Chưa có email nhận'}</strong></span>
+        <span>Phụ huynh <strong>TK: {result.parentUsername}</strong><strong>{result.parentReused ? 'Tài khoản hiện có' : result.parentCredentialsEmailed ? 'Đã gửi thông tin qua email' : 'Chưa gửi được email'}</strong></span>
       </div>
     </section>}
 
@@ -140,6 +140,7 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
             <div className="form-group"><label>Ngày sinh <em>*</em></label><input required type="date" value={form.dateOfBirth} onChange={e => set('dateOfBirth', e.target.value)} /></div>
             <div className="form-group"><label>Giới tính <em>*</em></label><select value={form.gender} onChange={e => set('gender', e.target.value)}><option value="MALE">Nam</option><option value="FEMALE">Nữ</option><option value="OTHER">Khác</option></select></div>
             <div className="form-group"><label>CCCD/Định danh</label><input placeholder="Không bắt buộc" value={form.studentCitizenId} onChange={e => set('studentCitizenId', e.target.value)} /></div>
+            <div className="form-group wide"><label>Email học sinh <em>*</em></label><input required type="email" placeholder="hocsinh@gmail.com" value={form.studentEmail} onChange={e => set('studentEmail', e.target.value)} /></div>
             <div className="form-group wide"><label>Địa chỉ</label><input placeholder="Địa chỉ hiện tại" value={form.studentAddress} onChange={e => set('studentAddress', e.target.value)} /></div>
           </div>
         </section>
@@ -150,7 +151,7 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
             <div className="form-group wide"><label>Họ và tên <em>*</em></label><input required placeholder="Nguyễn Văn Bình" value={form.parentName} onChange={e => set('parentName', e.target.value)} /></div>
             <div className="form-group"><label>Quan hệ <em>*</em></label><select value={form.relationship} onChange={e => set('relationship', e.target.value)}><option value="FATHER">Bố</option><option value="MOTHER">Mẹ</option><option value="GUARDIAN">Người giám hộ</option></select></div>
             <div className="form-group"><label>Số điện thoại <em>*</em></label><input required inputMode="numeric" pattern="0[0-9]{9}" maxLength={10} placeholder="09xxxxxxxx" value={form.parentPhone} onChange={e => set('parentPhone', e.target.value.replace(/\D/g, ''))} /></div>
-            <div className="form-group wide"><label>Email</label><input type="email" placeholder="phuhuynh@email.com" value={form.parentEmail} onChange={e => set('parentEmail', e.target.value)} /></div>
+            <div className="form-group wide"><label>Email <small>(bắt buộc nếu tạo phụ huynh mới)</small></label><input type="email" placeholder="phuhuynh@email.com" value={form.parentEmail} onChange={e => set('parentEmail', e.target.value)} /></div>
             <div className="form-group"><label>CCCD/Định danh</label><input placeholder="Không bắt buộc" value={form.parentCitizenId} onChange={e => set('parentCitizenId', e.target.value)} /></div>
             <div className="form-group"><label>Nghề nghiệp</label><input placeholder="Không bắt buộc" value={form.parentOccupation} onChange={e => set('parentOccupation', e.target.value)} /></div>
             <div className="form-group wide"><label>Địa chỉ</label><input placeholder="Địa chỉ hiện tại" value={form.parentAddress} onChange={e => set('parentAddress', e.target.value)} /></div>
@@ -159,7 +160,7 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
       </div>
 
       <footer className="enrollment-form-footer">
-        <div className="password-note"><span>i</span><p>Mật khẩu mặc định <strong>12345678</strong><small>Tài khoản mới phải đổi mật khẩu trong lần đăng nhập đầu tiên.</small></p></div>
+        <div className="password-note"><span>i</span><p>Mật khẩu tạm được tạo ngẫu nhiên<small>Thông tin đăng nhập được gửi qua email và không hiển thị trong trang quản trị.</small></p></div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button disabled={loading || !selectedYearId || !editable || !form.classId}>{loading ? 'Đang tạo tài khoản...' : 'Tạo tài khoản & xếp lớp'}</button>
           <button type="button" className="secondary-button" onClick={() => setShowForm(false)}>Đóng</button>
@@ -169,7 +170,7 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
 
     <section className="account-directory">
       <div className="account-directory-heading">
-        <div><span className="eyebrow">Danh sách sau khi tạo</span><h2>Tài khoản học sinh & phụ huynh</h2><p>Lọc theo lớp để tra cứu tài khoản và mật khẩu ban đầu của từng gia đình.</p></div>
+        <div><span className="eyebrow">Danh sách sau khi tạo</span><h2>Tài khoản học sinh & phụ huynh</h2><p>Lọc theo lớp để tra cứu tên đăng nhập và email khôi phục của từng gia đình.</p></div>
         <div className="account-totals"><span><strong>{accounts.length}</strong> Học sinh</span><span><strong>{parentAccountCount}</strong> Phụ huynh</span></div>
       </div>
 
@@ -183,16 +184,16 @@ export default function StudentEnrollmentPage({ selectedYearId, editable = true 
       {accountClassId && loadingAccounts && <div className="account-empty"><span className="loading-dot">•••</span><strong>Đang tải danh sách tài khoản</strong></div>}
       {accountClassId && !loadingAccounts && accounts.length === 0 && <div className="account-empty"><span>0</span><strong>Lớp chưa có học sinh</strong><p>Hãy sử dụng biểu mẫu phía trên để thêm học sinh đầu tiên.</p></div>}
       {accountClassId && !loadingAccounts && accounts.length > 0 && <div className="table-responsive account-table-wrap"><table className="account-table">
-        <thead><tr><th>Tên học sinh</th><th>Tài khoản học sinh</th><th>Mật khẩu học sinh</th><th>Tên phụ huynh</th><th>Tài khoản phụ huynh</th><th>Mật khẩu phụ huynh</th><th>Quan hệ với học sinh</th></tr></thead>
+        <thead><tr><th>Tên học sinh</th><th>Tài khoản học sinh</th><th>Email học sinh</th><th>Tên phụ huynh</th><th>Tài khoản phụ huynh</th><th>Email phụ huynh</th><th>Quan hệ với học sinh</th></tr></thead>
         <tbody>{accounts.flatMap(student => {
           const guardians: Array<StudentAccountByClass['guardians'][number] | null> = student.guardians.length > 0 ? student.guardians : [null];
           return guardians.map(guardian => <tr key={`${student.studentId}-${guardian?.parentId || 'none'}`}>
             <td><strong>{student.studentName}</strong><small className="account-secondary-text">{student.studentCode}</small></td>
             <td><b className="login-chip">{student.studentUsername}</b></td>
-            <td><b className="login-chip password-chip">{student.studentInitialPassword || 'Đã đổi'}</b></td>
+            <td>{student.studentEmail || <span className="muted-text">Chưa bổ sung email</span>}</td>
             <td>{guardian ? <strong>{guardian.parentName}</strong> : <span className="muted-text">Chưa có phụ huynh</span>}</td>
             <td>{guardian ? <b className="login-chip">{guardian.parentUsername}</b> : '—'}</td>
-            <td>{guardian ? <b className="login-chip password-chip">{guardian.parentInitialPassword || 'Đã đổi'}</b> : '—'}</td>
+            <td>{guardian?.parentEmail || '—'}</td>
             <td>{guardian ? relationshipLabels[guardian.relationship] : '—'}</td>
           </tr>);
         })}</tbody>

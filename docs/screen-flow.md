@@ -588,6 +588,23 @@ không nhận hướng dẫn chuyển khoản và không gửi xác nhận thanh
   └── Admin gửi trực tiếp → toàn bộ tài khoản không phải Admin nhận thông báo
 ```
 
+### Admin Web: yêu cầu sửa điểm danh
+
+```text
+[GV gửi yêu cầu sửa điểm danh]
+  │
+  ▼
+[Admin Web → Thông báo → Yêu cầu xử lý → Sửa điểm danh]
+  ├── Phạm vi: năm học đang chọn
+  ├── Bộ lọc mặc định: PENDING
+  ├── Bộ lọc bổ sung: ngày, lớp, giáo viên, trạng thái
+  ├── Duyệt → áp dụng dữ liệu đề xuất → APPROVED
+  └── Từ chối → giữ nguyên điểm danh → REJECTED
+
+[Admin Web → Báo cáo chuyên cần]
+  └── Chỉ xem báo cáo; không có thao tác tạo/cập nhật điểm danh trực tiếp
+```
+
 ### Qua Học phí
 
 ```text
@@ -656,6 +673,9 @@ không nhận hướng dẫn chuyển khoản và không gửi xác nhận thanh
 | GV | Announcements | Tạo thông báo | `POST /api/announcements` | `announcements` |
 | Admin | Announcements | Cấu hình câu từ | `GET/PUT /api/announcements/admin/policy` | `announcement_policy_settings`, `announcement_content_rules` |
 | Admin | Announcements | Danh sách phân trang | `GET /api/announcements/admin` | `announcements`, `announcement_policy_violations` |
+| Admin | Attendance corrections | Danh sách/lọc theo năm học | `GET /api/attendance/admin/corrections` | `attendance_correction_requests` |
+| Admin | Attendance corrections | Số yêu cầu chờ duyệt | `GET /api/attendance/admin/corrections/pending-count` | `attendance_correction_requests` |
+| Admin | Attendance corrections | Duyệt/từ chối | `PUT /api/attendance/admin/corrections/{id}/approve\|reject` | `attendance_correction_requests`, `attendance` |
 | GV | Stats | Xem thống kê | `GET /api/stats/{classId}` | `attendance`, `grades` |
 | GV | Tuition | QL học phí | `GET /api/classes/{id}/tuition-status` | `tuition_bills` |
 | GV | Tuition | Nhắc nhở | `POST /api/tuition/remind/{studentId}` | `notifications` |

@@ -203,7 +203,7 @@ export default function LoginPage({ onLogin }: Props) {
 
           {/* Footer note */}
           <p className="login-footer">
-            Nếu quên mật khẩu, liên hệ quản trị hệ thống để được hỗ trợ.
+            <a href="/forgot-password?portal=admin">Quên mật khẩu?</a>
           </p>
         </div>
       </section>

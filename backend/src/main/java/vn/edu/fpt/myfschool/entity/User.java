@@ -7,12 +7,17 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import vn.edu.fpt.myfschool.common.enums.UserStatus;
+
+import java.time.LocalDateTime;
+import java.util.Locale;
 
 @Entity
 @Table(name = "users")
@@ -32,6 +37,10 @@ public class User extends BaseEntity {
 
     @Column(length = 255, unique = true)
     private String email;
+
+    private LocalDateTime emailVerifiedAt;
+
+    private LocalDateTime credentialsUpdatedAt;
 
     @Column(length = 30, unique = true)
     private String citizenId;
@@ -58,4 +67,14 @@ public class User extends BaseEntity {
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @EqualsAndHashCode.Exclude
     private Teacher teacher;
+
+    @PrePersist
+    @PreUpdate
+    void normalizeEmail() {
+        if (email == null || email.isBlank()) {
+            email = null;
+            return;
+        }
+        email = email.trim().toLowerCase(Locale.ROOT);
+    }
 }

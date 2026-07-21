@@ -46,6 +46,7 @@ describe('academic-year-scoped admin API contracts', () => {
       studentName: 'Nguyễn An',
       dateOfBirth: '2010-01-02',
       gender: 'MALE' as const,
+      studentEmail: 'student001@gmail.com',
       parentName: 'Nguyễn Bình',
       relationship: 'FATHER' as const,
       parentPhone: '0900000000',

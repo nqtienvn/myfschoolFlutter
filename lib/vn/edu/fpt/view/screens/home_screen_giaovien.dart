@@ -5,11 +5,9 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.d
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_attendance_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_leave_requests_screen.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_web_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/teacher_stats_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/periodic_reviews_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 
@@ -454,39 +452,6 @@ class _HomeTeacherState extends State<HomeTeacher> {
                                     });
                               },
                             ),
-                          _FeatureButton(
-                            title: 'Nhập & Upload điểm',
-                            icon: Icons.grid_on_outlined,
-                            color: AppColors.blue,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => GradesWebScreen(
-                                    token: widget
-                                        .authService
-                                        .currentSession!
-                                        .token,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          _FeatureButton(
-                            title: 'Nhận xét định kỳ',
-                            icon: Icons.rate_review_outlined,
-                            color: AppColors.teal,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => PeriodicReviewsScreen(
-                                    authService: widget.authService,
-                                    backend: _backend,
-                                    homeroomClassId: _classId,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
                           if (_classId != null)
                             _FeatureButton(
                               title: 'Hồ sơ lớp chủ nhiệm',

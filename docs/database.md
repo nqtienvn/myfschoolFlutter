@@ -78,8 +78,10 @@ CREATE TABLE users (
   id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   phone       VARCHAR(15)     NOT NULL,
   password    VARCHAR(255)    NOT NULL COMMENT 'bcrypt hash',
+  credentials_updated_at DATETIME NULL COMMENT 'Mốc vô hiệu hóa JWT cũ',
   name        VARCHAR(100)    NOT NULL,
   email       VARCHAR(255)    NULL,
+  email_verified_at DATETIME NULL,
   role        ENUM('PARENT','STUDENT','TEACHER') NOT NULL,
   status      ENUM('ACTIVE','INACTIVE','LOCKED') NOT NULL DEFAULT 'ACTIVE',
   created_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -87,10 +89,26 @@ CREATE TABLE users (
 
   PRIMARY KEY (id),
   UNIQUE KEY uk_users_phone (phone),
+  UNIQUE KEY uk_users_email (email),
   INDEX idx_users_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Tài khoản người dùng (chung cho 3 role)';
 ```
+
+Email được chuẩn hóa về chữ thường trước khi lưu. Dữ liệu do nhà trường cấp/import được
+coi là đã xác minh tại thời điểm cấp; email do người dùng tự cập nhật bị xóa mốc xác minh.
+Luồng quên mật khẩu chỉ gửi mail khi `email_verified_at` khác `NULL`.
+
+#### `password_reset_tokens`
+
+Token rõ chỉ tồn tại trong bộ nhớ để tạo link email. Database lưu SHA-256 hash có secret,
+thời hạn 15 phút và `used_at` để bảo đảm dùng một lần. Unique key trên `active_user_id`
+đảm bảo mỗi tài khoản chỉ có một token chưa sử dụng.
+
+#### `password_reset_attempts`
+
+Lưu hash số điện thoại, IP và thời điểm yêu cầu để giới hạn theo tài khoản/IP mà không
+cần lưu thêm số điện thoại rõ cho tài khoản không tồn tại.
 
 ### 3.3. Nhóm Actor
 

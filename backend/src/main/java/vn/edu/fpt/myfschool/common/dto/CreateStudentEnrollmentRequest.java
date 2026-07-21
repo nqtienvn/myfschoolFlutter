@@ -14,6 +14,7 @@ public record CreateStudentEnrollmentRequest(
     @NotNull Gender gender,
     @Size(max = 500) String studentAddress,
     @Size(max = 30) String studentCitizenId,
+    @NotBlank @Email @Size(max = 255) String studentEmail,
     @NotBlank @Size(max = 100) String parentName,
     @NotNull Relationship relationship,
     @NotBlank @Pattern(regexp = "0[0-9]{9}") String parentPhone,

@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record AttendanceCorrectionRequestDto(
-    Long id, Long classId, String className, String teacherName,
+    Long id, Long classId, String className, Long teacherId, String teacherName,
     LocalDate date, Shift shift, AttendanceCorrectionStatus status,
     int originalPresentCount, int originalAbsentWithLeaveCount,
     int originalAbsentWithoutLeaveCount,

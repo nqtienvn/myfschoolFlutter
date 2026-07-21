@@ -23,5 +23,15 @@ logging:
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
 app:
+  auth:
+    self-registration-enabled: true
+  password-reset:
+    enabled: true
+    minimum-response-millis: 0
+    token-secret: test-password-reset-secret
+  mail:
+    provider: FAKE
+    async-enabled: false
+    retry-delay-millis: 0
   attendance:
     enforce-current-day: false

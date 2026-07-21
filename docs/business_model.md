@@ -64,6 +64,7 @@ Toàn bộ logic nghiệp vụ của ứng dụng được mô phỏng trực ti
   * Giáo viên chỉ được truy cập vào giao diện quản lý lớp 12A và nhập điểm môn PRM393.
 * **Quy tắc phát hành thông báo:** Thông báo của giáo viên chỉ có hai kết quả `PUBLISHED` hoặc `SYSTEM_REJECTED`. Nội dung hợp lệ được phát hành ngay; nội dung khớp chính sách câu từ của năm học bị từ chối và không sinh người nhận/notification. Admin cấu hình nhiều câu từ độc lập và có thể gửi trực tiếp đến toàn bộ tài khoản không phải Admin. Người nhận chỉ đọc thông báo; không có luồng duyệt thủ công, xác nhận hoặc phản hồi.
 * **Ngoại lệ phạm vi Admin:** Thông báo toàn trường vẫn lưu năm học đang chọn để phục vụ danh sách và audit, nhưng snapshot người nhận được lấy từ toàn bộ tài khoản không phải Admin.
+* **Quy tắc sửa điểm danh:** Admin không được tạo hoặc cập nhật điểm danh trực tiếp. Trang **Báo cáo chuyên cần** của Admin chỉ đọc. Khi giáo viên gửi yêu cầu sửa, yêu cầu xuất hiện tại **Thông báo → Yêu cầu xử lý → Sửa điểm danh**, mặc định lọc `PENDING` và luôn theo năm học Admin đang chọn. Duyệt sẽ áp dụng bản đề xuất vào dữ liệu điểm danh; từ chối giữ nguyên dữ liệu hiện tại.
 
 ---
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getAcademicYears } from './api/academicYear';
+import { getPendingAttendanceCorrectionCount } from './api/attendance';
 import { isAdminLoggedIn, logout } from './api/auth';
 import { getSemesters } from './api/semester';
 import AssignmentsPage from './pages/AssignmentsPage';
@@ -17,6 +18,7 @@ import AnnouncementsPage from './pages/AnnouncementsPage';
 import PaymentSettingsPage from './pages/PaymentSettingsPage';
 import SetupWizardShell, { type WizardStepKey } from './components/SetupWizardShell';
 import TeacherPortal from './teacher/TeacherPortal';
+import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordRecoveryPage';
 
 /* ── Types ───────────────────────────────────────────────────── */
 export interface AcademicYearItem {
@@ -84,8 +86,8 @@ const OPS_MODULES = [
   },
   {
     key: 'students-attendance' as ModuleKey,
-    label: 'Điểm danh học sinh',
-    description: 'Theo dõi điểm danh theo lớp và từng ngày. Duyệt đơn xin phép nghỉ của học sinh.',
+    label: 'Báo cáo chuyên cần',
+    description: 'Xem báo cáo điểm danh và xếp loại hạnh kiểm theo lớp, học kỳ.',
     Icon: AttendanceIcon,
   },
   {
@@ -109,7 +111,7 @@ const OPS_MODULES = [
   {
     key: 'announcements' as ModuleKey,
     label: 'Thông báo',
-    description: 'Gửi thông báo toàn trường, theo dõi kết quả và cấu hình chính sách kiểm tra nội dung tự động.',
+    description: 'Gửi thông báo, theo dõi kết quả và xử lý yêu cầu sửa điểm danh từ giáo viên.',
     Icon: BellIcon,
   },
 ] as const;
@@ -298,6 +300,8 @@ function OperationsDashboard({
 
 /* ─── App root ───────────────────────────────────────────────── */
 export default function App() {
+  if (window.location.pathname === '/forgot-password') return <ForgotPasswordPage />;
+  if (window.location.pathname === '/reset-password') return <ResetPasswordPage />;
   return window.location.pathname.startsWith('/teacher') ? <TeacherPortal /> : <AdminApp />;
 }
 
@@ -311,6 +315,7 @@ function AdminApp() {
   const [yearId, setYearId]             = useState('');
   const [semesterId, setSemesterId]     = useState('');
   const [loadingCtx, setLoadingCtx]     = useState(false);
+  const [pendingAttendanceCorrections, setPendingAttendanceCorrections] = useState(0);
 
   /* Data refresh helpers */
   async function refreshYears(preferredYearId?: string) {
@@ -348,6 +353,28 @@ function AdminApp() {
 
   useEffect(() => { if (loggedIn) refreshYears(); }, [loggedIn]);
   useEffect(() => { refreshSemesters(yearId); }, [yearId]);
+
+  useEffect(() => {
+    let alive = true;
+    setPendingAttendanceCorrections(0);
+    if (!loggedIn || !yearId) return () => { alive = false; };
+
+    const loadPendingCount = async () => {
+      try {
+        const count = await getPendingAttendanceCorrectionCount(yearId);
+        if (alive) setPendingAttendanceCorrections(count || 0);
+      } catch {
+        // Badge không được làm gián đoạn điều hướng nếu dịch vụ tạm thời lỗi.
+      }
+    };
+
+    void loadPendingCount();
+    const timer = window.setInterval(() => void loadPendingCount(), 30_000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [loggedIn, yearId]);
 
   /* Sidebar lock on mobile */
   useEffect(() => {
@@ -480,7 +507,11 @@ function AdminApp() {
       </div>
     ) : module === 'announcements' ? (
       <div className="page-content">
-        <AnnouncementsPage selectedYearId={yearId} />
+        <AnnouncementsPage
+          selectedYearId={yearId}
+          pendingAttendanceCorrectionCount={pendingAttendanceCorrections}
+          onPendingAttendanceCorrectionCountChange={setPendingAttendanceCorrections}
+        />
       </div>
     ) : null;
 
@@ -582,12 +613,12 @@ function AdminApp() {
             <button
               className={module === 'students-attendance' ? 'active' : ''}
               onClick={() => navigate('students-attendance')}
-              title="Điểm danh học sinh"
+              title="Báo cáo chuyên cần"
               aria-current={module === 'students-attendance' ? 'page' : undefined}
-              aria-label="Điểm danh học sinh"
+              aria-label="Báo cáo chuyên cần"
             >
               <span className="module-icon" aria-hidden="true"><AttendanceIcon /></span>
-              <span className="module-label">Điểm danh học sinh</span>
+              <span className="module-label">Báo cáo chuyên cần</span>
             </button>
 
             {/* Grades */}
@@ -637,6 +668,11 @@ function AdminApp() {
               <span className="module-icon" aria-hidden="true"><BellIcon /></span>
               <span className="module-label">
                 Thông báo
+                {pendingAttendanceCorrections > 0 && (
+                  <span className="notification-count-badge sidebar-notification-count">
+                    {pendingAttendanceCorrections > 99 ? '99+' : pendingAttendanceCorrections}
+                  </span>
+                )}
               </span>
             </button>
           </nav>
@@ -688,7 +724,7 @@ function AdminApp() {
               {module === 'configuration' ? 'Cấu hình năm học'
                : module === 'dashboard' ? 'Tổng quan'
                : module === 'teachers' ? 'Quản lý giáo viên'
-               : module === 'students-attendance' ? 'Điểm danh học sinh'
+               : module === 'students-attendance' ? 'Báo cáo chuyên cần'
                : module === 'grades' ? 'Quản lý kết quả'
                : module === 'timetables' ? 'Thời khóa biểu'
                : module === 'payments' ? 'Thanh toán & học phí'

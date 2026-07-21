@@ -12,27 +12,17 @@ export interface ClassAttendanceSummary {
   suggestedConduct: string;
 }
 
-export interface AdminAttendanceDay {
-  classId: number;
-  className: string;
-  date: string;
-  shift: 'MORNING' | 'AFTERNOON';
-  scheduledPeriods: number;
-  totalStudents: number;
-  submitted: boolean;
-  presentCount: number;
-  absentWithLeaveCount: number;
-  absentWithoutLeaveCount: number;
-}
+export type AttendanceCorrectionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface AttendanceCorrectionRequest {
   id: number;
   classId: number;
   className: string;
+  teacherId: number;
   teacherName: string;
   date: string;
   shift: 'MORNING' | 'AFTERNOON';
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: AttendanceCorrectionStatus;
   originalPresentCount: number;
   originalAbsentWithLeaveCount: number;
   originalAbsentWithoutLeaveCount: number;
@@ -54,6 +44,13 @@ export interface AttendanceCorrectionEntry {
   newStatus: 'PRESENT' | 'ABSENT_WITH_LEAVE' | 'ABSENT_WITHOUT_LEAVE';
 }
 
+export interface AttendanceCorrectionFilters {
+  status?: AttendanceCorrectionStatus;
+  date?: string;
+  classId?: number | string;
+  teacherId?: number | string;
+}
+
 export async function getClassAttendanceSummary(
   classId: number | string,
   semesterId: number | string,
@@ -67,38 +64,31 @@ export async function getClassAttendanceSummary(
   return apiFetch(`/attendance/class-summary?${query.toString()}`);
 }
 
-export function getAdminDailyAttendance(academicYearId: number | string, date: string) {
-  const query = new URLSearchParams({ academicYearId: String(academicYearId), date });
-  return apiFetch(`/attendance/admin/daily?${query}`) as Promise<AdminAttendanceDay[]>;
+export function getAttendanceCorrections(
+  academicYearId: number | string,
+  filters: AttendanceCorrectionFilters = {},
+) {
+  const query = new URLSearchParams({ academicYearId: String(academicYearId) });
+  if (filters.status) query.set('status', filters.status);
+  if (filters.date) query.set('date', filters.date);
+  if (filters.classId) query.set('classId', String(filters.classId));
+  if (filters.teacherId) query.set('teacherId', String(filters.teacherId));
+  return apiFetch(`/attendance/admin/corrections?${query.toString()}`) as Promise<AttendanceCorrectionRequest[]>;
 }
 
-export function adjustAdminDailyAttendance(data: {
-  academicYearId: number;
-  classId: number;
-  date: string;
-  shift: 'MORNING' | 'AFTERNOON';
-  presentCount: number;
-  absentWithLeaveCount: number;
-  absentWithoutLeaveCount: number;
-}) {
-  return apiFetch('/attendance/admin/daily', {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  }) as Promise<AdminAttendanceDay>;
+export function getPendingAttendanceCorrectionCount(academicYearId: number | string) {
+  const query = new URLSearchParams({ academicYearId: String(academicYearId) });
+  return apiFetch(`/attendance/admin/corrections/pending-count?${query.toString()}`) as Promise<number>;
 }
 
-export function getPendingAttendanceCorrections(academicYearId: number | string, date: string) {
-  const query = new URLSearchParams({ academicYearId: String(academicYearId), date });
-  return apiFetch(`/attendance/admin/corrections?${query}`) as Promise<AttendanceCorrectionRequest[]>;
-}
-
-export function getAttendanceCorrectionHistory(academicYearId: number | string, date: string) {
-  const query = new URLSearchParams({ academicYearId: String(academicYearId), date });
-  return apiFetch(`/attendance/admin/corrections/history?${query}`) as Promise<AttendanceCorrectionRequest[]>;
-}
-
-export function reviewAttendanceCorrection(id: number, approve: boolean) {
-  return apiFetch(`/attendance/admin/corrections/${id}/${approve ? 'approve' : 'reject'}`, {
-    method: 'PUT',
-  }) as Promise<AttendanceCorrectionRequest>;
+export function reviewAttendanceCorrection(
+  id: number,
+  academicYearId: number | string,
+  approve: boolean,
+) {
+  const query = new URLSearchParams({ academicYearId: String(academicYearId) });
+  return apiFetch(
+    `/attendance/admin/corrections/${id}/${approve ? 'approve' : 'reject'}?${query.toString()}`,
+    { method: 'PUT' },
+  ) as Promise<AttendanceCorrectionRequest>;
 }

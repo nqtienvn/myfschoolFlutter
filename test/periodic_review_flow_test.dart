@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/models/models.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/periodic_reviews_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_screen.dart';
 
 void main() {
   test('periodic report maps progress, conduct and subject reviews', () {
@@ -37,71 +36,56 @@ void main() {
     },
   );
 
-  testWidgets('parent sees the published homeroom and subject reviews', (
-    tester,
-  ) async {
-    final authService = AuthService(
-      apiClient: _FakeAuthApiClient(
-        const AuthSessionDto(
-          token: 'parent-token',
-          tokenType: 'Bearer',
-          expiresIn: 3600,
-          userId: 5,
-          userName: 'Phụ huynh An',
-          role: 'PARENT',
-          phone: '0900000000',
-          status: 'ACTIVE',
-          children: [
-            LinkedStudent(
-              id: 9,
-              name: 'Nguyễn An',
-              studentCode: 'HS009',
-              status: 'ACTIVE',
-              className: '12A1',
-              classId: 12,
+  testWidgets(
+    'parent still sees published homeroom and subject reviews in grades',
+    (tester) async {
+      final api = _FakePeriodicReviewApi();
+      final period = AcademicPeriod(
+        academicYearId: 26,
+        academicYearName: '2026-2027',
+        semesterId: 3,
+        semesterName: 'Học kỳ I',
+        startDate: DateTime(2026, 7, 1),
+        endDate: DateTime(2026, 12, 31),
+        isCurrent: true,
+        academicYearStatus: 'ACTIVE',
+        semesterStatus: 'ACTIVE',
+      );
+      final controller = AcademicPeriodController(token: 'parent-token')
+        ..periods = [period]
+        ..selected = period
+        ..isLoading = false;
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AcademicPeriodScope(
+            controller: controller,
+            child: GradesScreen(
+              token: 'parent-token',
+              studentId: 9,
+              studentName: 'Nguyễn An',
+              apiClient: _PublishedTranscriptApi(),
+              academicApiClient: _AcademicApi(),
+              periodicReviewApi: api,
             ),
-          ],
+          ),
         ),
-      ),
-    );
-    await authService.login('0900000000', 'password');
-    final api = _FakePeriodicReviewApi();
-    final period = AcademicPeriod(
-      academicYearId: 26,
-      academicYearName: '2026-2027',
-      semesterId: 3,
-      semesterName: 'Học kỳ I',
-      startDate: DateTime(2026, 7, 1),
-      endDate: DateTime(2026, 12, 31),
-      isCurrent: true,
-      academicYearStatus: 'ACTIVE',
-      semesterStatus: 'ACTIVE',
-    );
-    final controller = AcademicPeriodController(token: 'parent-token')
-      ..periods = [period]
-      ..selected = period
-      ..isLoading = false;
-    addTearDown(controller.dispose);
-    addTearDown(authService.dispose);
+      );
+      await tester.pumpAndSettle();
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AcademicPeriodScope(
-          controller: controller,
-          child: PeriodicReviewsScreen(authService: authService, api: api),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(api.requestedStudentId, 9);
-    expect(find.text('Nhận xét Học kỳ I'), findsOneWidget);
-    expect(find.text('Nguyễn An'), findsOneWidget);
-    expect(find.textContaining('Hạnh kiểm: Tốt'), findsOneWidget);
-    expect(find.text('Nhận xét của GVCN'), findsOneWidget);
-    expect(find.text('Toán'), findsOneWidget);
-    expect(find.text('Có tiến bộ rõ rệt.'), findsOneWidget);
-  });
+      expect(api.requestedStudentId, 9);
+      expect(find.text('Bảng điểm · Nguyễn An'), findsOneWidget);
+      expect(find.text('Nhận xét GVCN'), findsOneWidget);
+      expect(
+        find.text('Chăm ngoan và tích cực tham gia hoạt động lớp.'),
+        findsOneWidget,
+      );
+      await tester.drag(find.byType(ListView), const Offset(0, -700));
+      await tester.pumpAndSettle();
+      expect(find.text('Có tiến bộ rõ rệt.'), findsOneWidget);
+    },
+  );
 }
 
 const _reportJson = <String, dynamic>{
@@ -155,17 +139,60 @@ class _RecordingBackend extends BackendApiClient {
   }
 }
 
-class _FakeAuthApiClient extends AuthApiClient {
-  _FakeAuthApiClient(this.session)
+class _PublishedTranscriptApi extends GradebookApiClient {
+  _PublishedTranscriptApi()
     : super(backend: BackendApiClient(baseUrl: 'http://localhost'));
 
-  final AuthSessionDto session;
+  @override
+  Future<Map<String, dynamic>> getTranscript({
+    required String token,
+    required int academicYearId,
+    required int semesterId,
+    int? studentId,
+  }) async => {
+    'studentName': 'Nguyễn An',
+    'subjects': [
+      {
+        'subjectName': 'Toán',
+        'average': 8.5,
+        'complete': true,
+        'scores': [
+          {
+            'name': 'Kiểm tra giữa kỳ',
+            'weight': 2,
+            'assessmentType': 'SCORE',
+            'score': 8.5,
+            'comment': null,
+          },
+        ],
+      },
+    ],
+  };
+}
+
+class _AcademicApi extends HomeroomAcademicApiClient {
+  _AcademicApi()
+    : super(backend: BackendApiClient(baseUrl: 'http://localhost'));
 
   @override
-  Future<AuthSessionDto> login({
-    required String phone,
-    required String password,
-  }) async => session;
+  Future<HomeroomStudentResultDto?> getStudentSemesterResult({
+    required String token,
+    required int studentId,
+    required int semesterId,
+  }) async => const HomeroomStudentResultDto(
+    id: 1,
+    studentId: 9,
+    studentName: 'Nguyễn An',
+    semesterId: 3,
+    semesterName: 'Học kỳ I',
+    classId: 12,
+    className: '12A1',
+    gpa: 8.5,
+    rank: 2,
+    honor: 'Học sinh giỏi',
+    conduct: 'Tốt',
+    academicAbility: 'Giỏi',
+  );
 }
 
 class _FakePeriodicReviewApi implements PeriodicReviewApi {

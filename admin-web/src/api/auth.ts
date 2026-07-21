@@ -1,4 +1,4 @@
-import { apiFetch, setToken, clearToken, getToken } from './client';
+import { apiFetch, publicApiFetch, setToken, clearToken, getToken } from './client';
 
 export interface AdminUser {
   id: number;
@@ -36,4 +36,34 @@ export function isAdminLoggedIn(): boolean {
 
 export function logout() {
   clearToken();
+}
+
+export interface PasswordResetValidation {
+  valid: boolean;
+  status: 'VALID' | 'INVALID' | 'EXPIRED' | 'USED' | 'DISABLED';
+}
+
+export async function requestPasswordReset(phone: string): Promise<void> {
+  await publicApiFetch('/auth/password-reset/request', {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export function validatePasswordReset(token: string): Promise<PasswordResetValidation> {
+  return publicApiFetch('/auth/password-reset/validate', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function confirmPasswordReset(
+  token: string,
+  newPassword: string,
+  confirmPassword: string,
+): Promise<void> {
+  await publicApiFetch('/auth/password-reset/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ token, newPassword, confirmPassword }),
+  });
 }

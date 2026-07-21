@@ -116,13 +116,4 @@ public class AdminUserController {
                 adminUserService.updateTeacherSubjects(teacherId, request)));
     }
 
-    @PostMapping("/teachers/{teacherId}/reset-password")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Đặt lại mật khẩu giáo viên")
-    public ResponseEntity<ApiResponse<TeacherAccountCredentialDto>> resetTeacherPassword(
-            @PathVariable Long teacherId) {
-        return ResponseEntity.ok(ApiResponse.success(
-                "Đặt lại mật khẩu giáo viên thành công",
-                adminUserService.resetTeacherPassword(teacherId)));
-    }
 }

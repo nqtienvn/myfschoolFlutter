@@ -4,11 +4,11 @@ public record StudentEnrollmentResultDto(
     Long studentId,
     String studentCode,
     String studentUsername,
-    String studentInitialPassword,
+    boolean studentCredentialsEmailed,
     Long classId,
     String className,
     Long parentId,
     String parentUsername,
-    String parentInitialPassword,
+    boolean parentCredentialsEmailed,
     boolean parentReused
 ) {}

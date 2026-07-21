@@ -619,6 +619,8 @@ public class DemoDataSeeder implements ApplicationRunner {
         user.setRole(role);
         user.setStatus(status);
         user.setMustChangePassword(mustChangePassword);
+        user.setCredentialsUpdatedAt(LocalDateTime.now());
+        if (email != null && !email.isBlank()) user.setEmailVerifiedAt(LocalDateTime.now());
         return persist(user);
     }
 

@@ -9,14 +9,13 @@ public record StudentAccountByClassDto(
     String studentCode,
     String studentName,
     String studentUsername,
-    String studentInitialPassword,
+    String studentEmail,
     List<GuardianAccountDto> guardians
 ) {
     public record GuardianAccountDto(
         Long parentId,
         String parentName,
         String parentUsername,
-        String parentInitialPassword,
         String parentEmail,
         Relationship relationship
     ) {}

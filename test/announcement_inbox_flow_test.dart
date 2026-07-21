@@ -120,6 +120,34 @@ void main() {
     );
   });
 
+  testWidgets('teacher inbox applies the selected year after the build frame', (
+    tester,
+  ) async {
+    final api = _FakeAnnouncementApi();
+    final service = AnnouncementInboxService(
+      api: api,
+      token: 'token',
+      teacher: true,
+    );
+    final periodController = _periodController();
+    addTearDown(service.dispose);
+    addTearDown(periodController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AcademicPeriodScope(
+          controller: periodController,
+          child: AnnouncementInboxScreen(service: service),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(service.academicYearId, 1);
+    expect(api.requestedAcademicYearIds, [1]);
+  });
+
   testWidgets('deleting a system-rejected announcement requires confirmation', (
     tester,
   ) async {
@@ -308,6 +336,7 @@ AcademicPeriodController _periodController() {
 class _FakeAnnouncementApi implements AnnouncementApi {
   bool read = false;
   int markReadCalls = 0;
+  final List<int?> requestedAcademicYearIds = [];
 
   AnnouncementDto get current => AnnouncementDto(
     id: 1,
@@ -334,7 +363,10 @@ class _FakeAnnouncementApi implements AnnouncementApi {
     required String token,
     required bool teacher,
     int? academicYearId,
-  }) async => [current];
+  }) async {
+    requestedAcademicYearIds.add(academicYearId);
+    return [current];
+  }
 
   @override
   Future<AnnouncementRecipientPage> getRecipients({

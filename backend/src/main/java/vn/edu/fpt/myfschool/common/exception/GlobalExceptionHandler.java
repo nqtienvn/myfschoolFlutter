@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
 
 import java.util.HashMap;
@@ -25,6 +26,13 @@ public class GlobalExceptionHandler {
         log.warn(ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResource(NoResourceFoundException ex) {
+        log.warn(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("Endpoint không tồn tại"));
     }
 
     @ExceptionHandler({BadRequestException.class, IllegalArgumentException.class})
@@ -71,21 +79,21 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Void>> handleNotReadable(HttpMessageNotReadableException ex) {
-        log.warn(ex.getMessage());
+        log.warn("Request JSON không hợp lệ");
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error("Dữ liệu không hợp lệ: " + ex.getMostSpecificCause().getMessage()));
+                .body(ApiResponse.error("Dữ liệu JSON không hợp lệ"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleValidation(
             MethodArgumentNotValidException ex) {
-        log.warn(ex.getMessage());
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String field = ((FieldError) error).getField();
             String message = error.getDefaultMessage();
             errors.put(field, message);
         });
+        log.warn("Validation thất bại cho các trường: {}", errors.keySet());
         return ResponseEntity.badRequest()
                 .body(ApiResponse.<Map<String, String>>builder()
                         .success(false)

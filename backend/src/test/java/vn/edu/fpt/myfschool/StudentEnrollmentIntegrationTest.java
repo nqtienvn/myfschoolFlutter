@@ -29,12 +29,12 @@ class StudentEnrollmentIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", authHeader(token)).contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"academicYearId":%d,"classId":%d,"studentCode":"HS203001","studentName":"Học sinh mới",
-                    "dateOfBirth":"2015-01-10","gender":"MALE","parentName":"PH Test","relationship":"FATHER","parentPhone":"0909000002"}
+                    "dateOfBirth":"2015-01-10","gender":"MALE","studentEmail":"Student.2030@Gmail.com","parentName":"PH Test","relationship":"FATHER","parentPhone":"0909000002"}
                     """.formatted(draft.getId(), cls.getId())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.studentCode").value("HS203001"))
             .andExpect(jsonPath("$.data.studentUsername").value(matchesPattern("[1-9][0-9]{9}")))
-            .andExpect(jsonPath("$.data.studentInitialPassword").value("12345678"))
+            .andExpect(jsonPath("$.data.studentCredentialsEmailed").value(true))
             .andExpect(jsonPath("$.data.className").value("10A1"))
             .andExpect(jsonPath("$.data.parentUsername").value("0909000002"))
             .andExpect(jsonPath("$.data.parentReused").value(true));
@@ -43,16 +43,12 @@ class StudentEnrollmentIntegrationTest extends BaseIntegrationTest {
         assertNotEquals("HS203001", student.getUser().getPhone());
         assertTrue(student.getUser().getPhone().matches("[1-9][0-9]{9}"));
         assertTrue(student.getUser().getMustChangePassword());
+        assertEquals("student.2030@gmail.com", student.getUser().getEmail());
+        assertNotNull(student.getUser().getEmailVerifiedAt());
         assertTrue(enrollmentRepository.findByStudentIdAndAcademicYearIdAndStatus(student.getId(), draft.getId(), vn.edu.fpt.myfschool.common.enums.EnrollmentStatus.ACTIVE).isPresent());
         assertTrue(studentGuardianRepository.existsByStudentIdAndGuardianId(student.getId(), testParent.getId()));
 
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {"phone":"%s","password":"12345678"}
-                    """.formatted(student.getUser().getPhone())))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.user.role").value("STUDENT"));
+        assertFalse(passwordEncoder.matches("12345678", student.getUser().getPassword()));
 
         mockMvc.perform(get("/api/admin/student-enrollments")
                 .param("academicYearId", draft.getId().toString())
@@ -61,7 +57,7 @@ class StudentEnrollmentIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[0].studentName").value("Học sinh mới"))
             .andExpect(jsonPath("$.data[0].studentUsername").value(student.getUser().getPhone()))
-            .andExpect(jsonPath("$.data[0].studentInitialPassword").value("12345678"))
+            .andExpect(jsonPath("$.data[0].studentInitialPassword").doesNotExist())
             .andExpect(jsonPath("$.data[0].guardians[0].parentName").value("PH Test"))
             .andExpect(jsonPath("$.data[0].guardians[0].parentUsername").value("0909000002"))
             .andExpect(jsonPath("$.data[0].guardians[0].relationship").value("FATHER"));
@@ -73,12 +69,14 @@ class StudentEnrollmentIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", authHeader(loginAsAdmin())).contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"academicYearId":%d,"classId":%d,"studentCode":"HS-ACTIVE","studentName":"Học sinh mới",
-                    "dateOfBirth":"2015-01-10","gender":"FEMALE","parentName":"Phụ huynh mới","relationship":"MOTHER","parentPhone":"0901234567"}
+                    "dateOfBirth":"2015-01-10","gender":"FEMALE","studentEmail":"student.active@school.test","parentName":"Phụ huynh mới","relationship":"MOTHER","parentPhone":"0901234567","parentEmail":"parent.active@test.example"}
                     """.formatted(testAcademicYear.getId(), testClass.getId())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.studentUsername").value(matchesPattern("[1-9][0-9]{9}")))
-            .andExpect(jsonPath("$.data.studentInitialPassword").value("12345678"))
-            .andExpect(jsonPath("$.data.parentInitialPassword").value("12345678"));
+            .andExpect(jsonPath("$.data.studentCredentialsEmailed").value(true))
+            .andExpect(jsonPath("$.data.parentCredentialsEmailed").value(true))
+            .andExpect(jsonPath("$.data.studentInitialPassword").doesNotExist())
+            .andExpect(jsonPath("$.data.parentInitialPassword").doesNotExist());
     }
 
     @Test
@@ -89,8 +87,19 @@ class StudentEnrollmentIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", authHeader(loginAsAdmin())).contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"academicYearId":%d,"classId":%d,"studentCode":"HS-COMPLETED","studentName":"Học sinh mới",
-                    "dateOfBirth":"2015-01-10","gender":"FEMALE","parentName":"Phụ huynh mới","relationship":"MOTHER","parentPhone":"0901234568"}
+                    "dateOfBirth":"2015-01-10","gender":"FEMALE","studentEmail":"student.completed@gmail.com","parentName":"Phụ huynh mới","relationship":"MOTHER","parentPhone":"0901234568"}
                     """.formatted(testAcademicYear.getId(), testClass.getId())))
             .andExpect(status().isConflict());
+    }
+
+    @Test
+    void createManually_requiresStudentEmail() throws Exception {
+        mockMvc.perform(post("/api/admin/student-enrollments")
+                .header("Authorization", authHeader(loginAsAdmin())).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"academicYearId":%d,"classId":%d,"studentCode":"HS-NO-EMAIL","studentName":"Học sinh thiếu email",
+                    "dateOfBirth":"2015-01-10","gender":"FEMALE","parentName":"Phụ huynh mới","relationship":"MOTHER","parentPhone":"0901234568","parentEmail":"parent.noemail@test.example"}
+                    """.formatted(testAcademicYear.getId(), testClass.getId())))
+            .andExpect(status().isBadRequest());
     }
 }

@@ -4,7 +4,6 @@ import {
   createTeacherAccount,
   getTeacherManagementSummary,
   getTeachers,
-  resetTeacherPassword,
   updateTeacherProfile,
   updateTeacherSubjects,
   updateUserStatus,
@@ -105,7 +104,6 @@ function TeacherManagementTab({ selectedYearId }: { selectedYearId?: string }) {
   const [editingProfile, setEditingProfile] = useState<TeacherItem | null>(null);
   const [profileForm, setProfileForm] = useState(emptyForm);
   const [credential, setCredential] = useState<TeacherAccountCredential | null>(null);
-  const [credentialReason, setCredentialReason] = useState<'created' | 'reset'>('created');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -217,7 +215,6 @@ function TeacherManagementTab({ selectedYearId }: { selectedYearId?: string }) {
       setSubjectIds([]);
       setShowForm(false);
       setCredential(result);
-      setCredentialReason('created');
       setMessage(`Đã tạo giáo viên ${result.teacher.employeeCode}.`);
       setPage(0);
       refresh();
@@ -306,33 +303,6 @@ function TeacherManagementTab({ selectedYearId }: { selectedYearId?: string }) {
     }
   }
 
-  async function resetPassword(teacher: TeacherItem) {
-    if (!window.confirm(`Đặt lại mật khẩu cho ${teacher.name}? Mật khẩu hiện tại sẽ không còn sử dụng được.`)) return;
-    clearNotices();
-    setSubmitting(true);
-    try {
-      const result = await resetTeacherPassword(teacher.id);
-      setCredential(result);
-      setCredentialReason('reset');
-      setMessage(`Đã đặt lại mật khẩu cho ${teacher.employeeCode}.`);
-    } catch (cause: unknown) {
-      setError(errorMessage(cause, 'Không thể đặt lại mật khẩu.'));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function copyCredentials() {
-    if (!credential) return;
-    const content = `Mã giáo viên: ${credential.teacher.employeeCode}\nTài khoản: ${credential.teacher.phone}\nMật khẩu tạm: ${credential.temporaryPassword}`;
-    try {
-      await navigator.clipboard.writeText(content);
-      setMessage('Đã sao chép thông tin đăng nhập.');
-    } catch {
-      setError('Trình duyệt không cho phép sao chép tự động. Vui lòng sao chép thủ công.');
-    }
-  }
-
   const firstItem = totalElements === 0 ? 0 : page * pageSize + 1;
   const lastItem = Math.min((page + 1) * pageSize, totalElements);
 
@@ -363,17 +333,16 @@ function TeacherManagementTab({ selectedYearId }: { selectedYearId?: string }) {
 
       {credential && <section className="teacher-credential-card" aria-live="polite">
         <div>
-          <span className="eyebrow">{credentialReason === 'created' ? 'Tài khoản vừa tạo' : 'Mật khẩu vừa đặt lại'}</span>
+          <span className="eyebrow">Tài khoản vừa tạo</span>
           <h2>{credential.teacher.name} · {credential.teacher.employeeCode}</h2>
-          <p>Mật khẩu tạm chỉ hiển thị trong hộp này. Giáo viên phải đổi mật khẩu ở lần đăng nhập tiếp theo.</p>
+          <p>Mật khẩu tạm và tên đăng nhập đã được gửi đến email đã xác minh của giáo viên.</p>
         </div>
         <dl>
           <div><dt>Tài khoản</dt><dd>{credential.teacher.phone}</dd></div>
-          <div><dt>Mật khẩu tạm</dt><dd><code>{credential.temporaryPassword}</code></dd></div>
+          <div><dt>Gửi email</dt><dd>{credential.credentialsEmailed ? 'Đã xếp hàng gửi' : 'Chưa gửi được'}</dd></div>
         </dl>
         <div className="teacher-action-row">
-          <button type="button" onClick={copyCredentials}>Sao chép thông tin</button>
-          <button type="button" className="secondary-button" onClick={() => setCredential(null)}>Đã lưu, đóng</button>
+          <button type="button" className="secondary-button" onClick={() => setCredential(null)}>Đóng</button>
         </div>
       </section>}
 
@@ -385,7 +354,7 @@ function TeacherManagementTab({ selectedYearId }: { selectedYearId?: string }) {
         <div className="teacher-primary-fields">
           <div className="form-group"><label>Họ và tên *</label><input required maxLength={100} placeholder="Ví dụ: Nguyễn Văn An" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} /></div>
           <div className="form-group"><label>Số điện thoại *</label><input required inputMode="numeric" pattern="0[0-9]{9}" placeholder="10 chữ số, bắt đầu bằng 0" value={form.phone} onChange={event => setForm({ ...form, phone: event.target.value })} /></div>
-          <div className="form-group"><label>Email</label><input type="email" maxLength={255} placeholder="giaovien@myfschool.edu.vn" value={form.email} onChange={event => setForm({ ...form, email: event.target.value })} /></div>
+          <div className="form-group"><label>Email *</label><input required type="email" maxLength={255} placeholder="giaovien@myfschool.edu.vn" value={form.email} onChange={event => setForm({ ...form, email: event.target.value })} /></div>
         </div>
         <SubjectPicker subjects={subjects} selectedIds={subjectIds} onChange={setSubjectIds} />
         <div className="teacher-form-footer">
@@ -435,7 +404,6 @@ function TeacherManagementTab({ selectedYearId }: { selectedYearId?: string }) {
           <td><div className="teacher-row-actions">
             <button type="button" className="secondary-button" onClick={() => openProfileEditor(teacher)}>Sửa</button>
             <button type="button" className="secondary-button" onClick={() => openSubjectEditor(teacher)}>Môn dạy</button>
-            <button type="button" className="secondary-button" onClick={() => resetPassword(teacher)} disabled={submitting}>Reset mật khẩu</button>
             <button type="button" className={teacher.status === 'ACTIVE' ? 'danger' : 'secondary-button'} onClick={() => toggleStatus(teacher)} disabled={submitting}>{teacher.status === 'ACTIVE' ? 'Khóa' : 'Mở khóa'}</button>
           </div></td>
         </tr>)}

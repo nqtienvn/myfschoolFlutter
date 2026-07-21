@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class TeacherManagementIntegrationTest extends BaseIntegrationTest {
 
     @Test
-    void createTeacher_generatesSecureTemporaryPassword() throws Exception {
+    void createTeacher_generatesSecureTemporaryPasswordWithoutExposingIt() throws Exception {
         String token = loginAsAdmin();
         MvcResult result = mockMvc.perform(post("/api/admin/users/teachers")
                 .header("Authorization", authHeader(token))
@@ -44,24 +44,27 @@ class TeacherManagementIntegrationTest extends BaseIntegrationTest {
                     """.formatted(testSubject.getId())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.teacher.employeeCode").isNotEmpty())
-            .andExpect(jsonPath("$.data.temporaryPassword").isNotEmpty())
+            .andExpect(jsonPath("$.data.credentialsEmailed").value(true))
+            .andExpect(jsonPath("$.data.temporaryPassword").doesNotExist())
             .andReturn();
 
-        JsonNode data = responseData(result);
-        String temporaryPassword = data.path("temporaryPassword").asText();
-        assertEquals(12, temporaryPassword.length());
-        assertNotEquals("12345678", temporaryPassword);
-        assertTrue(temporaryPassword.chars().anyMatch(Character::isUpperCase));
-        assertTrue(temporaryPassword.chars().anyMatch(Character::isLowerCase));
-        assertTrue(temporaryPassword.chars().anyMatch(Character::isDigit));
-
         User savedUser = userRepository.findByPhone("0911000001").orElseThrow();
-        assertTrue(passwordEncoder.matches(temporaryPassword, savedUser.getPassword()));
+        assertFalse(passwordEncoder.matches("12345678", savedUser.getPassword()));
         assertTrue(savedUser.getMustChangePassword());
+        assertTrue(savedUser.getEmailVerifiedAt() != null);
+        assertEquals("new.teacher@school.test", savedUser.getEmail());
+
+        mockMvc.perform(post("/api/admin/users/teachers")
+                .header("Authorization", authHeader(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"phone":"0911000002","name":"Trùng email","email":"NEW.TEACHER@SCHOOL.TEST","subjectIds":[%d]}
+                    """.formatted(testSubject.getId())))
+            .andExpect(status().isConflict());
     }
 
     @Test
-    void adminCanEditResetLockAndUnlockTeacherAccount() throws Exception {
+    void adminCanEditLockAndUnlockTeacherAccountButCannotResetPasswordManually() throws Exception {
         String token = loginAsAdmin();
 
         mockMvc.perform(put("/api/admin/users/teachers/{id}", testTeacher.getId())
@@ -83,22 +86,14 @@ class TeacherManagementIntegrationTest extends BaseIntegrationTest {
                     """))
             .andExpect(status().isConflict());
 
-        MvcResult resetResult = mockMvc.perform(post("/api/admin/users/teachers/{id}/reset-password", testTeacher.getId())
-                .header("Authorization", authHeader(token)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.temporaryPassword").isNotEmpty())
-            .andReturn();
-        String newPassword = responseData(resetResult).path("temporaryPassword").asText();
-        assertFalse(passwordEncoder.matches("test1234", userRepository.findById(testTeacher.getUser().getId()).orElseThrow().getPassword()));
-
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"phone\":\"0911222333\",\"password\":\"test1234\"}"))
-            .andExpect(status().is4xxClientError());
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"phone\":\"0911222333\",\"password\":\"" + newPassword + "\"}"))
             .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/admin/users/teachers/{id}/reset-password", testTeacher.getId())
+                .header("Authorization", authHeader(token)))
+            .andExpect(status().isNotFound());
 
         mockMvc.perform(put("/api/admin/users/{id}/status", testTeacher.getUser().getId())
                 .header("Authorization", authHeader(token))

@@ -141,7 +141,7 @@ export default function TeacherLoginPage({ onLoggedIn }: { onLoggedIn: () => voi
           </form>
 
           <p className="login-footer">
-            Nếu quên mật khẩu, liên hệ quản trị hệ thống để được hỗ trợ.
+            <a href="/forgot-password?portal=teacher">Quên mật khẩu?</a>
             <a href="/">Quay lại cổng Quản trị</a>
           </p>
         </div>

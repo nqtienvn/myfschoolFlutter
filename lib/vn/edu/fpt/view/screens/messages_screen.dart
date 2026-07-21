@@ -711,12 +711,17 @@ class AccountProfileScreen extends StatelessWidget {
       ),
     );
     if (changed == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đổi mật khẩu thành công.'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.success,
+      await chatService?.stop();
+      authService?.logout();
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+        MaterialPageRoute<void>(
+          builder: (_) => LoginScreen(
+            authService: authService,
+            chatService: chatService,
+          ),
         ),
+        (route) => false,
       );
     }
   }

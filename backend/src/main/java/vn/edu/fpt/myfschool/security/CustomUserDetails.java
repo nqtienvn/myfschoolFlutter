@@ -8,6 +8,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 import java.util.Collection;
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
@@ -18,6 +19,7 @@ public class CustomUserDetails implements UserDetails {
     private String name;
     private UserRole role;
     private boolean enabled;
+    private LocalDateTime credentialsUpdatedAt;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

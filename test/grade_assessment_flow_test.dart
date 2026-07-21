@@ -3,73 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_screen.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_web_screen.dart';
-
-class _TeacherGradebookApi extends GradebookApiClient {
-  _TeacherGradebookApi({required this.type})
-    : super(backend: BackendApiClient(baseUrl: 'http://localhost'));
-
-  final String type;
-  List<Map<String, dynamic>>? savedEntries;
-
-  @override
-  Future<List<Map<String, dynamic>>> getMyAssignments({
-    required String token,
-    required int academicYearId,
-  }) async => [
-    {
-      'classId': 12,
-      'className': '12A1',
-      'subjectId': 3,
-      'subjectName': 'Toán',
-      'subjectCode': 'MATH',
-    },
-  ];
-
-  @override
-  Future<Map<String, dynamic>> getGradeBook({
-    required String token,
-    required int classId,
-    required int subjectId,
-    required int semesterId,
-  }) async => {
-    'id': 20,
-    'items': [
-      {
-        'id': 101,
-        'name': type == 'COMMENT' ? 'Nhận xét học tập' : 'Kỹ năng thực hành',
-        'weight': 1,
-        'assessmentType': type,
-        'entryRole': 'SUBJECT_TEACHER',
-      },
-    ],
-  };
-
-  @override
-  Future<List<Map<String, dynamic>>> getStudents({
-    required String token,
-    required int gradeBookId,
-  }) async => [
-    {
-      'studentId': 1,
-      'studentName': 'Nguyễn An',
-      'studentCode': 'HS001',
-      'gradeItemId': 101,
-      'score': null,
-      'comment': null,
-      'isGraded': false,
-    },
-  ];
-
-  @override
-  Future<void> updateScores({
-    required String token,
-    required int gradeItemId,
-    required List<Map<String, dynamic>> entries,
-  }) async {
-    savedEntries = entries;
-  }
-}
 
 class _TranscriptApi extends GradebookApiClient {
   _TranscriptApi()
@@ -132,61 +65,6 @@ AcademicPeriodController _periodController() {
 }
 
 void main() {
-  Future<void> pumpTeacher(
-    WidgetTester tester,
-    _TeacherGradebookApi api,
-  ) async {
-    final periods = _periodController();
-    addTearDown(periods.dispose);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AcademicPeriodScope(
-          controller: periods,
-          child: GradesWebScreen(token: 'teacher-token', apiClient: api),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-  }
-
-  testWidgets('teacher saves PASS_FAIL as a canonical comment value', (
-    tester,
-  ) async {
-    final api = _TeacherGradebookApi(type: 'PASS_FAIL');
-    await pumpTeacher(tester, api);
-
-    await tester.tap(find.byKey(const ValueKey('101-1-pass-fail')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Đạt').last);
-    await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView), const Offset(0, -800));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Lưu đầu điểm'));
-    await tester.pumpAndSettle();
-
-    expect(api.savedEntries, [
-      {'studentId': 1, 'comment': 'PASS', 'isGraded': true},
-    ]);
-  });
-
-  testWidgets('teacher saves COMMENT without a numeric score', (tester) async {
-    final api = _TeacherGradebookApi(type: 'COMMENT');
-    await pumpTeacher(tester, api);
-
-    await tester.enterText(
-      find.byKey(const ValueKey('101-1-comment')),
-      'Chủ động và hợp tác tốt',
-    );
-    await tester.drag(find.byType(ListView), const Offset(0, -800));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Lưu đầu điểm'));
-    await tester.pumpAndSettle();
-
-    expect(api.savedEntries, [
-      {'studentId': 1, 'comment': 'Chủ động và hợp tác tốt', 'isGraded': true},
-    ]);
-  });
-
   testWidgets('student sees all assessment types and only numeric average', (
     tester,
   ) async {

@@ -2175,3 +2175,114 @@ th:last-child, td:last-child { border-right: 0; }
   .teacher-chat-shell form { align-items: stretch; flex-direction: column; }
   .teacher-chat-shell form button { width: 100%; }
 }
+
+/* ── Attendance correction inbox ─────────────────────────────── */
+.notification-count-badge {
+  display: inline-flex;
+  min-width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  margin-left: 7px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+.sidebar-notification-count { float: right; }
+.attendance-correction-inbox { display: grid; gap: 16px; }
+.attendance-correction-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.attendance-correction-heading h2 { margin: 4px 0 6px; font-size: 21px; }
+.attendance-correction-heading p { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.attendance-correction-pending-count {
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.attendance-correction-filters { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
+.attendance-correction-list { display: grid; gap: 12px; }
+.attendance-correction-card {
+  display: grid;
+  gap: 13px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+.attendance-correction-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.attendance-correction-card-header > div { display: grid; gap: 4px; }
+.attendance-correction-card-header strong { font-size: 14px; }
+.attendance-correction-card-header span:not(.badge-status) { color: var(--text-secondary); font-size: 11px; }
+.badge-status.correction-pending { background: var(--warning-soft); color: var(--warning); }
+.badge-status.correction-approved { background: var(--success-soft); color: var(--success); }
+.badge-status.correction-rejected { background: var(--danger-soft); color: var(--danger); }
+.attendance-correction-reason { margin: 0; color: var(--text-primary); font-size: 12px; }
+.attendance-correction-counts { display: flex; flex-wrap: wrap; gap: 8px; }
+.attendance-correction-counts span {
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.attendance-correction-counts strong { color: var(--text-primary); }
+.attendance-correction-changes {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border-left: 3px solid var(--brand-primary);
+  border-radius: var(--radius-sm);
+  background: var(--brand-primary-soft);
+  font-size: 11px;
+}
+.attendance-correction-reviewer { color: var(--text-secondary); }
+.attendance-correction-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.attendance-report-filters { padding: 16px; }
+.attendance-report-filters .filters { grid-template-columns: repeat(2, minmax(180px, 260px)); }
+.attendance-report-table { width: 100%; min-width: 850px; table-layout: auto; }
+
+@media (max-width: 900px) {
+  .attendance-correction-filters { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+}
+
+@media (max-width: 600px) {
+  .attendance-correction-heading, .attendance-correction-card-header { flex-direction: column; }
+  .attendance-correction-filters { grid-template-columns: 1fr; }
+  .attendance-correction-actions { justify-content: stretch; }
+  .attendance-correction-actions button { flex: 1; }
+  .attendance-report-filters .filters { grid-template-columns: 1fr; }
+}
+
+/* Password recovery */
+.recovery-page .login-form-container { max-width: 440px; }
+.recovery-state { text-align: center; padding: 20px 0; }
+.recovery-state > span { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--surface-soft, #eef4ff); color: var(--primary, #1463ff); font-size: 24px; font-weight: 800; }
+.recovery-state.success > span { background: #e8f7ef; color: #17834b; }
+.recovery-state.error > span { background: #fff0f0; color: #c93434; }
+.recovery-state h2 { margin: 16px 0 8px; }
+.recovery-state p { color: var(--text-secondary); line-height: 1.6; }
+.recovery-link-button { display: block; text-align: center; text-decoration: none; margin-top: 20px; }
+.recovery-footer a, .login-footer a { display: inline-block; color: var(--primary, #1463ff); font-weight: 700; text-decoration: none; }
+.teacher-login-page .login-footer { display: flex; flex-direction: column; gap: 8px; }

@@ -51,6 +51,10 @@ export async function teacherApiFetch(path: string, options: RequestInit = {}): 
   });
 }
 
+export async function publicApiFetch(path: string, options: RequestInit = {}): Promise<any> {
+  return authenticatedFetch(path, options, null, () => undefined);
+}
+
 async function authenticatedFetch(
   path: string,
   options: RequestInit,

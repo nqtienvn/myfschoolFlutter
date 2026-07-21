@@ -9,6 +9,7 @@ export interface CreateStudentEnrollmentRequest {
   gender: 'MALE' | 'FEMALE' | 'OTHER';
   studentAddress?: string;
   studentCitizenId?: string;
+  studentEmail: string;
   parentName: string;
   relationship: 'FATHER' | 'MOTHER' | 'GUARDIAN';
   parentPhone: string;
@@ -22,12 +23,12 @@ export interface StudentEnrollmentResult {
   studentId: number;
   studentCode: string;
   studentUsername: string;
-  studentInitialPassword: string;
+  studentCredentialsEmailed: boolean;
   classId: number;
   className: string;
   parentId: number;
   parentUsername: string;
-  parentInitialPassword?: string;
+  parentCredentialsEmailed: boolean;
   parentReused: boolean;
 }
 
@@ -36,12 +37,11 @@ export interface StudentAccountByClass {
   studentCode: string;
   studentName: string;
   studentUsername: string;
-  studentInitialPassword?: string;
+  studentEmail?: string;
   guardians: Array<{
     parentId: number;
     parentName: string;
     parentUsername: string;
-    parentInitialPassword?: string;
     parentEmail?: string;
     relationship: 'FATHER' | 'MOTHER' | 'GUARDIAN';
   }>;

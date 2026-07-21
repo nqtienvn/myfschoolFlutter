@@ -15,8 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
-import vn.edu.fpt.myfschool.common.dto.AdminAttendanceAdjustmentRequest;
-import vn.edu.fpt.myfschool.common.dto.AdminAttendanceDayDto;
 import vn.edu.fpt.myfschool.common.dto.AttendanceCorrectionRequestDto;
 import vn.edu.fpt.myfschool.common.dto.AttendanceDto;
 import vn.edu.fpt.myfschool.common.dto.AttendanceLogDto;
@@ -25,6 +23,7 @@ import vn.edu.fpt.myfschool.common.dto.CreateAttendanceCorrectionRequest;
 import vn.edu.fpt.myfschool.common.dto.DailyAttendanceDto;
 import vn.edu.fpt.myfschool.common.dto.HomeroomAttendanceContextDto;
 import vn.edu.fpt.myfschool.common.dto.SubmitAttendanceRequest;
+import vn.edu.fpt.myfschool.common.enums.AttendanceCorrectionStatus;
 import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.AttendanceService;
@@ -108,60 +107,46 @@ public class AttendanceController {
             attendanceService.getClassAttendanceSummary(classId, semesterId, academicYearId)));
     }
 
-    @GetMapping("/admin/daily")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Quản lý điểm danh theo lớp, ngày và buổi")
-    public ResponseEntity<ApiResponse<List<AdminAttendanceDayDto>>> getAdminDailyAttendance(
-            @RequestParam Long academicYearId,
-            @RequestParam LocalDate date) {
-        return ResponseEntity.ok(ApiResponse.success(
-            attendanceService.getAdminDailyAttendance(academicYearId, date)));
-    }
-
-    @PutMapping("/admin/daily")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Admin bổ sung hoặc điều chỉnh tổng điểm danh trong ngày")
-    public ResponseEntity<ApiResponse<AdminAttendanceDayDto>> adjustAdminDailyAttendance(
-            @Valid @RequestBody AdminAttendanceAdjustmentRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Cập nhật điểm danh thành công",
-            attendanceService.adjustAdminDailyAttendance(request)));
-    }
-
     @GetMapping("/admin/corrections")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Danh sách yêu cầu sửa điểm danh chờ duyệt")
-    public ResponseEntity<ApiResponse<List<AttendanceCorrectionRequestDto>>> getPendingCorrections(
+    @Operation(summary = "Danh sách yêu cầu sửa điểm danh trong năm học")
+    public ResponseEntity<ApiResponse<List<AttendanceCorrectionRequestDto>>> getAdminCorrections(
             @RequestParam Long academicYearId,
-            @RequestParam LocalDate date) {
+            @RequestParam(required = false) AttendanceCorrectionStatus status,
+            @RequestParam(required = false) LocalDate date,
+            @RequestParam(required = false) Long classId,
+            @RequestParam(required = false) Long teacherId) {
         return ResponseEntity.ok(ApiResponse.success(
-            attendanceService.getPendingCorrections(academicYearId, date)));
+            attendanceService.getAdminCorrections(
+                academicYearId, status, date, classId, teacherId)));
     }
 
-    @GetMapping("/admin/corrections/history")
+    @GetMapping("/admin/corrections/pending-count")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Lịch sử điều chỉnh điểm danh theo ngày và năm học")
-    public ResponseEntity<ApiResponse<List<AttendanceCorrectionRequestDto>>> getAdminCorrectionHistory(
-            @RequestParam Long academicYearId,
-            @RequestParam LocalDate date) {
+    @Operation(summary = "Số yêu cầu sửa điểm danh chờ duyệt trong năm học")
+    public ResponseEntity<ApiResponse<Long>> countPendingCorrections(
+            @RequestParam Long academicYearId) {
         return ResponseEntity.ok(ApiResponse.success(
-            attendanceService.getAdminCorrectionHistory(academicYearId, date)));
+            attendanceService.countPendingCorrections(academicYearId)));
     }
 
     @PutMapping("/admin/corrections/{id}/approve")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AttendanceCorrectionRequestDto>> approveCorrection(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            @RequestParam Long academicYearId) {
         return ResponseEntity.ok(ApiResponse.success("Đã duyệt yêu cầu sửa điểm danh",
             attendanceService.reviewAttendanceCorrection(
-                id, true, SecurityUtil.getCurrentUserId())));
+                id, academicYearId, true, SecurityUtil.getCurrentUserId())));
     }
 
     @PutMapping("/admin/corrections/{id}/reject")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AttendanceCorrectionRequestDto>> rejectCorrection(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            @RequestParam Long academicYearId) {
         return ResponseEntity.ok(ApiResponse.success("Đã từ chối yêu cầu sửa điểm danh",
             attendanceService.reviewAttendanceCorrection(
-                id, false, SecurityUtil.getCurrentUserId())));
+                id, academicYearId, false, SecurityUtil.getCurrentUserId())));
     }
 }

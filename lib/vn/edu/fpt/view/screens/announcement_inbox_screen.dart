@@ -38,7 +38,10 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
         selectedYear != null &&
         selectedYear != _yearId) {
       _yearId = selectedYear;
-      unawaited(widget.service.setAcademicYearId(selectedYear));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _yearId != selectedYear) return;
+        unawaited(widget.service.setAcademicYearId(selectedYear));
+      });
     }
   }
 

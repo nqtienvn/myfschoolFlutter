@@ -300,82 +300,6 @@ public class AttendanceServiceImpl implements AttendanceService {
         return summaryList;
     }
 
-    @Transactional(readOnly = true)
-    @Override
-    public List<AdminAttendanceDayDto> getAdminDailyAttendance(Long academicYearId, LocalDate date) {
-        List<AdminAttendanceDayDto> result = new ArrayList<>();
-        for (SchoolClass cls : classRepository.findByAcademicYearId(academicYearId)) {
-            for (Shift shift : Shift.values()) {
-                List<Schedule> slots = scheduledSlots(cls, date, shift);
-                if (slots.isEmpty()) continue;
-                result.add(toAdminDayDto(cls, date, shift, slots.size()));
-            }
-        }
-        return result;
-    }
-
-    @Override
-    public AdminAttendanceDayDto adjustAdminDailyAttendance(AdminAttendanceAdjustmentRequest request) {
-        SchoolClass cls = classRepository.findById(request.classId())
-            .orElseThrow(() -> new ResourceNotFoundException("Class", "id", request.classId()));
-        if (!cls.getAcademicYear().getId().equals(request.academicYearId())) {
-            throw new BadRequestException("Lớp không thuộc năm học đã chọn");
-        }
-        List<Schedule> slots = requireScheduledSlots(cls, request.date(), request.shift());
-        List<Student> students = enrollmentRepository.findActiveStudentsByClassAndYear(
-            cls.getId(), request.academicYearId());
-        int requestedTotal = request.presentCount() + request.absentWithLeaveCount()
-            + request.absentWithoutLeaveCount();
-        if (requestedTotal != students.size()) {
-            throw new BadRequestException("Tổng số có mặt và vắng phải bằng sĩ số lớp");
-        }
-
-        Map<Long, LeaveRequest> approvedLeaves = approvedLeavesByStudent(
-            cls.getId(), request.date(), request.shift());
-        long eligibleApprovedLeaves = students.stream()
-            .filter(student -> approvedLeaves.containsKey(student.getId()))
-            .count();
-        if (request.absentWithLeaveCount() > eligibleApprovedLeaves) {
-            throw new BadRequestException(
-                "Số học sinh vắng có phép vượt quá số đơn nghỉ đã được duyệt cho ngày và buổi này");
-        }
-        List<Student> ordered = new ArrayList<>(students);
-        ordered.sort((left, right) -> Boolean.compare(
-            !approvedLeaves.containsKey(left.getId()), !approvedLeaves.containsKey(right.getId())));
-
-        for (int index = 0; index < ordered.size(); index++) {
-            Student student = ordered.get(index);
-            AttendanceStatus status = index < request.absentWithLeaveCount()
-                ? AttendanceStatus.ABSENT_WITH_LEAVE
-                : index < request.absentWithLeaveCount() + request.absentWithoutLeaveCount()
-                    ? AttendanceStatus.ABSENT_WITHOUT_LEAVE
-                    : AttendanceStatus.PRESENT;
-            LeaveRequest approvedLeave = approvedLeaves.get(student.getId());
-            Attendance attendance = attendanceRepository.findByStudentIdAndDateAndShift(
-                student.getId(), request.date(), request.shift()).orElseGet(() -> {
-                    Attendance created = new Attendance();
-                    created.setStudent(student);
-                    created.setDate(request.date());
-                    created.setShift(request.shift());
-                    return created;
-                });
-            attendance.setCls(cls);
-            attendance.setTeacher(slots.get(0).getAssignment().getTeacher());
-            attendance.setSchedule(slots.get(0));
-            attendance.setStatus(status);
-            if (status == AttendanceStatus.ABSENT_WITH_LEAVE && approvedLeave == null) {
-                throw new BadRequestException(
-                    "Không thể ghi nhận vắng có phép khi chưa có đơn nghỉ được duyệt");
-            }
-            attendance.setLeaveRequest(
-                status == AttendanceStatus.ABSENT_WITH_LEAVE ? approvedLeave : null);
-            attendanceRepository.save(attendance);
-        }
-        synchronizeExistingSessions(cls, request.date(), request.shift());
-        studentRiskService.recalculateForDate(request.academicYearId(), cls.getId(), request.date());
-        return toAdminDayDto(cls, request.date(), request.shift(), slots.size());
-    }
-
     private void synchronizeExistingSessions(
             SchoolClass cls, LocalDate date, Shift shift) {
         List<AttendanceSession> sessions = attendanceSessionRepository
@@ -464,12 +388,22 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<AttendanceCorrectionRequestDto> getPendingCorrections(
-            Long academicYearId, LocalDate date) {
+    public List<AttendanceCorrectionRequestDto> getAdminCorrections(
+            Long academicYearId,
+            AttendanceCorrectionStatus status,
+            LocalDate date,
+            Long classId,
+            Long teacherId) {
         return correctionRequestRepository
-            .findByClsAcademicYearIdAndDateAndStatusOrderByCreatedAtAsc(
-                academicYearId, date, AttendanceCorrectionStatus.PENDING)
+            .searchAdminCorrections(academicYearId, status, date, classId, teacherId)
             .stream().map(this::toCorrectionDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public long countPendingCorrections(Long academicYearId) {
+        return correctionRequestRepository.countByClsAcademicYearIdAndStatus(
+            academicYearId, AttendanceCorrectionStatus.PENDING);
     }
 
     @Transactional(readOnly = true)
@@ -483,21 +417,15 @@ public class AttendanceServiceImpl implements AttendanceService {
             .stream().limit(50).map(this::toCorrectionDto).toList();
     }
 
-    @Transactional(readOnly = true)
-    @Override
-    public List<AttendanceCorrectionRequestDto> getAdminCorrectionHistory(
-            Long academicYearId, LocalDate date) {
-        return correctionRequestRepository
-            .findByClsAcademicYearIdAndDateOrderByCreatedAtDesc(academicYearId, date)
-            .stream().map(this::toCorrectionDto).toList();
-    }
-
     @Override
     public AttendanceCorrectionRequestDto reviewAttendanceCorrection(
-            Long requestId, boolean approve, Long reviewerUserId) {
+            Long requestId, Long academicYearId, boolean approve, Long reviewerUserId) {
         AttendanceCorrectionRequest correction = correctionRequestRepository.findById(requestId)
             .orElseThrow(() -> new ResourceNotFoundException(
                 "AttendanceCorrectionRequest", "id", requestId));
+        if (!correction.getCls().getAcademicYear().getId().equals(academicYearId)) {
+            throw new BadRequestException("Yêu cầu sửa điểm danh không thuộc năm học đã chọn");
+        }
         if (correction.getStatus() != AttendanceCorrectionStatus.PENDING) {
             throw new BadRequestException("Yêu cầu sửa điểm danh đã được xử lý");
         }
@@ -588,21 +516,6 @@ public class AttendanceServiceImpl implements AttendanceService {
             .toList();
     }
 
-    private AdminAttendanceDayDto toAdminDayDto(
-            SchoolClass cls, LocalDate date, Shift shift, int scheduledPeriods) {
-        List<Attendance> records = attendanceRepository.findByClsIdAndDateAndShift(cls.getId(), date, shift);
-        int totalStudents = enrollmentRepository.findActiveStudentsByClassAndYear(
-            cls.getId(), cls.getAcademicYear().getId()).size();
-        int present = (int) records.stream().filter(a -> a.getStatus() == AttendanceStatus.PRESENT).count();
-        int absentWithLeave = (int) records.stream()
-            .filter(a -> a.getStatus() == AttendanceStatus.ABSENT_WITH_LEAVE).count();
-        int absentWithoutLeave = (int) records.stream()
-            .filter(a -> a.getStatus() == AttendanceStatus.ABSENT_WITHOUT_LEAVE).count();
-        return new AdminAttendanceDayDto(cls.getId(), cls.getName(), date, shift,
-            scheduledPeriods, totalStudents, totalStudents > 0 && records.size() == totalStudents,
-            present, absentWithLeave, absentWithoutLeave);
-    }
-
     private String writeEntries(List<AttendanceEntry> entries) {
         try {
             return objectMapper.writeValueAsString(entries);
@@ -651,7 +564,8 @@ public class AttendanceServiceImpl implements AttendanceService {
             .filter(entry -> entry.status() == AttendanceStatus.ABSENT_WITHOUT_LEAVE).count();
         return new AttendanceCorrectionRequestDto(
             correction.getId(), correction.getCls().getId(), correction.getCls().getName(),
-            correction.getTeacher().getUser().getName(), correction.getDate(), correction.getShift(),
+            correction.getTeacher().getId(), correction.getTeacher().getUser().getName(),
+            correction.getDate(), correction.getShift(),
             correction.getStatus(), originalPresent, originalAbsentWithLeave,
             originalAbsentWithoutLeave, present, absentWithLeave, absentWithoutLeave,
             correction.getReason(), changes, correction.getCreatedAt(),

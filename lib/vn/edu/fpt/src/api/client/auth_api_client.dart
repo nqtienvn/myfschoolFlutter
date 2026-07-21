@@ -32,4 +32,11 @@ class AuthApiClient {
       body: {'oldPassword': oldPassword, 'newPassword': newPassword},
     );
   }
+
+  Future<void> requestPasswordReset({required String phone}) async {
+    await _backend.postData(
+      '/api/auth/password-reset/request',
+      body: {'phone': phone},
+    );
+  }
 }

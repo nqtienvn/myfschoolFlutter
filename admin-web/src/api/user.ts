@@ -46,7 +46,7 @@ export interface TeacherManagementSummary {
 
 export interface TeacherAccountCredential {
   teacher: TeacherItem;
-  temporaryPassword: string;
+  credentialsEmailed: boolean;
 }
 
 export interface TeacherPage {
@@ -69,7 +69,7 @@ export interface GetTeachersParams {
 export interface CreateTeacherAccountRequest {
   phone: string;
   name: string;
-  email?: string;
+  email: string;
   subjectIds: number[];
 }
 
@@ -132,10 +132,6 @@ export async function updateTeacherProfile(
     method: 'PUT',
     body: JSON.stringify(data)
   });
-}
-
-export async function resetTeacherPassword(teacherId: number): Promise<TeacherAccountCredential> {
-  return apiFetch(`/admin/users/teachers/${teacherId}/reset-password`, { method: 'POST' });
 }
 
 export async function updateTeacherSubjects(teacherId: number, subjectIds: number[]) {

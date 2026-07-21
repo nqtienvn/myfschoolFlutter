@@ -8,6 +8,8 @@ import vn.edu.fpt.myfschool.common.enums.UserRole;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Component
 public class JwtTokenProvider {
@@ -21,13 +23,14 @@ public class JwtTokenProvider {
         this.expirationMs = expirationMs;
     }
 
-    public String generateToken(Long userId, UserRole role, String name) {
+    public String generateToken(Long userId, UserRole role, String name, LocalDateTime credentialsUpdatedAt) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("role", role.name())
                 .claim("name", name)
+                .claim("credentialsUpdatedAt", credentialVersion(credentialsUpdatedAt))
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -60,6 +63,17 @@ public class JwtTokenProvider {
 
     public long getExpirationMs() {
         return expirationMs;
+    }
+
+    public boolean matchesCredentialsVersion(String token, LocalDateTime credentialsUpdatedAt) {
+        Claims claims = getClaims(token);
+        Number tokenVersion = claims.get("credentialsUpdatedAt", Number.class);
+        return tokenVersion != null && tokenVersion.longValue() == credentialVersion(credentialsUpdatedAt);
+    }
+
+    private long credentialVersion(LocalDateTime credentialsUpdatedAt) {
+        if (credentialsUpdatedAt == null) return 0L;
+        return credentialsUpdatedAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
     }
 
     private Claims getClaims(String token) {

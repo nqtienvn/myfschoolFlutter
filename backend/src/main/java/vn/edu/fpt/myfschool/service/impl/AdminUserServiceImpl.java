@@ -23,6 +23,7 @@ import vn.edu.fpt.myfschool.common.enums.UserStatus;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
+import vn.edu.fpt.myfschool.common.util.CredentialGenerator;
 import vn.edu.fpt.myfschool.entity.Subject;
 import vn.edu.fpt.myfschool.entity.Teacher;
 import vn.edu.fpt.myfschool.entity.TeachingAssignment;
@@ -34,26 +35,21 @@ import vn.edu.fpt.myfschool.repository.TeacherRepository;
 import vn.edu.fpt.myfschool.repository.TeachingAssignmentRepository;
 import vn.edu.fpt.myfschool.repository.UserRepository;
 import vn.edu.fpt.myfschool.service.AdminUserService;
+import vn.edu.fpt.myfschool.service.MailDeliveryService;
 
-import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service("adminUserService")
 @RequiredArgsConstructor
 @Transactional
 public class AdminUserServiceImpl implements AdminUserService {
-
-    private static final int TEMPORARY_PASSWORD_LENGTH = 12;
-    private static final String UPPERCASE = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-    private static final String LOWERCASE = "abcdefghijkmnopqrstuvwxyz";
-    private static final String DIGITS = "23456789";
-    private static final String SPECIAL = "@#%";
-    private static final String PASSWORD_ALPHABET = UPPERCASE + LOWERCASE + DIGITS + SPECIAL;
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
     private final TeacherRepository teacherRepository;
@@ -62,6 +58,8 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final HomeroomAssignmentRepository homeroomAssignmentRepository;
     private final AcademicYearRepository academicYearRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CredentialGenerator credentialGenerator;
+    private final MailDeliveryService mailDeliveryService;
 
     @Transactional(readOnly = true)
     @Override
@@ -119,7 +117,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         List<Subject> subjects = loadSubjects(request.subjectIds());
         ensureUniqueContact(phone, email, null);
 
-        String temporaryPassword = generateTemporaryPassword();
+        String temporaryPassword = credentialGenerator.temporaryPassword();
+        LocalDateTime createdAt = LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS);
         User user = new User();
         user.setPhone(phone);
         user.setPassword(passwordEncoder.encode(temporaryPassword));
@@ -128,6 +127,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setRole(UserRole.TEACHER);
         user.setStatus(UserStatus.ACTIVE);
         user.setMustChangePassword(true);
+        user.setEmailVerifiedAt(createdAt);
+        user.setCredentialsUpdatedAt(createdAt);
         user = userRepository.save(user);
 
         Teacher teacher = new Teacher();
@@ -136,7 +137,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         teacher.setSubjects(new HashSet<>(subjects));
         teacher = teacherRepository.save(teacher);
 
-        return new TeacherAccountCredentialDto(toTeacherSummaryDto(teacher, null), temporaryPassword);
+        mailDeliveryService.sendAccountCreatedAfterCommit(
+                email, user.getName(), user.getPhone(), temporaryPassword, UserRole.TEACHER);
+        return new TeacherAccountCredentialDto(toTeacherSummaryDto(teacher, null), true);
     }
 
     @Override
@@ -151,6 +154,9 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         user.setName(request.name().trim());
         user.setPhone(phone);
+        if (user.getEmail() == null || !user.getEmail().equalsIgnoreCase(email == null ? "" : email)) {
+            user.setEmailVerifiedAt(email == null ? null : LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS));
+        }
         user.setEmail(email);
         userRepository.save(user);
         return toTeacherSummaryDto(teacher, academicYearId);
@@ -182,17 +188,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         return toTeacherSummaryDto(teacherRepository.save(teacher), null);
     }
 
-    @Override
-    public TeacherAccountCredentialDto resetTeacherPassword(Long teacherId) {
-        Teacher teacher = findTeacher(teacherId);
-        String temporaryPassword = generateTemporaryPassword();
-        User user = teacher.getUser();
-        user.setPassword(passwordEncoder.encode(temporaryPassword));
-        user.setMustChangePassword(true);
-        userRepository.save(user);
-        return new TeacherAccountCredentialDto(toTeacherSummaryDto(teacher, null), temporaryPassword);
-    }
-
     private Teacher findTeacher(Long teacherId) {
         return teacherRepository.findById(teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("Teacher", "id", teacherId));
@@ -212,8 +207,8 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new ConflictException("Số điện thoại đã được đăng ký");
         }
         boolean duplicateEmail = email != null && (excludedUserId == null
-                ? userRepository.existsByEmail(email)
-                : userRepository.existsByEmailAndIdNot(email, excludedUserId));
+                ? userRepository.existsByEmailIgnoreCase(email)
+                : userRepository.existsByEmailIgnoreCaseAndIdNot(email, excludedUserId));
         if (duplicateEmail) {
             throw new ConflictException("Email giáo viên đã tồn tại");
         }
@@ -231,34 +226,12 @@ public class AdminUserServiceImpl implements AdminUserService {
         return subjects;
     }
 
-    private String generateTemporaryPassword() {
-        char[] password = new char[TEMPORARY_PASSWORD_LENGTH];
-        password[0] = randomCharacter(UPPERCASE);
-        password[1] = randomCharacter(LOWERCASE);
-        password[2] = randomCharacter(DIGITS);
-        password[3] = randomCharacter(SPECIAL);
-        for (int index = 4; index < password.length; index++) {
-            password[index] = randomCharacter(PASSWORD_ALPHABET);
-        }
-        for (int index = password.length - 1; index > 0; index--) {
-            int swapIndex = SECURE_RANDOM.nextInt(index + 1);
-            char value = password[index];
-            password[index] = password[swapIndex];
-            password[swapIndex] = value;
-        }
-        return new String(password);
-    }
-
-    private char randomCharacter(String characters) {
-        return characters.charAt(SECURE_RANDOM.nextInt(characters.length()));
-    }
-
     private String normalizeKeyword(String keyword) {
         return keyword == null || keyword.isBlank() ? null : keyword.trim();
     }
 
     private String normalizeEmail(String email) {
-        return email == null || email.isBlank() ? null : email.trim();
+        return email == null || email.isBlank() ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 
     private AdminUserDto toDto(User user) {

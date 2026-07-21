@@ -38,7 +38,7 @@ import java.util.Set;
 public class AuditLogAspect {
 
     private static final int MAX_BODY_LENGTH = 4000;
-    private static final Set<String> SENSITIVE_FIELDS = Set.of("password", "token", "accessToken", "refreshToken", "secret");
+    private static final Set<String> SENSITIVE_FIELD_PARTS = Set.of("password", "token", "secret", "credential");
 
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
@@ -116,7 +116,8 @@ public class AuditLogAspect {
         if (node.isObject()) {
             ObjectNode object = (ObjectNode) node;
             object.fieldNames().forEachRemaining(field -> {
-                if (SENSITIVE_FIELDS.stream().anyMatch(s -> s.equalsIgnoreCase(field))) {
+                String normalized = field.toLowerCase(java.util.Locale.ROOT);
+                if (SENSITIVE_FIELD_PARTS.stream().anyMatch(normalized::contains)) {
                     object.put(field, "***");
                 } else {
                     mask(object.get(field));

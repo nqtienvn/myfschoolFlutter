@@ -28,6 +28,10 @@ class AuthService extends ChangeNotifier {
     return session;
   }
 
+  Future<void> requestPasswordReset(String phone) {
+    return _apiClient.requestPasswordReset(phone: phone);
+  }
+
   void selectChild(int index) {
     final children = _currentSession?.children ?? const [];
     if (index < 0 || index >= children.length || index == _selectedChildIndex) return;

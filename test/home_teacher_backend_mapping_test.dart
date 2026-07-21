@@ -361,6 +361,8 @@ void main() {
     expect(find.text('GVCN 12A1'), findsOneWidget);
     expect(find.textContaining('GV-DEMO-01'), findsOneWidget);
     expect(find.text('QL Học phí'), findsNothing);
+    expect(find.text('Nhập & Upload điểm'), findsNothing);
+    expect(find.text('Nhận xét định kỳ'), findsNothing);
   });
 
   testWidgets('teacher attendance uses the selected period reference date', (

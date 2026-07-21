@@ -14,6 +14,10 @@ spring:
     show-sql: false
 
 app:
+  password-reset:
+    enabled: ${PASSWORD_RESET_EMAIL_ENABLED:true}
+  mail:
+    provider: ${MAIL_PROVIDER:FAKE}
   demo-data:
     enabled: ${DEMO_DATA_ENABLED:true}
     password: ${DEMO_DATA_PASSWORD:Demo@123}

@@ -21,5 +21,4 @@ public interface AdminUserService {
     TeacherSummaryDto updateTeacherProfile(Long teacherId, UpdateTeacherProfileRequest request,
                                             Long academicYearId);
     TeacherSummaryDto updateTeacherSubjects(Long teacherId, UpdateTeacherSubjectsRequest request);
-    TeacherAccountCredentialDto resetTeacherPassword(Long teacherId);
 }

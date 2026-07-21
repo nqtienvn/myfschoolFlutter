@@ -7,6 +7,7 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/primary_button.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/app_shell.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.authService, this.chatService});
@@ -156,6 +157,18 @@ class _LoginScreenState extends State<LoginScreen> {
                             icon: Icons.login,
                             isLoading: _isLoading,
                             onPressed: _isLoading ? null : _login,
+                          ),
+                          TextButton(
+                            onPressed: _isLoading || widget.authService == null
+                                ? null
+                                : () => Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => ForgotPasswordScreen(
+                                          authService: widget.authService!,
+                                        ),
+                                      ),
+                                    ),
+                            child: const Text('Quên mật khẩu?'),
                           ),
                           const Spacer(), //ăn hết khoảng chống
                           const Text('Copyright by FPT Schools'),
