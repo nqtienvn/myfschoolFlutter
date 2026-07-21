@@ -10,11 +10,9 @@ import {
   updateScores,
 } from '../api/gradeBook';
 import type { AssessmentType, GradeEntryRole } from '../api/gradeConfiguration';
-import { getPeriodicReports, type PeriodicReportItem } from '../api/periodicReview';
 import {
   calculateAcademicYearResults,
   closeSemesterResults,
-  deleteViolation,
   downloadGradeTemplate,
   downloadResultExport,
   getAcademicYearResults,
@@ -24,7 +22,6 @@ import {
   overrideResult,
   publishAcademicYearResults,
   publishSemesterResults,
-  saveViolation,
   type AcademicYearResultItem,
   type ResultSummaryItem,
   type ViolationItem,
@@ -134,13 +131,10 @@ export default function GradesManagementPage({
   const [subjectId, setSubjectId] = useState('');
   const [book, setBook] = useState<GradeBook | null>(null);
   const [scores, setScores] = useState<ScoreRow[]>([]);
-  const [reports, setReports] = useState<PeriodicReportItem[]>([]);
   const [summary, setSummary] = useState<ResultSummaryItem[]>([]);
   const [annualResults, setAnnualResults] = useState<AcademicYearResultItem[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [violations, setViolations] = useState<ViolationItem[]>([]);
-  const [editingViolation, setEditingViolation] = useState<ViolationItem | null>(null);
-  const [violationDraft, setViolationDraft] = useState({ title: '', category: '', description: '', eventDate: '' });
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -164,7 +158,7 @@ export default function GradesManagementPage({
 
   useEffect(() => {
     setClasses([]); setSubjects([]); setClassId(''); setSubjectId(''); setBook(null);
-    setScores([]); setReports([]); setSummary([]); setAnnualResults([]); setViolations([]);
+    setScores([]); setSummary([]); setAnnualResults([]); setViolations([]);
     setGradePage(1); setDisciplinePage(1); setSummaryPage(1); setAnnualPage(1); beginAction();
     if (!selectedYearId) return;
     Promise.all([
@@ -178,7 +172,7 @@ export default function GradesManagementPage({
   }, [selectedYearId]);
 
   useEffect(() => {
-    setBook(null); setScores([]); setReports([]); setSummary([]); setAnnualResults([]);
+    setBook(null); setScores([]); setSummary([]); setAnnualResults([]);
     setViolations([]); setSelectedStudentId(''); setGradePage(1); setDisciplinePage(1);
     setSummaryPage(1); setAnnualPage(1);
     if (!classId || !selectedYearId) return;
@@ -187,12 +181,9 @@ export default function GradesManagementPage({
       return;
     }
     if (!selectedSemesterId) return;
-    Promise.all([
-      getResultSummary(selectedYearId, selectedSemesterId, classId),
-      getPeriodicReports({ academicYearId: selectedYearId, semesterId: selectedSemesterId, classId }),
-    ]).then(([resultRows, reportRows]) => {
-      setSummary(resultRows || []); setReports(reportRows || []);
-    }).catch(showError);
+    getResultSummary(selectedYearId, selectedSemesterId, classId)
+      .then(resultRows => setSummary(resultRows || []))
+      .catch(showError);
   }, [selectedYearId, selectedSemesterId, classId, view]);
 
   useEffect(() => {
@@ -200,8 +191,7 @@ export default function GradesManagementPage({
   }, [selectedSemesterId]);
 
   useEffect(() => {
-    setViolations([]); setEditingViolation(null);
-    setViolationDraft({ title: '', category: '', description: '', eventDate: '' });
+    setViolations([]);
     if (!selectedStudentId || !classId || !selectedYearId || !selectedSemesterId) return;
     getStudentViolations(Number(selectedStudentId), Number(selectedYearId), Number(selectedSemesterId), Number(classId))
       .then(items => setViolations((items || []).filter(item => item.eventType === 'VIOLATION')))
@@ -220,12 +210,28 @@ export default function GradesManagementPage({
     return [...map.values()];
   }, [scores]);
 
-  const kpis = useMemo(() => ({
-    students: summary.length,
-    published: summary.filter(row => row.status === 'PUBLISHED').length,
-    missing: summary.filter(row => row.gpa == null).length,
-    attention: summary.filter(row => row.absentWithoutLeave >= 5 || row.violationCount >= 2).length,
-  }), [summary]);
+  useEffect(() => {
+    let cancelled = false;
+    setBook(null); setScores([]); setGradePage(1); setBusy(false);
+    if (view !== 'semester' || !classId || !subjectId || !selectedSemesterId) return;
+
+    beginAction(); setBusy(true);
+    void (async () => {
+      try {
+        const loaded = await getGradeBook(
+          Number(classId), Number(subjectId), Number(selectedSemesterId),
+        ) as GradeBook;
+        const loadedScores = await getGradeBookStudents(loaded.id) as ScoreRow[];
+        if (!cancelled) { setBook(loaded); setScores(loadedScores); }
+      } catch (cause) {
+        if (!cancelled) showError(cause);
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [view, classId, subjectId, selectedSemesterId]);
 
   async function loadGradeBook() {
     if (!classId || !subjectId || !selectedSemesterId) return;
@@ -274,39 +280,6 @@ export default function GradesManagementPage({
     } catch (cause) { showError(cause); } finally { setBusy(false); }
   }
 
-  function subjectComment(studentId: number) {
-    const subjectName = subjects.find(item => String(item.id) === subjectId)?.name;
-    return reports.find(item => item.studentId === studentId)?.subjectReviews
-      .find(item => item.subjectName === subjectName)?.comment || '—';
-  }
-
-  async function submitViolation(event: React.FormEvent) {
-    event.preventDefault();
-    if (!selectedStudentId || !violationDraft.title.trim() || !violationDraft.eventDate || locked) return;
-    beginAction(); setBusy(true);
-    try {
-      await saveViolation(Number(selectedStudentId), {
-        academicYearId: Number(selectedYearId), semesterId: Number(selectedSemesterId), classId: Number(classId),
-        title: violationDraft.title.trim(), category: violationDraft.category.trim(),
-        description: violationDraft.description.trim(), eventDate: violationDraft.eventDate,
-      }, editingViolation?.id);
-      setViolations(await getStudentViolations(Number(selectedStudentId), Number(selectedYearId),
-        Number(selectedSemesterId), Number(classId)));
-      setSummary(await getResultSummary(selectedYearId, selectedSemesterId, classId));
-      setEditingViolation(null); setViolationDraft({ title: '', category: '', description: '', eventDate: '' });
-      setMessage('Đã lưu vi phạm và cập nhật gợi ý rèn luyện.');
-    } catch (cause) { showError(cause); } finally { setBusy(false); }
-  }
-
-  async function removeViolation(id: number) {
-    if (locked || !confirm('Xóa vi phạm này?')) return;
-    beginAction();
-    try {
-      await deleteViolation(id, Number(selectedYearId)); setViolations(items => items.filter(item => item.id !== id));
-      setSummary(await getResultSummary(selectedYearId, selectedSemesterId, classId)); setMessage('Đã xóa vi phạm.');
-    } catch (cause) { showError(cause); }
-  }
-
   function patchSummary(studentId: number, patch: Partial<ResultSummaryItem>) {
     setSummary(rows => rows.map(row => row.studentId === studentId ? { ...row, ...patch } : row));
   }
@@ -330,8 +303,7 @@ export default function GradesManagementPage({
       setSummary(await publishSemesterResults({
         academicYearId: Number(selectedYearId), semesterId: Number(selectedSemesterId), classId: Number(classId),
       }));
-      setReports(await getPeriodicReports({ academicYearId: selectedYearId, semesterId: selectedSemesterId, classId }));
-      setMessage('Đã công bố điểm, tổng kết và nhận xét cho các vai trò liên quan.');
+      setMessage('Đã công bố điểm và kết quả học kỳ cho các vai trò liên quan.');
     } catch (cause) { showError(cause); } finally { setBusy(false); }
   }
 
@@ -421,11 +393,10 @@ export default function GradesManagementPage({
 
     <section className="panel result-toolbar">
       <div className="result-filter-grid">
-        <label>Lớp<select value={classId} onChange={event => setClassId(event.target.value)}>
+        <label>Lớp<select value={classId} onChange={event => { setClassId(event.target.value); setBook(null); setScores([]); }}>
           <option value="">Tất cả lớp</option>{classes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         {view === 'semester' && <label>Môn học<select value={subjectId} onChange={event => { setSubjectId(event.target.value); setBook(null); setScores([]); }}>
           <option value="">Chọn môn</option>{subjects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
-        {view === 'semester' && <button className="secondary-button" disabled={!classId || !subjectId || busy} onClick={loadGradeBook}>Mở bảng điểm</button>}
       </div>
       <div className="result-file-actions">
         {view === 'semester' && <button className="excel-action" disabled={!classId || !subjectId || busy} onClick={getTemplate}>
@@ -438,13 +409,6 @@ export default function GradesManagementPage({
       </div>
     </section>
 
-    {view === 'semester' && classId && <section className="result-kpi-grid">
-      <article><span>Học sinh</span><strong>{kpis.students}</strong><small>trong lớp đã chọn</small></article>
-      <article><span>Đã công bố</span><strong>{kpis.published}/{kpis.students}</strong><small>kết quả học kỳ</small></article>
-      <article><span>Chưa tính</span><strong>{kpis.missing}</strong><small>cần hoàn thiện điểm</small></article>
-      <article className={kpis.attention ? 'attention' : ''}><span>Cần đối soát</span><strong>{kpis.attention}</strong><small>nghỉ KP hoặc vi phạm</small></article>
-    </section>}
-
     {view === 'semester' && <>
       <nav className="result-section-tabs" aria-label="Các phần kết quả học kỳ">
         <button className={section === 'grades' ? 'active' : ''} onClick={() => setSection('grades')}><b>1</b> Điểm thành phần</button>
@@ -456,11 +420,11 @@ export default function GradesManagementPage({
         <div className="result-panel-heading"><div><h2>Điểm thành phần</h2><p>Cột điểm sinh từ cấu hình năm học; mỗi lần lưu sẽ công bố ngay cho phụ huynh và học sinh.</p></div>
           {book && <div className="monitoring-actions"><span className={`badge-status ${book.status === 'LOCKED' ? 'completed' : 'active'}`}>{book.status}</span>
             <button className="secondary-button" disabled={busy} onClick={calculateSubject}>Tính ĐTB môn</button></div>}</div>
-        {!book ? <div className="result-empty"><span>01</span><strong>Chọn lớp và môn, sau đó mở bảng điểm</strong><p>Admin sẽ thấy cả điểm giáo viên đã nhập và các cột mình phụ trách.</p></div> : <>
+        {!book ? <div className="result-empty"><span>01</span><strong>Chọn lớp và môn để xem bảng điểm</strong><p>Admin sẽ thấy cả điểm giáo viên đã nhập và các cột mình phụ trách.</p></div> : <>
           <div className="result-formula">Công thức cấu hình: {numericItems.length ? numericItems.map(item => `${item.name} × ${item.weight}`).join(' + ') : 'Không có đầu điểm số'}</div>
           <div className="table-responsive"><table className="result-grade-table"><thead><tr><th>Học sinh</th>{book.items.map(item => <th key={item.id}>
             <span>{item.name}</span><small>{assessmentLabel[item.assessmentType]} · HS {item.weight}</small>
-            <div className="grade-column-actions">{canAdminEdit(item) && <button className="secondary-button" disabled={savingItemId === item.id} onClick={() => saveItem(item)}>Lưu &amp; công bố</button>}</div></th>)}<th>ĐTB</th><th>Nhận xét GVBM</th></tr></thead>
+            <div className="grade-column-actions">{canAdminEdit(item) && <button className="secondary-button" disabled={savingItemId === item.id} onClick={() => saveItem(item)}>Lưu &amp; công bố</button>}</div></th>)}<th>ĐTB</th></tr></thead>
             <tbody>{pageOf(students, gradePage).map(student => <tr key={student.id}><td><strong>{student.name}</strong><small>{student.code}</small></td>{book.items.map(item => {
               const value = student.values[item.id] || { score: null, comment: null, isGraded: false };
               const disabled = !canAdminEdit(item);
@@ -469,7 +433,7 @@ export default function GradesManagementPage({
                   onChange={event => changeValue(student.id, item.id, { score: null, comment: event.target.value || null, isGraded: !!event.target.value })}><option value="">—</option><option value="PASS">Đạt</option><option value="FAIL">Chưa đạt</option></select>}
                 {item.assessmentType === 'COMMENT' && <textarea disabled={disabled} rows={2} value={value.comment || ''}
                   onChange={event => changeValue(student.id, item.id, { score: null, comment: event.target.value, isGraded: !!event.target.value.trim() })} />}</td>;
-            })}<td><strong>{student.average ?? '—'}</strong></td><td className="subject-comment-cell">{subjectComment(student.id)}</td></tr>)}</tbody></table></div>
+            })}<td><strong>{student.average ?? '—'}</strong></td></tr>)}</tbody></table></div>
           <Pagination total={students.length} page={gradePage} onChange={setGradePage} />
         </>}
       </section>}
@@ -480,13 +444,9 @@ export default function GradesManagementPage({
             {pageOf(summary, disciplinePage).map(row => <tr key={row.studentId}><td><strong>{row.studentName}</strong><small className="table-subtext">{row.studentCode}</small></td><td>{row.violationCount}</td><td>{row.absentWithLeave}</td><td>{row.absentWithoutLeave}</td><td><span className="result-level">{row.suggestedConduct || '—'}</span></td><td><button className="secondary-button" onClick={() => setSelectedStudentId(String(row.studentId))}>Chi tiết</button></td></tr>)}</tbody></table></div>
             <Pagination total={summary.length} page={disciplinePage} onChange={setDisciplinePage} /></>}
         </section>
-        <section className="panel result-panel"><div className="result-panel-heading"><div><h2>Quản lý vi phạm</h2><p>{selectedStudentId ? 'Chỉnh sửa hồ sơ đã chọn.' : 'Chọn học sinh ở bảng bên trái.'}</p></div></div>
-          {selectedStudentId && <><form className="violation-form" onSubmit={submitViolation}><label>Tiêu đề<input required disabled={locked} maxLength={200} value={violationDraft.title} onChange={event => setViolationDraft(d => ({ ...d, title: event.target.value }))} /></label>
-            <label>Phân loại<input disabled={locked} maxLength={100} value={violationDraft.category} onChange={event => setViolationDraft(d => ({ ...d, category: event.target.value }))} /></label>
-            <label>Ngày vi phạm<input required disabled={locked} type="date" value={violationDraft.eventDate} onChange={event => setViolationDraft(d => ({ ...d, eventDate: event.target.value }))} /></label>
-            <label className="wide">Mô tả<textarea disabled={locked} rows={3} maxLength={2000} value={violationDraft.description} onChange={event => setViolationDraft(d => ({ ...d, description: event.target.value }))} /></label>
-            <div className="monitoring-actions wide"><button disabled={locked || busy}>{editingViolation ? 'Lưu thay đổi' : 'Thêm vi phạm'}</button>{editingViolation && <button type="button" className="secondary-button" onClick={() => { setEditingViolation(null); setViolationDraft({ title: '', category: '', description: '', eventDate: '' }); }}>Hủy</button>}</div></form>
-            <div className="violation-list">{violations.map(item => <article key={item.id}><div><strong>{item.title}</strong><small>{item.category || 'Vi phạm'} · {item.eventDate}</small><p>{item.description}</p></div><div className="table-actions"><button className="secondary-button" disabled={locked} onClick={() => { setEditingViolation(item); setViolationDraft({ title: item.title, category: item.category || '', description: item.description || '', eventDate: item.eventDate }); }}>Sửa</button><button className="danger" disabled={locked} onClick={() => removeViolation(item.id)}>Xóa</button></div></article>)}</div></>}
+        <section className="panel result-panel"><div className="result-panel-heading"><div><h2>Vi phạm đã Submit</h2><p>{selectedStudentId ? 'Dữ liệu do GVCN gửi; Admin chỉ xem và thống kê.' : 'Chọn học sinh ở bảng bên trái.'}</p></div></div>
+          {selectedStudentId && <><div className="violation-list">{violations.map(item => <article key={item.id}><div><strong>{item.title}</strong><small>{item.category || 'Vi phạm'} · {item.eventDate}</small><p>{item.description}</p></div></article>)}</div>
+            {!violations.length && <div className="empty-state">Học sinh không có vi phạm đã Submit.</div>}</>}
         </section>
       </div>}
 
@@ -494,12 +454,12 @@ export default function GradesManagementPage({
         <div className="monitoring-actions"><button className="secondary-button" disabled={!classId || locked || busy} onClick={calculateSemester}>Tính kết quả lớp</button>
           <button disabled={!classId || locked || busy || !summary.length} onClick={publishSummary}>Công bố lớp</button>
           <button className="danger" disabled={locked || busy || selectedSemesterStatus !== 'ACTIVE'} onClick={closeSemester}>Đóng học kỳ toàn trường</button></div></div>
-        {!classId ? <div className="result-empty"><strong>Chọn lớp để tổng kết</strong></div> : <><div className="table-responsive"><table className="summary-result-table"><thead><tr><th>Học sinh</th><th>ĐTB / Hạng</th><th>VP · nghỉ KP</th><th>Học tập gợi ý</th><th>Rèn luyện gợi ý</th><th>Học tập cuối</th><th>Rèn luyện cuối</th><th>Danh hiệu</th><th>Nhận xét GVCN</th><th>Trạng thái</th><th /></tr></thead><tbody>
+        {!classId ? <div className="result-empty"><strong>Chọn lớp để tổng kết</strong></div> : <><div className="table-responsive"><table className="summary-result-table"><thead><tr><th>Học sinh</th><th>ĐTB / Hạng</th><th>VP · nghỉ KP</th><th>Học tập gợi ý</th><th>Rèn luyện gợi ý</th><th>Học tập cuối</th><th>Rèn luyện cuối</th><th>Danh hiệu</th><th>Trạng thái</th><th /></tr></thead><tbody>
           {pageOf(summary, summaryPage).map(row => <tr key={row.studentId}><td><strong>{row.studentName}</strong><small>{row.studentCode}</small></td><td>{row.gpa ?? '—'} / {row.rank ?? '—'}</td><td>{row.violationCount} · {row.absentWithoutLeave}</td><td>{row.suggestedAcademicAbility || '—'}</td><td>{row.suggestedConduct || '—'}</td>
             <td><select disabled={locked} value={row.academicAbility || ''} onChange={event => patchSummary(row.studentId, { academicAbility: event.target.value })}><option value="">—</option>{[...new Set([row.academicAbility, ...resultLevels].filter(Boolean))].map(value => <option key={value!}>{value}</option>)}</select></td>
             <td><select disabled={locked} value={row.conduct || ''} onChange={event => patchSummary(row.studentId, { conduct: event.target.value })}><option value="">—</option>{[...new Set([row.conduct, ...resultLevels].filter(Boolean))].map(value => <option key={value!}>{value}</option>)}</select></td>
             <td><select disabled={locked} value={row.honor || ''} onChange={event => patchSummary(row.studentId, { honor: event.target.value })}><option value="">—</option>{[...new Set([row.honor, ...honorOptions].filter(Boolean))].map(value => <option key={value!}>{value}</option>)}</select></td>
-            <td className="subject-comment-cell">{row.generalComment || '—'}</td><td><span className={`badge-status ${row.status === 'PUBLISHED' ? 'active' : 'draft'}`}>{row.status === 'PUBLISHED' ? 'Đã công bố' : row.reportStatus === 'SUBMITTED' ? 'Chờ công bố' : 'Chờ GVCN'}</span></td><td><button className="secondary-button" disabled={locked} onClick={() => saveFinal(row)}>Lưu</button></td></tr>)}</tbody></table></div>
+            <td><span className={`badge-status ${row.status === 'PUBLISHED' ? 'active' : 'draft'}`}>{row.status === 'PUBLISHED' ? 'Đã công bố' : 'Bản nháp'}</span></td><td><button className="secondary-button" disabled={locked} onClick={() => saveFinal(row)}>Lưu</button></td></tr>)}</tbody></table></div>
           <Pagination total={summary.length} page={summaryPage} onChange={setSummaryPage} /></>}
       </section>}
     </>}

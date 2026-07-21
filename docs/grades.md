@@ -50,5 +50,13 @@ Trạng thái GradeBook: `DRAFT -> PUBLISHED -> LOCKED`. Submit đầu điểm c
 - Chỉ được tính tổng kết năm khi cả hai học kỳ đã `COMPLETED`. Chỉ được đóng năm học khi toàn bộ học sinh đang học đã có kết quả năm được công bố.
 - Công bố kết quả tạo thông báo cho học sinh và phụ huynh có liên kết giám hộ.
 
+## Vi phạm học sinh
+
+- Chỉ giáo viên chủ nhiệm được thêm, sửa, xóa vi phạm ở trạng thái `DRAFT` trong đúng lớp, học kỳ và năm học phụ trách.
+- GVCN có thể submit vi phạm theo từng học sinh hoặc cả lớp. Sau submit, dữ liệu chuyển sang `SUBMITTED` và bị khóa.
+- Admin chỉ xem và thống kê vi phạm `SUBMITTED`; không được ghi, sửa, xóa hoặc submit thay giáo viên.
+- Luồng nhận xét định kỳ của GVCN/GVBM đã bị loại bỏ hoàn toàn và không còn là điều kiện công bố kết quả.
+- API submit: `POST /api/students/{studentId}/violations/submit` và `POST /api/student-events/violations/submit-class`.
+
 Migration thay thế dữ liệu cố định: `V14__replace_legacy_grades_with_configured_gradebooks.sql`.
 Migration kết quả năm học: `V27__academic_year_results.sql`.

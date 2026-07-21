@@ -26,7 +26,7 @@ public class StudentEventController {
     }
 
     @PostMapping("/api/students/{studentId}/events")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<ApiResponse<StudentEventDto>> create(@PathVariable Long studentId,
             @Valid @RequestBody SaveStudentEventRequest request) {
         return ResponseEntity.ok(ApiResponse.success(service.createStudentEvent(studentId, request,
@@ -34,7 +34,7 @@ public class StudentEventController {
     }
 
     @PutMapping("/api/student-events/{id}")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<ApiResponse<StudentEventDto>> update(@PathVariable Long id,
             @Valid @RequestBody SaveStudentEventRequest request) {
         return ResponseEntity.ok(ApiResponse.success(service.updateStudentEvent(id, request,
@@ -42,11 +42,28 @@ public class StudentEventController {
     }
 
     @DeleteMapping("/api/student-events/{id}")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id,
             @RequestParam Long academicYearId) {
         service.deleteStudentEvent(id, academicYearId,
                 SecurityUtil.getCurrentUserId(), SecurityUtil.getCurrentUserRole());
         return ResponseEntity.ok(ApiResponse.success("Đã xóa vi phạm", null));
+    }
+
+    @PostMapping("/api/students/{studentId}/violations/submit")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<ApiResponse<List<StudentEventDto>>> submitStudent(
+            @PathVariable Long studentId,
+            @Valid @RequestBody ViolationScopeRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(service.submitStudentViolations(
+                studentId, request, SecurityUtil.getCurrentUserId())));
+    }
+
+    @PostMapping("/api/student-events/violations/submit-class")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<ApiResponse<List<StudentEventDto>>> submitClass(
+            @Valid @RequestBody ViolationScopeRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(service.submitClassViolations(
+                request, SecurityUtil.getCurrentUserId())));
     }
 }

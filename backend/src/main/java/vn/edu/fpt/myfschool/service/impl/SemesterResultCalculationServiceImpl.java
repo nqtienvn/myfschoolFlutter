@@ -8,7 +8,6 @@ import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
 import vn.edu.fpt.myfschool.common.enums.AssessmentType;
 import vn.edu.fpt.myfschool.common.enums.ConductSource;
 import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
-import vn.edu.fpt.myfschool.common.enums.PeriodicReportStatus;
 import vn.edu.fpt.myfschool.common.enums.StudentEventStatus;
 import vn.edu.fpt.myfschool.common.enums.StudentEventType;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
@@ -41,7 +40,6 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
     private final StudentScoreRepository studentScoreRepository;
     private final StudentRiskService studentRiskService;
     private final StudentEventRepository studentEventRepository;
-    private final StudentPeriodicReportRepository studentPeriodicReportRepository;
     private final AcademicYearSubjectRepository academicYearSubjectRepository;
 
     @Override
@@ -103,8 +101,6 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
             SemesterResult result = semesterResultRepository
                 .findByStudentIdAndSemesterId(sg.student().getId(), semesterId)
                 .orElseGet(SemesterResult::new);
-            boolean wasPublished = result.getPublishedAt() != null;
-
             result.setStudent(sg.student());
             result.setSemester(semester);
             result.setCls(cls);
@@ -129,16 +125,6 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
             }
             result.setPublishedAt(null);
             semesterResultRepository.save(result);
-            if (wasPublished) {
-                studentPeriodicReportRepository.findByStudentIdAndSemesterId(sg.student().getId(), semesterId)
-                    .filter(report -> report.getStatus() == PeriodicReportStatus.PUBLISHED)
-                    .ifPresent(report -> {
-                        report.setStatus(PeriodicReportStatus.SUBMITTED);
-                        report.setConduct(null);
-                        report.setPublishedAt(null);
-                        studentPeriodicReportRepository.save(report);
-                    });
-            }
             updated++;
         }
 

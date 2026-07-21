@@ -187,7 +187,9 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
             requireHistoricalStudent(scope, studentId);
             return values.stream().filter(item -> item.getCls().getId().equals(classId)).map(this::toEvent).toList();
         }
-        if (requesterRole == UserRole.ADMIN) return values.stream().map(this::toEvent).toList();
+        if (requesterRole == UserRole.ADMIN) return values.stream()
+                .filter(item -> item.getStatus() == StudentEventStatus.SUBMITTED)
+                .map(this::toEvent).toList();
         throw new ForbiddenException("Vi phạm chỉ được sử dụng nội bộ bởi giáo viên và Admin");
     }
 
@@ -200,10 +202,6 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
         Student student = requireActiveStudent(scope, studentId);
         StudentEvent event = new StudentEvent();
         applyEvent(event, scope, student, request);
-        if (requesterRole == UserRole.ADMIN) {
-            event.setStatus(StudentEventStatus.SUBMITTED);
-            event.setSubmittedAt(LocalDateTime.now());
-        }
         event.setCreatedBy(requireUser(requesterId));
         return toEvent(events.save(event));
     }
@@ -212,8 +210,8 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
     public StudentEventDto updateStudentEvent(Long id, SaveStudentEventRequest request,
             Long requesterId, UserRole requesterRole) {
         StudentEvent event = requireEvent(id);
-        if (requesterRole == UserRole.TEACHER && event.getStatus() == StudentEventStatus.SUBMITTED) {
-            throw new ConflictException("Vi phạm đã Submit; Admin phải mở lại trước khi sửa");
+        if (event.getStatus() == StudentEventStatus.SUBMITTED) {
+            throw new ConflictException("Vi phạm đã Submit và không thể sửa");
         }
         Scope scope = requireScope(request.academicYearId(), request.semesterId(), request.classId());
         if (!sameScope(event.getAcademicYear().getId(), event.getSemester().getId(), event.getCls().getId(), scope)) {
@@ -222,10 +220,6 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
         requireEventEditor(scope, requesterId, requesterRole);
         requireViolation(request);
         applyEvent(event, scope, event.getStudent(), request);
-        if (requesterRole == UserRole.ADMIN) {
-            event.setStatus(StudentEventStatus.SUBMITTED);
-            event.setSubmittedAt(LocalDateTime.now());
-        }
         return toEvent(events.save(event));
     }
 
@@ -237,10 +231,51 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
         }
         Scope scope = requireScope(event.getAcademicYear().getId(), event.getSemester().getId(), event.getCls().getId());
         requireEventEditor(scope, requesterId, requesterRole);
-        if (requesterRole == UserRole.TEACHER && event.getStatus() == StudentEventStatus.SUBMITTED) {
-            throw new ConflictException("Vi phạm đã Submit; Admin phải mở lại trước khi xóa");
+        if (event.getStatus() == StudentEventStatus.SUBMITTED) {
+            throw new ConflictException("Vi phạm đã Submit và không thể xóa");
         }
         events.delete(event);
+    }
+
+    @Override
+    public List<StudentEventDto> submitStudentViolations(Long studentId, ViolationScopeRequest request,
+            Long teacherUserId) {
+        Scope scope = requireScope(request.academicYearId(), request.semesterId(), request.classId());
+        requireHomeroom(scope, teacherUserId);
+        requireActiveStudent(scope, studentId);
+        submitViolations(events.findByStudentIdAndAcademicYearIdAndSemesterIdOrderByEventDateDesc(
+                studentId, request.academicYearId(), request.semesterId()).stream()
+                .filter(item -> item.getCls().getId().equals(request.classId()))
+                .toList());
+        return events.findByStudentIdAndAcademicYearIdAndSemesterIdOrderByEventDateDesc(
+                studentId, request.academicYearId(), request.semesterId()).stream()
+                .filter(item -> item.getCls().getId().equals(request.classId()))
+                .map(this::toEvent).toList();
+    }
+
+    @Override
+    public List<StudentEventDto> submitClassViolations(ViolationScopeRequest request, Long teacherUserId) {
+        Scope scope = requireScope(request.academicYearId(), request.semesterId(), request.classId());
+        requireHomeroom(scope, teacherUserId);
+        List<StudentEvent> classViolations = events.findByClsIdAndSemesterId(
+                request.classId(), request.semesterId()).stream()
+                .filter(item -> item.getAcademicYear().getId().equals(request.academicYearId()))
+                .filter(item -> item.getEventType() == StudentEventType.VIOLATION)
+                .toList();
+        submitViolations(classViolations);
+        return classViolations.stream().map(this::toEvent).toList();
+    }
+
+    private void submitViolations(List<StudentEvent> values) {
+        LocalDateTime submittedAt = LocalDateTime.now();
+        values.stream()
+                .filter(item -> item.getEventType() == StudentEventType.VIOLATION)
+                .filter(item -> item.getStatus() == StudentEventStatus.DRAFT)
+                .forEach(item -> {
+                    item.setStatus(StudentEventStatus.SUBMITTED);
+                    item.setSubmittedAt(submittedAt);
+                    events.save(item);
+                });
     }
 
     private void applyContact(ParentContactLog log, Scope scope, Student student, SaveParentContactLogRequest request) {
@@ -304,15 +339,11 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
     }
 
     private void requireEventEditor(Scope scope, Long requesterId, UserRole requesterRole) {
-        if (requesterRole == UserRole.ADMIN) {
-            requireUser(requesterId);
-            return;
-        }
         if (requesterRole == UserRole.TEACHER) {
             requireHomeroom(scope, requesterId);
             return;
         }
-        throw new ForbiddenException("Chỉ GVCN và Admin được quản lý vi phạm");
+        throw new ForbiddenException("Chỉ GVCN được quản lý vi phạm");
     }
 
     private void requireViolation(SaveStudentEventRequest request) {

@@ -5736,13 +5736,6 @@ td:last-child {
   }
 }
 
-/* Periodic student reviews */
-.review-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
 .summary-card {
   padding: 18px;
   border: 1px solid var(--border);
@@ -5878,74 +5871,10 @@ td:last-child {
   overflow: auto;
 }
 
-.review-general {
-  padding: 16px;
-  border-radius: 12px;
-  background: var(--bg-subtle, #f8fafc);
-  margin-bottom: 16px;
-}
-
-.review-general p {
-  margin: 8px 0;
-  white-space: pre-wrap;
-}
-
-.review-subject-list {
-  display: grid;
-  gap: 10px;
-}
-
-.review-subject-list article {
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-}
-
-.review-subject-list header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-}
-
-.review-subject-list p {
-  margin: 8px 0;
-  white-space: pre-wrap;
-}
-
-.review-reopen {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.review-reopen label {
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.review-reopen textarea {
-  display: block;
-  width: 100%;
-  min-height: 84px;
-  margin: 6px 0 10px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  resize: vertical;
-}
-
 .table-subtext {
   display: block;
   margin-top: 3px;
   color: var(--text-secondary);
-}
-
-@media (max-width: 700px) {
-  .review-summary {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Homeroom monitoring */
@@ -6313,58 +6242,6 @@ td:last-child {
   box-shadow: 0 4px 12px rgba(0, 82, 204, 0.35);
 }
 
-.result-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.result-kpi-grid article {
-  position: relative;
-  overflow: hidden;
-  padding: 16px 18px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-  box-shadow: var(--shadow-xs);
-}
-
-.result-kpi-grid article::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-  background: #5d8dd6;
-}
-
-.result-kpi-grid article.attention::before {
-  background: var(--result-orange);
-}
-
-.result-kpi-grid span,
-.result-kpi-grid small {
-  display: block;
-  color: var(--text-secondary);
-}
-
-.result-kpi-grid span {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-}
-
-.result-kpi-grid strong {
-  display: block;
-  margin: 5px 0 2px;
-  color: var(--result-navy);
-  font-size: 24px;
-}
-
-.result-kpi-grid small {
-  font-size: 10px;
-}
-
 .result-section-tabs {
   display: flex;
   align-items: center;
@@ -6601,12 +6478,6 @@ td:last-child {
   font-size: 10px;
 }
 
-.subject-comment-cell {
-  min-width: 220px;
-  max-width: 340px;
-  white-space: pre-wrap;
-}
-
 .discipline-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(380px, .65fr);
@@ -6758,9 +6629,6 @@ td:last-child {
     justify-content: flex-start;
   }
 
-  .result-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 700px) {
@@ -6787,10 +6655,6 @@ td:last-child {
   .result-file-actions,
   .excel-action {
     width: 100%;
-  }
-
-  .result-kpi-grid {
-    grid-template-columns: 1fr 1fr;
   }
 
   .result-section-tabs {
@@ -7052,108 +6916,6 @@ td:last-child {
   display: block;
   width: 100%;
   margin-top: 4px;
-}
-
-.teacher-file-button {
-  min-width: 0 !important;
-  padding: 9px 14px;
-  border: 1px dashed var(--brand-primary);
-  border-radius: var(--radius-md);
-  color: var(--brand-primary) !important;
-  cursor: pointer;
-}
-
-.teacher-file-button input {
-  display: none;
-}
-
-.review-editor-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.review-editor-list article {
-  padding: 15px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-
-.review-editor-list header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.review-editor-list header small,
-.homeroom-review-layout aside small {
-  display: block;
-  color: var(--text-secondary);
-}
-
-.review-editor-list label,
-.homeroom-student-editor label {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.review-editor-list textarea,
-.homeroom-student-editor textarea {
-  display: block;
-  width: 100%;
-  margin-top: 4px;
-}
-
-.review-two-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.homeroom-review-layout {
-  display: grid;
-  grid-template-columns: 250px minmax(0, 1fr);
-  gap: 14px;
-  margin-top: 14px;
-}
-
-.homeroom-review-layout aside {
-  display: grid;
-  align-content: start;
-  gap: 4px;
-  max-height: 720px;
-  overflow: auto;
-}
-
-.homeroom-review-layout aside button {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px;
-  text-align: left;
-  background: var(--surface-2);
-  color: var(--text-primary);
-  border-color: transparent;
-}
-
-.homeroom-review-layout aside button.active {
-  color: var(--brand-primary);
-  border-color: var(--brand-primary);
-  background: var(--brand-primary-soft);
-}
-
-.homeroom-review-layout aside b {
-  font-size: 9px;
-}
-
-.homeroom-student-editor {
-  min-width: 0;
-  padding: 15px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
 }
 
 .teacher-announcement-grid {
@@ -7463,14 +7225,6 @@ td:last-child {
     font-size: 18px;
   }
 
-  .homeroom-review-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .homeroom-review-layout aside {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    max-height: 230px;
-  }
 }
 
 @media (max-width: 650px) {
@@ -7493,10 +7247,6 @@ td:last-child {
   }
 
   .teacher-kpi-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .review-two-cols {
     grid-template-columns: 1fr;
   }
 
@@ -7581,27 +7331,6 @@ td:last-child {
   margin-top: 5px;
 }
 
-.teacher-file-button {
-  min-width: 0 !important;
-  min-height: 42px;
-  display: inline-flex;
-  align-items: center;
-  padding: 9px 14px;
-  border: 1.5px dashed var(--brand-primary);
-  border-radius: var(--radius-md);
-  background: var(--brand-primary-soft);
-  color: var(--brand-primary) !important;
-  cursor: pointer;
-}
-
-.teacher-file-button:hover {
-  background: #E7F0FF;
-}
-
-.teacher-file-button input {
-  display: none;
-}
-
 .teacher-grades-table {
   min-width: 1100px;
 }
@@ -7642,112 +7371,6 @@ td:last-child {
   margin-top: 8px;
   padding: 6px 8px;
   font-size: 10px;
-}
-
-.review-editor-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.review-editor-list article {
-  min-width: 0;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-}
-
-.review-editor-list header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.review-editor-list header small,
-.homeroom-review-layout aside small {
-  display: block;
-  color: var(--text-secondary);
-}
-
-.review-editor-list label,
-.homeroom-student-editor label {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.review-editor-list textarea,
-.homeroom-student-editor textarea {
-  display: block;
-  width: 100%;
-  margin-top: 5px;
-}
-
-.review-two-cols {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.homeroom-review-layout {
-  display: grid;
-  grid-template-columns: minmax(230px, 280px) minmax(0, 1fr);
-  gap: 16px;
-  margin-top: 14px;
-}
-
-.homeroom-review-layout aside {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: 5px;
-  max-height: 720px;
-  overflow: auto;
-}
-
-.homeroom-review-layout aside button {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-  padding: 10px 12px;
-  text-align: left;
-  background: var(--surface-2);
-  color: var(--text-primary);
-  border-color: transparent;
-}
-
-.homeroom-review-layout aside button>span {
-  min-width: 0;
-}
-
-.homeroom-review-layout aside button strong,
-.homeroom-review-layout aside button small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.homeroom-review-layout aside button.active {
-  color: var(--brand-primary);
-  border-color: var(--brand-primary);
-  background: var(--brand-primary-soft);
-}
-
-.homeroom-review-layout aside b {
-  flex: 0 0 auto;
-  font-size: 9px;
-}
-
-.homeroom-student-editor {
-  min-width: 0;
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
 }
 
 .violation-list article>div:first-child {
@@ -8063,17 +7686,6 @@ td:last-child {
   }
 }
 
-@media (max-width: 900px) {
-  .homeroom-review-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .homeroom-review-layout aside {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    max-height: 240px;
-  }
-}
-
 @media (max-width: 700px) {
   .teacher-app-shell .context-bar>div:not(.context-spacer) {
     flex: 1 1 180px;
@@ -8099,13 +7711,8 @@ td:last-child {
     flex-direction: column;
   }
 
-  .teacher-filter-row label,
-  .teacher-file-button {
+  .teacher-filter-row label {
     width: 100%;
-  }
-
-  .review-two-cols {
-    grid-template-columns: 1fr;
   }
 
   .violation-list article {
@@ -8151,10 +7758,6 @@ td:last-child {
 @media (max-width: 480px) {
   .teacher-app-shell .context-bar>div:not(.context-spacer) {
     flex-basis: 100%;
-  }
-
-  .homeroom-review-layout aside {
-    grid-template-columns: 1fr;
   }
 
   .teacher-chat-shell>section {

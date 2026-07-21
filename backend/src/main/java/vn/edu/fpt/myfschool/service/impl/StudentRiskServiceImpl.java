@@ -33,7 +33,6 @@ public class StudentRiskServiceImpl implements StudentRiskService {
     private final EnrollmentRepository enrollments;
     private final SemesterResultRepository semesterResults;
     private final AttendanceRepository attendance;
-    private final StudentPeriodicReportRepository periodicReports;
     private final TuitionBillRepository tuitionBills;
     private final TeacherRepository teachers;
     private final HomeroomAssignmentRepository homeroomAssignments;
@@ -108,10 +107,6 @@ public class StudentRiskServiceImpl implements StudentRiskService {
         Map<Long, List<Attendance>> attendanceByStudent = attendance
                 .findByClsIdAndDateBetween(classId, scope.semester().getStartDate(), scope.semester().getEndDate())
                 .stream().collect(Collectors.groupingBy(item -> item.getStudent().getId()));
-        Map<Long, StudentPeriodicReport> reports = periodicReports
-                .findByAcademicYearIdAndSemesterId(academicYearId, semesterId).stream()
-                .filter(item -> item.getCls().getId().equals(classId))
-                .collect(Collectors.toMap(item -> item.getStudent().getId(), Function.identity(), (a, b) -> a));
         Map<Long, List<TuitionBill>> overdueByStudent = tuitionBills
                 .findByClassIdAndSemesterIdAndStatus(classId, semesterId, BillStatus.UNPAID).stream()
                 .filter(item -> item.getDueDate().plusDays(config.getOverdueTuitionDays()).isBefore(LocalDate.now()))
@@ -120,7 +115,7 @@ public class StudentRiskServiceImpl implements StudentRiskService {
         Set<String> activeKeys = new HashSet<>();
         for (Student student : roster) {
             Map<RiskType, Candidate> candidates = evaluate(student, config, results.get(student.getId()),
-                    attendanceByStudent.getOrDefault(student.getId(), List.of()), reports.get(student.getId()),
+                    attendanceByStudent.getOrDefault(student.getId(), List.of()),
                     overdueByStudent.getOrDefault(student.getId(), List.of()));
             for (Candidate candidate : candidates.values()) {
                 activeKeys.add(key(student.getId(), candidate.type()));
@@ -152,7 +147,7 @@ public class StudentRiskServiceImpl implements StudentRiskService {
     }
 
     private Map<RiskType, Candidate> evaluate(Student student, StudentRiskConfig config, SemesterResult result,
-            List<Attendance> attendanceRows, StudentPeriodicReport report, List<TuitionBill> overdueBills) {
+            List<Attendance> attendanceRows, List<TuitionBill> overdueBills) {
         Map<RiskType, Candidate> values = new EnumMap<>(RiskType.class);
         if (config.getMinGpa() != null && result != null && result.getGpa() != null
                 && result.getGpa().compareTo(config.getMinGpa()) < 0) {
@@ -180,11 +175,11 @@ public class StudentRiskServiceImpl implements StudentRiskService {
             }
         }
         Set<String> conductRisks = splitValues(config.getConductRiskValues());
-        if (report != null && report.getStatus() == PeriodicReportStatus.PUBLISHED
-                && report.getConduct() != null && conductRisks.contains(report.getConduct().toLowerCase(Locale.ROOT))) {
-            values.put(RiskType.CONDUCT, candidate(RiskType.CONDUCT, config.getConductSeverity(), report.getConduct(),
+        if (result != null && result.getPublishedAt() != null && result.getConduct() != null
+                && conductRisks.contains(result.getConduct().toLowerCase(Locale.ROOT))) {
+            values.put(RiskType.CONDUCT, candidate(RiskType.CONDUCT, config.getConductSeverity(), result.getConduct(),
                     config.getConductRiskValues(), "Hạnh kiểm thuộc nhóm cần theo dõi",
-                    Map.of("conduct", report.getConduct(), "reportId", report.getId())));
+                    Map.of("conduct", result.getConduct(), "semesterResultId", result.getId())));
         }
         if (Boolean.TRUE.equals(config.getIncludeOverdueTuition()) && !overdueBills.isEmpty()) {
             BigDecimal amount = overdueBills.stream().map(TuitionBill::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);

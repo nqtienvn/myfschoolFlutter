@@ -26,4 +26,7 @@ public interface HomeroomEngagementService {
     StudentEventDto updateStudentEvent(Long id, SaveStudentEventRequest request,
             Long requesterId, UserRole requesterRole);
     void deleteStudentEvent(Long id, Long academicYearId, Long requesterId, UserRole requesterRole);
+    List<StudentEventDto> submitStudentViolations(Long studentId, ViolationScopeRequest request,
+            Long teacherUserId);
+    List<StudentEventDto> submitClassViolations(ViolationScopeRequest request, Long teacherUserId);
 }

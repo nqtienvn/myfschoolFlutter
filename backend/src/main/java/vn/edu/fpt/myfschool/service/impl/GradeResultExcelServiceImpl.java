@@ -323,7 +323,7 @@ public class GradeResultExcelServiceImpl implements GradeResultExcelService {
         Sheet sheet = workbook.createSheet("Tong_ket_hoc_ky");
         String[] headers = {"Học kỳ", "Lớp", "Mã HS", "Họ và tên", "Điểm TB tham khảo",
                 "Xếp hạng", "Vi phạm", "Nghỉ có phép", "Nghỉ không phép", "Kết quả học tập",
-                "Kết quả rèn luyện", "Danh hiệu", "Nhận xét GVCN", "Trạng thái"};
+                "Kết quả rèn luyện", "Danh hiệu", "Trạng thái"};
         Row headerRow = sheet.createRow(0);
         CellStyle header = headerStyle(workbook);
         for (int index = 0; index < headers.length; index++) writeHeader(headerRow, index, headers[index], header);
@@ -347,7 +347,6 @@ public class GradeResultExcelServiceImpl implements GradeResultExcelService {
                 row.createCell(cell++).setCellValue(nullToEmpty(result.academicAbility()));
                 row.createCell(cell++).setCellValue(nullToEmpty(result.conduct()));
                 row.createCell(cell++).setCellValue(nullToEmpty(result.honor()));
-                row.createCell(cell++).setCellValue(nullToEmpty(result.generalComment()));
                 row.createCell(cell).setCellValue(result.status());
             }
         }

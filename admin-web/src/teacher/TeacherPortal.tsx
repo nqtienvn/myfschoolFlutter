@@ -7,7 +7,7 @@ import TeacherGradesPage from '../pages/teacher/TeacherGradesPage';
 import TeacherHomeroomProfilePage from '../pages/teacher/TeacherHomeroomProfilePage';
 import TeacherLeaveRequestsPage from '../pages/teacher/TeacherLeaveRequestsPage';
 import TeacherLoginPage from '../pages/teacher/TeacherLoginPage';
-import TeacherPeriodicReviewsPage from '../pages/teacher/TeacherPeriodicReviewsPage';
+import TeacherViolationsPage from '../pages/teacher/TeacherViolationsPage';
 import { TeacherAcademicProvider, useTeacherAcademic } from './TeacherAcademicContext';
 
 function DashboardIcon() {
@@ -45,7 +45,7 @@ function LogoutIcon() {
 const navItems = [
   { path: '/teacher/dashboard', label: 'Tổng quan', group: 'Giảng dạy', Icon: DashboardIcon },
   { path: '/teacher/grades', label: 'Nhập điểm', group: 'Giảng dạy', Icon: GradeIcon },
-  { path: '/teacher/reviews', label: 'Nhận xét định kỳ', group: 'Giảng dạy', Icon: ReviewIcon },
+  { path: '/teacher/violations', label: 'Vi phạm học sinh', group: 'Công tác lớp', Icon: ReviewIcon },
   { path: '/teacher/announcements', label: 'Thông báo', group: 'Công tác lớp', Icon: BellIcon },
   { path: '/teacher/homeroom', label: 'Hồ sơ lớp chủ nhiệm', group: 'Công tác lớp', Icon: HomeroomIcon },
   { path: '/teacher/leave-requests', label: 'Đơn xin nghỉ', group: 'Công tác lớp', Icon: LeaveIcon },
@@ -104,7 +104,7 @@ function TeacherPortalLayout({ path, setLoggedIn }: { path: string; setLoggedIn:
   const selectedSemester = academic.semesters.find(item => item.id === academic.selectedSemesterId);
   const activeItem = navItems.find(item => item.path === path) || navItems[0];
   const page = path === '/teacher/grades' ? <TeacherGradesPage />
-    : path === '/teacher/reviews' ? <TeacherPeriodicReviewsPage />
+    : path === '/teacher/violations' ? <TeacherViolationsPage />
     : path === '/teacher/announcements' ? <TeacherAnnouncementsPage />
     : path === '/teacher/homeroom' ? <TeacherHomeroomProfilePage />
     : path === '/teacher/leave-requests' ? <TeacherLeaveRequestsPage />

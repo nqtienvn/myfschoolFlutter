@@ -10,7 +10,6 @@ import vn.edu.fpt.myfschool.entity.Parent;
 import vn.edu.fpt.myfschool.entity.Teacher;
 import vn.edu.fpt.myfschool.entity.Attendance;
 import vn.edu.fpt.myfschool.entity.StudentEvent;
-import vn.edu.fpt.myfschool.entity.StudentPeriodicReport;
 import vn.edu.fpt.myfschool.entity.GradeBook;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
@@ -44,8 +43,6 @@ public class SemesterResultServiceImpl implements SemesterResultService {
     private final HomeroomAssignmentRepository homeroomAssignmentRepository;
     private final AttendanceRepository attendanceRepository;
     private final StudentEventRepository studentEventRepository;
-    private final StudentPeriodicReportRepository studentPeriodicReportRepository;
-    private final PeriodicReviewService periodicReviewService;
     private final GradeBookRepository gradeBookRepository;
     private final AcademicYearSubjectRepository academicYearSubjectRepository;
     private final NotificationService notificationService;
@@ -153,14 +150,6 @@ public class SemesterResultServiceImpl implements SemesterResultService {
         result.setResultOverridden(true);
         result.setPublishedAt(null);
         semesterResultRepository.save(result);
-        studentPeriodicReportRepository.findByStudentIdAndSemesterId(studentId, request.semesterId())
-                .filter(report -> report.getStatus() == PeriodicReportStatus.PUBLISHED)
-                .ifPresent(report -> {
-                    report.setStatus(PeriodicReportStatus.SUBMITTED);
-                    report.setConduct(null);
-                    report.setPublishedAt(null);
-                    studentPeriodicReportRepository.save(report);
-                });
         return getResultSummary(request.academicYearId(), request.semesterId(), request.classId()).stream()
                 .filter(item -> item.studentId().equals(studentId))
                 .findFirst()
@@ -172,10 +161,6 @@ public class SemesterResultServiceImpl implements SemesterResultService {
     public List<ResultSummaryDto> publishResults(ResultPublishRequest request, Long adminUserId) {
         ResultScope scope = requireResultScope(request.academicYearId(), request.semesterId(), request.classId());
         requireEditable(scope);
-        List<HomeroomReportDto> reports = periodicReviewService.getAdminReports(
-                request.academicYearId(), request.semesterId(), request.classId(), null);
-        Map<Long, HomeroomReportDto> reportByStudent = new HashMap<>();
-        reports.forEach(report -> reportByStudent.put(report.studentId(), report));
         List<Student> roster = enrollmentRepository.findByClsIdAndAcademicYearIdAndStatus(
                         request.classId(), request.academicYearId(), EnrollmentStatus.ACTIVE).stream()
                 .map(Enrollment::getStudent).toList();
@@ -184,17 +169,6 @@ public class SemesterResultServiceImpl implements SemesterResultService {
                             student.getId(), request.semesterId())
                     .orElseThrow(() -> new ConflictException(
                             "Chưa tính kết quả học kỳ cho " + student.getStudentCode()));
-            HomeroomReportDto report = reportByStudent.get(student.getId());
-            if (report == null || report.status() != PeriodicReportStatus.SUBMITTED) {
-                throw new ConflictException("GVCN chưa Submit nhận xét cho " + student.getStudentCode());
-            }
-            if (report.generalComment() == null || report.generalComment().isBlank()) {
-                throw new ConflictException("Thiếu nhận xét GVCN cho " + student.getStudentCode());
-            }
-            if (!report.missingSubjects().isEmpty()) {
-                throw new ConflictException("Thiếu nhận xét môn của " + student.getStudentCode()
-                        + ": " + String.join(", ", report.missingSubjects()));
-            }
             if (result.getAcademicAbility() == null || result.getConduct() == null || result.getHonor() == null) {
                 throw new ConflictException("Kết quả cuối của " + student.getStudentCode() + " chưa đầy đủ");
             }
@@ -206,12 +180,6 @@ public class SemesterResultServiceImpl implements SemesterResultService {
             boolean firstPublication = result.getPublishedAt() == null;
             result.setPublishedAt(publishedAt);
             semesterResultRepository.save(result);
-            StudentPeriodicReport report = studentPeriodicReportRepository.findByStudentIdAndSemesterId(
-                    student.getId(), request.semesterId()).orElseThrow();
-            report.setConduct(result.getConduct());
-            report.setStatus(PeriodicReportStatus.PUBLISHED);
-            report.setPublishedAt(publishedAt);
-            studentPeriodicReportRepository.save(report);
             if (firstPublication) sendPublishedNotifications(student, scope.semester(), result.getId());
         }
         return getResultSummary(request.academicYearId(), request.semesterId(), request.classId());
@@ -274,8 +242,6 @@ public class SemesterResultServiceImpl implements SemesterResultService {
             List<Attendance> attendance, List<StudentEvent> violations) {
         SemesterResult result = semesterResultRepository.findByStudentIdAndSemesterId(
                 student.getId(), scope.semester().getId()).orElse(null);
-        StudentPeriodicReport report = studentPeriodicReportRepository.findByStudentIdAndSemesterId(
-                student.getId(), scope.semester().getId()).orElse(null);
         long violationCount = violations.stream()
                 .filter(event -> event.getStudent().getId().equals(student.getId())).count();
         long absentWithLeave = attendance.stream()
@@ -291,8 +257,6 @@ public class SemesterResultServiceImpl implements SemesterResultService {
                 result == null ? null : firstNonBlank(result.getSuggestedAcademicAbility(), result.getAcademicAbility()),
                 result == null ? null : result.getSuggestedConduct(), result == null ? null : result.getAcademicAbility(),
                 result == null ? null : result.getConduct(), result == null ? null : result.getHonor(),
-                report == null ? null : report.getGeneralComment(),
-                report == null ? PeriodicReportStatus.DRAFT.name() : report.getStatus().name(),
                 result != null && result.getPublishedAt() != null ? "PUBLISHED" : "DRAFT",
                 result == null ? null : result.getPublishedAt());
     }

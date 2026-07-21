@@ -29,8 +29,6 @@ public class HomeroomClassReportServiceImpl implements HomeroomClassReportServic
     private final AttendanceRepository attendance;
     private final SemesterResultRepository semesterResults;
     private final StudentRiskFlagRepository risks;
-    private final TeachingAssignmentRepository assignments;
-    private final SubjectStudentReviewRepository reviews;
     private final ParentContactLogRepository contacts;
     private final ParentMeetingRepository meetings;
     private final StudentEventRepository events;
@@ -82,14 +80,6 @@ public class HomeroomClassReportServiceImpl implements HomeroomClassReportServic
         Map<String, Long> ability = distribution(results.stream().map(SemesterResult::getAcademicAbility).toList());
         Map<String, Long> conduct = distribution(results.stream().map(SemesterResult::getConduct).toList());
 
-        long subjectCount = assignments.findByClsIdAndStatus(cls.getId(), AssignmentStatus.ACTIVE).stream()
-                .filter(item -> !item.getEffectiveFrom().isAfter(semester.getEndDate())
-                        && (item.getEffectiveTo() == null || !item.getEffectiveTo().isBefore(semester.getStartDate())))
-                .map(item -> item.getSubject().getId()).distinct().count();
-        long expectedReviews = subjectCount * roster.size();
-        long submittedReviews = reviews.findByClsIdAndSemesterId(cls.getId(), semester.getId()).stream()
-                .filter(item -> item.getStatus() == SubjectReviewStatus.SUBMITTED).count();
-
         List<StudentRiskFlag> riskRows = risks
                 .findByAcademicYearIdAndSemesterIdAndClsIdOrderBySeverityDescDetectedAtDesc(
                         year.getId(), semester.getId(), cls.getId());
@@ -104,8 +94,8 @@ public class HomeroomClassReportServiceImpl implements HomeroomClassReportServic
                 .filter(item -> item.getStatus() == StudentEventStatus.SUBMITTED).toList();
 
         return new ClassSummaryDto(year.getId(), semester.getId(), cls.getId(), cls.getName(), cls.getGradeLevel(),
-                roster.size(), attendanceRate, openRiskCount, averageGpa, ability, conduct, submittedReviews,
-                expectedReviews, percent(submittedReviews, expectedReviews), contactCount, meetingRows.size(),
+                roster.size(), attendanceRate, openRiskCount, averageGpa, ability, conduct,
+                contactCount, meetingRows.size(),
                 percent(attendedCount, participantCount),
                 eventRows.stream().filter(item -> item.getEventType() == StudentEventType.REWARD).count(),
                 eventRows.stream().filter(item -> item.getEventType() == StudentEventType.VIOLATION).count());

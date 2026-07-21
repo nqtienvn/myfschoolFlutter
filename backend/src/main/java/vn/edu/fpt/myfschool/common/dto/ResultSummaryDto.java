@@ -21,8 +21,6 @@ public record ResultSummaryDto(
         String academicAbility,
         String conduct,
         String honor,
-        String generalComment,
-        String reportStatus,
         String status,
         LocalDateTime publishedAt
 ) {}

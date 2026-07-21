@@ -18,8 +18,6 @@ export interface ResultSummaryItem {
   academicAbility: string | null;
   conduct: string | null;
   honor: string | null;
-  generalComment: string | null;
-  reportStatus: 'DRAFT' | 'SUBMITTED' | 'PUBLISHED';
   status: 'DRAFT' | 'PUBLISHED';
   publishedAt: string | null;
 }
@@ -159,23 +157,4 @@ export function getStudentViolations(studentId: number, academicYearId: number, 
     classId: String(classId),
   });
   return apiFetch(`/students/${studentId}/events?${query}`) as Promise<ViolationItem[]>;
-}
-
-export function saveViolation(studentId: number, payload: {
-  academicYearId: number;
-  semesterId: number;
-  classId: number;
-  category: string;
-  title: string;
-  description: string;
-  eventDate: string;
-}, violationId?: number) {
-  return apiFetch(violationId ? `/student-events/${violationId}` : `/students/${studentId}/events`, {
-    method: violationId ? 'PUT' : 'POST',
-    body: JSON.stringify({ ...payload, eventType: 'VIOLATION' }),
-  }) as Promise<ViolationItem>;
-}
-
-export function deleteViolation(violationId: number, academicYearId: number) {
-  return apiFetch(`/student-events/${violationId}?academicYearId=${academicYearId}`, { method: 'DELETE' });
 }

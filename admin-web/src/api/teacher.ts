@@ -32,27 +32,6 @@ export const submitTeacherScores = (gradeItemId: number, entries: unknown[]) => 
   method: 'PUT', body: JSON.stringify({ gradeItemId, entries, reason: 'Giáo viên submit và công bố điểm trên Web Portal' }),
 });
 
-export const getReviewAssignments = (academicYearId: number) =>
-  teacherApiFetch(`/subject-reviews/assignments?academicYearId=${academicYearId}`);
-export const getSubjectReviews = (academicYearId: number, semesterId: number, classId: number, subjectId: number) =>
-  teacherApiFetch(`/subject-reviews?academicYearId=${academicYearId}&semesterId=${semesterId}&classId=${classId}&subjectId=${subjectId}`);
-export const saveSubjectReview = (studentId: number, payload: unknown) => teacherApiFetch(`/subject-reviews/${studentId}`, {
-  method: 'PUT', body: JSON.stringify(payload),
-});
-export const submitSubjectReviews = (payload: unknown) => teacherApiFetch('/subject-reviews/submit', {
-  method: 'POST', body: JSON.stringify(payload),
-});
-export const getHomeroomReports = (academicYearId: number, semesterId: number, classId: number) =>
-  teacherApiFetch(`/homeroom-reports?academicYearId=${academicYearId}&semesterId=${semesterId}&classId=${classId}`);
-export const saveHomeroomReport = (studentId: number, payload: unknown) => teacherApiFetch(`/homeroom-reports/students/${studentId}`, {
-  method: 'PUT', body: JSON.stringify(payload),
-});
-export const submitHomeroomReport = (studentId: number, payload: unknown) => teacherApiFetch(`/homeroom-reports/students/${studentId}/submit`, {
-  method: 'POST', body: JSON.stringify(payload),
-});
-export const submitHomeroomClass = (payload: unknown) => teacherApiFetch('/homeroom-reports/submit-class', {
-  method: 'POST', body: JSON.stringify(payload),
-});
 export const getTeacherViolations = (studentId: number, academicYearId: number, semesterId: number, classId: number) =>
   teacherApiFetch(`/students/${studentId}/events?academicYearId=${academicYearId}&semesterId=${semesterId}&classId=${classId}`);
 export const saveTeacherViolation = (studentId: number, payload: unknown, id?: number) => teacherApiFetch(
@@ -61,6 +40,10 @@ export const saveTeacherViolation = (studentId: number, payload: unknown, id?: n
 );
 export const deleteTeacherViolation = (id: number, academicYearId: number) =>
   teacherApiFetch(`/student-events/${id}?academicYearId=${academicYearId}`, { method: 'DELETE' });
+export const submitTeacherViolations = (studentId: number, payload: unknown) =>
+  teacherApiFetch(`/students/${studentId}/violations/submit`, { method: 'POST', body: JSON.stringify(payload) });
+export const submitHomeroomClassViolations = (payload: unknown) =>
+  teacherApiFetch('/student-events/violations/submit-class', { method: 'POST', body: JSON.stringify(payload) });
 
 export const getEligibleAnnouncementClasses = (academicYearId: number) =>
   teacherApiFetch(`/announcements/eligible-classes?academicYearId=${academicYearId}`);

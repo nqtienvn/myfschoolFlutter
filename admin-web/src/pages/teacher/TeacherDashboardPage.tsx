@@ -31,8 +31,8 @@ function ArrowRightIcon() {
 }
 
 const ACTIONS = [
-  { path: '/teacher/grades', title: 'Nhập điểm', description: 'Nhập trực tiếp hoặc tải dữ liệu từ Excel/CSV.', Icon: TeachingIcon },
-  { path: '/teacher/reviews', title: 'Nhận xét định kỳ', description: 'Hoàn thành độc lập phần nhận xét GVBM hoặc GVCN.', Icon: ChartIcon },
+  { path: '/teacher/grades', title: 'Nhập điểm', description: 'Nhập và Submit điểm trực tiếp trên bảng điểm.', Icon: TeachingIcon },
+  { path: '/teacher/violations', title: 'Vi phạm học sinh', description: 'GVCN ghi nhận và Submit vi phạm cho Admin.', Icon: ChartIcon },
   { path: '/teacher/announcements', title: 'Thông báo lớp', description: 'Soạn mới, xem lịch sử gửi và thông báo đã nhận.', Icon: BellIcon },
   { path: '/teacher/leave-requests', title: 'Đơn xin nghỉ', description: 'Duyệt hoặc từ chối đơn của lớp chủ nhiệm.', Icon: AttendanceIcon },
   { path: '/teacher/chat', title: 'Tin nhắn', description: 'Trao đổi với phụ huynh và học sinh trong phạm vi phụ trách.', Icon: ChatIcon },

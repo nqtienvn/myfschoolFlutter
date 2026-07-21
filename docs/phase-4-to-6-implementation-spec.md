@@ -78,202 +78,101 @@ GET  /api/announcements/{id}/recipients         # Chỉ giáo viên gửi; UNREA
 
 ---
 
-# Phase 5 — Nhận xét định kỳ và hạnh kiểm
+# Phase 5 — Vi phạm học sinh và kết quả học kỳ
 
 ## Mục tiêu
 
-Hoàn thiện luồng sổ liên lạc:
+Tách rõ trách nhiệm ghi nhận vi phạm và quản lý kết quả:
 
 ```text
-GVBM nhận xét môn → gửi GVCN
-→ GVCN tổng hợp → nhập nhận xét chung và hạnh kiểm
-→ công bố → PH/HS xem
+GVCN ghi vi phạm → lưu nháp → submit
+→ Admin chỉ xem và thống kê vi phạm đã submit
 ```
 
 ## Database
 
-Migration dự kiến `V20`.
-
-Bảng `subject_student_reviews`:
+Sử dụng bảng `student_events` với `event_type = VIOLATION`:
 
 ```text
-id
 academic_year_id
 semester_id
 class_id
 student_id
-subject_id
-subject_teacher_id
-comment
-strengths
-improvements
-status: DRAFT | SUBMITTED | RETURNED
-return_reason
+event_type: VIOLATION
+category
+title
+description
+event_date
+status: DRAFT | SUBMITTED
+created_by
 submitted_at
 created_at
 updated_at
 ```
 
-Unique:
-
-```text
-student_id + subject_id + semester_id
-```
-
-Bảng `student_periodic_reports`:
-
-```text
-id
-academic_year_id
-semester_id
-class_id
-student_id
-homeroom_teacher_id
-general_comment
-conduct
-status: DRAFT | PUBLISHED
-published_at
-created_at
-updated_at
-```
-
-Unique:
-
-```text
-student_id + semester_id
-```
-
-Bảng audit `student_review_audits`:
-
-```text
-entity_type
-entity_id
-old_value_json
-new_value_json
-changed_by
-reason
-changed_at
-```
+Migration `V29` xóa hoàn toàn ba bảng nhận xét định kỳ cũ.
 
 ## Quy tắc nghiệp vụ
 
-GVBM:
-
-- Chỉ nhận xét học sinh thuộc lớp/môn được phân công.
-- Có thể lưu nháp nhiều lần.
-- Gửi GVCN khi hoàn thành.
-- Sau `SUBMITTED` không được sửa nếu GVCN chưa trả lại.
-- GVCN trả lại phải nhập lý do.
-
 GVCN:
 
-- Chỉ xem nhận xét các môn của lớp chủ nhiệm.
-- Thấy môn nào chưa gửi.
-- Tổng hợp nhận xét từng học sinh.
-- Nhập nhận xét chung và hạnh kiểm cuối kỳ.
-- Chỉ công bố khi các trường bắt buộc đã đủ.
-- Có thể công bố riêng từng học sinh hoặc cả lớp.
-
-Phụ huynh/học sinh:
-
-- Chỉ thấy báo cáo `PUBLISHED`.
-- Không thấy bản nháp hoặc nhận xét nội bộ bị trả lại.
+- Chỉ ghi vi phạm cho học sinh đang thuộc lớp chủ nhiệm trong đúng năm học và học kỳ.
+- Có thể thêm, sửa, xóa vi phạm khi còn `DRAFT`.
+- Có thể submit theo từng học sinh hoặc cả lớp.
+- Vi phạm `SUBMITTED` bị khóa, không thể sửa hoặc xóa.
 
 Admin:
 
-- Xem toàn bộ trong năm học đang chọn.
-- Có thể mở lại báo cáo đã công bố, nhưng bắt buộc ghi lý do và audit.
-
-## Tích hợp `semester_results`
-
-- `semester_results.conduct` là hạnh kiểm chính thức sau công bố.
-- Giá trị tính tự động từ chuyên cần chỉ là `suggestedConduct`.
-- Khi GVCN công bố, ghi `conductSource=HOMEROOM`.
-- Những lần tính lại GPA/chuyên cần không được ghi đè hạnh kiểm đã được GVCN công bố.
-
-## API đề xuất
-
-```text
-GET  /api/subject-reviews/assignments
-GET  /api/subject-reviews?classId=&subjectId=&semesterId=
-PUT  /api/subject-reviews/{studentId}
-POST /api/subject-reviews/submit
-
-GET  /api/homeroom-reports?classId=&semesterId=
-GET  /api/homeroom-reports/students/{studentId}
-PUT  /api/homeroom-reports/students/{studentId}
-PUT  /api/subject-reviews/{id}/return
-POST /api/homeroom-reports/students/{studentId}/publish
-POST /api/homeroom-reports/publish-class
-
-GET  /api/periodic-reports/students/{studentId}
-```
-
-Mọi API phải nhận hoặc suy ra và kiểm tra chéo:
-
-```text
-academicYearId
-semesterId
-classId
-studentId
-subjectId
-teacher assignment
-homeroom assignment
-```
-
-## Flutter App
-
-GVBM:
-
-- Chọn lớp, môn, học kỳ.
-- Danh sách học sinh và ô nhận xét.
-- Lưu nháp/gửi GVCN.
-- Hiển thị trạng thái và lý do bị trả lại.
-
-GVCN:
-
-- Dashboard tiến độ nhận xét theo môn.
-- Danh sách học sinh.
-- Màn tổng hợp nhận xét từng em.
-- Nhập nhận xét chung, hạnh kiểm.
-- Công bố một học sinh hoặc cả lớp.
+- Chỉ đọc và thống kê vi phạm `SUBMITTED`.
+- Không được tạo, sửa, xóa hoặc submit thay GVCN.
+- Kết quả học kỳ không phụ thuộc vào nhận xét giáo viên.
 
 Phụ huynh/học sinh:
 
-- Mục “Nhận xét học kỳ”.
-- Hiển thị nhận xét từng môn, nhận xét GVCN và hạnh kiểm.
-- Chỉ dùng dữ liệu đã công bố.
+- Không truy cập luồng vi phạm nội bộ này.
+
+## API
+
+```text
+GET    /api/students/{studentId}/events
+POST   /api/students/{studentId}/events
+PUT    /api/student-events/{id}
+DELETE /api/student-events/{id}
+POST   /api/students/{studentId}/violations/submit
+POST   /api/student-events/violations/submit-class
+```
+
+Mọi API ghi dữ liệu phải kiểm tra chéo `academicYearId`, `semesterId`, `classId`, `studentId` và phân công chủ nhiệm.
+
+## Flutter App
+
+- Không có API client, model hoặc màn hình nhận xét định kỳ.
+- Bảng điểm chỉ hiển thị điểm và kết quả tổng kết đã công bố.
+
+## Teacher Web
+
+- Chỉ GVCN dùng trang “Vi phạm học sinh”.
+- Chọn học sinh để thêm/sửa/xóa bản nháp và submit.
+- Không có luồng nhận xét của GVCN hoặc GVBM.
 
 ## Admin Web
 
-- Theo dõi tiến độ nhận xét theo lớp/môn.
-- Xem báo cáo học sinh.
-- Bộ lọc năm học, học kỳ, lớp và trạng thái.
-- Chức năng mở lại báo cáo phải yêu cầu lý do.
+- Chỉ hiển thị danh sách và số liệu vi phạm đã submit theo phạm vi năm học.
+- Không có form hoặc API ghi vi phạm.
+- Không có màn hình theo dõi nhận xét định kỳ.
 
 ## Test bắt buộc
 
-- GVBM không nhận xét môn/lớp ngoài phân công.
-- GVBM không sửa sau khi đã submit.
-- GVCN chỉ xem lớp chủ nhiệm.
-- GVCN trả lại phải có lý do.
-- PH/HS không xem được bản nháp.
-- Công bố cập nhật đúng `semester_results.conduct`.
-- Tính lại GPA không ghi đè hạnh kiểm chính thức.
-- Audit đủ old/new/actor/time/reason.
-- Cô lập hai năm học và trường hợp học sinh chuyển lớp.
+- GVCN không ghi vi phạm ngoài lớp chủ nhiệm hoặc chéo năm học.
+- Admin không tạo, sửa hoặc xóa vi phạm.
+- Admin không nhìn thấy bản nháp.
+- Submit chuyển bản nháp thành `SUBMITTED` và khóa chỉnh sửa.
+- PH/HS không truy cập API vi phạm nội bộ.
+- Cô lập dữ liệu giữa hai năm học.
 
 ## Definition of Done
 
-Toàn bộ dữ liệu đi từ GVBM đến GVCN rồi mới công bố; không dùng nhận xét mock hoặc hạnh kiểm tĩnh.
-
-Commit gợi ý:
-
-```text
-feat: add periodic student reviews and conduct workflow
-```
-
-Sau khi hoàn thành phải dừng và chờ: `phase ok sang phase 6`.
+Không còn entity, repository, service, controller, API client, route hoặc giao diện nhận xét định kỳ. GVCN là chủ thể duy nhất ghi và submit vi phạm; Admin chỉ thống kê dữ liệu đã submit.
 
 ---
 
@@ -288,7 +187,7 @@ Nguồn dữ liệu:
 - GPA và điểm môn.
 - Chuyên cần.
 - Số buổi vắng không phép.
-- Nhận xét định kỳ.
+- Kết quả rèn luyện đã công bố.
 - Học phí nếu được chọn làm tiêu chí.
 
 Bảng `student_risk_flags`:

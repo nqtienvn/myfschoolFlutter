@@ -10,5 +10,4 @@ export 'student_summary.dart';
 export 'user.dart';
 export 'school_schedule.dart';
 export 'school_announcement.dart';
-export 'periodic_review.dart';
 export 'homeroom_monitoring.dart';

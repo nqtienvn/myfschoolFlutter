@@ -160,35 +160,81 @@ class HomeroomMonitoringIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void adminCanCorrectAndDeleteSubmittedViolations() throws Exception {
+    void homeroomTeacherSubmitsViolationsAndAdminIsReadOnly() throws Exception {
         String adminToken = loginAsAdmin();
         var created = mockMvc.perform(post("/api/students/{studentId}/events", testStudent1.getId())
-                        .header("Authorization", authHeader(adminToken))
+                        .header("Authorization", authHeader(teacherToken))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(eventBody("VIOLATION", "Đi học muộn", "Admin ghi nhận")))
+                        .content(eventBody("VIOLATION", "Đi học muộn", "GVCN ghi nhận")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("SUBMITTED"))
-                .andExpect(jsonPath("$.data.submittedAt").isNotEmpty())
+                .andExpect(jsonPath("$.data.status").value("DRAFT"))
                 .andReturn();
         Long id = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asLong();
 
+        mockMvc.perform(get("/api/students/{studentId}/events", testStudent1.getId())
+                        .header("Authorization", authHeader(adminToken))
+                        .param("academicYearId", testAcademicYear.getId().toString())
+                        .param("semesterId", testSemester.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
+
+        mockMvc.perform(post("/api/students/{studentId}/events", testStudent1.getId())
+                        .header("Authorization", authHeader(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(eventBody("VIOLATION", "Admin không được ghi", "Chỉ thống kê")))
+                .andExpect(status().isForbidden());
         mockMvc.perform(put("/api/student-events/{id}", id)
                         .header("Authorization", authHeader(adminToken))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(eventBody("VIOLATION", "Đi học muộn nhiều lần", "Admin điều chỉnh")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("SUBMITTED"))
-                .andExpect(jsonPath("$.data.submittedAt").isNotEmpty());
-        mockMvc.perform(delete("/api/student-events/{id}", id)
-                        .header("Authorization", authHeader(adminToken))
-                        .param("academicYearId", "999999"))
+                        .content(eventBody("VIOLATION", "Admin không được sửa", "Chỉ thống kê")))
                 .andExpect(status().isForbidden());
-        assertThat(events.existsById(id)).isTrue();
         mockMvc.perform(delete("/api/student-events/{id}", id)
                         .header("Authorization", authHeader(adminToken))
                         .param("academicYearId", testAcademicYear.getId().toString()))
-                .andExpect(status().isOk());
-        assertThat(events.existsById(id)).isFalse();
+                .andExpect(status().isForbidden());
+
+        String scope = objectMapper.writeValueAsString(Map.of(
+                "academicYearId", testAcademicYear.getId(),
+                "semesterId", testSemester.getId(),
+                "classId", testClass.getId()));
+        mockMvc.perform(post("/api/students/{studentId}/violations/submit", testStudent1.getId())
+                        .header("Authorization", authHeader(teacherToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scope))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].status").value("SUBMITTED"))
+                .andExpect(jsonPath("$.data[0].submittedAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/students/{studentId}/events", testStudent1.getId())
+                        .header("Authorization", authHeader(adminToken))
+                        .param("academicYearId", testAcademicYear.getId().toString())
+                        .param("semesterId", testSemester.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].status").value("SUBMITTED"));
+
+        mockMvc.perform(put("/api/student-events/{id}", id)
+                        .header("Authorization", authHeader(teacherToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(eventBody("VIOLATION", "Không được sửa sau submit", "Đã khóa")))
+                .andExpect(status().isConflict());
+        mockMvc.perform(delete("/api/student-events/{id}", id)
+                        .header("Authorization", authHeader(teacherToken))
+                        .param("academicYearId", testAcademicYear.getId().toString()))
+                .andExpect(status().isConflict());
+        assertThat(events.existsById(id)).isTrue();
+
+        AcademicYear otherYear = otherYear();
+        Semester otherSemester = otherSemester(otherYear);
+        String crossYearScope = objectMapper.writeValueAsString(Map.of(
+                "academicYearId", otherYear.getId(),
+                "semesterId", otherSemester.getId(),
+                "classId", testClass.getId()));
+        mockMvc.perform(post("/api/students/{studentId}/violations/submit", testStudent1.getId())
+                        .header("Authorization", authHeader(teacherToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(crossYearScope))
+                .andExpect(status().isForbidden());
     }
 
     @Test

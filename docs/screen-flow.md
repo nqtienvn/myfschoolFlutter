@@ -117,7 +117,6 @@ Chung cho tất cả 3 actor: Login → Role Selection → AppShell.
         │      ├── Summary Table (GPA, Xếp hạng, Danh hiệu, Hạnh kiểm, Học lực)
         │      ├── Detailed Grades Table (DataTable scroll ngang)
         │      │     └── Cột: Môn, Miệng, 15p, 1 tiết, HK, TBM
-        │      └── "Nhận xét GVCN" card
         │
         ├──► [BUTTON 3: "Chuyên cần"]
         │         │
@@ -246,8 +245,7 @@ Chung cho tất cả 3 actor: Login → Role Selection → AppShell.
         │      │     └── OFF → Reset về gốc, ẩn banner
         │      ├── Semester Selector (← HK II - 2026-2027 →)
         │      ├── Summary Table (GPA, Xếp hạng, Danh hiệu, Hạnh kiểm, Học lực)
-        │      ├── Detailed Grades Table (DataTable scroll ngang)
-        │      └── "Nhận xét GVCN" card
+        │      └── Detailed Grades Table (DataTable scroll ngang)
         │
         ├──► [BUTTON 3: "Chuyên cần"]
         │         │

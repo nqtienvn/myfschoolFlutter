@@ -51,7 +51,6 @@ export interface ClassSummary {
   conductDistribution: Record<string, number>;
   submittedSubjectReviews: number;
   expectedSubjectReviews: number;
-  reviewProgressRate: number;
   parentContactCount: number;
   meetingCount: number;
   meetingParticipationRate: number;

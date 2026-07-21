@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../../src/api/api.dart';
 import '../../src/models/app_notification.dart';
-import '../../src/models/periodic_review.dart';
 import '../../src/services/auth_service.dart';
 import '../../src/services/notification_service.dart';
 import '../design_system/app_colors.dart';
@@ -20,7 +19,6 @@ class GradesScreen extends StatefulWidget {
     this.backendApiClient,
     this.apiClient,
     this.academicApiClient,
-    this.periodicReviewApi,
     this.notificationService,
   });
 
@@ -31,7 +29,6 @@ class GradesScreen extends StatefulWidget {
   final BackendApiClient? backendApiClient;
   final GradebookApiClient? apiClient;
   final HomeroomAcademicApiClient? academicApiClient;
-  final PeriodicReviewApi? periodicReviewApi;
   final NotificationService? notificationService;
 
   @override
@@ -45,12 +42,9 @@ class _GradesScreenState extends State<GradesScreen> {
       widget.apiClient ?? GradebookApiClient(backend: _backend);
   late final HomeroomAcademicApiClient _academicApi =
       widget.academicApiClient ?? HomeroomAcademicApiClient(backend: _backend);
-  late final PeriodicReviewApi _reviewApi =
-      widget.periodicReviewApi ?? PeriodicReviewApiClient(backend: _backend);
 
   Map<String, dynamic>? _transcript;
   HomeroomStudentResultDto? _semesterResult;
-  StudentPeriodicReport? _publishedReport;
   bool _loading = true;
   String? _error;
   String? _loadedPeriod;
@@ -126,7 +120,6 @@ class _GradesScreenState extends State<GradesScreen> {
       _error = null;
       _transcript = null;
       _semesterResult = null;
-      _publishedReport = null;
     });
     try {
       final studentId = await _resolveStudentId();
@@ -147,23 +140,11 @@ class _GradesScreenState extends State<GradesScreen> {
                 semesterId: period.semesterId,
               )
               .then<Object?>((value) => value, onError: (_, _) => null),
-        if (studentId == null)
-          Future<Object?>.value()
-        else
-          _reviewApi
-              .getPublishedReport(
-                token: widget.token,
-                studentId: studentId,
-                academicYearId: period.academicYearId,
-                semesterId: period.semesterId,
-              )
-              .then<Object?>((value) => value, onError: (_, _) => null),
       ]);
       if (!_isCurrent(requestKey)) return;
       setState(() {
         _transcript = results[0] as Map<String, dynamic>;
         _semesterResult = results[1] as HomeroomStudentResultDto?;
-        _publishedReport = results[2] as StudentPeriodicReport?;
       });
     } catch (error) {
       if (_isCurrent(requestKey)) {
@@ -181,7 +162,10 @@ class _GradesScreenState extends State<GradesScreen> {
     final auth = widget.authService;
     if (auth == null) return null;
     if (auth.currentSession?.role == 'PARENT') return auth.selectedChild?.id;
-    return _reviewApi.resolveStudentId(token: widget.token);
+    final data =
+        await _backend.getData('/api/user/profile', token: widget.token)
+            as Map<String, dynamic>;
+    return (data['studentProfile'] as Map<String, dynamic>)['id'] as int;
   }
 
   bool _isCurrent(String requestKey) => mounted && _loadedPeriod == requestKey;
@@ -190,11 +174,6 @@ class _GradesScreenState extends State<GradesScreen> {
       (_transcript?['subjects'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
           .toList(growable: false);
-
-  Map<String, SubjectPeriodicReview> get _reviewsBySubject => {
-    for (final review in _publishedReport?.subjectReviews ?? const [])
-      _normalize(review.subjectName): review,
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -252,10 +231,7 @@ class _GradesScreenState extends State<GradesScreen> {
                     title: 'Bảng tổng kết học lực',
                   ),
                   const SizedBox(height: 10),
-                  _SemesterSummaryTable(
-                    result: _semesterResult,
-                    report: _publishedReport,
-                  ),
+                  _SemesterSummaryTable(result: _semesterResult),
                   const SizedBox(height: 22),
                   const _SectionTitle(index: '02', title: 'Bảng điểm chi tiết'),
                   const SizedBox(height: 4),
@@ -277,10 +253,7 @@ class _GradesScreenState extends State<GradesScreen> {
                       ),
                     )
                   else
-                    _AllSubjectsGradeTable(
-                      subjects: _subjects,
-                      reviewsBySubject: _reviewsBySubject,
-                    ),
+                    _AllSubjectsGradeTable(subjects: _subjects),
                 ],
               ),
             ),
@@ -329,10 +302,9 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _SemesterSummaryTable extends StatelessWidget {
-  const _SemesterSummaryTable({required this.result, required this.report});
+  const _SemesterSummaryTable({required this.result});
 
   final HomeroomStudentResultDto? result;
-  final StudentPeriodicReport? report;
 
   @override
   Widget build(BuildContext context) {
@@ -344,37 +316,12 @@ class _SemesterSummaryTable extends StatelessWidget {
         ),
       );
     }
-    final comment = report?.generalComment?.trim();
-    final teacher = report?.homeroomTeacherName?.trim();
     final rows = <(String, Widget)>[
       ('Danh hiệu', _value(result!.honor)),
       ('Điểm TB', _value(result!.gpa?.toStringAsFixed(1))),
       ('Hạnh kiểm', _value(result!.conduct)),
       ('Học lực', _value(result!.academicAbility)),
       ('Xếp hạng', _value(result!.rank?.toString())),
-      (
-        'Nhận xét GVCN',
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              comment?.isNotEmpty == true ? comment! : 'Chưa có nhận xét.',
-              style: const TextStyle(fontStyle: FontStyle.italic),
-            ),
-            if (teacher?.isNotEmpty == true) ...[
-              const SizedBox(height: 5),
-              Text(
-                '— $teacher',
-                style: const TextStyle(
-                  color: AppColors.muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
     ];
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -414,30 +361,16 @@ class _SemesterSummaryTable extends StatelessWidget {
 }
 
 class _AllSubjectsGradeTable extends StatelessWidget {
-  const _AllSubjectsGradeTable({
-    required this.subjects,
-    required this.reviewsBySubject,
-  });
+  const _AllSubjectsGradeTable({required this.subjects});
 
   static const double _headerHeight = 54;
   static const double _rowHeight = 66;
   final List<Map<String, dynamic>> subjects;
-  final Map<String, SubjectPeriodicReview> reviewsBySubject;
 
   @override
   Widget build(BuildContext context) {
     final columns = _columnsFor(subjects);
-    final rows = subjects
-        .map(
-          (subject) => _SubjectGradeRow(
-            subject: subject,
-            review:
-                reviewsBySubject[_normalize(
-                  subject['subjectName'] as String? ?? '',
-                )],
-          ),
-        )
-        .toList(growable: false);
+    final rows = subjects.map(_SubjectGradeRow.new).toList(growable: false);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Row(
@@ -467,7 +400,7 @@ class _AllSubjectsGradeTable extends StatelessWidget {
                       0,
                       (total, column) => total + column.width,
                     ) +
-                    340,
+                    70,
                 child: Column(
                   children: [
                     Row(
@@ -475,7 +408,6 @@ class _AllSubjectsGradeTable extends StatelessWidget {
                         for (final column in columns)
                           _headerCell(column.name, width: column.width),
                         _headerCell('TBM', width: 70),
-                        _headerCell('Nhận xét GV', width: 270),
                       ],
                     ),
                     for (final row in rows)
@@ -492,12 +424,6 @@ class _AllSubjectsGradeTable extends StatelessWidget {
                             width: 70,
                             bold: true,
                             color: AppColors.fptOrange,
-                          ),
-                          _ReviewCell(
-                            text: row.comment,
-                            teacherName: row.teacherName,
-                            width: 270,
-                            height: _rowHeight,
                           ),
                         ],
                       ),
@@ -610,87 +536,15 @@ class _GradeTableColumn {
   double get width => assessmentType == 'COMMENT' ? 190 : 104;
 }
 
-class _ReviewCell extends StatelessWidget {
-  const _ReviewCell({
-    required this.text,
-    required this.teacherName,
-    required this.width,
-    required this.height,
-  });
-
-  final String text;
-  final String teacherName;
-  final double width;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: text == '—'
-        ? null
-        : () => showDialog<void>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Nhận xét giáo viên'),
-              content: SingleChildScrollView(child: Text(text)),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Đóng'),
-                ),
-              ],
-            ),
-          ),
-    child: Container(
-      width: width,
-      height: height,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          right: BorderSide(color: AppColors.line),
-          bottom: BorderSide(color: AppColors.line),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12),
-          ),
-          if (teacherName.isNotEmpty)
-            Text(
-              teacherName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppColors.muted, fontSize: 10),
-            ),
-        ],
-      ),
-    ),
-  );
-}
-
 class _SubjectGradeRow {
-  _SubjectGradeRow({
-    required Map<String, dynamic> subject,
-    required SubjectPeriodicReview? review,
-  }) : subjectName = subject['subjectName'] as String? ?? '—',
-       _scoresByColumn = _scores(subject),
-       average = _average(subject),
-       comment = review?.comment?.trim().isNotEmpty == true
-           ? review!.comment!.trim()
-           : '—',
-       teacherName = review?.subjectTeacherName.trim() ?? '';
+  _SubjectGradeRow(Map<String, dynamic> subject)
+    : subjectName = subject['subjectName'] as String? ?? '—',
+      _scoresByColumn = _scores(subject),
+      average = _average(subject);
 
   final String subjectName;
   final Map<String, Map<String, dynamic>> _scoresByColumn;
   final String average;
-  final String comment;
-  final String teacherName;
 
   static Map<String, Map<String, dynamic>> _scores(
     Map<String, dynamic> subject,
@@ -726,16 +580,4 @@ class _SubjectGradeRow {
 String _gradeColumnKey(Map<String, dynamic> score) {
   final code = (score['code'] as String? ?? '').trim();
   return code.isNotEmpty ? code : (score['name'] as String? ?? '').trim();
-}
-
-String _normalize(String value) {
-  var normalized = value.trim().toLowerCase();
-  const source =
-      'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
-  const target =
-      'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd';
-  for (var index = 0; index < source.length; index++) {
-    normalized = normalized.replaceAll(source[index], target[index]);
-  }
-  return normalized.replaceAll(RegExp(r'\s+'), ' ');
 }
