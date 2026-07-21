@@ -432,7 +432,7 @@ export default function GradesManagementPage({
           <span>↓</span><div><strong>Template Excel</strong><small>Đúng cấu hình năm học</small></div></button>}
         {view === 'semester' && <button className="excel-action" disabled={!classId || !subjectId || locked || busy} onClick={() => importRef.current?.click()}>
           <span>↑</span><div><strong>Import Excel</strong><small>Chỉ đầu điểm Admin</small></div></button>}
-        <input ref={importRef} hidden type="file" accept=".xlsx" onChange={event => importExcel(event.target.files?.[0])}/>
+        <input ref={importRef} hidden type="file" accept=".xlsx" onChange={event => importExcel(event.target.files?.[0])} />
         <button className="excel-action primary" disabled={busy} onClick={exportExcel}>
           <span>⇩</span><div><strong>Export toàn bộ</strong><small>Điểm · học tập · rèn luyện</small></div></button>
       </div>
@@ -465,12 +465,12 @@ export default function GradesManagementPage({
               const value = student.values[item.id] || { score: null, comment: null, isGraded: false };
               const disabled = !canAdminEdit(item);
               return <td key={item.id}>{item.assessmentType === 'SCORE' && <input type="number" min="0" max="10" step="0.1" disabled={disabled} value={value.score ?? 0}
-                onChange={event => changeValue(student.id, item.id, { score: Number(event.target.value || 0), comment: null, isGraded: true })}/>} {item.assessmentType === 'PASS_FAIL' && <select disabled={disabled} value={value.comment || ''}
+                onChange={event => changeValue(student.id, item.id, { score: Number(event.target.value || 0), comment: null, isGraded: true })} />} {item.assessmentType === 'PASS_FAIL' && <select disabled={disabled} value={value.comment || ''}
                   onChange={event => changeValue(student.id, item.id, { score: null, comment: event.target.value || null, isGraded: !!event.target.value })}><option value="">—</option><option value="PASS">Đạt</option><option value="FAIL">Chưa đạt</option></select>}
                 {item.assessmentType === 'COMMENT' && <textarea disabled={disabled} rows={2} value={value.comment || ''}
-                  onChange={event => changeValue(student.id, item.id, { score: null, comment: event.target.value, isGraded: !!event.target.value.trim() })}/>}</td>;
+                  onChange={event => changeValue(student.id, item.id, { score: null, comment: event.target.value, isGraded: !!event.target.value.trim() })} />}</td>;
             })}<td><strong>{student.average ?? '—'}</strong></td><td className="subject-comment-cell">{subjectComment(student.id)}</td></tr>)}</tbody></table></div>
-          <Pagination total={students.length} page={gradePage} onChange={setGradePage}/>
+          <Pagination total={students.length} page={gradePage} onChange={setGradePage} />
         </>}
       </section>}
 
@@ -478,13 +478,13 @@ export default function GradesManagementPage({
         <section className="panel result-panel"><div className="result-panel-heading"><div><h2>Chuyên cần & vi phạm</h2><p>Gợi ý: Tốt 0 VP/≤2 nghỉ KP; Khá ≤1/≤4; Đạt ≤2/≤9; còn lại Chưa đạt.</p></div></div>
           {!classId ? <div className="result-empty"><strong>Chọn lớp để xem dữ liệu</strong></div> : <><div className="table-responsive"><table><thead><tr><th>Học sinh</th><th>Vi phạm</th><th>Nghỉ có phép</th><th>Nghỉ không phép</th><th>Gợi ý</th><th /></tr></thead><tbody>
             {pageOf(summary, disciplinePage).map(row => <tr key={row.studentId}><td><strong>{row.studentName}</strong><small className="table-subtext">{row.studentCode}</small></td><td>{row.violationCount}</td><td>{row.absentWithLeave}</td><td>{row.absentWithoutLeave}</td><td><span className="result-level">{row.suggestedConduct || '—'}</span></td><td><button className="secondary-button" onClick={() => setSelectedStudentId(String(row.studentId))}>Chi tiết</button></td></tr>)}</tbody></table></div>
-            <Pagination total={summary.length} page={disciplinePage} onChange={setDisciplinePage}/></>}
+            <Pagination total={summary.length} page={disciplinePage} onChange={setDisciplinePage} /></>}
         </section>
         <section className="panel result-panel"><div className="result-panel-heading"><div><h2>Quản lý vi phạm</h2><p>{selectedStudentId ? 'Chỉnh sửa hồ sơ đã chọn.' : 'Chọn học sinh ở bảng bên trái.'}</p></div></div>
-          {selectedStudentId && <><form className="violation-form" onSubmit={submitViolation}><label>Tiêu đề<input required disabled={locked} maxLength={200} value={violationDraft.title} onChange={event => setViolationDraft(d => ({ ...d, title: event.target.value }))}/></label>
-            <label>Phân loại<input disabled={locked} maxLength={100} value={violationDraft.category} onChange={event => setViolationDraft(d => ({ ...d, category: event.target.value }))}/></label>
-            <label>Ngày vi phạm<input required disabled={locked} type="date" value={violationDraft.eventDate} onChange={event => setViolationDraft(d => ({ ...d, eventDate: event.target.value }))}/></label>
-            <label className="wide">Mô tả<textarea disabled={locked} rows={3} maxLength={2000} value={violationDraft.description} onChange={event => setViolationDraft(d => ({ ...d, description: event.target.value }))}/></label>
+          {selectedStudentId && <><form className="violation-form" onSubmit={submitViolation}><label>Tiêu đề<input required disabled={locked} maxLength={200} value={violationDraft.title} onChange={event => setViolationDraft(d => ({ ...d, title: event.target.value }))} /></label>
+            <label>Phân loại<input disabled={locked} maxLength={100} value={violationDraft.category} onChange={event => setViolationDraft(d => ({ ...d, category: event.target.value }))} /></label>
+            <label>Ngày vi phạm<input required disabled={locked} type="date" value={violationDraft.eventDate} onChange={event => setViolationDraft(d => ({ ...d, eventDate: event.target.value }))} /></label>
+            <label className="wide">Mô tả<textarea disabled={locked} rows={3} maxLength={2000} value={violationDraft.description} onChange={event => setViolationDraft(d => ({ ...d, description: event.target.value }))} /></label>
             <div className="monitoring-actions wide"><button disabled={locked || busy}>{editingViolation ? 'Lưu thay đổi' : 'Thêm vi phạm'}</button>{editingViolation && <button type="button" className="secondary-button" onClick={() => { setEditingViolation(null); setViolationDraft({ title: '', category: '', description: '', eventDate: '' }); }}>Hủy</button>}</div></form>
             <div className="violation-list">{violations.map(item => <article key={item.id}><div><strong>{item.title}</strong><small>{item.category || 'Vi phạm'} · {item.eventDate}</small><p>{item.description}</p></div><div className="table-actions"><button className="secondary-button" disabled={locked} onClick={() => { setEditingViolation(item); setViolationDraft({ title: item.title, category: item.category || '', description: item.description || '', eventDate: item.eventDate }); }}>Sửa</button><button className="danger" disabled={locked} onClick={() => removeViolation(item.id)}>Xóa</button></div></article>)}</div></>}
         </section>
@@ -500,7 +500,7 @@ export default function GradesManagementPage({
             <td><select disabled={locked} value={row.conduct || ''} onChange={event => patchSummary(row.studentId, { conduct: event.target.value })}><option value="">—</option>{[...new Set([row.conduct, ...resultLevels].filter(Boolean))].map(value => <option key={value!}>{value}</option>)}</select></td>
             <td><select disabled={locked} value={row.honor || ''} onChange={event => patchSummary(row.studentId, { honor: event.target.value })}><option value="">—</option>{[...new Set([row.honor, ...honorOptions].filter(Boolean))].map(value => <option key={value!}>{value}</option>)}</select></td>
             <td className="subject-comment-cell">{row.generalComment || '—'}</td><td><span className={`badge-status ${row.status === 'PUBLISHED' ? 'active' : 'draft'}`}>{row.status === 'PUBLISHED' ? 'Đã công bố' : row.reportStatus === 'SUBMITTED' ? 'Chờ công bố' : 'Chờ GVCN'}</span></td><td><button className="secondary-button" disabled={locked} onClick={() => saveFinal(row)}>Lưu</button></td></tr>)}</tbody></table></div>
-          <Pagination total={summary.length} page={summaryPage} onChange={setSummaryPage}/></>}
+          <Pagination total={summary.length} page={summaryPage} onChange={setSummaryPage} /></>}
       </section>}
     </>}
 
@@ -512,7 +512,7 @@ export default function GradesManagementPage({
           {bothSemestersClosed && <button className="danger" disabled={selectedYearStatus === 'COMPLETED' || busy} onClick={finishAcademicYear}>Hoàn tất năm học</button>}</div></div>
       {!classId ? <div className="result-empty"><span>02</span><strong>Chọn lớp để xem tổng kết năm học</strong><p>Nút tính chỉ xuất hiện khi cả hai học kỳ đã được đóng.</p></div> : <><div className="table-responsive"><table className="annual-result-table"><thead><tr><th>Học sinh</th><th>HK1</th><th>Học tập HK1</th><th>Rèn luyện HK1</th><th>HK2</th><th>Học tập HK2</th><th>Rèn luyện HK2</th><th>ĐTB năm</th><th>Học tập cả năm</th><th>Rèn luyện cả năm</th><th>Danh hiệu</th><th>Hạng</th><th>Trạng thái</th></tr></thead><tbody>
         {pageOf(annualResults, annualPage).map(row => <tr key={row.studentId}><td><strong>{row.studentName}</strong><small>{row.studentCode}</small></td><td>{row.semester1Average ?? '—'}</td><td>{row.semester1AcademicAbility || '—'}</td><td>{row.semester1Conduct || '—'}</td><td>{row.semester2Average ?? '—'}</td><td>{row.semester2AcademicAbility || '—'}</td><td>{row.semester2Conduct || '—'}</td><td><strong>{row.annualAverage ?? '—'}</strong></td><td><span className="result-level">{row.academicAbility || '—'}</span></td><td><span className="result-level">{row.conduct || '—'}</span></td><td>{row.honor || '—'}</td><td>{row.rank ?? '—'}</td><td><span className={`badge-status ${row.status === 'PUBLISHED' ? 'active' : 'draft'}`}>{row.status === 'PUBLISHED' ? 'Đã công bố' : 'Bản nháp'}</span></td></tr>)}</tbody></table></div>
-        <Pagination total={annualResults.length} page={annualPage} onChange={setAnnualPage}/></>}
+        <Pagination total={annualResults.length} page={annualPage} onChange={setAnnualPage} /></>}
     </section>}
   </main>;
 }
