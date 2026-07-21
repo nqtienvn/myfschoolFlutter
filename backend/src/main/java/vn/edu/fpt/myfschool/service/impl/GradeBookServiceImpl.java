@@ -97,7 +97,8 @@ public class GradeBookServiceImpl implements GradeBookService {
         guardians.findGuardiansByStudentId(student.getId()).stream()
             .map(Parent::getUser).map(User::getId).forEach(recipients::add);
         recipients.forEach(userId->notificationService.createNotification(
-            userId,title,body,"Bảng điểm",student.getId(),"GRADE_PUBLISHED"));
+            userId,title,body,"Bảng điểm",student.getId(),"GRADE_PUBLISHED",
+            item.getGradeBook().getCls().getAcademicYear().getId(),item.getGradeBook().getSemester().getId()));
     }
 
     private CanonicalAssessment canonicalAssessment(AssessmentType type,UpdateScoreEntry entry){

@@ -83,6 +83,19 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
   Future<void> _openGradeNotification(AppNotification item) async {
     await widget.notificationService?.markAsRead(item.id);
     if (!mounted) return;
+    final periodController = AcademicPeriodScope.maybeOf(context);
+    if (widget.authService?.currentSession?.role == 'PARENT' &&
+        item.relatedId != null &&
+        periodController?.studentId != item.relatedId) {
+      await periodController?.setStudentId(item.relatedId);
+      if (!mounted) return;
+    }
+    if (item.academicYearId != null && item.semesterId != null) {
+      periodController?.selectByIds(
+        academicYearId: item.academicYearId!,
+        semesterId: item.semesterId!,
+      );
+    }
     final injectedBuilder = widget.gradeScreenBuilder;
     if (injectedBuilder != null) {
       await Navigator.of(context).push<void>(

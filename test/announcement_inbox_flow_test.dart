@@ -16,6 +16,25 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/announcement_inbox_scree
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/announcements_create_screen.dart';
 
 void main() {
+  test('notification dto preserves grade academic period context', () {
+    final notification = NotificationDto.fromJson({
+      'id': 44,
+      'title': 'Có điểm mới môn Toán',
+      'body': 'Nguyễn An - Thường xuyên 1: 8',
+      'tag': 'Bảng điểm',
+      'isRead': false,
+      'relatedId': 7,
+      'relatedType': 'GRADE_PUBLISHED',
+      'academicYearId': 2,
+      'semesterId': 20,
+      'createdAt': '2026-07-22T09:00:00',
+    }).toDomain();
+
+    expect(notification.relatedId, 7);
+    expect(notification.academicYearId, 2);
+    expect(notification.semesterId, 20);
+  });
+
   test('announcement dto maps the published notification fields', () {
     final announcement = AnnouncementDto.fromJson({
       'id': 9,
@@ -86,15 +105,39 @@ void main() {
     addTearDown(socket.close);
     await announcementService.start();
     await notificationService.start();
+    final currentPeriod = AcademicPeriod(
+      academicYearId: 1,
+      academicYearName: '2025-2026',
+      semesterId: 10,
+      semesterName: 'Học kỳ II',
+      startDate: DateTime(2026, 1, 1),
+      endDate: DateTime(2026, 5, 31),
+    );
+    final scorePeriod = AcademicPeriod(
+      academicYearId: 2,
+      academicYearName: '2026-2027',
+      semesterId: 20,
+      semesterName: 'Học kỳ I',
+      startDate: DateTime(2026, 8, 1),
+      endDate: DateTime(2026, 12, 31),
+    );
+    final periodController = AcademicPeriodController(token: 'token')
+      ..periods = [currentPeriod, scorePeriod]
+      ..selected = currentPeriod
+      ..isLoading = false;
+    addTearDown(periodController.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
-        home: AnnouncementInboxScreen(
-          service: announcementService,
-          notificationService: notificationService,
-          token: 'token',
-          gradeScreenBuilder: (_, studentId) =>
-              Scaffold(body: Text('Bảng điểm học sinh $studentId')),
+        home: AcademicPeriodScope(
+          controller: periodController,
+          child: AnnouncementInboxScreen(
+            service: announcementService,
+            notificationService: notificationService,
+            token: 'token',
+            gradeScreenBuilder: (_, studentId) =>
+                Scaffold(body: Text('Bảng điểm học sinh $studentId')),
+          ),
         ),
       ),
     );
@@ -111,6 +154,8 @@ void main() {
           isRead: false,
           relatedId: 7,
           relatedType: 'GRADE_PUBLISHED',
+          academicYearId: 2,
+          semesterId: 20,
           createdAt: DateTime(2026, 7, 22, 9),
         ),
       ),
@@ -126,6 +171,7 @@ void main() {
 
     expect(notificationBackend.markReadCalls, 1);
     expect(find.text('Bảng điểm học sinh 7'), findsOneWidget);
+    expect(periodController.selected, same(scorePeriod));
   });
 
   testWidgets('teacher recipient tracking only shows read status', (

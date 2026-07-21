@@ -11,6 +11,8 @@ class NotificationDto {
     required this.createdAt,
     this.relatedId,
     this.relatedType,
+    this.academicYearId,
+    this.semesterId,
   });
 
   final int id;
@@ -21,6 +23,8 @@ class NotificationDto {
   final DateTime createdAt;
   final int? relatedId;
   final String? relatedType;
+  final int? academicYearId;
+  final int? semesterId;
 
   factory NotificationDto.fromJson(Map<String, dynamic> json) =>
       NotificationDto(
@@ -31,6 +35,8 @@ class NotificationDto {
         isRead: json['isRead'] == true,
         relatedId: json['relatedId'] as int?,
         relatedType: json['relatedType'] as String?,
+        academicYearId: json['academicYearId'] as int?,
+        semesterId: json['semesterId'] as int?,
         createdAt: DateTime.parse(requireField<String>(json, 'createdAt')),
       );
 
@@ -43,5 +49,7 @@ class NotificationDto {
     createdAt: createdAt,
     relatedId: relatedId,
     relatedType: relatedType,
+    academicYearId: academicYearId,
+    semesterId: semesterId,
   );
 }

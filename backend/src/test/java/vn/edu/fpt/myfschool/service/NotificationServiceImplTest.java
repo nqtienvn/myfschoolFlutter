@@ -98,7 +98,9 @@ class NotificationServiceImplTest {
                 "Thời khóa biểu đã được phát hành.",
                 "SCHEDULE",
                 9L,
-                "TIMETABLE"
+                "TIMETABLE",
+                2026L,
+                2L
         );
 
         ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
@@ -109,8 +111,12 @@ class NotificationServiceImplTest {
                 () -> assertEquals("SCHEDULE", saved.getTag()),
                 () -> assertEquals(9L, saved.getRelatedId()),
                 () -> assertEquals("TIMETABLE", saved.getRelatedType()),
+                () -> assertEquals(2026L, saved.getAcademicYearId()),
+                () -> assertEquals(2L, saved.getSemesterId()),
                 () -> assertFalse(saved.getIsRead()),
-                () -> assertEquals(22L, result.id())
+                () -> assertEquals(22L, result.id()),
+                () -> assertEquals(2026L, result.academicYearId()),
+                () -> assertEquals(2L, result.semesterId())
         );
         verify(sessionManager).sendToUser(eq(7L), argThat(payload ->
                 payload.contains("\"type\":\"notification.new\"")

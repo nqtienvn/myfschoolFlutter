@@ -13,6 +13,8 @@ class _TranscriptApi extends GradebookApiClient {
 
   double score = 8.5;
   int transcriptCalls = 0;
+  int? lastAcademicYearId;
+  int? lastSemesterId;
 
   @override
   Future<Map<String, dynamic>> getTranscript({
@@ -22,6 +24,8 @@ class _TranscriptApi extends GradebookApiClient {
     int? studentId,
   }) async {
     transcriptCalls++;
+    lastAcademicYearId = academicYearId;
+    lastSemesterId = semesterId;
     return {
       'studentName': 'Nguyễn An',
       'subjects': [
@@ -180,6 +184,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('8.5'), findsWidgets);
 
+    final scorePeriod = AcademicPeriod(
+      academicYearId: 27,
+      academicYearName: '2027-2028',
+      semesterId: 3,
+      semesterName: 'Học kỳ I',
+      startDate: DateTime(2027, 8, 1),
+      endDate: DateTime(2027, 12, 31),
+    );
+    periods.periods = [...periods.periods, scorePeriod];
     transcriptApi.score = 9;
     socket.add(
       ChatSocketEventDto(
@@ -191,6 +204,8 @@ void main() {
           tag: 'Bảng điểm',
           isRead: false,
           relatedType: 'GRADE_PUBLISHED',
+          academicYearId: 27,
+          semesterId: 3,
           createdAt: DateTime(2026, 7, 22, 10),
         ),
       ),
@@ -198,6 +213,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(transcriptApi.transcriptCalls, 2);
+    expect(periods.selected, same(scorePeriod));
+    expect(transcriptApi.lastAcademicYearId, 27);
+    expect(transcriptApi.lastSemesterId, 3);
     expect(find.text('9.0'), findsWidgets);
   });
 }

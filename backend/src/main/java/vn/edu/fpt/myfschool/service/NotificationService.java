@@ -20,4 +20,8 @@ public interface NotificationService {
     NotificationDto createNotification(
         Long userId, String title, String body, String tag,
         Long relatedId, String relatedType);
+
+    NotificationDto createNotification(
+        Long userId, String title, String body, String tag,
+        Long relatedId, String relatedType, Long academicYearId, Long semesterId);
 }

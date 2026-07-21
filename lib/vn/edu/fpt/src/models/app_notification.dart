@@ -8,6 +8,8 @@ class AppNotification {
     this.isRead = false,
     this.relatedId,
     this.relatedType,
+    this.academicYearId,
+    this.semesterId,
   });
 
   final int id;
@@ -18,6 +20,8 @@ class AppNotification {
   final DateTime createdAt;
   final int? relatedId;
   final String? relatedType;
+  final int? academicYearId;
+  final int? semesterId;
 
   AppNotification copyWith({bool? isRead}) => AppNotification(
     id: id,
@@ -28,5 +32,7 @@ class AppNotification {
     createdAt: createdAt,
     relatedId: relatedId,
     relatedType: relatedType,
+    academicYearId: academicYearId,
+    semesterId: semesterId,
   );
 }

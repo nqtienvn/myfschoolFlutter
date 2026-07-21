@@ -698,6 +698,10 @@ CREATE TABLE notifications (
   title           VARCHAR(500) NOT NULL,
   body            TEXT NULL,
   tag             VARCHAR(50) NULL COMMENT 'Học phí, CLB, Hệ thống...',
+  related_id      BIGINT UNSIGNED NULL COMMENT 'ID nghiệp vụ liên quan',
+  related_type    VARCHAR(50) NULL COMMENT 'Loại nghiệp vụ liên quan',
+  academic_year_id BIGINT NULL COMMENT 'Năm học của thông báo điểm',
+  semester_id     BIGINT NULL COMMENT 'Học kỳ của thông báo điểm',
   is_read         TINYINT(1) NOT NULL DEFAULT 0,
   created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

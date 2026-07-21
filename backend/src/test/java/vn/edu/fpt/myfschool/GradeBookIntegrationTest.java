@@ -63,6 +63,8 @@ class GradeBookIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.data[0].tag").value("Bảng điểm"))
             .andExpect(jsonPath("$.data[0].relatedId").value(testStudent1.getId()))
             .andExpect(jsonPath("$.data[0].relatedType").value("GRADE_PUBLISHED"))
+            .andExpect(jsonPath("$.data[0].academicYearId").value(testAcademicYear.getId()))
+            .andExpect(jsonPath("$.data[0].semesterId").value(testSemester.getId()))
             .andExpect(jsonPath("$.data[0].isRead").value(false));
         mockMvc.perform(get("/api/notifications").header("Authorization",authHeader(parentToken)))
             .andExpect(status().isOk())
@@ -92,6 +94,31 @@ class GradeBookIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[0].title").value("Điểm đã được cập nhật môn Toán"))
             .andExpect(jsonPath("$.data[0].body").value(org.hamcrest.Matchers.containsString(": 9")));
+    }
+
+    @Test void transcript_keeps_scores_attached_when_configuration_code_changes() throws Exception {
+        String teacherToken=loginAsTeacher();var data=book(teacherToken);
+        Long firstItem=data.get("items").get(0).get("id").asLong();
+        mockMvc.perform(put("/api/grade-books/scores")
+                .header("Authorization",authHeader(teacherToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(scores(firstItem,8,6)))
+            .andExpect(status().isOk());
+
+        var configured=configItemRepository.findByConfigAcademicYearIdOrderByDisplayOrderAsc(testAcademicYear.getId());
+        configured.getFirst().setCode("TX_NEW");
+        configured.getFirst().setDisplayName("Thường xuyên mới");
+        configItemRepository.save(configured.getFirst());
+
+        mockMvc.perform(get("/api/transcripts/me")
+                .header("Authorization",authHeader(loginAsStudent1()))
+                .param("academicYearId",testAcademicYear.getId().toString())
+                .param("semesterId",testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.subjects[0].scores[0].code").value("TX_NEW_1"))
+            .andExpect(jsonPath("$.data.subjects[0].scores[0].name").value("Thường xuyên mới 1"))
+            .andExpect(jsonPath("$.data.subjects[0].scores[0].score").value(8))
+            .andExpect(jsonPath("$.data.subjects[0].scores[0].isGraded").value(true));
     }
 
     @Test void transcript_uses_year_configuration_for_full_empty_table_and_rejects_cross_year_scope() throws Exception {

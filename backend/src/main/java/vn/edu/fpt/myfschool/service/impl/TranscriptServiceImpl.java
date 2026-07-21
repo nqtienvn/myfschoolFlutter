@@ -46,10 +46,17 @@ public class TranscriptServiceImpl implements TranscriptService {
         for(Subject subject:appliedSubjects) {
             GradeBook book=booksBySubject.get(subject.getId());
             Map<String,GradeItem> bookItems=new HashMap<>();
-            if(book!=null)for(GradeItem item:items.findByGradeBookIdOrderByOrderAsc(book.getId()))bookItems.put(item.getCode(),item);
+            Map<Long,List<GradeItem>> bookItemsByConfig=new HashMap<>();
+            if(book!=null)for(GradeItem item:items.findByGradeBookIdOrderByOrderAsc(book.getId())){
+                bookItems.put(item.getCode(),item);
+                if(item.getConfigItem()!=null)bookItemsByConfig
+                    .computeIfAbsent(item.getConfigItem().getId(),ignored->new ArrayList<>()).add(item);
+            }
             List<TranscriptScoreDto> values=new ArrayList<>(); BigDecimal sum=BigDecimal.ZERO; int totalWeight=0; boolean complete=true;
             for(ConfiguredColumn column:columns) {
-                GradeItem item=bookItems.get(column.code());
+                List<GradeItem> linkedItems=bookItemsByConfig.get(column.configItemId());
+                GradeItem item=linkedItems!=null&&linkedItems.size()>=column.instanceIndex()
+                    ?linkedItems.get(column.instanceIndex()-1):bookItems.get(column.code());
                 StudentScore score=item==null?null:scoresByItem.get(item.getId());
                 boolean graded=score!=null&&Boolean.TRUE.equals(score.getIsGraded());
                 BigDecimal value=graded?score.getScore():null;
@@ -69,14 +76,14 @@ public class TranscriptServiceImpl implements TranscriptService {
         List<ConfiguredColumn> columns=new ArrayList<>();
         for(AcademicYearGradeConfigItem config:configItems.findByConfigAcademicYearIdOrderByDisplayOrderAsc(yearId)){
             for(int index=1;index<=config.getQuantity();index++)columns.add(new ConfiguredColumn(
-                config.getCode()+"_"+index,
+                config.getId(),index,config.getCode()+"_"+index,
                 config.getDisplayName()+(config.getQuantity()>1?" "+index:""),
                 config.getWeight(),config.getAssessmentType(),Boolean.TRUE.equals(config.getRequiredEntry())));
         }
         return columns;
     }
 
-    private record ConfiguredColumn(String code,String name,Integer weight,AssessmentType assessmentType,boolean required){}
+    private record ConfiguredColumn(Long configItemId,int instanceIndex,String code,String name,Integer weight,AssessmentType assessmentType,boolean required){}
 
     private void authorize(Long studentId) {
         UserRole role=SecurityUtil.getCurrentUserRole(); Long userId=SecurityUtil.getCurrentUserId();

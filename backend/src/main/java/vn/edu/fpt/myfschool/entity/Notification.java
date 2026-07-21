@@ -41,6 +41,12 @@ public class Notification extends BaseEntity {
     @Column(name = "related_type", length = 50)
     private String relatedType;
 
+    @Column(name = "academic_year_id")
+    private Long academicYearId;
+
+    @Column(name = "semester_id")
+    private Long semesterId;
+
     @Column(nullable = false)
     private Boolean isRead = false;
 }

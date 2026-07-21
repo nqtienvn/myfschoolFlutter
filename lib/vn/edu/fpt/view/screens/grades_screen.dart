@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../src/api/api.dart';
+import '../../src/models/app_notification.dart';
 import '../../src/models/periodic_review.dart';
 import '../../src/services/auth_service.dart';
 import '../../src/services/notification_service.dart';
@@ -58,7 +59,7 @@ class _GradesScreenState extends State<GradesScreen> {
   @override
   void initState() {
     super.initState();
-    _latestGradeNotificationId = _latestRelevantNotificationId();
+    _latestGradeNotificationId = _latestRelevantNotification()?.id ?? 0;
     widget.notificationService?.addListener(_onGradeNotification);
   }
 
@@ -68,23 +69,41 @@ class _GradesScreenState extends State<GradesScreen> {
     super.dispose();
   }
 
-  int _latestRelevantNotificationId() {
-    var latest = 0;
+  AppNotification? _latestRelevantNotification() {
+    AppNotification? latest;
     for (final item in widget.notificationService?.notifications ?? const []) {
       if (item.relatedType != 'GRADE_PUBLISHED') continue;
       if (widget.studentId != null && item.relatedId != widget.studentId) {
         continue;
       }
-      if (item.id > latest) latest = item.id;
+      if (latest == null || item.id > latest.id) latest = item;
     }
     return latest;
   }
 
   void _onGradeNotification() {
-    final latest = _latestRelevantNotificationId();
-    if (!mounted || latest <= _latestGradeNotificationId) return;
-    _latestGradeNotificationId = latest;
-    final period = AcademicPeriodScope.maybeOf(context)?.selected;
+    final latest = _latestRelevantNotification();
+    if (!mounted || latest == null || latest.id <= _latestGradeNotificationId) {
+      return;
+    }
+    _latestGradeNotificationId = latest.id;
+    final controller = AcademicPeriodScope.maybeOf(context);
+    if (latest.academicYearId != null && latest.semesterId != null) {
+      final selected = controller?.selected;
+      final isSelected =
+          selected?.academicYearId == latest.academicYearId &&
+          selected?.semesterId == latest.semesterId;
+      if (!isSelected &&
+          (controller?.selectByIds(
+                academicYearId: latest.academicYearId!,
+                semesterId: latest.semesterId!,
+              ) ??
+              false)) {
+        return;
+      }
+      if (!isSelected) return;
+    }
+    final period = controller?.selected;
     if (period != null) unawaited(_load(period));
   }
 

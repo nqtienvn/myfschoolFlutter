@@ -141,6 +141,17 @@ class AcademicPeriodController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool selectByIds({required int academicYearId, required int semesterId}) {
+    for (final period in periods) {
+      if (period.academicYearId == academicYearId &&
+          period.semesterId == semesterId) {
+        select(period);
+        return true;
+      }
+    }
+    return false;
+  }
+
   Future<void> setStudentId(int? value) async {
     if (studentId == value) return;
     studentId = value;
