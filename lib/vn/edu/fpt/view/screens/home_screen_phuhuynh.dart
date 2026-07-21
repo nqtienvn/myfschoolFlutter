@@ -16,10 +16,16 @@ import 'package:myfschoolse1913/vn/edu/fpt/src/models/auth_session.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 
 class HomeParent extends StatefulWidget {
-  const HomeParent({super.key, required this.authService, this.backend});
+  const HomeParent({
+    super.key,
+    required this.authService,
+    this.backend,
+    this.notificationService,
+  });
 
   final AuthService authService;
   final BackendApiClient? backend;
+  final NotificationService? notificationService;
 
   @override
   State<HomeParent> createState() => _HomeParentState();
@@ -614,6 +620,8 @@ class _HomeParentState extends State<HomeParent> {
                                     studentName: student.name,
                                     authService: widget.authService,
                                     backendApiClient: _backend,
+                                    notificationService:
+                                        widget.notificationService,
                                   ),
                                 ),
                               );

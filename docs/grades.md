@@ -13,6 +13,7 @@ Mỗi đầu điểm có mã, tên, hệ số, số lượng, loại đánh giá
 - Admin chỉ nhập đầu điểm `ADMIN` hoặc `SUBJECT_TEACHER_AND_ADMIN`.
 - Học sinh chỉ xem chính mình; phụ huynh chỉ xem học sinh có liên kết giám hộ.
 - `PUT /api/grade-books/scores` là thao tác submit: điểm hợp lệ được công bố ngay cho phụ huynh/học sinh trong cùng giao dịch, không qua bước duyệt của admin.
+- Khi một giá trị điểm được thêm, sửa hoặc gỡ, hệ thống tạo thông báo `GRADE_PUBLISHED` cho tài khoản học sinh và mọi tài khoản phụ huynh đang liên kết. Thông báo được lưu để xem lại và được đẩy qua WebSocket sau khi giao dịch commit; chạm vào thông báo trên app sẽ mở đúng bảng điểm của học sinh.
 - Admin không công bố điểm thay giáo viên; admin chỉ được nhập các đầu điểm thuộc quyền mình và khóa sổ khi dữ liệu bắt buộc đã đủ.
 - Transcript luôn dựng đủ danh sách môn áp dụng và toàn bộ đầu điểm từ cấu hình năm học. Môn hoặc đầu điểm chưa có dữ liệu vẫn có trong response với giá trị trống.
 

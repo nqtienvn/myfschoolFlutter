@@ -1,13 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/models/app_notification.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/models/school_announcement.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/announcement_inbox_service.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/auth_service.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/notification_service.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_spacing.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_card.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/announcements_create_screen.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/school_ui_widgets.dart';
 
 class AnnouncementInboxScreen extends StatefulWidget {
@@ -15,10 +19,19 @@ class AnnouncementInboxScreen extends StatefulWidget {
     super.key,
     required this.service,
     this.teacherComposerBuilder,
+    this.notificationService,
+    this.token,
+    this.authService,
+    this.gradeScreenBuilder,
   });
 
   final AnnouncementInboxService service;
   final WidgetBuilder? teacherComposerBuilder;
+  final NotificationService? notificationService;
+  final String? token;
+  final AuthService? authService;
+  final Widget Function(BuildContext context, int? studentId)?
+  gradeScreenBuilder;
 
   @override
   State<AnnouncementInboxScreen> createState() =>
@@ -27,6 +40,12 @@ class AnnouncementInboxScreen extends StatefulWidget {
 
 class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
   int? _yearId;
+
+  List<AppNotification> get _gradeNotifications =>
+      widget.notificationService?.notifications
+          .where((item) => item.relatedType == 'GRADE_PUBLISHED')
+          .toList(growable: false) ??
+      const [];
 
   @override
   void didChangeDependencies() {
@@ -61,6 +80,40 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
     }
   }
 
+  Future<void> _openGradeNotification(AppNotification item) async {
+    await widget.notificationService?.markAsRead(item.id);
+    if (!mounted) return;
+    final injectedBuilder = widget.gradeScreenBuilder;
+    if (injectedBuilder != null) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => injectedBuilder(context, item.relatedId),
+        ),
+      );
+      return;
+    }
+    final token = widget.token;
+    if (token == null) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => GradesScreen(
+          token: token,
+          studentId: item.relatedId,
+          authService: widget.authService,
+          notificationService: widget.notificationService,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _refresh() async {
+    await Future.wait<void>([
+      widget.service.load(),
+      if (widget.notificationService != null)
+        widget.notificationService!.load(),
+    ]);
+  }
+
   Future<void> _openTeacherComposer() async {
     final builder =
         widget.teacherComposerBuilder ??
@@ -88,22 +141,28 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: widget.service,
+    animation: Listenable.merge([
+      widget.service,
+      if (widget.notificationService != null) widget.notificationService!,
+    ]),
     builder: (context, _) => Scaffold(
       backgroundColor: AppColors.background,
-      appBar: OrangeTopBar(
-        title: widget.service.isTeacher
-            ? 'Thông báo nhà trường'
-            : 'Thông báo nhà trường',
-      ),
+      appBar: const OrangeTopBar(title: 'Trung tâm thông báo'),
       body: SafeArea(
-        child: RefreshIndicator(onRefresh: widget.service.load, child: _body()),
+        child: RefreshIndicator(onRefresh: _refresh, child: _body()),
       ),
     ),
   );
 
   Widget _body() {
-    if (widget.service.isLoading && widget.service.announcements.isEmpty) {
+    final gradeNotifications = _gradeNotifications;
+    final hasContent =
+        widget.service.announcements.isNotEmpty ||
+        gradeNotifications.isNotEmpty;
+    final isLoading =
+        widget.service.isLoading ||
+        (widget.notificationService?.isLoading ?? false);
+    if (isLoading && !hasContent) {
       return ListView(
         children: const [
           SizedBox(height: 180),
@@ -111,8 +170,9 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
         ],
       );
     }
-    if (widget.service.errorMessage != null &&
-        widget.service.announcements.isEmpty) {
+    final errorMessage =
+        widget.service.errorMessage ?? widget.notificationService?.errorMessage;
+    if (errorMessage != null && !hasContent) {
       return ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
@@ -123,11 +183,11 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
             color: AppColors.danger,
           ),
           const SizedBox(height: 12),
-          Text(widget.service.errorMessage!, textAlign: TextAlign.center),
+          Text(errorMessage, textAlign: TextAlign.center),
         ],
       );
     }
-    if (widget.service.announcements.isEmpty) {
+    if (!hasContent) {
       return ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
@@ -143,24 +203,100 @@ class _AnnouncementInboxScreenState extends State<AnnouncementInboxScreen> {
         ],
       );
     }
+    final children = <Widget>[
+      if (widget.service.isTeacher) _teacherComposeButton(),
+      if (gradeNotifications.isNotEmpty) ...[
+        const SectionHeader(title: 'Cập nhật bảng điểm'),
+        for (final item in gradeNotifications)
+          _GradeNotificationCard(
+            item: item,
+            onTap: () => _openGradeNotification(item),
+          ),
+      ],
+      if (widget.service.announcements.isNotEmpty) ...[
+        const SectionHeader(title: 'Thông báo nhà trường'),
+        for (final item in widget.service.announcements)
+          _RecipientAnnouncementCard(item: item, onTap: () => _open(item)),
+      ],
+    ];
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(AppSpacing.lg),
-      itemCount:
-          widget.service.announcements.length +
-          (widget.service.isTeacher ? 1 : 0),
+      itemCount: children.length,
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-      itemBuilder: (_, index) {
-        if (widget.service.isTeacher && index == 0) {
-          return _teacherComposeButton();
-        }
-        final item = widget
-            .service
-            .announcements[index - (widget.service.isTeacher ? 1 : 0)];
-        return _RecipientAnnouncementCard(item: item, onTap: () => _open(item));
-      },
+      itemBuilder: (_, index) => children[index],
     );
   }
+}
+
+class _GradeNotificationCard extends StatelessWidget {
+  const _GradeNotificationCard({required this.item, required this.onTap});
+
+  final AppNotification item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    padding: 0,
+    backgroundColor: item.isRead
+        ? AppColors.surface
+        : AppColors.blue.withValues(alpha: .06),
+    child: InkWell(
+      key: ValueKey('grade-notification-${item.id}'),
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              backgroundColor: AppColors.blue.withValues(alpha: .12),
+              child: const Icon(Icons.grading_outlined, color: AppColors.blue),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      if (!item.isRead)
+                        const CircleAvatar(
+                          radius: 4,
+                          backgroundColor: AppColors.danger,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    item.message,
+                    style: const TextStyle(color: AppColors.muted),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Chạm để mở bảng điểm',
+                    style: TextStyle(
+                      color: AppColors.blue,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.muted),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _RecipientAnnouncementCard extends StatelessWidget {

@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/client/announcement_api_client.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/client/backend_api_client.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/client/notification_api_client.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/dto/announcement_dto.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/dto/chat_socket_event_dto.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/api/dto/notification_dto.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/models/school_announcement.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/announcement_inbox_service.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/src/services/notification_service.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/announcement_inbox_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/announcements_create_screen.dart';
@@ -61,6 +65,68 @@ void main() {
       expect(find.text('Gửi phản hồi'), findsNothing);
     },
   );
+
+  testWidgets('grade notification arrives in realtime and opens transcript', (
+    tester,
+  ) async {
+    final announcementService = AnnouncementInboxService(
+      api: _FakeAnnouncementApi(),
+      token: 'token',
+      teacher: false,
+    );
+    final notificationBackend = _FakeNotificationBackend();
+    final socket = StreamController<ChatSocketEventDto>.broadcast();
+    final notificationService = NotificationService(
+      apiClient: NotificationApiClient(backend: notificationBackend),
+      socketEvents: socket.stream,
+      token: 'token',
+    );
+    addTearDown(announcementService.dispose);
+    addTearDown(notificationService.dispose);
+    addTearDown(socket.close);
+    await announcementService.start();
+    await notificationService.start();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AnnouncementInboxScreen(
+          service: announcementService,
+          notificationService: notificationService,
+          token: 'token',
+          gradeScreenBuilder: (_, studentId) =>
+              Scaffold(body: Text('Bảng điểm học sinh $studentId')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    socket.add(
+      ChatSocketEventDto(
+        type: 'notification.new',
+        notification: NotificationDto(
+          id: 44,
+          title: 'Có điểm mới môn Toán',
+          body: 'Nguyễn An - Thường xuyên 1: 8',
+          tag: 'Bảng điểm',
+          isRead: false,
+          relatedId: 7,
+          relatedType: 'GRADE_PUBLISHED',
+          createdAt: DateTime(2026, 7, 22, 9),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cập nhật bảng điểm'), findsOneWidget);
+    expect(find.text('Có điểm mới môn Toán'), findsOneWidget);
+    expect(find.text('Nguyễn An - Thường xuyên 1: 8'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('grade-notification-44')));
+    await tester.pumpAndSettle();
+
+    expect(notificationBackend.markReadCalls, 1);
+    expect(find.text('Bảng điểm học sinh 7'), findsOneWidget);
+  });
 
   testWidgets('teacher recipient tracking only shows read status', (
     tester,
@@ -466,5 +532,28 @@ class _FakeBackendApi extends BackendApiClient {
       throw StateError('Unexpected POST $path');
     }
     return postCompleter?.future ?? Future<Object?>.value(null);
+  }
+}
+
+class _FakeNotificationBackend extends BackendApiClient {
+  int markReadCalls = 0;
+
+  @override
+  Future<Object?> getData(
+    String path, {
+    String? token,
+    Map<String, String?> query = const {},
+  }) async {
+    if (path == '/api/notifications') return <Map<String, dynamic>>[];
+    throw StateError('Unexpected GET $path');
+  }
+
+  @override
+  Future<Object?> putData(String path, {String? token, Object? body}) async {
+    if (path == '/api/notifications/44/read') {
+      markReadCalls++;
+      return null;
+    }
+    throw StateError('Unexpected PUT $path');
   }
 }

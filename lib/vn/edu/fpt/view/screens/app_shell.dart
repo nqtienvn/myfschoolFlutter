@@ -62,11 +62,9 @@ class _AppShellState extends State<AppShell> {
         teacher: session.actor == AppActor.teacher,
       );
       unawaited(_announcementInboxService!.start());
-    }
-    if (session != null && chatService != null) {
       _notificationService = NotificationService(
         apiClient: NotificationApiClient(backend: BackendApiClient()),
-        socketEvents: chatService.socketEvents,
+        socketEvents: chatService?.socketEvents ?? const Stream.empty(),
         token: session.token,
       );
       unawaited(_notificationService!.start());
@@ -95,14 +93,20 @@ class _AppShellState extends State<AppShell> {
   Widget _homeForActor() {
     switch (widget.actor) {
       case AppActor.parent:
-        return HomeParent(authService: widget.authService!);
+        return HomeParent(
+          authService: widget.authService!,
+          notificationService: _notificationService,
+        );
       case AppActor.teacher:
         return HomeTeacher(
           authService: widget.authService!,
           notificationService: _notificationService,
         );
       case AppActor.student:
-        return HomeStudent(authService: widget.authService!);
+        return HomeStudent(
+          authService: widget.authService!,
+          notificationService: _notificationService,
+        );
     }
   }
 
@@ -124,6 +128,13 @@ class _AppShellState extends State<AppShell> {
                 case 2:
                   return AnnouncementInboxScreen(
                     service: _announcementInboxService!,
+                    notificationService: _notificationService,
+                    token:
+                        (widget.session ??
+                                widget.authService?.currentSession ??
+                                widget.chatService?.session)
+                            ?.token,
+                    authService: widget.authService,
                   );
                 case 3:
                   return AccountProfileScreen(
@@ -142,7 +153,10 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _selectTab(int index) {
-    if (index == 2) unawaited(_announcementInboxService?.load());
+    if (index == 2) {
+      unawaited(_announcementInboxService?.load());
+      unawaited(_notificationService?.load());
+    }
     if (_selectedIndex == index) {
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
     } else {
@@ -218,7 +232,14 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _notificationIcon(IconData icon) {
-    final unread = _announcementInboxService?.unreadCount ?? 0;
+    final gradeUnread =
+        _notificationService?.notifications
+            .where(
+              (item) => item.relatedType == 'GRADE_PUBLISHED' && !item.isRead,
+            )
+            .length ??
+        0;
+    final unread = (_announcementInboxService?.unreadCount ?? 0) + gradeUnread;
     return SizedBox(
       width: 32,
       height: 28,

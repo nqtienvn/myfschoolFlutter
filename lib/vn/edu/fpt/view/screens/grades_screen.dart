@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../src/api/api.dart';
 import '../../src/models/periodic_review.dart';
 import '../../src/services/auth_service.dart';
+import '../../src/services/notification_service.dart';
 import '../design_system/app_colors.dart';
 import 'academic_period_scope.dart';
 
@@ -17,6 +20,7 @@ class GradesScreen extends StatefulWidget {
     this.apiClient,
     this.academicApiClient,
     this.periodicReviewApi,
+    this.notificationService,
   });
 
   final String token;
@@ -27,6 +31,7 @@ class GradesScreen extends StatefulWidget {
   final GradebookApiClient? apiClient;
   final HomeroomAcademicApiClient? academicApiClient;
   final PeriodicReviewApi? periodicReviewApi;
+  final NotificationService? notificationService;
 
   @override
   State<GradesScreen> createState() => _GradesScreenState();
@@ -48,6 +53,40 @@ class _GradesScreenState extends State<GradesScreen> {
   bool _loading = true;
   String? _error;
   String? _loadedPeriod;
+  int _latestGradeNotificationId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _latestGradeNotificationId = _latestRelevantNotificationId();
+    widget.notificationService?.addListener(_onGradeNotification);
+  }
+
+  @override
+  void dispose() {
+    widget.notificationService?.removeListener(_onGradeNotification);
+    super.dispose();
+  }
+
+  int _latestRelevantNotificationId() {
+    var latest = 0;
+    for (final item in widget.notificationService?.notifications ?? const []) {
+      if (item.relatedType != 'GRADE_PUBLISHED') continue;
+      if (widget.studentId != null && item.relatedId != widget.studentId) {
+        continue;
+      }
+      if (item.id > latest) latest = item.id;
+    }
+    return latest;
+  }
+
+  void _onGradeNotification() {
+    final latest = _latestRelevantNotificationId();
+    if (!mounted || latest <= _latestGradeNotificationId) return;
+    _latestGradeNotificationId = latest;
+    final period = AcademicPeriodScope.maybeOf(context)?.selected;
+    if (period != null) unawaited(_load(period));
+  }
 
   @override
   void didChangeDependencies() {

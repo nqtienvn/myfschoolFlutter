@@ -54,24 +54,44 @@ class GradeBookIntegrationTest extends BaseIntegrationTest {
                 .param("classId",testClass.getId().toString()).param("subjectId",testSubject.getId().toString()).param("semesterId",testSemester.getId().toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("PUBLISHED"));
 
+        String studentToken=loginAsStudent1();
+        String parentToken=loginAsParent();
+        mockMvc.perform(get("/api/notifications").header("Authorization",authHeader(studentToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].title").value("Có điểm mới môn Toán"))
+            .andExpect(jsonPath("$.data[0].body").value(org.hamcrest.Matchers.containsString(": 8")))
+            .andExpect(jsonPath("$.data[0].tag").value("Bảng điểm"))
+            .andExpect(jsonPath("$.data[0].relatedId").value(testStudent1.getId()))
+            .andExpect(jsonPath("$.data[0].relatedType").value("GRADE_PUBLISHED"))
+            .andExpect(jsonPath("$.data[0].isRead").value(false));
+        mockMvc.perform(get("/api/notifications").header("Authorization",authHeader(parentToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[*].relatedId").value(
+                org.hamcrest.Matchers.hasItem(testStudent1.getId().intValue())))
+            .andExpect(jsonPath("$.data[*].relatedType").value(
+                org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("GRADE_PUBLISHED"))));
+
         var legacyScore=studentScoreRepository.findByGradeItemIdAndStudentId(firstItem,testStudent1.getId()).orElseThrow();
         legacyScore.setPublishedAt(null);studentScoreRepository.save(legacyScore);
         var legacyBook=gradeBookRepository.findById(data.get("id").asLong()).orElseThrow();
         legacyBook.setStatus(vn.edu.fpt.myfschool.common.enums.GradeBookStatus.DRAFT);gradeBookRepository.save(legacyBook);
 
-        String studentToken=loginAsStudent1();
         mockMvc.perform(get("/api/transcripts/me").header("Authorization",authHeader(studentToken))
                 .param("academicYearId",testAcademicYear.getId().toString()).param("semesterId",testSemester.getId().toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.subjects[0].scores[0].score").value(8))
             .andExpect(jsonPath("$.data.subjects[0].scores[1].score").doesNotExist());
         mockMvc.perform(get("/api/transcripts/students/{studentId}",testStudent1.getId())
-                .header("Authorization",authHeader(loginAsParent()))
+                .header("Authorization",authHeader(parentToken))
                 .param("academicYearId",testAcademicYear.getId().toString()).param("semesterId",testSemester.getId().toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.subjects[0].scores[0].score").value(8));
         mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(teacherToken)).contentType(MediaType.APPLICATION_JSON).content(scores(firstItem,9,6))).andExpect(status().isOk());
         mockMvc.perform(get("/api/transcripts/me").header("Authorization",authHeader(studentToken))
                 .param("academicYearId",testAcademicYear.getId().toString()).param("semesterId",testSemester.getId().toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.subjects[0].scores[0].score").value(9));
+        mockMvc.perform(get("/api/notifications").header("Authorization",authHeader(parentToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].title").value("Điểm đã được cập nhật môn Toán"))
+            .andExpect(jsonPath("$.data[0].body").value(org.hamcrest.Matchers.containsString(": 9")));
     }
 
     @Test void transcript_uses_year_configuration_for_full_empty_table_and_rejects_cross_year_scope() throws Exception {
