@@ -13,14 +13,14 @@ class TuitionPaymentScreen extends StatefulWidget {
   const TuitionPaymentScreen({
     super.key,
     required this.student,
+    required this.studentId,
     required this.token,
-    this.viewAsStudent = false,
     this.apiClient,
   });
 
   final StudentSnapshot student;
+  final int studentId;
   final String token;
-  final bool viewAsStudent;
   final TuitionBillApiClient? apiClient;
 
   @override
@@ -72,7 +72,7 @@ class _TuitionPaymentScreenState extends State<TuitionPaymentScreen> {
         _apiClient.getStudentBills(
           token: widget.token,
           semesterId: period.semesterId,
-          studentId: widget.viewAsStudent ? null : widget.student.id,
+          studentId: widget.studentId,
         ),
         _apiClient.getPaymentConfiguration(
           token: widget.token,

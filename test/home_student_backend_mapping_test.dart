@@ -58,7 +58,6 @@ class _HomeBackend extends BackendApiClient {
         'homeroomTeacherPhone': '0901234567',
       };
     }
-    if (path == '/api/tuition/bills/student') return <Object>[];
     throw StateError('Unexpected path: $path');
   }
 }
@@ -117,5 +116,6 @@ void main() {
     expect(find.text('96.5%'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
     expect(find.textContaining('Cô Nguyễn Thu Hà'), findsOneWidget);
+    expect(find.text('Học phí'), findsNothing);
   });
 }

@@ -80,8 +80,8 @@ class _FakeHomeroomAcademicClient extends HomeroomAcademicApiClient {
   }) async => null;
 }
 
-class _FakeStudentTuitionClient extends TuitionBillApiClient {
-  _FakeStudentTuitionClient()
+class _FakeParentTuitionClient extends TuitionBillApiClient {
+  _FakeParentTuitionClient()
     : super(backend: BackendApiClient(baseUrl: 'http://localhost'));
 
   bool requested = false;
@@ -90,7 +90,7 @@ class _FakeStudentTuitionClient extends TuitionBillApiClient {
   Future<List<TuitionBill>> getStudentBills({
     required String token,
     required int semesterId,
-    int? studentId,
+    required int studentId,
   }) async => [
     TuitionBill(
       id: 41,
@@ -287,7 +287,7 @@ void main() {
     expect(student.hasOutstanding, isTrue);
   });
 
-  test('student tuition maps canonical id and posts payment request', () async {
+  test('parent tuition maps canonical id and posts payment request', () async {
     final backend = _RecordingBackend([
       [
         {
@@ -302,11 +302,12 @@ void main() {
     final client = TuitionBillApiClient(backend: backend);
 
     final bills = await client.getStudentBills(
-      token: 'student-token',
+      token: 'parent-token',
       semesterId: 1,
+      studentId: 9,
     );
     await client.requestBankTransfer(
-      token: 'student-token',
+      token: 'parent-token',
       billId: bills.single.id!,
     );
 
@@ -315,7 +316,7 @@ void main() {
     expect(backend.postCalls, ['/api/tuition/bills/41/payment-request']);
   });
 
-  test('student tuition maps manual bank transfer configuration', () async {
+  test('parent tuition maps manual bank transfer configuration', () async {
     final backend = _RecordingBackend([
       {
         'id': 8,
@@ -335,7 +336,7 @@ void main() {
 
     final configuration = await TuitionBillApiClient(
       backend: backend,
-    ).getPaymentConfiguration(token: 'student-token', semesterId: 1);
+    ).getPaymentConfiguration(token: 'parent-token', semesterId: 1);
 
     expect(
       backend.calls.single.path,
@@ -353,7 +354,7 @@ void main() {
     );
   });
 
-  test('student tuition rejects unknown backend status', () async {
+  test('parent tuition rejects unknown backend status', () async {
     final backend = _RecordingBackend([
       [
         {
@@ -369,7 +370,7 @@ void main() {
     await expectLater(
       TuitionBillApiClient(
         backend: backend,
-      ).getStudentBills(token: 'student-token', semesterId: 1),
+      ).getStudentBills(token: 'parent-token', semesterId: 1, studentId: 9),
       throwsA(isA<ParseException>()),
     );
   });
@@ -438,12 +439,12 @@ void main() {
     },
   );
 
-  testWidgets('student tuition uses backend confirmation on narrow screen', (
+  testWidgets('parent tuition uses backend confirmation on narrow screen', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(320, 568));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    final api = _FakeStudentTuitionClient();
+    final api = _FakeParentTuitionClient();
     final period = AcademicPeriod(
       academicYearId: 26,
       academicYearName: '2026-2027',
@@ -453,7 +454,7 @@ void main() {
       endDate: DateTime(2026, 12, 31),
       isCurrent: true,
     );
-    final controller = AcademicPeriodController(token: 'student-token')
+    final controller = AcademicPeriodController(token: 'parent-token')
       ..periods = [period]
       ..selected = period
       ..isLoading = false;
@@ -473,8 +474,8 @@ void main() {
           controller: controller,
           child: TuitionPaymentScreen(
             student: student,
-            token: 'student-token',
-            viewAsStudent: true,
+            studentId: 9,
+            token: 'parent-token',
             apiClient: api,
           ),
         ),

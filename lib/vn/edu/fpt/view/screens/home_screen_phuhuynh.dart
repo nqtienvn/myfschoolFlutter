@@ -326,6 +326,7 @@ class _HomeParentState extends State<HomeParent> {
                         MaterialPageRoute<void>(
                           builder: (_) => TuitionPaymentScreen(
                             student: student,
+                            studentId: student.id!,
                             token: widget.authService.currentSession!.token,
                           ),
                         ),

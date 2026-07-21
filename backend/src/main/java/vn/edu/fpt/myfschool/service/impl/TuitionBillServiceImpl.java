@@ -85,7 +85,7 @@ public class TuitionBillServiceImpl implements TuitionBillService {
     @Transactional(readOnly = true)
     @Override
     public List<TuitionBillDto> getStudentBills(Long studentId, Long semesterId) {
-        Student student = resolveAccessibleStudent(studentId);
+        Student student = resolveParentStudent(studentId);
         if (semesterId != null) {
             Semester semester = semesterRepository.findById(semesterId)
                 .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
@@ -279,31 +279,23 @@ public class TuitionBillServiceImpl implements TuitionBillService {
         }
     }
 
-    private Student resolveAccessibleStudent(Long requestedStudentId) {
+    private Student resolveParentStudent(Long requestedStudentId) {
         Long userId = SecurityUtil.getCurrentUserId();
         UserRole role = SecurityUtil.getCurrentUserRole();
-        if (role == UserRole.STUDENT) {
-            Student own = studentRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student", "userId", userId));
-            if (requestedStudentId != null && !requestedStudentId.equals(own.getId())) {
-                throw new ForbiddenException("Học sinh chỉ được xem học phí của chính mình");
-            }
-            return own;
+        if (role != UserRole.PARENT) {
+            throw new ForbiddenException("Chỉ phụ huynh được phép xem học phí học sinh");
         }
-        if (role == UserRole.PARENT) {
-            if (requestedStudentId == null) {
-                throw new BadRequestException("Phụ huynh phải chọn học sinh cần xem học phí");
-            }
-            Parent parent = parentRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Parent", "userId", userId));
-            if (!studentGuardianRepository.existsByStudentIdAndGuardianId(
-                    requestedStudentId, parent.getId())) {
-                throw new ForbiddenException("Phụ huynh không có quyền xem học phí của học sinh này");
-            }
-            return studentRepository.findById(requestedStudentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student", "id", requestedStudentId));
+        if (requestedStudentId == null) {
+            throw new BadRequestException("Phụ huynh phải chọn học sinh cần xem học phí");
         }
-        throw new ForbiddenException("Vai trò không được phép xem học phí học sinh");
+        Parent parent = parentRepository.findByUserId(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Parent", "userId", userId));
+        if (!studentGuardianRepository.existsByStudentIdAndGuardianId(
+                requestedStudentId, parent.getId())) {
+            throw new ForbiddenException("Phụ huynh không có quyền xem học phí của học sinh này");
+        }
+        return studentRepository.findById(requestedStudentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Student", "id", requestedStudentId));
     }
 
     private record ClassSemesterContext(SchoolClass cls, Semester semester) {}

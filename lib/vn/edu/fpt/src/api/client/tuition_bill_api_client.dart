@@ -33,13 +33,13 @@ class TuitionBillApiClient {
   Future<List<TuitionBill>> getStudentBills({
     required String token,
     required int semesterId,
-    int? studentId,
+    required int studentId,
   }) async {
     final data = await _backend.getData(
       '/api/tuition/bills/student',
       token: token,
       query: {
-        'studentId': studentId?.toString(),
+        'studentId': studentId.toString(),
         'semesterId': semesterId.toString(),
       },
     );

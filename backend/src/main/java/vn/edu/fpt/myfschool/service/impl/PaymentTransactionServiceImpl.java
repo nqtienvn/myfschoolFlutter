@@ -14,13 +14,11 @@ import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.entity.Parent;
 import vn.edu.fpt.myfschool.entity.PaymentTransaction;
-import vn.edu.fpt.myfschool.entity.Student;
 import vn.edu.fpt.myfschool.entity.TuitionBill;
 import vn.edu.fpt.myfschool.repository.ParentRepository;
 import vn.edu.fpt.myfschool.repository.PaymentConfigurationRepository;
 import vn.edu.fpt.myfschool.repository.PaymentTransactionRepository;
 import vn.edu.fpt.myfschool.repository.StudentGuardianRepository;
-import vn.edu.fpt.myfschool.repository.StudentRepository;
 import vn.edu.fpt.myfschool.repository.TuitionBillRepository;
 import vn.edu.fpt.myfschool.service.PaymentTransactionService;
 
@@ -34,7 +32,6 @@ public class PaymentTransactionServiceImpl implements PaymentTransactionService 
 
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final TuitionBillRepository tuitionBillRepository;
-    private final StudentRepository studentRepository;
     private final ParentRepository parentRepository;
     private final StudentGuardianRepository studentGuardianRepository;
     private final PaymentConfigurationRepository paymentConfigurationRepository;
@@ -141,25 +138,16 @@ public class PaymentTransactionServiceImpl implements PaymentTransactionService 
     private void authorizeBillOwner(TuitionBill bill) {
         Long userId = SecurityUtil.getCurrentUserId();
         UserRole role = SecurityUtil.getCurrentUserRole();
-        if (role == UserRole.STUDENT) {
-            Student student = studentRepository.findByUserId(userId)
-                .orElseThrow(() -> new ForbiddenException("Tài khoản không có hồ sơ học sinh"));
-            if (!student.getId().equals(bill.getStudent().getId())) {
-                throw new ForbiddenException("Học sinh chỉ được xác nhận học phí của chính mình");
-            }
-            return;
+        if (role != UserRole.PARENT) {
+            throw new ForbiddenException("Chỉ phụ huynh được phép xác nhận chuyển khoản học phí");
         }
-        if (role == UserRole.PARENT) {
-            Parent parent = parentRepository.findByUserId(userId)
-                .orElseThrow(() -> new ForbiddenException("Tài khoản không có hồ sơ phụ huynh"));
-            if (!studentGuardianRepository.existsByStudentIdAndGuardianId(
-                    bill.getStudent().getId(), parent.getId())) {
-                throw new ForbiddenException(
-                    "Phụ huynh không có quyền xác nhận học phí của học sinh này");
-            }
-            return;
+        Parent parent = parentRepository.findByUserId(userId)
+            .orElseThrow(() -> new ForbiddenException("Tài khoản không có hồ sơ phụ huynh"));
+        if (!studentGuardianRepository.existsByStudentIdAndGuardianId(
+                bill.getStudent().getId(), parent.getId())) {
+            throw new ForbiddenException(
+                "Phụ huynh không có quyền xác nhận học phí của học sinh này");
         }
-        throw new ForbiddenException("Vai trò không được phép xác nhận chuyển khoản học phí");
     }
 
     private PaymentTransactionDto toDto(PaymentTransaction transaction) {

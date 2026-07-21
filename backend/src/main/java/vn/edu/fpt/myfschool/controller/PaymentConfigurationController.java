@@ -46,8 +46,8 @@ public class PaymentConfigurationController {
     }
 
     @GetMapping("/semesters/{semesterId}")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
-    @Operation(summary = "Lấy hướng dẫn chuyển khoản theo học kỳ")
+    @PreAuthorize("hasRole('PARENT')")
+    @Operation(summary = "Phụ huynh lấy hướng dẫn chuyển khoản theo học kỳ")
     public ResponseEntity<ApiResponse<PaymentConfigurationDto>> getBySemester(
             @PathVariable Long semesterId) {
         return ResponseEntity.ok(ApiResponse.success(

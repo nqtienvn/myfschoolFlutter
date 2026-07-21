@@ -359,26 +359,27 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void student_views_only_own_bills_in_selected_semester() throws Exception {
+    void student_cannot_view_or_pay_tuition() throws Exception {
         String adminToken = loginAsAdmin();
-        mockMvc.perform(post("/api/tuition/bills")
+        var result = mockMvc.perform(post("/api/tuition/bills")
                 .header("Authorization", authHeader(adminToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(billJson(testStudent1.getId(), testClass.getId(), testSemester.getId(),
                     "HP mobile", 9000000)))
-            .andExpect(status().isOk());
-
-        mockMvc.perform(get("/api/tuition/bills/student")
-                .header("Authorization", authHeader(loginAsStudent1()))
-                .param("semesterId", testSemester.getId().toString()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.length()").value(1))
-            .andExpect(jsonPath("$.data[0].name").value("HP mobile"));
+            .andReturn();
+        Long billId = objectMapper.readTree(result.getResponse().getContentAsString())
+            .path("data").path("id").asLong();
+        String studentToken = loginAsStudent1();
 
         mockMvc.perform(get("/api/tuition/bills/student")
-                .header("Authorization", authHeader(loginAsStudent2()))
+                .header("Authorization", authHeader(studentToken))
                 .param("studentId", testStudent1.getId().toString())
                 .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/tuition/bills/" + billId + "/payment-request")
+                .header("Authorization", authHeader(studentToken)))
             .andExpect(status().isForbidden());
     }
 
@@ -412,12 +413,8 @@ class TuitionIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void payment_request_rejects_unrelated_student_and_parent() throws Exception {
+    void payment_request_rejects_unrelated_parent() throws Exception {
         Long billId = createBill(testStudent1.getId(), "HP bao mat", 9200000);
-
-        mockMvc.perform(post("/api/tuition/bills/" + billId + "/payment-request")
-                .header("Authorization", authHeader(loginAsStudent2())))
-            .andExpect(status().isForbidden());
 
         var guardianLink = studentGuardianRepository
             .findByStudentIdAndGuardianId(testStudent1.getId(), testParent.getId())

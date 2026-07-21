@@ -61,8 +61,8 @@ public class TuitionBillController {
     }
 
     @GetMapping("/bills/student")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
-    @Operation(summary = "Học phí của học sinh theo học kỳ")
+    @PreAuthorize("hasRole('PARENT')")
+    @Operation(summary = "Phụ huynh xem học phí của học sinh theo học kỳ")
     public ResponseEntity<ApiResponse<List<TuitionBillDto>>> getStudentBills(
             @RequestParam(required = false) Long studentId,
             @RequestParam(required = false) Long semesterId) {
@@ -95,8 +95,8 @@ public class TuitionBillController {
     }
 
     @PostMapping("/bills/{id}/payment-request")
-    @PreAuthorize("hasAnyRole('PARENT', 'STUDENT')")
-    @Operation(summary = "Ghi nhận xác nhận chuyển khoản và chờ nhà trường đối soát")
+    @PreAuthorize("hasRole('PARENT')")
+    @Operation(summary = "Phụ huynh xác nhận chuyển khoản và chờ nhà trường đối soát")
     public ResponseEntity<ApiResponse<PaymentTransactionDto>> requestBankTransfer(
             @PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(

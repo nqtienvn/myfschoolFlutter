@@ -259,44 +259,7 @@ Chung cho tất cả 3 actor: Login → Role Selection → AppShell.
         │            ├── Ngày | Buổi sáng/chiều | StatusPill
         │            └── Lý do / Liên kết đơn nghỉ
         │
-        ├──► [BUTTON 4: "Học phí"]  ← GỘP Học phí + TB Học phí
-        │         │                    (giống pattern phụ huynh)
-        │         ▼
-        │    [BOTTOM SHEET: Student Tuition Alert]
-        │      ├── Kiểm tra: unpaidSum = tổng bill 'Chưa đóng'
-        │      │
-        │      ├── (Nếu unpaidSum == 0)
-        │      │     ├── Banner xanh: "ĐÃ HOÀN THÀNH HỌC PHÍ"
-        │      │     └── "Học sinh Nguyễn Minh An đã hoàn thành đầy đủ..."
-        │      │
-        │      └── (Nếu unpaidSum > 0)
-        │            ├── Banner đỏ: "CÒN KHOẢN HỌC PHÍ CHƯA ĐÓNG"
-        │            ├── Chi tiết số tiền + hạn nộp (30/06/2026)
-        │            ├── Danh sách tuitionNotifs (tag == 'Học phí')
-        │            │     └── Cards: Icon ⚠️ + Title + Body
-        │            └── [BUTTON: "Đóng học phí"]
-        │                  │
-        │                  ▼ (pop bottom sheet, push screen)
-        │            [SCR-HS-TUITION: TUITION PAYMENT SCREEN]
-        │              ├── AppBar: "Thanh toán học phí"
-        │              ├── Student info card (tên + lớp)
-        │              ├── Danh sách bills (Unpaid + Paid)
-        │              │     └── Mỗi bill: Tên khoản, Số tiền, StatusPill
-        │              ├── Tổng chưa đóng
-        │              ├── [BUTTON: "Thanh toán"] (nếu có unpaid)
-        │              │         │
-        │              │         ▼
-        │              │    [BOTTOM SHEET: QR Code]
-        │              │      ├── Mã VietQR (mock)
-        │              │      ├── Số tiền + Nội dung CK
-        │              │      └── [BUTTON: "Xác nhận chuyển khoản"]
-        │              │            ├── bill.status → 'Đang xử lý'
-        │              │            ├── API: POST /api/tuition/pay
-        │              │            └── Ẩn thông báo học phí liên quan
-        │              │
-        │              └── "Lịch sử giao dịch" (Paid bills)
-        │
-        └──► [BUTTON 5: "Đơn từ & Biểu mẫu"]
+        └──► [BUTTON 4: "Đơn từ & Biểu mẫu"]
                   │
                   ▼
              [SCR-HS-FORMS: FORMS SCREEN]
@@ -312,17 +275,17 @@ Chung cho tất cả 3 actor: Login → Role Selection → AppShell.
 
 ```text
 ┌─────────────────────┬──────────────────────┬──────────────────────┐
-│     Chức năng        │   Phụ huynh (5 btn)  │   Học sinh (5 btn)   │
+│     Chức năng        │   Phụ huynh (5 btn)  │   Học sinh (4 btn)   │
 ├─────────────────────┼──────────────────────┼──────────────────────┤
 │ Thời khóa biểu      │         ✅            │         ✅            │
 │ Bảng điểm           │         ✅            │         ✅            │
 │ Chuyên cần          │         ✅            │         ✅            │
-│ Học phí (gộp TB)    │    ✅ (bottom sheet)  │    ✅ (bottom sheet)  │
+│ Học phí (gộp TB)    │    ✅ (bottom sheet)  │          ❌           │
 │ Đơn từ              │  LeaveRequest (xin nghỉ)│  FormsScreen (đăng ký CLB)│
 └─────────────────────┴──────────────────────┴──────────────────────┘
 
-Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
-  khi có học phí chưa đóng (giống nhau 100%)
+Học phí chỉ thuộc luồng phụ huynh. Tài khoản học sinh không xem hóa đơn,
+không nhận hướng dẫn chuyển khoản và không gửi xác nhận thanh toán.
 ```
 
 ---
@@ -475,8 +438,7 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
   │     └── HS thấy điểm mới trong GradesScreen
   │
   ├── Gửi nhắc nhở học phí → API POST /api/tuition/remind
-  │     ├── PH thấy tuition notification mới
-  │     └── HS thấy tuition notification mới
+  │     └── PH thấy tuition notification mới
   │
   └── Trả lời tin nhắn PH
         └── PH thấy reply trong Tab 1: Tin nhắn
@@ -629,11 +591,11 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
 ```text
 [CROSS-ACTOR: Học phí]
   │
-  ├── PH/HS thanh toán → API POST /api/tuition/pay
+  ├── PH thanh toán cho học sinh đã chọn → API POST /api/tuition/bills/{id}/payment-request
   │     └── TeacherTuitionScreen cập nhật trạng thái
   │
   └── GV gửi nhắc nhở → API POST /api/tuition/remind
-        └── PH/HS thấy tuition notification mới
+        └── PH thấy tuition notification mới
 ```
 
 ### Qua Đơn xin nghỉ
@@ -680,7 +642,7 @@ Pattern chung: Cả 2 đều dùng Bottom Sheet → Payment Screen
 | PH/HS | Attendance | Xem chuyên cần | `GET /api/attendance/{studentId}` | `attendance` |
 | PH | LeaveRequest | Tạo đơn | `POST /api/leave-requests` | `leave_requests` |
 | PH | Tuition | Xem TB học phí | `GET /api/notifications?tag=tuition` | `notifications` |
-| PH/HS | Tuition | Thanh toán | `POST /api/tuition/pay` | `payment_transactions`, `tuition_bills` |
+| PH | Tuition | Thanh toán cho học sinh | `POST /api/tuition/bills/{id}/payment-request` | `payment_transactions`, `tuition_bills` |
 | HS | Forms | Đăng ký CLB | `POST /api/clubs/register` | `club_registrations` |
 | GV | AssignedClasses | Xem lớp | `GET /api/classes` | `classes` |
 | GV | Attendance | Điểm danh | `POST /api/attendance` | `attendance` |

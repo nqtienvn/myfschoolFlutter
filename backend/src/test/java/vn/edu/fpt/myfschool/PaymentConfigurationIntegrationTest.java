@@ -55,7 +55,7 @@ class PaymentConfigurationIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(get("/api/payment-configurations/semesters/"
                 + otherSemester.getId())
-                .header("Authorization", authHeader(loginAsStudent1())))
+                .header("Authorization", authHeader(loginAsParent())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.academicYearId")
                 .value(otherYear.getId().intValue()))
@@ -72,6 +72,14 @@ class PaymentConfigurationIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", authHeader(loginAsParent())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void student_cannot_get_payment_configuration() throws Exception {
+        mockMvc.perform(get("/api/payment-configurations/semesters/"
+                + testSemester.getId())
+                .header("Authorization", authHeader(loginAsStudent1())))
+            .andExpect(status().isForbidden());
     }
 
     @Test

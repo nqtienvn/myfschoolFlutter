@@ -7,8 +7,6 @@ import 'package:myfschoolse1913/vn/edu/fpt/view/screens/student_models.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/attendance_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/grades_screen.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/schedule_screen.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/screens/tuition_payment_screen.dart';
-import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/widgets/app_bottom_sheet.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/academic_period_scope.dart';
@@ -25,14 +23,10 @@ class HomeStudent extends StatefulWidget {
 
 class _HomeStudentState extends State<HomeStudent> {
   late final BackendApiClient _backend = widget.backend ?? BackendApiClient();
-  late final TuitionBillApiClient _tuitionApi = TuitionBillApiClient(
-    backend: _backend,
-  );
   late final DashboardApiClient _dashboardApi = DashboardApiClient(
     backend: _backend,
   );
   StudentDashboardStatsDto? _dashboard;
-  List<TuitionBill> _tuitionBills = const [];
   String? _loadedPeriodKey;
   int _loadGeneration = 0;
   bool _dashboardLoading = true;
@@ -85,28 +79,20 @@ class _HomeStudentState extends State<HomeStudent> {
       _dashboardLoading = true;
       _dashboardError = null;
       _dashboard = null;
-      _tuitionBills = const [];
     });
     try {
-      final results = await Future.wait<Object?>([
-        _dashboardApi.getStudentStats(
-          token: session.token,
-          academicYearId: period.academicYearId,
-          semesterId: period.semesterId,
-        ),
-        _loadTuitionSafely(session.token, period.semesterId),
-      ]);
+      final dashboard = await _dashboardApi.getStudentStats(
+        token: session.token,
+        academicYearId: period.academicYearId,
+        semesterId: period.semesterId,
+      );
       if (!_isCurrentLoad(generation, requestKey, requestedToken)) return;
-      setState(() {
-        _dashboard = results[0] as StudentDashboardStatsDto;
-        _tuitionBills = results[1] as List<TuitionBill>;
-      });
+      setState(() => _dashboard = dashboard);
     } catch (error) {
       if (_isCurrentLoad(generation, requestKey, requestedToken)) {
         setState(() {
           _dashboardError = error.toString().replaceAll('Exception: ', '');
           _dashboard = null;
-          _tuitionBills = const [];
         });
       }
     } finally {
@@ -125,123 +111,6 @@ class _HomeStudentState extends State<HomeStudent> {
       generation == _loadGeneration &&
       _loadedPeriodKey == requestKey &&
       widget.authService.currentSession?.token == requestedToken;
-
-  Future<List<TuitionBill>> _loadTuitionSafely(
-    String token,
-    int semesterId,
-  ) async {
-    try {
-      return await _tuitionApi.getStudentBills(
-        token: token,
-        semesterId: semesterId,
-      );
-    } catch (_) {
-      return const [];
-    }
-  }
-
-  void _showStudentTuitionAlertSheet(BuildContext context) {
-    final student = _student;
-    if (student == null) return;
-    final unpaidSum = _tuitionBills
-        .where((bill) => bill.status == 'Chưa đóng')
-        .fold(0, (sum, bill) => sum + bill.amount);
-    final isPaid = unpaidSum == 0;
-    final period = AcademicPeriodScope.maybeOf(context)?.selected;
-    final hasBills = _tuitionBills.isNotEmpty;
-
-    showAppBottomSheet(
-      context: context,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Thông tin & Cảnh báo học phí',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isPaid ? AppColors.successSoft : AppColors.dangerSoft,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isPaid
-                      ? 'ĐÃ HOÀN THÀNH HỌC PHÍ'
-                      : 'CÒN KHOẢN HỌC PHÍ CHƯA ĐÓNG',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: isPaid ? AppColors.success : AppColors.danger,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  isPaid
-                      ? hasBills
-                            ? 'Học sinh ${student.name} đã hoàn thành học phí ${period?.label ?? ''}.'
-                            : 'Không có khoản học phí nào trong ${period?.label ?? 'học kỳ đã chọn'}.'
-                      : 'Học sinh ${student.name} còn khoản học phí chưa thanh toán trong ${period?.label ?? 'học kỳ đã chọn'}.\nTổng số tiền: ${unpaidSum.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]}.")} đ.',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.ink,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (hasBills) ...[
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.of(context)
-                      .push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => TuitionPaymentScreen(
-                            student: student,
-                            token: widget.authService.currentSession!.token,
-                            viewAsStudent: true,
-                          ),
-                        ),
-                      )
-                      .then((_) {
-                        if (period != null) _loadPeriod(period);
-                      });
-                },
-                icon: const Icon(Icons.account_balance_wallet_outlined),
-                label: const Text(
-                  'Đóng học phí',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.fptOrange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -389,100 +258,75 @@ class _HomeStudentState extends State<HomeStudent> {
 
                   // Learning Utilities Grid
                   const SectionHeader(title: 'Tiện ích học tập cá nhân'),
-                  Builder(
-                    builder: (context) {
-                      final unpaidSum = _tuitionBills
-                          .where((bill) => bill.status == 'Chưa đóng')
-                          .fold(0, (sum, bill) => sum + bill.amount);
-                      return GridView.count(
-                        crossAxisCount: 2,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        mainAxisSpacing: AppSpacing.md,
-                        crossAxisSpacing: AppSpacing.md,
-                        childAspectRatio: 1.4,
-                        children: [
-                          _FeatureButton(
-                            title: 'Thời khóa biểu',
-                            icon: Icons.calendar_month,
-                            iconColor: AppColors.fptOrange,
-                            iconBgColor: AppColors.primarySoft,
-                            onTap: () {
-                              final session =
-                                  widget.authService.currentSession!;
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => ScheduleScreen(
-                                    service: ScheduleService(
-                                      apiClient: ScheduleApiClient(
-                                        backend: BackendApiClient(),
-                                      ),
-                                      token: session.token,
-                                    ),
-                                    mode: ScheduleViewMode.student,
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: AppSpacing.md,
+                    crossAxisSpacing: AppSpacing.md,
+                    childAspectRatio: 1.4,
+                    children: [
+                      _FeatureButton(
+                        title: 'Thời khóa biểu',
+                        icon: Icons.calendar_month,
+                        iconColor: AppColors.fptOrange,
+                        iconBgColor: AppColors.primarySoft,
+                        onTap: () {
+                          final session = widget.authService.currentSession!;
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ScheduleScreen(
+                                service: ScheduleService(
+                                  apiClient: ScheduleApiClient(
+                                    backend: BackendApiClient(),
                                   ),
+                                  token: session.token,
                                 ),
-                              );
-                            },
-                          ),
-                          _FeatureButton(
-                            title: 'Bảng điểm',
-                            icon: Icons.school,
-                            iconColor: AppColors.blue,
-                            iconBgColor: AppColors.blueSoft,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => GradesScreen(
-                                    token: widget
-                                        .authService
-                                        .currentSession!
-                                        .token,
-                                    studentName: widget
-                                        .authService
-                                        .currentSession!
-                                        .userName,
-                                    authService: widget.authService,
-                                    backendApiClient: _backend,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          _FeatureButton(
-                            title: 'Chuyên cần',
-                            icon: Icons.check_circle,
-                            iconColor: AppColors.teal,
-                            iconBgColor: AppColors.tealSoft,
-                            onTap: () {
-                              if (student == null) return;
-                              final session =
-                                  widget.authService.currentSession!;
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => StudentAttendanceScreen(
-                                    student: student,
-                                    token: session.token,
-                                    viewAsStudent: true,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          _FeatureButton(
-                            title: 'Học phí',
-                            icon: Icons.account_balance_wallet_outlined,
-                            iconColor: unpaidSum > 0
-                                ? AppColors.danger
-                                : AppColors.success,
-                            iconBgColor: unpaidSum > 0
-                                ? AppColors.dangerSoft
-                                : AppColors.successSoft,
-                            onTap: () => _showStudentTuitionAlertSheet(context),
-                          ),
-                        ],
-                      );
-                    },
+                                mode: ScheduleViewMode.student,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      _FeatureButton(
+                        title: 'Bảng điểm',
+                        icon: Icons.school,
+                        iconColor: AppColors.blue,
+                        iconBgColor: AppColors.blueSoft,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => GradesScreen(
+                                token: widget.authService.currentSession!.token,
+                                studentName:
+                                    widget.authService.currentSession!.userName,
+                                authService: widget.authService,
+                                backendApiClient: _backend,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      _FeatureButton(
+                        title: 'Chuyên cần',
+                        icon: Icons.check_circle,
+                        iconColor: AppColors.teal,
+                        iconBgColor: AppColors.tealSoft,
+                        onTap: () {
+                          if (student == null) return;
+                          final session = widget.authService.currentSession!;
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => StudentAttendanceScreen(
+                                student: student,
+                                token: session.token,
+                                viewAsStudent: true,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
