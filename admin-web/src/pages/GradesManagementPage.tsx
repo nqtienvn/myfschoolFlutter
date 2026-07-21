@@ -5,10 +5,8 @@ import { getClasses } from '../api/class';
 import {
   calculateSemesterResults,
   calculateSubjectAverages,
-  changeGradeBookStatus,
   getGradeBook,
   getGradeBookStudents,
-  publishGradeItem,
   updateScores,
 } from '../api/gradeBook';
 import type { AssessmentType, GradeEntryRole } from '../api/gradeConfiguration';
@@ -255,16 +253,7 @@ export default function GradesManagementPage({
     beginAction(); setSavingItemId(item.id);
     try {
       await updateScores(item.id, entries, `Admin cập nhật đầu điểm ${item.name}`);
-      await loadGradeBook(); setMessage(`Đã lưu cột ${item.name}.`);
-    } catch (cause) { showError(cause); } finally { setSavingItemId(null); }
-  }
-
-  async function publishItem(item: GradeItem) {
-    if (!book) return;
-    beginAction(); setSavingItemId(item.id);
-    try {
-      await publishGradeItem(book.id, item.id); await loadGradeBook();
-      setMessage(`Đã công bố ${item.name} cho học sinh và phụ huynh.`);
+      await loadGradeBook(); setMessage(`Đã lưu và công bố cột ${item.name}.`);
     } catch (cause) { showError(cause); } finally { setSavingItemId(null); }
   }
 
@@ -283,13 +272,6 @@ export default function GradesManagementPage({
       setSummary(await getResultSummary(selectedYearId, selectedSemesterId, classId));
       setMessage(`Đã tính kết quả cho ${result?.updated ?? 0} học sinh. Xếp mức theo kết quả từng môn.`);
     } catch (cause) { showError(cause); } finally { setBusy(false); }
-  }
-
-  async function publishWholeBook() {
-    if (!book) return;
-    beginAction(); setBusy(true);
-    try { await changeGradeBookStatus(book.id, 'PUBLISHED'); await loadGradeBook(); setMessage('Đã công bố toàn bộ bảng điểm môn.'); }
-    catch (cause) { showError(cause); } finally { setBusy(false); }
   }
 
   function subjectComment(studentId: number) {
@@ -434,7 +416,7 @@ export default function GradesManagementPage({
     {error && <div className="notice error" role="alert">{error}</div>}
     {message && <div className="notice success">{message}</div>}
     {locked && <div className="result-lock-banner">
-      <span aria-hidden="true">✓</span><div><strong>Kết quả đã hoàn thành</strong><p>Dữ liệu được khóa ở chế độ chỉ xem. Import, sửa, tính lại và công bố lại đã bị vô hiệu hóa.</p></div>
+      <span aria-hidden="true">✓</span><div><strong>Kết quả đã hoàn thành</strong><p>Dữ liệu được khóa ở chế độ chỉ xem. Import, sửa và tính lại đã bị vô hiệu hóa.</p></div>
     </div>}
 
     <section className="panel result-toolbar">
@@ -471,16 +453,14 @@ export default function GradesManagementPage({
       </nav>
 
       {section === 'grades' && <section className="panel result-panel">
-        <div className="result-panel-heading"><div><h2>Điểm thành phần</h2><p>Cột điểm sinh từ cấu hình năm học; ô số chưa nhập hiển thị 0 để Admin đối soát.</p></div>
+        <div className="result-panel-heading"><div><h2>Điểm thành phần</h2><p>Cột điểm sinh từ cấu hình năm học; mỗi lần lưu sẽ công bố ngay cho phụ huynh và học sinh.</p></div>
           {book && <div className="monitoring-actions"><span className={`badge-status ${book.status === 'LOCKED' ? 'completed' : 'active'}`}>{book.status}</span>
-            <button className="secondary-button" disabled={busy} onClick={calculateSubject}>Tính ĐTB môn</button>
-            <button disabled={locked || busy} onClick={publishWholeBook}>Công bố môn</button></div>}</div>
+            <button className="secondary-button" disabled={busy} onClick={calculateSubject}>Tính ĐTB môn</button></div>}</div>
         {!book ? <div className="result-empty"><span>01</span><strong>Chọn lớp và môn, sau đó mở bảng điểm</strong><p>Admin sẽ thấy cả điểm giáo viên đã nhập và các cột mình phụ trách.</p></div> : <>
           <div className="result-formula">Công thức cấu hình: {numericItems.length ? numericItems.map(item => `${item.name} × ${item.weight}`).join(' + ') : 'Không có đầu điểm số'}</div>
           <div className="table-responsive"><table className="result-grade-table"><thead><tr><th>Học sinh</th>{book.items.map(item => <th key={item.id}>
             <span>{item.name}</span><small>{assessmentLabel[item.assessmentType]} · HS {item.weight}</small>
-            <div className="grade-column-actions">{canAdminEdit(item) && <button className="secondary-button" disabled={savingItemId === item.id} onClick={() => saveItem(item)}>Lưu</button>}
-              <button disabled={locked || savingItemId === item.id} onClick={() => publishItem(item)}>Công bố</button></div></th>)}<th>ĐTB</th><th>Nhận xét GVBM</th></tr></thead>
+            <div className="grade-column-actions">{canAdminEdit(item) && <button className="secondary-button" disabled={savingItemId === item.id} onClick={() => saveItem(item)}>Lưu &amp; công bố</button>}</div></th>)}<th>ĐTB</th><th>Nhận xét GVBM</th></tr></thead>
             <tbody>{pageOf(students, gradePage).map(student => <tr key={student.id}><td><strong>{student.name}</strong><small>{student.code}</small></td>{book.items.map(item => {
               const value = student.values[item.id] || { score: null, comment: null, isGraded: false };
               const disabled = !canAdminEdit(item);

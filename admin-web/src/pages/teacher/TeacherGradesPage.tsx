@@ -4,7 +4,7 @@ import {
   getTeacherAssignments,
   getTeacherGradeBook,
   getTeacherGradeStudents,
-  saveTeacherScores,
+  submitTeacherScores,
 } from '../../api/teacher';
 import { useTeacherAcademic } from '../../teacher/TeacherAcademicContext';
 
@@ -59,7 +59,7 @@ export default function TeacherGradesPage() {
   const canEdit = (item: GradeItem) => book?.status !== 'LOCKED'
     && (item.entryRole === 'SUBJECT_TEACHER' || item.entryRole === 'SUBJECT_TEACHER_AND_ADMIN');
 
-  async function saveItem(item: GradeItem) {
+  async function submitItem(item: GradeItem) {
     if (!book) return;
     setBusyItem(item.id); setError(''); setMessage('');
     try {
@@ -72,9 +72,9 @@ export default function TeacherGradesPage() {
           isGraded: item.assessmentType === 'SCORE' ? value?.score != null : !!value?.comment?.trim(),
         };
       });
-      await saveTeacherScores(item.id, entries);
+      await submitTeacherScores(item.id, entries);
       setScores(await getTeacherGradeStudents(book.id) as Score[]);
-      setMessage(`Đã lưu ${item.name}. Điểm sẽ hiển thị cho PH/HS sau khi Admin công bố.`);
+      setMessage(`Đã submit ${item.name}. Điểm hiện đã hiển thị cho phụ huynh và học sinh.`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không lưu được điểm.'); }
     finally { setBusyItem(null); }
   }
@@ -106,15 +106,15 @@ export default function TeacherGradesPage() {
             : comment;
           return { studentId: student.id, score: null, comment: normalized || null, isGraded: !!normalized };
         });
-        await saveTeacherScores(item.id, entries); updatedColumns++;
+        await submitTeacherScores(item.id, entries); updatedColumns++;
       }
       setScores(await getTeacherGradeStudents(book.id) as Score[]);
-      setMessage(`Đã nhập ${updatedColumns} cột từ ${file.name}.`);
+      setMessage(`Đã nhập và công bố ${updatedColumns} cột từ ${file.name}.`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'File không đúng định dạng.'); }
   }
 
   return <main className="teacher-page page-stack">
-    <div className="page-heading"><div><span className="eyebrow">Lớp giảng dạy</span><h1>Nhập điểm</h1><p>Nhập trực tiếp trên lưới hoặc upload Excel/CSV; Admin công bố điểm linh hoạt theo từng đầu điểm.</p></div></div>
+    <div className="page-heading"><div><span className="eyebrow">Lớp giảng dạy</span><h1>Nhập điểm</h1><p>Nhập trực tiếp trên lưới hoặc upload Excel/CSV; khi submit, điểm được công bố ngay cho phụ huynh và học sinh.</p></div></div>
     {error && <div className="notice error">{error}</div>}{message && <div className="notice success">{message}</div>}
     <section className="panel teacher-filter-row">
       <label>Lớp · Môn<select value={assignmentKey} onChange={event => { setAssignmentKey(event.target.value); setBook(null); }}><option value="">Chọn phân công</option>{assignments.map(item => <option key={`${item.classId}:${item.subjectId}`} value={`${item.classId}:${item.subjectId}`}>{item.className} · {item.subjectName}</option>)}</select></label>
@@ -123,7 +123,7 @@ export default function TeacherGradesPage() {
     </section>
     {book && <section className="panel">
       <div className="monitoring-actions"><h2>{book.className} · {book.subjectName}</h2><span className="badge-status active">{book.status}</span></div>
-      <div className="table-responsive"><table className="teacher-grades-table"><thead><tr><th>Học sinh</th>{book.items.map(item => <th key={item.id}>{item.name}<small className="table-subtext">{item.assessmentType}{item.assessmentType === 'SCORE' ? ` · HS ${item.weight}` : ''}</small>{canEdit(item) && <button disabled={busyItem === item.id} onClick={() => saveItem(item)}>{busyItem === item.id ? 'Đang lưu…' : 'Lưu cột'}</button>}</th>)}<th>ĐTB</th></tr></thead><tbody>{students.map(student => <tr key={student.id}><td><strong>{student.name}</strong><small className="table-subtext">{student.code}</small></td>{book.items.map(item => { const value = student.values[item.id]; const disabled = !canEdit(item); return <td key={item.id}>{item.assessmentType === 'SCORE' ? <input type="number" min="0" max="10" step="0.1" disabled={disabled} value={value?.score ?? ''} onChange={event => patchScore(student.id, item.id, { score: event.target.value === '' ? null : Number(event.target.value), isGraded: !!event.target.value })}/> : item.assessmentType === 'PASS_FAIL' ? <select disabled={disabled} value={value?.comment || ''} onChange={event => patchScore(student.id, item.id, { comment: event.target.value || null, isGraded: !!event.target.value })}><option value="">—</option><option value="PASS">Đạt</option><option value="FAIL">Chưa đạt</option></select> : <textarea rows={2} disabled={disabled} value={value?.comment || ''} onChange={event => patchScore(student.id, item.id, { comment: event.target.value, isGraded: !!event.target.value.trim() })}/>}</td>; })}<td><strong>{student.average ?? '—'}</strong></td></tr>)}</tbody></table></div>
+      <div className="table-responsive"><table className="teacher-grades-table"><thead><tr><th>Học sinh</th>{book.items.map(item => <th key={item.id}>{item.name}<small className="table-subtext">{item.assessmentType}{item.assessmentType === 'SCORE' ? ` · HS ${item.weight}` : ''}</small>{canEdit(item) && <button disabled={busyItem === item.id} onClick={() => submitItem(item)}>{busyItem === item.id ? 'Đang submit…' : 'Submit & công bố'}</button>}</th>)}<th>ĐTB</th></tr></thead><tbody>{students.map(student => <tr key={student.id}><td><strong>{student.name}</strong><small className="table-subtext">{student.code}</small></td>{book.items.map(item => { const value = student.values[item.id]; const disabled = !canEdit(item); return <td key={item.id}>{item.assessmentType === 'SCORE' ? <input type="number" min="0" max="10" step="0.1" disabled={disabled} value={value?.score ?? ''} onChange={event => patchScore(student.id, item.id, { score: event.target.value === '' ? null : Number(event.target.value), isGraded: !!event.target.value })}/> : item.assessmentType === 'PASS_FAIL' ? <select disabled={disabled} value={value?.comment || ''} onChange={event => patchScore(student.id, item.id, { comment: event.target.value || null, isGraded: !!event.target.value })}><option value="">—</option><option value="PASS">Đạt</option><option value="FAIL">Chưa đạt</option></select> : <textarea rows={2} disabled={disabled} value={value?.comment || ''} onChange={event => patchScore(student.id, item.id, { comment: event.target.value, isGraded: !!event.target.value.trim() })}/>}</td>; })}<td><strong>{student.average ?? '—'}</strong></td></tr>)}</tbody></table></div>
     </section>}
   </main>;
 }

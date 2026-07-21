@@ -7,12 +7,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MvcResult;
 import vn.edu.fpt.myfschool.common.enums.AssessmentType;
 import vn.edu.fpt.myfschool.repository.AcademicYearGradeConfigItemRepository;
+import vn.edu.fpt.myfschool.repository.GradeBookRepository;
+import vn.edu.fpt.myfschool.repository.StudentScoreRepository;
 import vn.edu.fpt.myfschool.repository.StudentScoreAuditRepository;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class GradeBookIntegrationTest extends BaseIntegrationTest {
     @Autowired AcademicYearGradeConfigItemRepository configItemRepository;
+    @Autowired GradeBookRepository gradeBookRepository;
+    @Autowired StudentScoreRepository studentScoreRepository;
     @Autowired StudentScoreAuditRepository scoreAuditRepository;
 
     @BeforeEach void applySubjectToYear() {
@@ -42,34 +46,71 @@ class GradeBookIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(token)).contentType(MediaType.APPLICATION_JSON).content(scores(adminItem,8,6))).andExpect(status().isUnauthorized());
     }
 
-    @Test void component_publication_never_leaks_draft_or_edited_scores() throws Exception {
-        String teacherToken=loginAsTeacher();var data=book(teacherToken);Long bookId=data.get("id").asLong();
-        Long firstItem=data.get("items").get(0).get("id").asLong();Long secondItem=data.get("items").get(1).get("id").asLong();
+    @Test void teacher_submit_publishes_new_and_edited_scores_to_student_and_parent_immediately() throws Exception {
+        String teacherToken=loginAsTeacher();var data=book(teacherToken);
+        Long firstItem=data.get("items").get(0).get("id").asLong();
         mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(teacherToken)).contentType(MediaType.APPLICATION_JSON).content(scores(firstItem,8,6))).andExpect(status().isOk());
-        mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(teacherToken)).contentType(MediaType.APPLICATION_JSON).content(scores(secondItem,7,5))).andExpect(status().isOk());
+        mockMvc.perform(get("/api/grade-books").header("Authorization",authHeader(teacherToken))
+                .param("classId",testClass.getId().toString()).param("subjectId",testSubject.getId().toString()).param("semesterId",testSemester.getId().toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("PUBLISHED"));
 
-        String adminToken=loginAsAdmin();
-        mockMvc.perform(post("/api/grade-books/{bookId}/items/{itemId}/publish",bookId,firstItem)
-                .header("Authorization",authHeader(adminToken))).andExpect(status().isOk());
+        var legacyScore=studentScoreRepository.findByGradeItemIdAndStudentId(firstItem,testStudent1.getId()).orElseThrow();
+        legacyScore.setPublishedAt(null);studentScoreRepository.save(legacyScore);
+        var legacyBook=gradeBookRepository.findById(data.get("id").asLong()).orElseThrow();
+        legacyBook.setStatus(vn.edu.fpt.myfschool.common.enums.GradeBookStatus.DRAFT);gradeBookRepository.save(legacyBook);
+
         String studentToken=loginAsStudent1();
         mockMvc.perform(get("/api/transcripts/me").header("Authorization",authHeader(studentToken))
                 .param("academicYearId",testAcademicYear.getId().toString()).param("semesterId",testSemester.getId().toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.subjects[0].scores[0].score").value(8))
             .andExpect(jsonPath("$.data.subjects[0].scores[1].score").doesNotExist());
-
-        mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(teacherToken)).contentType(MediaType.APPLICATION_JSON).content(scores(firstItem,9,6))).andExpect(status().isOk());
-        mockMvc.perform(get("/api/transcripts/me").header("Authorization",authHeader(studentToken))
+        mockMvc.perform(get("/api/transcripts/students/{studentId}",testStudent1.getId())
+                .header("Authorization",authHeader(loginAsParent()))
                 .param("academicYearId",testAcademicYear.getId().toString()).param("semesterId",testSemester.getId().toString()))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.data.subjects[0].scores[0].score").doesNotExist());
-        mockMvc.perform(post("/api/grade-books/{bookId}/items/{itemId}/publish",bookId,firstItem)
-                .header("Authorization",authHeader(adminToken))).andExpect(status().isOk());
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.subjects[0].scores[0].score").value(8));
+        mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(teacherToken)).contentType(MediaType.APPLICATION_JSON).content(scores(firstItem,9,6))).andExpect(status().isOk());
         mockMvc.perform(get("/api/transcripts/me").header("Authorization",authHeader(studentToken))
                 .param("academicYearId",testAcademicYear.getId().toString()).param("semesterId",testSemester.getId().toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.subjects[0].scores[0].score").value(9));
     }
 
-    @Test void published_or_locked_book_requires_all_mandatory_scores() throws Exception {
+    @Test void transcript_uses_year_configuration_for_full_empty_table_and_rejects_cross_year_scope() throws Exception {
+        var physics=new vn.edu.fpt.myfschool.entity.Subject();physics.setName("Vật lý");physics.setCode("VATLY12");physics=subjectRepository.save(physics);
+        var appliedPhysics=new vn.edu.fpt.myfschool.entity.AcademicYearSubject();appliedPhysics.setAcademicYear(testAcademicYear);appliedPhysics.setSubject(physics);academicYearSubjectRepository.save(appliedPhysics);
+
+        String studentToken=loginAsStudent1();
+        mockMvc.perform(get("/api/transcripts/me").header("Authorization",authHeader(studentToken))
+                .param("academicYearId",testAcademicYear.getId().toString()).param("semesterId",testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.subjects.length()").value(2))
+            .andExpect(jsonPath("$.data.subjects[0].subjectName").value("Toán"))
+            .andExpect(jsonPath("$.data.subjects[0].scores.length()").value(4))
+            .andExpect(jsonPath("$.data.subjects[0].scores[0].code").value("TX_1"))
+            .andExpect(jsonPath("$.data.subjects[0].scores[1].code").value("TX_2"))
+            .andExpect(jsonPath("$.data.subjects[0].scores[2].code").value("GK_1"))
+            .andExpect(jsonPath("$.data.subjects[0].scores[0].score").doesNotExist())
+            .andExpect(jsonPath("$.data.subjects[0].scores[0].isGraded").value(false))
+            .andExpect(jsonPath("$.data.subjects[1].subjectName").value("Vật lý"))
+            .andExpect(jsonPath("$.data.subjects[1].scores.length()").value(4));
+
+        var otherYear=new vn.edu.fpt.myfschool.entity.AcademicYear();otherYear.setName("2027-2028");
+        otherYear.setStartDate(java.time.LocalDate.of(2027,8,1));otherYear.setEndDate(java.time.LocalDate.of(2028,5,31));
+        otherYear.setStatus(vn.edu.fpt.myfschool.common.enums.AcademicYearStatus.DRAFT);otherYear=academicYearRepository.save(otherYear);
+        var otherSemester=new vn.edu.fpt.myfschool.entity.Semester();otherSemester.setName("HK I");otherSemester.setOrder(1);
+        otherSemester.setStartDate(java.time.LocalDate.of(2027,9,1));otherSemester.setEndDate(java.time.LocalDate.of(2028,1,15));
+        otherSemester.setIsCurrent(false);otherSemester.setAcademicYear(otherYear);otherSemester=semesterRepository.save(otherSemester);
+
+        mockMvc.perform(get("/api/transcripts/me").header("Authorization",authHeader(studentToken))
+                .param("academicYearId",testAcademicYear.getId().toString()).param("semesterId",otherSemester.getId().toString()))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/grade-books").header("Authorization",authHeader(loginAsAdmin()))
+                .param("classId",testClass.getId().toString()).param("subjectId",testSubject.getId().toString()).param("semesterId",otherSemester.getId().toString()))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test void admin_cannot_publish_and_cannot_lock_incomplete_book() throws Exception {
         String token=loginAsAdmin();var data=book(token);Long id=data.get("id").asLong();
+        mockMvc.perform(post("/api/grade-books/"+id+"/status/PUBLISHED").header("Authorization",authHeader(token))).andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/grade-books/"+id+"/status/LOCKED").header("Authorization",authHeader(token))).andExpect(status().isConflict());
     }
 
@@ -115,11 +156,6 @@ class GradeBookIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization",authHeader(adminToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(scoresForRoster(scoreItem,9,7,8)))
-            .andExpect(status().isOk());
-
-        Long bookId=data.get("id").asLong();
-        mockMvc.perform(post("/api/grade-books/"+bookId+"/status/PUBLISHED")
-                .header("Authorization",authHeader(adminToken)))
             .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/transcripts/me")

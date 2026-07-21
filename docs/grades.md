@@ -12,13 +12,15 @@ Mỗi đầu điểm có mã, tên, hệ số, số lượng, loại đánh giá
 - Giáo viên phải có phân công `ACTIVE` đúng lớp/môn và chỉ nhập đầu điểm `SUBJECT_TEACHER` hoặc `SUBJECT_TEACHER_AND_ADMIN`.
 - Admin chỉ nhập đầu điểm `ADMIN` hoặc `SUBJECT_TEACHER_AND_ADMIN`.
 - Học sinh chỉ xem chính mình; phụ huynh chỉ xem học sinh có liên kết giám hộ.
-- Phụ huynh/học sinh chỉ nhận bảng điểm `PUBLISHED` hoặc `LOCKED`.
+- `PUT /api/grade-books/scores` là thao tác submit: điểm hợp lệ được công bố ngay cho phụ huynh/học sinh trong cùng giao dịch, không qua bước duyệt của admin.
+- Admin không công bố điểm thay giáo viên; admin chỉ được nhập các đầu điểm thuộc quyền mình và khóa sổ khi dữ liệu bắt buộc đã đủ.
+- Transcript luôn dựng đủ danh sách môn áp dụng và toàn bộ đầu điểm từ cấu hình năm học. Môn hoặc đầu điểm chưa có dữ liệu vẫn có trong response với giá trị trống.
 
 ## Tính điểm và trạng thái
 
-Điểm trung bình môn học kỳ được tính bằng `sum(score * weight) / sum(weight)`, làm tròn `HALF_UP` một chữ số ở kết quả. Khi nhập trực tiếp, ô chưa nhập vẫn là dữ liệu thiếu và không thể công bố nếu đó là đầu điểm bắt buộc. Riêng luồng import Excel của admin chuẩn hóa ô điểm số để trống thành `0` theo nghiệp vụ đối soát; giao diện quản lý kết quả cũng hiển thị ô chưa có dữ liệu là `0` nhưng không âm thầm ghi dữ liệu vào cơ sở dữ liệu.
+Điểm trung bình môn học kỳ được tính bằng `sum(score * weight) / sum(weight)`, làm tròn `HALF_UP` một chữ số ở kết quả. Khi nhập trực tiếp, ô chưa nhập vẫn là dữ liệu thiếu và được hiển thị trống trên ứng dụng. Riêng luồng import Excel của admin chuẩn hóa ô điểm số để trống thành `0` theo nghiệp vụ đối soát; giao diện quản lý kết quả cũng hiển thị ô chưa có dữ liệu là `0` nhưng không âm thầm ghi dữ liệu vào cơ sở dữ liệu.
 
-Trạng thái GradeBook: `DRAFT -> SUBMITTED -> PUBLISHED -> LOCKED`. Mọi thay đổi điểm được ghi vào `student_score_audits` với người sửa, điểm cũ, điểm mới, lý do và thời gian.
+Trạng thái GradeBook: `DRAFT -> PUBLISHED -> LOCKED`. Submit đầu điểm chuyển sổ sang `PUBLISHED`; admin chỉ có thể chuyển sang `LOCKED` sau khi mọi đầu điểm bắt buộc đã đủ. Mọi thay đổi điểm được ghi vào `student_score_audits` với người sửa, điểm cũ, điểm mới, lý do và thời gian.
 
 ## API chính
 
@@ -26,7 +28,7 @@ Trạng thái GradeBook: `DRAFT -> SUBMITTED -> PUBLISHED -> LOCKED`. Mọi thay
 - `GET /api/grade-configurations/academic-years/{yearId}`
 - `GET /api/grade-books?classId=&subjectId=&semesterId=`
 - `PUT /api/grade-books/scores`
-- `POST /api/grade-books/{id}/status/{status}`
+- `POST /api/grade-books/{id}/status/LOCKED`
 - `GET /api/transcripts/students/{studentId}?academicYearId=&semesterId=`
 - `GET /api/result-files/template?academicYearId=&semesterId=&classId=&subjectId=`
 - `POST /api/result-files/import?academicYearId=&semesterId=&classId=&subjectId=`

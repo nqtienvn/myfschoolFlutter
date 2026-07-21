@@ -28,8 +28,8 @@ export const getTeacherAssignments = (academicYearId: number) =>
 export const getTeacherGradeBook = (classId: number, subjectId: number, semesterId: number) =>
   teacherApiFetch(`/grade-books?classId=${classId}&subjectId=${subjectId}&semesterId=${semesterId}`);
 export const getTeacherGradeStudents = (bookId: number) => teacherApiFetch(`/grade-books/${bookId}/students`);
-export const saveTeacherScores = (gradeItemId: number, entries: unknown[]) => teacherApiFetch('/grade-books/scores', {
-  method: 'PUT', body: JSON.stringify({ gradeItemId, entries, reason: 'Giáo viên cập nhật điểm trên Web Portal' }),
+export const submitTeacherScores = (gradeItemId: number, entries: unknown[]) => teacherApiFetch('/grade-books/scores', {
+  method: 'PUT', body: JSON.stringify({ gradeItemId, entries, reason: 'Giáo viên submit và công bố điểm trên Web Portal' }),
 });
 
 export const getReviewAssignments = (academicYearId: number) =>

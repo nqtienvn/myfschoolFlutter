@@ -255,11 +255,10 @@ Trên giao diện Admin Web, thay vì trang Quản lý điểm đơn lẻ, Admin
 Phân hệ này được chia làm các tiểu mục (Sub-tab/Section) để Admin dễ dàng nhập liệu và kiểm duyệt:
 
 - **Mục 1: Quản lý Điểm & Nhận xét môn (Grades & Subject Comments)**:
-  - Hiển thị bảng điểm chi tiết của từng lớp, từng môn (miệng, 15p, 1 tiết, học kỳ).
+  - Hiển thị bảng điểm chi tiết của từng lớp, từng môn với toàn bộ đầu điểm động theo cấu hình năm học.
   - Tích hợp hiển thị **Nhận xét của GVBM** tương ứng ở mỗi môn học ngay bên cạnh điểm thi để Admin tiện theo dõi.
-  - Cho phép Admin công bố điểm **theo ngày / linh hoạt**:
-    - Khi GVBM nhập điểm đến đâu, Admin có thể nhấn công bố điểm thành phần đó ngay lập tức (không bắt buộc phải đợi cuối kỳ).
-    - Phụ huynh và học sinh sẽ cập nhật được điểm thành phần trên App Mobile theo thời gian thực để theo dõi.
+  - Khi GVBM submit một đầu điểm, hệ thống lưu và công bố ngay cho phụ huynh/học sinh; Admin không có bước duyệt hoặc nút công bố điểm thay giáo viên.
+  - App Mobile luôn hiển thị đủ môn và đủ đầu điểm theo cấu hình năm học; ô chưa có dữ liệu để trống.
 - **Mục 2: Quản lý Vi phạm (Violations Management)**:
   - Admin xem danh sách các lỗi vi phạm của học sinh do GVCN gửi lên.
   - Cho phép Admin thêm, sửa, xóa lỗi vi phạm trực tiếp để đảm bảo tính chính xác trước khi tính hạnh kiểm.

@@ -43,11 +43,11 @@ public class GradeBookController {
 
     @PutMapping("/scores")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
-    @Operation(summary = "Cap nhat diem hang loat")
+    @Operation(summary = "Submit và công bố điểm cho học sinh, phụ huynh")
     public ResponseEntity<ApiResponse<List<StudentScoreDto>>> updateScores(
             @Valid @RequestBody UpdateStudentScoreRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
-                "Cap nhat diem thanh cong", gradeBookService.updateScores(request)));
+                "Đã lưu và công bố điểm", gradeBookService.updateScores(request)));
     }
 
     @GetMapping("/{id}/students")
@@ -60,20 +60,11 @@ public class GradeBookController {
 
     @PostMapping("/{id}/status/{status}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Công bố hoặc khóa bảng điểm")
+    @Operation(summary = "Khóa bảng điểm sau khi hoàn tất")
     public ResponseEntity<ApiResponse<Void>> changeStatus(@PathVariable Long id,
             @PathVariable vn.edu.fpt.myfschool.common.enums.GradeBookStatus status) {
         gradeBookService.changeStatus(id, status);
-        return ResponseEntity.ok(ApiResponse.success("Đã cập nhật trạng thái bảng điểm", null));
-    }
-
-    @PostMapping("/{id}/items/{itemId}/publish")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Công bố linh hoạt một đầu điểm đã nhập")
-    public ResponseEntity<ApiResponse<Void>> publishGradeItem(
-            @PathVariable Long id, @PathVariable Long itemId) {
-        gradeBookService.publishGradeItem(id, itemId);
-        return ResponseEntity.ok(ApiResponse.success("Đã công bố đầu điểm", null));
+        return ResponseEntity.ok(ApiResponse.success("Đã khóa bảng điểm", null));
     }
 
     @PostMapping("/{id}/calculate")

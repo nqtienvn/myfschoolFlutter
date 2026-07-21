@@ -18,7 +18,9 @@ public class TranscriptServiceImpl implements TranscriptService {
     private final StudentRepository students; private final ParentRepository parents;
     private final StudentGuardianRepository guardians; private final EnrollmentRepository enrollments;
     private final GradeBookRepository books; private final GradeItemRepository items;
-    private final StudentScoreRepository scores;
+    private final StudentScoreRepository scores; private final SemesterRepository semesters;
+    private final AcademicYearSubjectRepository yearSubjects;
+    private final AcademicYearGradeConfigItemRepository configItems;
 
     @Override public StudentTranscriptDto getMine(Long yearId,Long semesterId) {
         Student student=students.findByUserId(SecurityUtil.getCurrentUserId())
@@ -29,28 +31,52 @@ public class TranscriptServiceImpl implements TranscriptService {
     @Override public StudentTranscriptDto get(Long studentId,Long yearId,Long semesterId) {
         Student student=students.findById(studentId).orElseThrow(()->new ResourceNotFoundException("Student","id",studentId));
         authorize(studentId);
+        Semester semester=semesters.findById(semesterId).orElseThrow(()->new ResourceNotFoundException("Semester","id",semesterId));
+        if(!semester.getAcademicYear().getId().equals(yearId))throw new BadRequestException("Học kỳ không thuộc năm học đã chọn");
         Enrollment enrollment=enrollments.findByStudentIdAndAcademicYearIdAndStatus(studentId,yearId,EnrollmentStatus.ACTIVE)
             .orElseThrow(()->new ResourceNotFoundException("Enrollment","academicYearId",yearId));
+        Map<Long,GradeBook> booksBySubject=new HashMap<>();
+        for(GradeBook book:books.findByClsIdAndSemesterId(enrollment.getCls().getId(),semesterId))booksBySubject.put(book.getSubject().getId(),book);
+        Map<Long,StudentScore> scoresByItem=new HashMap<>();
+        for(StudentScore score:scores.findByStudentIdAndGradeItemGradeBookSemesterId(studentId,semesterId))scoresByItem.put(score.getGradeItem().getId(),score);
+        List<ConfiguredColumn> columns=configuredColumns(yearId);
+        List<Subject> appliedSubjects=yearSubjects.findByAcademicYearId(yearId).stream().map(AcademicYearSubject::getSubject)
+            .sorted(Comparator.comparing(Subject::getName,String.CASE_INSENSITIVE_ORDER).thenComparing(Subject::getId)).toList();
         List<TranscriptSubjectDto> subjects=new ArrayList<>();
-        for(GradeBook book:books.findByClsIdAndSemesterId(enrollment.getCls().getId(),semesterId)) {
-            if(book.getStatus()!=GradeBookStatus.PUBLISHED&&book.getStatus()!=GradeBookStatus.LOCKED) continue;
+        for(Subject subject:appliedSubjects) {
+            GradeBook book=booksBySubject.get(subject.getId());
+            Map<String,GradeItem> bookItems=new HashMap<>();
+            if(book!=null)for(GradeItem item:items.findByGradeBookIdOrderByOrderAsc(book.getId()))bookItems.put(item.getCode(),item);
             List<TranscriptScoreDto> values=new ArrayList<>(); BigDecimal sum=BigDecimal.ZERO; int totalWeight=0; boolean complete=true;
-            for(GradeItem item:items.findByGradeBookIdOrderByOrderAsc(book.getId())) {
-                StudentScore score=scores.findByGradeItemIdAndStudentId(item.getId(),studentId).orElse(null);
-                boolean published=score!=null&&score.getPublishedAt()!=null;
-                BigDecimal value=published?score.getScore():null;
-                String comment=published?score.getComment():null;
-                boolean graded=published&&Boolean.TRUE.equals(score.getIsGraded());
-                values.add(new TranscriptScoreDto(item.getId(),item.getCode(),item.getName(),item.getWeight(),item.getAssessmentType(),value,comment,graded));
-                boolean hasValue=graded&&(item.getAssessmentType()==AssessmentType.SCORE?value!=null:comment!=null&&!comment.isBlank());
-                if(Boolean.TRUE.equals(item.getRequiredEntry())&&!hasValue) complete=false;
-                if(value!=null&&item.getAssessmentType()==AssessmentType.SCORE){sum=sum.add(value.multiply(BigDecimal.valueOf(item.getWeight())));totalWeight+=item.getWeight();}
+            for(ConfiguredColumn column:columns) {
+                GradeItem item=bookItems.get(column.code());
+                StudentScore score=item==null?null:scoresByItem.get(item.getId());
+                boolean graded=score!=null&&Boolean.TRUE.equals(score.getIsGraded());
+                BigDecimal value=graded?score.getScore():null;
+                String comment=graded?score.getComment():null;
+                values.add(new TranscriptScoreDto(item==null?null:item.getId(),column.code(),column.name(),column.weight(),column.assessmentType(),value,comment,graded));
+                boolean hasValue=graded&&(column.assessmentType()==AssessmentType.SCORE?value!=null:comment!=null&&!comment.isBlank());
+                if(column.required()&&!hasValue)complete=false;
+                if(value!=null&&column.assessmentType()==AssessmentType.SCORE){sum=sum.add(value.multiply(BigDecimal.valueOf(column.weight())));totalWeight+=column.weight();}
             }
             BigDecimal average=totalWeight==0?null:sum.divide(BigDecimal.valueOf(totalWeight),1,RoundingMode.HALF_UP);
-            subjects.add(new TranscriptSubjectDto(book.getSubject().getId(),book.getSubject().getName(),values,average,complete));
+            subjects.add(new TranscriptSubjectDto(subject.getId(),subject.getName(),values,average,complete));
         }
         return new StudentTranscriptDto(studentId,student.getUser().getName(),yearId,semesterId,subjects);
     }
+
+    private List<ConfiguredColumn> configuredColumns(Long yearId){
+        List<ConfiguredColumn> columns=new ArrayList<>();
+        for(AcademicYearGradeConfigItem config:configItems.findByConfigAcademicYearIdOrderByDisplayOrderAsc(yearId)){
+            for(int index=1;index<=config.getQuantity();index++)columns.add(new ConfiguredColumn(
+                config.getCode()+"_"+index,
+                config.getDisplayName()+(config.getQuantity()>1?" "+index:""),
+                config.getWeight(),config.getAssessmentType(),Boolean.TRUE.equals(config.getRequiredEntry())));
+        }
+        return columns;
+    }
+
+    private record ConfiguredColumn(String code,String name,Integer weight,AssessmentType assessmentType,boolean required){}
 
     private void authorize(Long studentId) {
         UserRole role=SecurityUtil.getCurrentUserRole(); Long userId=SecurityUtil.getCurrentUserId();

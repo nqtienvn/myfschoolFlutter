@@ -202,7 +202,7 @@ class _GradesScreenState extends State<GradesScreen> {
                   const _SectionTitle(index: '02', title: 'Bảng điểm chi tiết'),
                   const SizedBox(height: 4),
                   const Text(
-                    'Vuốt ngang để xem toàn bộ đầu điểm và nhận xét giáo viên.',
+                    'Các cột theo đúng cấu hình năm học; ô chưa nhập được để trống. Vuốt ngang để xem toàn bộ.',
                     style: TextStyle(color: AppColors.muted, fontSize: 12),
                   ),
                   const SizedBox(height: 10),
@@ -212,7 +212,7 @@ class _GradesScreenState extends State<GradesScreen> {
                         padding: EdgeInsets.all(28),
                         child: Center(
                           child: Text(
-                            'Chưa có bảng điểm nào được nhà trường công bố.',
+                            'Năm học chưa được cấu hình môn học.',
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -368,6 +368,7 @@ class _AllSubjectsGradeTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final columns = _columnsFor(subjects);
     final rows = subjects
         .map(
           (subject) => _SubjectGradeRow(
@@ -403,15 +404,18 @@ class _AllSubjectsGradeTable extends StatelessWidget {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SizedBox(
-                width: 700,
+                width:
+                    columns.fold<double>(
+                      0,
+                      (total, column) => total + column.width,
+                    ) +
+                    340,
                 child: Column(
                   children: [
                     Row(
                       children: [
-                        _headerCell('Đ. miệng', width: 92),
-                        _headerCell('Đ. 15p', width: 92),
-                        _headerCell('Đ. 1 tiết', width: 92),
-                        _headerCell('Học kỳ', width: 84),
+                        for (final column in columns)
+                          _headerCell(column.name, width: column.width),
                         _headerCell('TBM', width: 70),
                         _headerCell('Nhận xét GV', width: 270),
                       ],
@@ -419,10 +423,12 @@ class _AllSubjectsGradeTable extends StatelessWidget {
                     for (final row in rows)
                       Row(
                         children: [
-                          _bodyCell(row.oral, width: 92),
-                          _bodyCell(row.shortTest, width: 92),
-                          _bodyCell(row.midTerm, width: 92),
-                          _bodyCell(row.finalTerm, width: 84),
+                          for (final column in columns)
+                            _bodyCell(
+                              row.scoreFor(column),
+                              width: column.width,
+                              left: column.assessmentType == 'COMMENT',
+                            ),
                           _bodyCell(
                             row.average,
                             width: 70,
@@ -445,6 +451,30 @@ class _AllSubjectsGradeTable extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static List<_GradeTableColumn> _columnsFor(
+    List<Map<String, dynamic>> subjects,
+  ) {
+    final columns = <String, _GradeTableColumn>{};
+    for (final subject in subjects) {
+      final scores = (subject['scores'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>();
+      for (final score in scores) {
+        final name = (score['name'] as String? ?? '').trim();
+        if (name.isEmpty) continue;
+        final key = _gradeColumnKey(score);
+        columns.putIfAbsent(
+          key,
+          () => _GradeTableColumn(
+            key: key,
+            name: name,
+            assessmentType: score['assessmentType'] as String? ?? 'SCORE',
+          ),
+        );
+      }
+    }
+    return columns.values.toList(growable: false);
   }
 
   static Widget _headerCell(
@@ -506,6 +536,20 @@ class _AllSubjectsGradeTable extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _GradeTableColumn {
+  const _GradeTableColumn({
+    required this.key,
+    required this.name,
+    required this.assessmentType,
+  });
+
+  final String key;
+  final String name;
+  final String assessmentType;
+
+  double get width => assessmentType == 'COMMENT' ? 190 : 104;
 }
 
 class _ReviewCell extends StatelessWidget {
@@ -577,10 +621,7 @@ class _SubjectGradeRow {
     required Map<String, dynamic> subject,
     required SubjectPeriodicReview? review,
   }) : subjectName = subject['subjectName'] as String? ?? '—',
-       oral = _scoreGroup(subject, _ScoreColumn.oral),
-       shortTest = _scoreGroup(subject, _ScoreColumn.shortTest),
-       midTerm = _scoreGroup(subject, _ScoreColumn.midTerm),
-       finalTerm = _scoreGroup(subject, _ScoreColumn.finalTerm),
+       _scoresByColumn = _scores(subject),
        average = _average(subject),
        comment = review?.comment?.trim().isNotEmpty == true
            ? review!.comment!.trim()
@@ -588,67 +629,46 @@ class _SubjectGradeRow {
        teacherName = review?.subjectTeacherName.trim() ?? '';
 
   final String subjectName;
-  final String oral;
-  final String shortTest;
-  final String midTerm;
-  final String finalTerm;
+  final Map<String, Map<String, dynamic>> _scoresByColumn;
   final String average;
   final String comment;
   final String teacherName;
 
-  static String _scoreGroup(Map<String, dynamic> subject, _ScoreColumn column) {
-    final scores = (subject['scores'] as List<dynamic>? ?? const [])
-        .whereType<Map<String, dynamic>>()
-        .where((score) => _columnFor(score['name'] as String? ?? '') == column)
-        .map(_scoreDisplay)
-        .where((value) => value != '—')
-        .toList(growable: false);
-    return scores.isEmpty ? '—' : scores.join('  ');
+  static Map<String, Map<String, dynamic>> _scores(
+    Map<String, dynamic> subject,
+  ) => {
+    for (final score
+        in (subject['scores'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .where(
+              (score) => (score['name'] as String? ?? '').trim().isNotEmpty,
+            ))
+      _gradeColumnKey(score): score,
+  };
+
+  String scoreFor(_GradeTableColumn column) {
+    final score = _scoresByColumn[column.key];
+    if (score == null || score['isGraded'] != true) return '';
+    return switch (column.assessmentType) {
+      'PASS_FAIL' => switch (score['comment']) {
+        'PASS' => 'Đạt',
+        'FAIL' => 'Chưa đạt',
+        _ => '',
+      },
+      'COMMENT' => (score['comment'] as String? ?? '').trim(),
+      _ => (score['score'] as num?)?.toStringAsFixed(1) ?? '',
+    };
   }
 
   static String _average(Map<String, dynamic> subject) {
-    final scores = (subject['scores'] as List<dynamic>? ?? const [])
-        .whereType<Map<String, dynamic>>()
-        .toList(growable: false);
-    if (scores.isNotEmpty &&
-        scores.every((score) => score['assessmentType'] == 'PASS_FAIL')) {
-      final values = scores.map(_scoreDisplay).where((value) => value != '—');
-      if (values.contains('CĐ')) return 'CĐ';
-      return values.isEmpty ? '—' : 'Đ';
-    }
-    if (scores.isNotEmpty &&
-        scores.every((score) => score['assessmentType'] == 'COMMENT')) {
-      return '—';
-    }
-    return (subject['average'] as num?)?.toStringAsFixed(1) ?? '—';
-  }
-
-  static String _scoreDisplay(Map<String, dynamic> score) =>
-      switch (score['assessmentType']) {
-        'PASS_FAIL' => switch (score['comment']) {
-          'PASS' => 'Đ',
-          'FAIL' => 'CĐ',
-          _ => '—',
-        },
-        'COMMENT' => '—',
-        _ => (score['score'] as num?)?.toStringAsFixed(1) ?? '—',
-      };
-
-  static _ScoreColumn? _columnFor(String name) {
-    final value = _normalize(name);
-    if (value.contains('mieng')) return _ScoreColumn.oral;
-    if (value.contains('15')) return _ScoreColumn.shortTest;
-    if (value.contains('hoc ky') || value.contains('cuoi ky')) {
-      return _ScoreColumn.finalTerm;
-    }
-    if (value.contains('1 tiet') || value.contains('giua ky')) {
-      return _ScoreColumn.midTerm;
-    }
-    return null;
+    return (subject['average'] as num?)?.toStringAsFixed(1) ?? '';
   }
 }
 
-enum _ScoreColumn { oral, shortTest, midTerm, finalTerm }
+String _gradeColumnKey(Map<String, dynamic> score) {
+  final code = (score['code'] as String? ?? '').trim();
+  return code.isNotEmpty ? code : (score['name'] as String? ?? '').trim();
+}
 
 String _normalize(String value) {
   var normalized = value.trim().toLowerCase();

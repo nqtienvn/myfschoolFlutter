@@ -23,25 +23,62 @@ class _TranscriptApi extends GradebookApiClient {
         'complete': true,
         'scores': [
           {
-            'name': 'Kiểm tra miệng',
+            'code': 'DA_1',
+            'name': 'Dự án cá nhân',
             'weight': 1,
             'assessmentType': 'SCORE',
             'score': 8.5,
             'comment': null,
+            'isGraded': true,
           },
           {
-            'name': 'Kiểm tra 15 phút',
+            'code': 'NL_1',
+            'name': 'Năng lực',
             'weight': 1,
             'assessmentType': 'PASS_FAIL',
             'score': null,
             'comment': 'PASS',
+            'isGraded': true,
           },
           {
-            'name': 'Nhận xét',
+            'code': 'PX_1',
+            'name': 'Phản hồi',
             'weight': 1,
             'assessmentType': 'COMMENT',
             'score': null,
             'comment': 'Chủ động và hợp tác tốt',
+            'isGraded': true,
+          },
+        ],
+      },
+      {
+        'subjectName': 'Vật lý',
+        'average': null,
+        'complete': false,
+        'scores': [
+          {
+            'code': 'DA_1',
+            'name': 'Dự án cá nhân',
+            'assessmentType': 'SCORE',
+            'score': null,
+            'comment': null,
+            'isGraded': false,
+          },
+          {
+            'code': 'NL_1',
+            'name': 'Năng lực',
+            'assessmentType': 'PASS_FAIL',
+            'score': null,
+            'comment': null,
+            'isGraded': false,
+          },
+          {
+            'code': 'PX_1',
+            'name': 'Phản hồi',
+            'assessmentType': 'COMMENT',
+            'score': null,
+            'comment': null,
+            'isGraded': false,
           },
         ],
       },
@@ -65,7 +102,7 @@ AcademicPeriodController _periodController() {
 }
 
 void main() {
-  testWidgets('student sees all assessment types and only numeric average', (
+  testWidgets('student sees configured columns and subjects without scores', (
     tester,
   ) async {
     final periods = _periodController();
@@ -83,8 +120,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Đ'), findsOneWidget);
-    expect(find.text('Chủ động và hợp tác tốt'), findsNothing);
+    expect(find.text('Dự án cá nhân'), findsOneWidget);
+    expect(find.text('Năng lực'), findsOneWidget);
+    expect(find.text('Phản hồi'), findsOneWidget);
+    expect(find.text('Đạt'), findsOneWidget);
+    expect(find.text('Chủ động và hợp tác tốt'), findsOneWidget);
+    expect(find.text('Vật lý'), findsOneWidget);
     expect(find.text('8.5'), findsWidgets);
     expect(find.text('BẢNG TỔNG KẾT HỌC LỰC'), findsOneWidget);
     expect(find.text('BẢNG ĐIỂM CHI TIẾT'), findsOneWidget);
