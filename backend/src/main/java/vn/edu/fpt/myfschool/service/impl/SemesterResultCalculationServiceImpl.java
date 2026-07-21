@@ -8,8 +8,6 @@ import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
 import vn.edu.fpt.myfschool.common.enums.AssessmentType;
 import vn.edu.fpt.myfschool.common.enums.ConductSource;
 import vn.edu.fpt.myfschool.common.enums.EnrollmentStatus;
-import vn.edu.fpt.myfschool.common.enums.StudentEventStatus;
-import vn.edu.fpt.myfschool.common.enums.StudentEventType;
 import vn.edu.fpt.myfschool.common.exception.ResourceNotFoundException;
 import vn.edu.fpt.myfschool.common.exception.ConflictException;
 import vn.edu.fpt.myfschool.entity.*;
@@ -39,7 +37,6 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
     private final GradeItemRepository gradeItemRepository;
     private final StudentScoreRepository studentScoreRepository;
     private final StudentRiskService studentRiskService;
-    private final StudentEventRepository studentEventRepository;
     private final AcademicYearSubjectRepository academicYearSubjectRepository;
 
     @Override
@@ -67,11 +64,6 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
         // Attendance records are the single source of truth for conduct.
         List<Attendance> attendanceRecords = attendanceRepository
             .findByClsIdAndDateBetween(classId, semester.getStartDate(), semester.getEndDate());
-        List<StudentEvent> submittedViolations = studentEventRepository.findByClsIdAndSemesterId(classId, semesterId)
-            .stream()
-            .filter(event -> event.getEventType() == StudentEventType.VIOLATION)
-            .filter(event -> event.getStatus() == StudentEventStatus.SUBMITTED)
-            .toList();
 
         // Calculate GPA for each student
         List<StudentGPA> studentGPAs = new ArrayList<>();
@@ -114,8 +106,7 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
             String suggestedHonor = "Không";
             result.setSuggestedHonor(suggestedHonor);
             result.setSuggestedAcademicAbility(suggestedAcademicAbility);
-            String suggestedConduct = calculateConduct(
-                sg.student().getId(), attendanceRecords, submittedViolations);
+            String suggestedConduct = calculateConduct(sg.student().getId(), attendanceRecords);
             result.setSuggestedConduct(suggestedConduct);
             if (!Boolean.TRUE.equals(result.getResultOverridden())) {
                 result.setHonor(suggestedHonor);
@@ -211,20 +202,13 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
         return subjectSum.divide(BigDecimal.valueOf(subjectCount), 2, RoundingMode.HALF_UP);
     }
 
-    /**
-     * Tính hạnh kiểm theo mức xấu hơn giữa vi phạm và chuyên cần.
-     * Mỗi 3 vi phạm hạ một bậc; chuyên cần giữ các ngưỡng hiện hành.
-     */
-    private String calculateConduct(Long studentId, List<Attendance> attendanceRecords,
-            List<StudentEvent> submittedViolations) {
-        long violationCount = submittedViolations.stream()
-            .filter(event -> event.getStudent().getId().equals(studentId))
-            .count();
+    /** Tính hạnh kiểm từ số buổi vắng không phép trong học kỳ. */
+    private String calculateConduct(Long studentId, List<Attendance> attendanceRecords) {
         long absentWithoutLeave = attendanceRecords.stream()
             .filter(record -> record.getStudent().getId().equals(studentId))
             .filter(record -> record.getStatus() == AttendanceStatus.ABSENT_WITHOUT_LEAVE)
             .count();
-        return ResultClassificationPolicy.suggestedConduct(violationCount, absentWithoutLeave);
+        return ResultClassificationPolicy.suggestedConduct(absentWithoutLeave);
     }
 
     private List<BigDecimal> calculateSubjectAverages(Long studentId, List<GradeBook> books) {

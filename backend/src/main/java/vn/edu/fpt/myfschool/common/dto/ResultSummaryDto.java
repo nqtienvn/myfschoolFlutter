@@ -13,7 +13,6 @@ public record ResultSummaryDto(
         String className,
         BigDecimal gpa,
         Integer rank,
-        long violationCount,
         long absentWithLeave,
         long absentWithoutLeave,
         String suggestedAcademicAbility,

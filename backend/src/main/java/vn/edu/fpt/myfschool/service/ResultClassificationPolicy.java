@@ -56,10 +56,10 @@ public final class ResultClassificationPolicy {
         return candidateLevel >= 0 && candidateLevel <= rawLevel - 2;
     }
 
-    public static String suggestedConduct(long violationCount, long absentWithoutLeave) {
-        if (violationCount == 0 && absentWithoutLeave <= 2) return "Tốt";
-        if (violationCount <= 1 && absentWithoutLeave <= 4) return "Khá";
-        if (violationCount <= 2 && absentWithoutLeave <= 9) return "Đạt";
+    public static String suggestedConduct(long absentWithoutLeave) {
+        if (absentWithoutLeave <= 2) return "Tốt";
+        if (absentWithoutLeave <= 4) return "Khá";
+        if (absentWithoutLeave <= 9) return "Đạt";
         return "Chưa đạt";
     }
 

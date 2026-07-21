@@ -45,18 +45,10 @@ Trạng thái GradeBook: `DRAFT -> PUBLISHED -> LOCKED`. Submit đầu điểm c
 - Admin chỉ import các đầu điểm có quyền `ADMIN` hoặc `SUBJECT_TEACHER_AND_ADMIN`. Import là giao dịch nguyên tử: có bất kỳ dòng không hợp lệ thì không dòng nào được lưu.
 - Export tạo ba sheet: điểm thành phần, tổng kết học kỳ và tổng kết năm học.
 - Xếp mức học tập dùng kết quả từng môn theo Thông tư 22/2021/TT-BGDĐT: `Tốt`, `Khá`, `Đạt`, `Chưa đạt`; GPA chỉ là chỉ số tham khảo. Kết quả cả năm của từng môn dùng `(HK1 + 2 × HK2) / 3`.
-- Ngưỡng gợi ý rèn luyện nội bộ được chuẩn hóa không chồng lấn: `Tốt` khi 0 vi phạm và tối đa 2 buổi nghỉ không phép; `Khá` khi tối đa 1 vi phạm và 4 buổi; `Đạt` khi tối đa 2 vi phạm và 9 buổi; còn lại là `Chưa đạt`. Admin vẫn phải đối soát trước khi công bố.
+- Ngưỡng gợi ý rèn luyện nội bộ chỉ dựa trên số buổi nghỉ không phép: `Tốt` tối đa 2 buổi; `Khá` tối đa 4 buổi; `Đạt` tối đa 9 buổi; còn lại là `Chưa đạt`. Admin vẫn phải đối soát trước khi công bố.
 - Chỉ được đóng học kỳ khi tất cả lớp có sổ điểm đủ môn, kết quả học kỳ đã công bố và các sổ điểm không còn ở trạng thái nháp. Đóng học kỳ sẽ khóa mọi sổ điểm và chặn sửa/import.
 - Chỉ được tính tổng kết năm khi cả hai học kỳ đã `COMPLETED`. Chỉ được đóng năm học khi toàn bộ học sinh đang học đã có kết quả năm được công bố.
 - Công bố kết quả tạo thông báo cho học sinh và phụ huynh có liên kết giám hộ.
-
-## Vi phạm học sinh
-
-- Chỉ giáo viên chủ nhiệm được thêm, sửa, xóa vi phạm ở trạng thái `DRAFT` trong đúng lớp, học kỳ và năm học phụ trách.
-- GVCN có thể submit vi phạm theo từng học sinh hoặc cả lớp. Sau submit, dữ liệu chuyển sang `SUBMITTED` và bị khóa.
-- Admin chỉ xem và thống kê vi phạm `SUBMITTED`; không được ghi, sửa, xóa hoặc submit thay giáo viên.
-- Luồng nhận xét định kỳ của GVCN/GVBM đã bị loại bỏ hoàn toàn và không còn là điều kiện công bố kết quả.
-- API submit: `POST /api/students/{studentId}/violations/submit` và `POST /api/student-events/violations/submit-class`.
 
 Migration thay thế dữ liệu cố định: `V14__replace_legacy_grades_with_configured_gradebooks.sql`.
 Migration kết quả năm học: `V27__academic_year_results.sql`.

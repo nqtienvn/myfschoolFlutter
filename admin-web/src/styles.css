@@ -6478,73 +6478,6 @@ td:last-child {
   font-size: 10px;
 }
 
-.discipline-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(380px, .65fr);
-  gap: 16px;
-  align-items: start;
-}
-
-.discipline-grid .result-panel>.table-responsive,
-.discipline-grid .result-panel>.result-pagination {
-  margin-left: 14px;
-  margin-right: 14px;
-}
-
-.discipline-grid .violation-form,
-.discipline-grid .violation-list {
-  margin: 0 16px 16px;
-}
-
-.violation-form {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.violation-form label {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.violation-form input,
-.violation-form textarea {
-  display: block;
-  width: 100%;
-  margin-top: 4px;
-}
-
-.violation-form .wide {
-  grid-column: 1 / -1;
-}
-
-.violation-list {
-  display: grid;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.violation-list article {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-
-.violation-list small {
-  display: block;
-  margin-top: 3px;
-  color: var(--text-secondary);
-}
-
-.violation-list p {
-  margin: 6px 0 0;
-  white-space: pre-wrap;
-}
-
 .summary-result-table {
   min-width: 1450px;
 }
@@ -6612,12 +6545,6 @@ td:last-child {
 }
 
 @media (max-width: 1050px) {
-  .discipline-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 1050px) {
 
   .result-toolbar,
   .result-panel-heading {
@@ -6663,10 +6590,6 @@ td:last-child {
 
   .result-section-tabs button {
     white-space: nowrap;
-  }
-
-  .violation-form {
-    grid-template-columns: 1fr;
   }
 
   .result-pagination {
@@ -7547,10 +7470,6 @@ td:last-child {
   }
 }
 
-.violation-list article>div:first-child {
-  min-width: 0;
-}
-
 .teacher-announcement-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, .85fr);
@@ -7887,11 +7806,6 @@ td:last-child {
 
   .teacher-filter-row label {
     width: 100%;
-  }
-
-  .violation-list article {
-    align-items: stretch;
-    flex-direction: column;
   }
 
   .teacher-student-list-heading {

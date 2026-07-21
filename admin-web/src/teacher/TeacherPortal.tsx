@@ -7,7 +7,6 @@ import TeacherGradesPage from '../pages/teacher/TeacherGradesPage';
 import TeacherHomeroomProfilePage from '../pages/teacher/TeacherHomeroomProfilePage';
 import TeacherLeaveRequestsPage from '../pages/teacher/TeacherLeaveRequestsPage';
 import TeacherLoginPage from '../pages/teacher/TeacherLoginPage';
-import TeacherViolationsPage from '../pages/teacher/TeacherViolationsPage';
 import { TeacherAcademicProvider, useTeacherAcademic } from './TeacherAcademicContext';
 
 function DashboardIcon() {
@@ -16,10 +15,6 @@ function DashboardIcon() {
 
 function GradeIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>;
-}
-
-function ReviewIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5h10a2 2 0 0 1 2 2v12H5V9"/><path d="M3 5h10v10H3zM6 9h4M6 12h3"/></svg>;
 }
 
 function BellIcon() {
@@ -45,7 +40,6 @@ function LogoutIcon() {
 const navItems = [
   { path: '/teacher/dashboard', label: 'Tổng quan', group: 'Giảng dạy', Icon: DashboardIcon },
   { path: '/teacher/grades', label: 'Nhập điểm', group: 'Giảng dạy', Icon: GradeIcon },
-  { path: '/teacher/violations', label: 'Vi phạm học sinh', group: 'Công tác lớp', Icon: ReviewIcon },
   { path: '/teacher/announcements', label: 'Thông báo', group: 'Công tác lớp', Icon: BellIcon },
   { path: '/teacher/homeroom', label: 'Hồ sơ lớp chủ nhiệm', group: 'Công tác lớp', Icon: HomeroomIcon },
   { path: '/teacher/leave-requests', label: 'Đơn xin nghỉ', group: 'Công tác lớp', Icon: LeaveIcon },
@@ -104,7 +98,6 @@ function TeacherPortalLayout({ path, setLoggedIn }: { path: string; setLoggedIn:
   const selectedSemester = academic.semesters.find(item => item.id === academic.selectedSemesterId);
   const activeItem = navItems.find(item => item.path === path) || navItems[0];
   const page = path === '/teacher/grades' ? <TeacherGradesPage />
-    : path === '/teacher/violations' ? <TeacherViolationsPage />
     : path === '/teacher/announcements' ? <TeacherAnnouncementsPage />
     : path === '/teacher/homeroom' ? <TeacherHomeroomProfilePage />
     : path === '/teacher/leave-requests' ? <TeacherLeaveRequestsPage />

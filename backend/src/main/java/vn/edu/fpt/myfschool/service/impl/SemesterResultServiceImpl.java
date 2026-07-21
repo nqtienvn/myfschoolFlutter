@@ -9,7 +9,6 @@ import vn.edu.fpt.myfschool.entity.HomeroomAssignment;
 import vn.edu.fpt.myfschool.entity.Parent;
 import vn.edu.fpt.myfschool.entity.Teacher;
 import vn.edu.fpt.myfschool.entity.Attendance;
-import vn.edu.fpt.myfschool.entity.StudentEvent;
 import vn.edu.fpt.myfschool.entity.GradeBook;
 import vn.edu.fpt.myfschool.service.*;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +41,6 @@ public class SemesterResultServiceImpl implements SemesterResultService {
     private final TeacherRepository teacherRepository;
     private final HomeroomAssignmentRepository homeroomAssignmentRepository;
     private final AttendanceRepository attendanceRepository;
-    private final StudentEventRepository studentEventRepository;
     private final GradeBookRepository gradeBookRepository;
     private final AcademicYearSubjectRepository academicYearSubjectRepository;
     private final NotificationService notificationService;
@@ -118,16 +116,11 @@ public class SemesterResultServiceImpl implements SemesterResultService {
         ResultScope scope = requireResultScope(academicYearId, semesterId, classId);
         List<Attendance> attendance = attendanceRepository.findByClsIdAndDateBetween(
                 classId, scope.semester().getStartDate(), scope.semester().getEndDate());
-        List<StudentEvent> violations = studentEventRepository.findByClsIdAndSemesterId(classId, semesterId)
-                .stream()
-                .filter(event -> event.getEventType() == StudentEventType.VIOLATION)
-                .filter(event -> event.getStatus() == StudentEventStatus.SUBMITTED)
-                .toList();
         return enrollmentRepository.findByClsIdAndAcademicYearIdAndStatus(
                         classId, academicYearId, EnrollmentStatus.ACTIVE).stream()
                 .map(Enrollment::getStudent)
                 .sorted(Comparator.comparing(Student::getStudentCode))
-                .map(student -> toResultSummary(scope, student, attendance, violations))
+                .map(student -> toResultSummary(scope, student, attendance))
                 .toList();
     }
 
@@ -239,11 +232,9 @@ public class SemesterResultServiceImpl implements SemesterResultService {
     }
 
     private ResultSummaryDto toResultSummary(ResultScope scope, Student student,
-            List<Attendance> attendance, List<StudentEvent> violations) {
+            List<Attendance> attendance) {
         SemesterResult result = semesterResultRepository.findByStudentIdAndSemesterId(
                 student.getId(), scope.semester().getId()).orElse(null);
-        long violationCount = violations.stream()
-                .filter(event -> event.getStudent().getId().equals(student.getId())).count();
         long absentWithLeave = attendance.stream()
                 .filter(row -> row.getStudent().getId().equals(student.getId()))
                 .filter(row -> row.getStatus() == AttendanceStatus.ABSENT_WITH_LEAVE).count();
@@ -253,7 +244,7 @@ public class SemesterResultServiceImpl implements SemesterResultService {
         return new ResultSummaryDto(student.getId(), student.getUser().getName(), student.getStudentCode(),
                 scope.cls().getAcademicYear().getId(), scope.semester().getId(), scope.cls().getId(),
                 scope.cls().getName(), result == null ? null : result.getGpa(), result == null ? null : result.getRank(),
-                violationCount, absentWithLeave, absentWithoutLeave,
+                absentWithLeave, absentWithoutLeave,
                 result == null ? null : firstNonBlank(result.getSuggestedAcademicAbility(), result.getAcademicAbility()),
                 result == null ? null : result.getSuggestedConduct(), result == null ? null : result.getAcademicAbility(),
                 result == null ? null : result.getConduct(), result == null ? null : result.getHonor(),

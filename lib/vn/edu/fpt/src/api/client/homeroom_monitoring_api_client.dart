@@ -78,33 +78,6 @@ abstract class HomeroomMonitoringApi {
     required int guardianId,
     required String attendance,
   });
-  Future<List<StudentEvent>> getStudentEvents({
-    required String token,
-    required int studentId,
-    required int academicYearId,
-    required int semesterId,
-    int? classId,
-  });
-  Future<StudentEvent> saveStudentEvent({
-    required String token,
-    required int studentId,
-    required int academicYearId,
-    required int semesterId,
-    required int classId,
-    required String eventType,
-    required String category,
-    required String title,
-    required String description,
-    required DateTime eventDate,
-    int? eventId,
-  });
-  Future<void> deleteStudentEvent({
-    required String token,
-    required int eventId,
-    required int academicYearId,
-  }) => Future<void>.error(
-    UnsupportedError('API hiện tại không hỗ trợ xóa vi phạm.'),
-  );
 }
 
 class HomeroomMonitoringApiClient implements HomeroomMonitoringApi {
@@ -327,74 +300,6 @@ class HomeroomMonitoringApiClient implements HomeroomMonitoringApi {
     return ParentMeeting.fromJson(data as Map<String, dynamic>);
   }
 
-  @override
-  Future<List<StudentEvent>> getStudentEvents({
-    required String token,
-    required int studentId,
-    required int academicYearId,
-    required int semesterId,
-    int? classId,
-  }) async {
-    final data = await _backend.getData(
-      '/api/students/$studentId/events',
-      token: token,
-      query: _scope(academicYearId, semesterId, classId),
-    );
-    return _list(data).map(StudentEvent.fromJson).toList(growable: false);
-  }
-
-  @override
-  Future<StudentEvent> saveStudentEvent({
-    required String token,
-    required int studentId,
-    required int academicYearId,
-    required int semesterId,
-    required int classId,
-    required String eventType,
-    required String category,
-    required String title,
-    required String description,
-    required DateTime eventDate,
-    int? eventId,
-  }) async {
-    final body = {
-      'academicYearId': academicYearId,
-      'semesterId': semesterId,
-      'classId': classId,
-      'eventType': eventType,
-      'category': category,
-      'title': title,
-      'description': description,
-      'eventDate': _date(eventDate),
-    };
-    final data = eventId == null
-        ? await _backend.postData(
-            '/api/students/$studentId/events',
-            token: token,
-            body: body,
-          )
-        : await _backend.putData(
-            '/api/student-events/$eventId',
-            token: token,
-            body: body,
-          );
-    return StudentEvent.fromJson(data as Map<String, dynamic>);
-  }
-
-  @override
-  Future<void> deleteStudentEvent({
-    required String token,
-    required int eventId,
-    required int academicYearId,
-  }) => _backend.deleteData(
-    '/api/student-events/$eventId',
-    token: token,
-    query: {'academicYearId': '$academicYearId'},
-  );
-
   Iterable<Map<String, dynamic>> _list(Object? data) =>
       (data as List<dynamic>? ?? const []).whereType<Map<String, dynamic>>();
-
-  String _date(DateTime value) =>
-      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
 }

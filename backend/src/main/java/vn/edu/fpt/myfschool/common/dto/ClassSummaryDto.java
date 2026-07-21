@@ -17,7 +17,5 @@ public record ClassSummaryDto(
         Map<String, Long> conductDistribution,
         long parentContactCount,
         long meetingCount,
-        BigDecimal meetingParticipationRate,
-        long rewardCount,
-        long violationCount
+        BigDecimal meetingParticipationRate
 ) {}

@@ -54,8 +54,6 @@ export interface ClassSummary {
   parentContactCount: number;
   meetingCount: number;
   meetingParticipationRate: number;
-  rewardCount: number;
-  violationCount: number;
 }
 
 export function buildMonitoringQuery(filters: {

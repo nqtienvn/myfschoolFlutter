@@ -34,7 +34,6 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
     private final ParentContactLogRepository contactLogs;
     private final ParentMeetingRepository meetings;
     private final ParentMeetingParticipantRepository participants;
-    private final StudentEventRepository events;
     private final NotificationService notifications;
 
     @Override
@@ -173,111 +172,6 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
         return toMeeting(meeting, null);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<StudentEventDto> getStudentEvents(Long studentId, Long academicYearId, Long semesterId,
-            Long classId, Long requesterId, UserRole requesterRole) {
-        requireYearSemester(academicYearId, semesterId);
-        List<StudentEvent> values = events.findByStudentIdAndAcademicYearIdAndSemesterIdOrderByEventDateDesc(
-                studentId, academicYearId, semesterId);
-        if (requesterRole == UserRole.TEACHER) {
-            if (classId == null) throw new BadRequestException("Phải chọn lớp");
-            Scope scope = requireScope(academicYearId, semesterId, classId);
-            requireHomeroom(scope, requesterId);
-            requireHistoricalStudent(scope, studentId);
-            return values.stream().filter(item -> item.getCls().getId().equals(classId)).map(this::toEvent).toList();
-        }
-        if (requesterRole == UserRole.ADMIN) return values.stream()
-                .filter(item -> item.getStatus() == StudentEventStatus.SUBMITTED)
-                .map(this::toEvent).toList();
-        throw new ForbiddenException("Vi phạm chỉ được sử dụng nội bộ bởi giáo viên và Admin");
-    }
-
-    @Override
-    public StudentEventDto createStudentEvent(Long studentId, SaveStudentEventRequest request,
-            Long requesterId, UserRole requesterRole) {
-        Scope scope = requireScope(request.academicYearId(), request.semesterId(), request.classId());
-        requireEventEditor(scope, requesterId, requesterRole);
-        requireViolation(request);
-        Student student = requireActiveStudent(scope, studentId);
-        StudentEvent event = new StudentEvent();
-        applyEvent(event, scope, student, request);
-        event.setCreatedBy(requireUser(requesterId));
-        return toEvent(events.save(event));
-    }
-
-    @Override
-    public StudentEventDto updateStudentEvent(Long id, SaveStudentEventRequest request,
-            Long requesterId, UserRole requesterRole) {
-        StudentEvent event = requireEvent(id);
-        if (event.getStatus() == StudentEventStatus.SUBMITTED) {
-            throw new ConflictException("Vi phạm đã Submit và không thể sửa");
-        }
-        Scope scope = requireScope(request.academicYearId(), request.semesterId(), request.classId());
-        if (!sameScope(event.getAcademicYear().getId(), event.getSemester().getId(), event.getCls().getId(), scope)) {
-            throw new ForbiddenException("Không được chuyển sự kiện sang phạm vi khác");
-        }
-        requireEventEditor(scope, requesterId, requesterRole);
-        requireViolation(request);
-        applyEvent(event, scope, event.getStudent(), request);
-        return toEvent(events.save(event));
-    }
-
-    @Override
-    public void deleteStudentEvent(Long id, Long academicYearId, Long requesterId, UserRole requesterRole) {
-        StudentEvent event = requireEvent(id);
-        if (!event.getAcademicYear().getId().equals(academicYearId)) {
-            throw new ForbiddenException("Vi phạm không thuộc năm học đã chọn");
-        }
-        Scope scope = requireScope(event.getAcademicYear().getId(), event.getSemester().getId(), event.getCls().getId());
-        requireEventEditor(scope, requesterId, requesterRole);
-        if (event.getStatus() == StudentEventStatus.SUBMITTED) {
-            throw new ConflictException("Vi phạm đã Submit và không thể xóa");
-        }
-        events.delete(event);
-    }
-
-    @Override
-    public List<StudentEventDto> submitStudentViolations(Long studentId, ViolationScopeRequest request,
-            Long teacherUserId) {
-        Scope scope = requireScope(request.academicYearId(), request.semesterId(), request.classId());
-        requireHomeroom(scope, teacherUserId);
-        requireActiveStudent(scope, studentId);
-        submitViolations(events.findByStudentIdAndAcademicYearIdAndSemesterIdOrderByEventDateDesc(
-                studentId, request.academicYearId(), request.semesterId()).stream()
-                .filter(item -> item.getCls().getId().equals(request.classId()))
-                .toList());
-        return events.findByStudentIdAndAcademicYearIdAndSemesterIdOrderByEventDateDesc(
-                studentId, request.academicYearId(), request.semesterId()).stream()
-                .filter(item -> item.getCls().getId().equals(request.classId()))
-                .map(this::toEvent).toList();
-    }
-
-    @Override
-    public List<StudentEventDto> submitClassViolations(ViolationScopeRequest request, Long teacherUserId) {
-        Scope scope = requireScope(request.academicYearId(), request.semesterId(), request.classId());
-        requireHomeroom(scope, teacherUserId);
-        List<StudentEvent> classViolations = events.findByClsIdAndSemesterId(
-                request.classId(), request.semesterId()).stream()
-                .filter(item -> item.getAcademicYear().getId().equals(request.academicYearId()))
-                .filter(item -> item.getEventType() == StudentEventType.VIOLATION)
-                .toList();
-        submitViolations(classViolations);
-        return classViolations.stream().map(this::toEvent).toList();
-    }
-
-    private void submitViolations(List<StudentEvent> values) {
-        LocalDateTime submittedAt = LocalDateTime.now();
-        values.stream()
-                .filter(item -> item.getEventType() == StudentEventType.VIOLATION)
-                .filter(item -> item.getStatus() == StudentEventStatus.DRAFT)
-                .forEach(item -> {
-                    item.setStatus(StudentEventStatus.SUBMITTED);
-                    item.setSubmittedAt(submittedAt);
-                    events.save(item);
-                });
-    }
-
     private void applyContact(ParentContactLog log, Scope scope, Student student, SaveParentContactLogRequest request) {
         requireDateInSemester(request.contactedAt().toLocalDate(), scope, "Ngày liên hệ");
         log.setAcademicYear(scope.year()); log.setSemester(scope.semester()); log.setCls(scope.cls()); log.setStudent(student);
@@ -294,14 +188,6 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
         meeting.setStartsAt(request.startsAt()); meeting.setLocation(trim(request.location()));
         meeting.setAgenda(trim(request.agenda()));
         meeting.setStatus(request.status() == null ? ParentMeetingStatus.SCHEDULED : request.status());
-    }
-
-    private void applyEvent(StudentEvent event, Scope scope, Student student, SaveStudentEventRequest request) {
-        requireDateInSemester(request.eventDate(), scope, "Ngày sự kiện");
-        event.setAcademicYear(scope.year()); event.setSemester(scope.semester()); event.setCls(scope.cls());
-        event.setStudent(student); event.setEventType(request.eventType()); event.setCategory(trim(request.category()));
-        event.setTitle(request.title().trim()); event.setDescription(trim(request.description()));
-        event.setEventDate(request.eventDate()); event.setStatus(StudentEventStatus.DRAFT); event.setSubmittedAt(null);
     }
 
     private Scope requireScope(Long academicYearId, Long semesterId, Long classId) {
@@ -336,20 +222,6 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
             throw new ForbiddenException("Giáo viên chỉ được quản lý hồ sơ lớp chủ nhiệm");
         }
         return teacher;
-    }
-
-    private void requireEventEditor(Scope scope, Long requesterId, UserRole requesterRole) {
-        if (requesterRole == UserRole.TEACHER) {
-            requireHomeroom(scope, requesterId);
-            return;
-        }
-        throw new ForbiddenException("Chỉ GVCN được quản lý vi phạm");
-    }
-
-    private void requireViolation(SaveStudentEventRequest request) {
-        if (request.eventType() != StudentEventType.VIOLATION) {
-            throw new BadRequestException("Màn hình kết quả chỉ tiếp nhận lỗi vi phạm");
-        }
     }
 
     private Student requireActiveStudent(Scope scope, Long studentId) {
@@ -405,13 +277,6 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
                 value.getLocation(), value.getAgenda(), value.getStatus(), rows);
     }
 
-    private StudentEventDto toEvent(StudentEvent value) {
-        return new StudentEventDto(value.getId(), value.getStudent().getId(), value.getStudent().getUser().getName(),
-                value.getAcademicYear().getId(), value.getSemester().getId(), value.getCls().getId(), value.getCls().getName(),
-                value.getEventType(), value.getCategory(), value.getTitle(), value.getDescription(), value.getEventDate(),
-                value.getStatus(), value.getCreatedBy().getId(), value.getCreatedBy().getName(), value.getSubmittedAt());
-    }
-
     private boolean sameScope(Long yearId, Long semesterId, Long classId, Scope scope) {
         return yearId.equals(scope.year().getId()) && semesterId.equals(scope.semester().getId())
                 && classId.equals(scope.cls().getId());
@@ -431,9 +296,6 @@ public class HomeroomEngagementServiceImpl implements HomeroomEngagementService 
     }
     private ParentMeeting requireMeeting(Long id) {
         return meetings.findById(id).orElseThrow(() -> new ResourceNotFoundException("ParentMeeting", "id", id));
-    }
-    private StudentEvent requireEvent(Long id) {
-        return events.findById(id).orElseThrow(() -> new ResourceNotFoundException("StudentEvent", "id", id));
     }
     private String trim(String value) { return value == null || value.trim().isEmpty() ? null : value.trim(); }
     private record Scope(AcademicYear year, Semester semester, SchoolClass cls) {}

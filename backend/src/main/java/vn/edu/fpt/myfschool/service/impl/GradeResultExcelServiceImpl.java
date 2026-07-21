@@ -322,7 +322,7 @@ public class GradeResultExcelServiceImpl implements GradeResultExcelService {
                                       List<Semester> selectedSemesters, List<SchoolClass> selectedClasses) {
         Sheet sheet = workbook.createSheet("Tong_ket_hoc_ky");
         String[] headers = {"Học kỳ", "Lớp", "Mã HS", "Họ và tên", "Điểm TB tham khảo",
-                "Xếp hạng", "Vi phạm", "Nghỉ có phép", "Nghỉ không phép", "Kết quả học tập",
+                "Xếp hạng", "Nghỉ có phép", "Nghỉ không phép", "Kết quả học tập",
                 "Kết quả rèn luyện", "Danh hiệu", "Trạng thái"};
         Row headerRow = sheet.createRow(0);
         CellStyle header = headerStyle(workbook);
@@ -341,7 +341,6 @@ public class GradeResultExcelServiceImpl implements GradeResultExcelService {
                 cell++;
                 if (result.rank() != null) row.createCell(cell).setCellValue(result.rank());
                 cell++;
-                row.createCell(cell++).setCellValue(result.violationCount());
                 row.createCell(cell++).setCellValue(result.absentWithLeave());
                 row.createCell(cell++).setCellValue(result.absentWithoutLeave());
                 row.createCell(cell++).setCellValue(nullToEmpty(result.academicAbility()));

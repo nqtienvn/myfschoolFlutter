@@ -31,11 +31,10 @@ class ResultClassificationPolicyTest {
 
     @Test
     void conductThresholds_haveNoBoundaryGaps() {
-        assertEquals("Tốt", ResultClassificationPolicy.suggestedConduct(0, 2));
-        assertEquals("Khá", ResultClassificationPolicy.suggestedConduct(1, 4));
-        assertEquals("Đạt", ResultClassificationPolicy.suggestedConduct(2, 9));
-        assertEquals("Chưa đạt", ResultClassificationPolicy.suggestedConduct(3, 9));
-        assertEquals("Chưa đạt", ResultClassificationPolicy.suggestedConduct(2, 10));
+        assertEquals("Tốt", ResultClassificationPolicy.suggestedConduct(2));
+        assertEquals("Khá", ResultClassificationPolicy.suggestedConduct(4));
+        assertEquals("Đạt", ResultClassificationPolicy.suggestedConduct(9));
+        assertEquals("Chưa đạt", ResultClassificationPolicy.suggestedConduct(10));
     }
 
     @Test

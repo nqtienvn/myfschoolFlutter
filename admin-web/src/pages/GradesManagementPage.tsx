@@ -17,20 +17,18 @@ import {
   downloadResultExport,
   getAcademicYearResults,
   getResultSummary,
-  getStudentViolations,
   importAdminScores,
   overrideResult,
   publishAcademicYearResults,
   publishSemesterResults,
   type AcademicYearResultItem,
   type ResultSummaryItem,
-  type ViolationItem,
 } from '../api/resultManagement';
 import { getSubjects } from '../api/subject';
 import { gradeEntryPayload, numericAssessmentItems } from '../utils/gradeAssessment';
 
 type MainView = 'semester' | 'annual';
-type SemesterSection = 'grades' | 'discipline' | 'summary';
+type SemesterSection = 'grades' | 'attendance' | 'summary';
 
 interface SemesterContextItem {
   id: number;
@@ -133,14 +131,12 @@ export default function GradesManagementPage({
   const [scores, setScores] = useState<ScoreRow[]>([]);
   const [summary, setSummary] = useState<ResultSummaryItem[]>([]);
   const [annualResults, setAnnualResults] = useState<AcademicYearResultItem[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState('');
-  const [violations, setViolations] = useState<ViolationItem[]>([]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [savingItemId, setSavingItemId] = useState<number | null>(null);
   const [gradePage, setGradePage] = useState(1);
-  const [disciplinePage, setDisciplinePage] = useState(1);
+  const [attendancePage, setAttendancePage] = useState(1);
   const [summaryPage, setSummaryPage] = useState(1);
   const [annualPage, setAnnualPage] = useState(1);
   const importRef = useRef<HTMLInputElement>(null);
@@ -158,8 +154,8 @@ export default function GradesManagementPage({
 
   useEffect(() => {
     setClasses([]); setSubjects([]); setClassId(''); setSubjectId(''); setBook(null);
-    setScores([]); setSummary([]); setAnnualResults([]); setViolations([]);
-    setGradePage(1); setDisciplinePage(1); setSummaryPage(1); setAnnualPage(1); beginAction();
+    setScores([]); setSummary([]); setAnnualResults([]);
+    setGradePage(1); setAttendancePage(1); setSummaryPage(1); setAnnualPage(1); beginAction();
     if (!selectedYearId) return;
     Promise.all([
       getClasses({ academicYearId: selectedYearId, size: 500 }),
@@ -173,7 +169,7 @@ export default function GradesManagementPage({
 
   useEffect(() => {
     setBook(null); setScores([]); setSummary([]); setAnnualResults([]);
-    setViolations([]); setSelectedStudentId(''); setGradePage(1); setDisciplinePage(1);
+    setGradePage(1); setAttendancePage(1);
     setSummaryPage(1); setAnnualPage(1);
     if (!classId || !selectedYearId) return;
     if (view === 'annual') {
@@ -189,14 +185,6 @@ export default function GradesManagementPage({
   useEffect(() => {
     setBook(null); setScores([]); setSubjectId('');
   }, [selectedSemesterId]);
-
-  useEffect(() => {
-    setViolations([]);
-    if (!selectedStudentId || !classId || !selectedYearId || !selectedSemesterId) return;
-    getStudentViolations(Number(selectedStudentId), Number(selectedYearId), Number(selectedSemesterId), Number(classId))
-      .then(items => setViolations((items || []).filter(item => item.eventType === 'VIOLATION')))
-      .catch(showError);
-  }, [selectedStudentId, classId, selectedYearId, selectedSemesterId]);
 
   const students = useMemo(() => {
     const map = new Map<number, StudentRow>();
@@ -412,7 +400,7 @@ export default function GradesManagementPage({
     {view === 'semester' && <>
       <nav className="result-section-tabs" aria-label="Các phần kết quả học kỳ">
         <button className={section === 'grades' ? 'active' : ''} onClick={() => setSection('grades')}><b>1</b> Điểm thành phần</button>
-        <button className={section === 'discipline' ? 'active' : ''} onClick={() => setSection('discipline')}><b>2</b> Chuyên cần & vi phạm</button>
+        <button className={section === 'attendance' ? 'active' : ''} onClick={() => setSection('attendance')}><b>2</b> Chuyên cần</button>
         <button className={section === 'summary' ? 'active' : ''} onClick={() => setSection('summary')}><b>3</b> Tổng kết học kỳ</button>
       </nav>
 
@@ -438,24 +426,18 @@ export default function GradesManagementPage({
         </>}
       </section>}
 
-      {section === 'discipline' && <div className="discipline-grid">
-        <section className="panel result-panel"><div className="result-panel-heading"><div><h2>Chuyên cần & vi phạm</h2><p>Gợi ý: Tốt 0 VP/≤2 nghỉ KP; Khá ≤1/≤4; Đạt ≤2/≤9; còn lại Chưa đạt.</p></div></div>
-          {!classId ? <div className="result-empty"><strong>Chọn lớp để xem dữ liệu</strong></div> : <><div className="table-responsive"><table><thead><tr><th>Học sinh</th><th>Vi phạm</th><th>Nghỉ có phép</th><th>Nghỉ không phép</th><th>Gợi ý</th><th /></tr></thead><tbody>
-            {pageOf(summary, disciplinePage).map(row => <tr key={row.studentId}><td><strong>{row.studentName}</strong><small className="table-subtext">{row.studentCode}</small></td><td>{row.violationCount}</td><td>{row.absentWithLeave}</td><td>{row.absentWithoutLeave}</td><td><span className="result-level">{row.suggestedConduct || '—'}</span></td><td><button className="secondary-button" onClick={() => setSelectedStudentId(String(row.studentId))}>Chi tiết</button></td></tr>)}</tbody></table></div>
-            <Pagination total={summary.length} page={disciplinePage} onChange={setDisciplinePage} /></>}
-        </section>
-        <section className="panel result-panel"><div className="result-panel-heading"><div><h2>Vi phạm đã Submit</h2><p>{selectedStudentId ? 'Dữ liệu do GVCN gửi; Admin chỉ xem và thống kê.' : 'Chọn học sinh ở bảng bên trái.'}</p></div></div>
-          {selectedStudentId && <><div className="violation-list">{violations.map(item => <article key={item.id}><div><strong>{item.title}</strong><small>{item.category || 'Vi phạm'} · {item.eventDate}</small><p>{item.description}</p></div></article>)}</div>
-            {!violations.length && <div className="empty-state">Học sinh không có vi phạm đã Submit.</div>}</>}
-        </section>
-      </div>}
+      {section === 'attendance' && <section className="panel result-panel"><div className="result-panel-heading"><div><h2>Chuyên cần</h2><p>Gợi ý rèn luyện dựa trên số buổi nghỉ không phép trong học kỳ: Tốt ≤2; Khá ≤4; Đạt ≤9; còn lại Chưa đạt.</p></div></div>
+        {!classId ? <div className="result-empty"><strong>Chọn lớp để xem dữ liệu</strong></div> : <><div className="table-responsive"><table><thead><tr><th>Học sinh</th><th>Nghỉ có phép</th><th>Nghỉ không phép</th><th>Gợi ý rèn luyện</th></tr></thead><tbody>
+          {pageOf(summary, attendancePage).map(row => <tr key={row.studentId}><td><strong>{row.studentName}</strong><small className="table-subtext">{row.studentCode}</small></td><td>{row.absentWithLeave}</td><td>{row.absentWithoutLeave}</td><td><span className="result-level">{row.suggestedConduct || '—'}</span></td></tr>)}</tbody></table></div>
+          <Pagination total={summary.length} page={attendancePage} onChange={setAttendancePage} /></>}
+      </section>}
 
       {section === 'summary' && <section className="panel result-panel"><div className="result-panel-heading"><div><h2>Tổng kết học kỳ</h2><p>Điểm TB chỉ tham khảo; mức học tập được xét theo từng môn theo Thông tư 22/2021/TT-BGDĐT.</p></div>
         <div className="monitoring-actions"><button className="secondary-button" disabled={!classId || locked || busy} onClick={calculateSemester}>Tính kết quả lớp</button>
           <button disabled={!classId || locked || busy || !summary.length} onClick={publishSummary}>Công bố lớp</button>
           <button className="danger" disabled={locked || busy || selectedSemesterStatus !== 'ACTIVE'} onClick={closeSemester}>Đóng học kỳ toàn trường</button></div></div>
-        {!classId ? <div className="result-empty"><strong>Chọn lớp để tổng kết</strong></div> : <><div className="table-responsive"><table className="summary-result-table"><thead><tr><th>Học sinh</th><th>ĐTB / Hạng</th><th>VP · nghỉ KP</th><th>Học tập gợi ý</th><th>Rèn luyện gợi ý</th><th>Học tập cuối</th><th>Rèn luyện cuối</th><th>Danh hiệu</th><th>Trạng thái</th><th /></tr></thead><tbody>
-          {pageOf(summary, summaryPage).map(row => <tr key={row.studentId}><td><strong>{row.studentName}</strong><small>{row.studentCode}</small></td><td>{row.gpa ?? '—'} / {row.rank ?? '—'}</td><td>{row.violationCount} · {row.absentWithoutLeave}</td><td>{row.suggestedAcademicAbility || '—'}</td><td>{row.suggestedConduct || '—'}</td>
+        {!classId ? <div className="result-empty"><strong>Chọn lớp để tổng kết</strong></div> : <><div className="table-responsive"><table className="summary-result-table"><thead><tr><th>Học sinh</th><th>ĐTB / Hạng</th><th>Nghỉ không phép</th><th>Học tập gợi ý</th><th>Rèn luyện gợi ý</th><th>Học tập cuối</th><th>Rèn luyện cuối</th><th>Danh hiệu</th><th>Trạng thái</th><th /></tr></thead><tbody>
+          {pageOf(summary, summaryPage).map(row => <tr key={row.studentId}><td><strong>{row.studentName}</strong><small>{row.studentCode}</small></td><td>{row.gpa ?? '—'} / {row.rank ?? '—'}</td><td>{row.absentWithoutLeave}</td><td>{row.suggestedAcademicAbility || '—'}</td><td>{row.suggestedConduct || '—'}</td>
             <td><select disabled={locked} value={row.academicAbility || ''} onChange={event => patchSummary(row.studentId, { academicAbility: event.target.value })}><option value="">—</option>{[...new Set([row.academicAbility, ...resultLevels].filter(Boolean))].map(value => <option key={value!}>{value}</option>)}</select></td>
             <td><select disabled={locked} value={row.conduct || ''} onChange={event => patchSummary(row.studentId, { conduct: event.target.value })}><option value="">—</option>{[...new Set([row.conduct, ...resultLevels].filter(Boolean))].map(value => <option key={value!}>{value}</option>)}</select></td>
             <td><select disabled={locked} value={row.honor || ''} onChange={event => patchSummary(row.studentId, { honor: event.target.value })}><option value="">—</option>{[...new Set([row.honor, ...honorOptions].filter(Boolean))].map(value => <option key={value!}>{value}</option>)}</select></td>

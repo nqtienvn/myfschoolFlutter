@@ -145,39 +145,6 @@ class ParentMeeting {
   );
 }
 
-class StudentEvent {
-  const StudentEvent({
-    required this.id,
-    required this.studentId,
-    required this.eventType,
-    required this.category,
-    required this.title,
-    required this.description,
-    required this.eventDate,
-    required this.status,
-  });
-
-  final int id;
-  final int studentId;
-  final String eventType;
-  final String category;
-  final String title;
-  final String description;
-  final DateTime eventDate;
-  final String status;
-
-  factory StudentEvent.fromJson(Map<String, dynamic> json) => StudentEvent(
-    id: _int(json, 'id'),
-    studentId: _int(json, 'studentId'),
-    eventType: _string(json, 'eventType'),
-    category: json['category'] as String? ?? '',
-    title: _string(json, 'title'),
-    description: json['description'] as String? ?? '',
-    eventDate: _dateTime(json, 'eventDate'),
-    status: _string(json, 'status'),
-  );
-}
-
 class HomeroomClassSummary {
   const HomeroomClassSummary({
     required this.classId,
@@ -190,8 +157,6 @@ class HomeroomClassSummary {
     required this.parentContactCount,
     required this.meetingCount,
     required this.meetingParticipationRate,
-    required this.rewardCount,
-    required this.violationCount,
   });
 
   final int classId;
@@ -204,8 +169,6 @@ class HomeroomClassSummary {
   final int parentContactCount;
   final int meetingCount;
   final double meetingParticipationRate;
-  final int rewardCount;
-  final int violationCount;
 
   factory HomeroomClassSummary.fromJson(Map<String, dynamic> json) =>
       HomeroomClassSummary(
@@ -219,8 +182,6 @@ class HomeroomClassSummary {
         parentContactCount: _int(json, 'parentContactCount'),
         meetingCount: _int(json, 'meetingCount'),
         meetingParticipationRate: _double(json['meetingParticipationRate']),
-        rewardCount: _int(json, 'rewardCount'),
-        violationCount: _int(json, 'violationCount'),
       );
 }
 

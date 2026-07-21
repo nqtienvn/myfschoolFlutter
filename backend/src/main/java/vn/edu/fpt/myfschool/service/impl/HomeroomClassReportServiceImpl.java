@@ -31,7 +31,6 @@ public class HomeroomClassReportServiceImpl implements HomeroomClassReportServic
     private final StudentRiskFlagRepository risks;
     private final ParentContactLogRepository contacts;
     private final ParentMeetingRepository meetings;
-    private final StudentEventRepository events;
 
     @Override
     public List<ClassSummaryDto> getSummaries(Long academicYearId, Long semesterId, Long classId,
@@ -90,15 +89,10 @@ public class HomeroomClassReportServiceImpl implements HomeroomClassReportServic
         long participantCount = meetingRows.stream().mapToLong(item -> item.getParticipants().size()).sum();
         long attendedCount = meetingRows.stream().flatMap(item -> item.getParticipants().stream())
                 .filter(item -> item.getAttendance() == MeetingAttendance.ATTENDED).count();
-        List<StudentEvent> eventRows = events.findByClsIdAndSemesterId(cls.getId(), semester.getId()).stream()
-                .filter(item -> item.getStatus() == StudentEventStatus.SUBMITTED).toList();
-
         return new ClassSummaryDto(year.getId(), semester.getId(), cls.getId(), cls.getName(), cls.getGradeLevel(),
                 roster.size(), attendanceRate, openRiskCount, averageGpa, ability, conduct,
                 contactCount, meetingRows.size(),
-                percent(attendedCount, participantCount),
-                eventRows.stream().filter(item -> item.getEventType() == StudentEventType.REWARD).count(),
-                eventRows.stream().filter(item -> item.getEventType() == StudentEventType.VIOLATION).count());
+                percent(attendedCount, participantCount));
     }
 
     private Map<String, Long> distribution(List<String> values) {

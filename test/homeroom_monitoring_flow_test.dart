@@ -23,13 +23,6 @@ void main() {
       });
     },
   );
-
-  test('internal violation parser keeps submitted metadata', () {
-    final event = StudentEvent.fromJson(_eventJson);
-    expect(event.eventType, 'VIOLATION');
-    expect(event.status, 'SUBMITTED');
-    expect(event.studentId, 9);
-  });
 }
 
 const _summaryJson = <String, dynamic>{
@@ -43,19 +36,6 @@ const _summaryJson = <String, dynamic>{
   'parentContactCount': 4,
   'meetingCount': 1,
   'meetingParticipationRate': 75.0,
-  'rewardCount': 0,
-  'violationCount': 1,
-};
-
-const _eventJson = <String, dynamic>{
-  'id': 41,
-  'studentId': 9,
-  'eventType': 'VIOLATION',
-  'category': 'Nề nếp',
-  'title': 'Đi học muộn',
-  'description': 'Ghi nhận nội bộ để Admin tổng hợp.',
-  'eventDate': '2026-09-15',
-  'status': 'SUBMITTED',
 };
 
 class _RecordingBackend extends BackendApiClient {

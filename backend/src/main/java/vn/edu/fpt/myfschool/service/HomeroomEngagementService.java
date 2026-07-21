@@ -19,14 +19,4 @@ public interface HomeroomEngagementService {
     ParentMeetingDto respondMeeting(Long id, MeetingResponseRequest request, Long parentUserId);
     ParentMeetingDto markAttendance(Long id, MeetingAttendanceRequest request, Long teacherUserId);
 
-    List<StudentEventDto> getStudentEvents(Long studentId, Long academicYearId, Long semesterId,
-            Long classId, Long requesterId, UserRole requesterRole);
-    StudentEventDto createStudentEvent(Long studentId, SaveStudentEventRequest request,
-            Long requesterId, UserRole requesterRole);
-    StudentEventDto updateStudentEvent(Long id, SaveStudentEventRequest request,
-            Long requesterId, UserRole requesterRole);
-    void deleteStudentEvent(Long id, Long academicYearId, Long requesterId, UserRole requesterRole);
-    List<StudentEventDto> submitStudentViolations(Long studentId, ViolationScopeRequest request,
-            Long teacherUserId);
-    List<StudentEventDto> submitClassViolations(ViolationScopeRequest request, Long teacherUserId);
 }

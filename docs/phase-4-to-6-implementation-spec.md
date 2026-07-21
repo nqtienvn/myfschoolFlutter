@@ -78,103 +78,28 @@ GET  /api/announcements/{id}/recipients         # Chỉ giáo viên gửi; UNREA
 
 ---
 
-# Phase 5 — Vi phạm học sinh và kết quả học kỳ
+# Phase 5 — Kết quả học kỳ
 
 ## Mục tiêu
 
-Tách rõ trách nhiệm ghi nhận vi phạm và quản lý kết quả:
-
-```text
-GVCN ghi vi phạm → lưu nháp → submit
-→ Admin chỉ xem và thống kê vi phạm đã submit
-```
-
-## Database
-
-Sử dụng bảng `student_events` với `event_type = VIOLATION`:
-
-```text
-academic_year_id
-semester_id
-class_id
-student_id
-event_type: VIOLATION
-category
-title
-description
-event_date
-status: DRAFT | SUBMITTED
-created_by
-submitted_at
-created_at
-updated_at
-```
-
-Migration `V29` xóa hoàn toàn ba bảng nhận xét định kỳ cũ.
+Quản lý điểm, chuyên cần và kết quả học kỳ theo đúng phạm vi năm học, học kỳ và lớp.
 
 ## Quy tắc nghiệp vụ
 
-GVCN:
-
-- Chỉ ghi vi phạm cho học sinh đang thuộc lớp chủ nhiệm trong đúng năm học và học kỳ.
-- Có thể thêm, sửa, xóa vi phạm khi còn `DRAFT`.
-- Có thể submit theo từng học sinh hoặc cả lớp.
-- Vi phạm `SUBMITTED` bị khóa, không thể sửa hoặc xóa.
-
-Admin:
-
-- Chỉ đọc và thống kê vi phạm `SUBMITTED`.
-- Không được tạo, sửa, xóa hoặc submit thay GVCN.
-- Kết quả học kỳ không phụ thuộc vào nhận xét giáo viên.
-
-Phụ huynh/học sinh:
-
-- Không truy cập luồng vi phạm nội bộ này.
-
-## API
-
-```text
-GET    /api/students/{studentId}/events
-POST   /api/students/{studentId}/events
-PUT    /api/student-events/{id}
-DELETE /api/student-events/{id}
-POST   /api/students/{studentId}/violations/submit
-POST   /api/student-events/violations/submit-class
-```
-
-Mọi API ghi dữ liệu phải kiểm tra chéo `academicYearId`, `semesterId`, `classId`, `studentId` và phân công chủ nhiệm.
-
-## Flutter App
-
-- Không có API client, model hoặc màn hình nhận xét định kỳ.
-- Bảng điểm chỉ hiển thị điểm và kết quả tổng kết đã công bố.
-
-## Teacher Web
-
-- Chỉ GVCN dùng trang “Vi phạm học sinh”.
-- Chọn học sinh để thêm/sửa/xóa bản nháp và submit.
-- Không có luồng nhận xét của GVCN hoặc GVBM.
-
-## Admin Web
-
-- Chỉ hiển thị danh sách và số liệu vi phạm đã submit theo phạm vi năm học.
-- Không có form hoặc API ghi vi phạm.
-- Không có màn hình theo dõi nhận xét định kỳ.
+- Điểm và kết quả chỉ được chỉnh sửa khi học kỳ chưa khóa.
+- Gợi ý rèn luyện được tính từ số buổi nghỉ không phép: Tốt ≤2, Khá ≤4, Đạt ≤9, còn lại Chưa đạt.
+- Admin có thể xem chuyên cần và hoàn tất kết quả học kỳ; không có luồng ghi nhận vi phạm học sinh.
+- Phụ huynh/học sinh chỉ xem các kết quả đã được công bố.
 
 ## Test bắt buộc
 
-- GVCN không ghi vi phạm ngoài lớp chủ nhiệm hoặc chéo năm học.
-- Admin không tạo, sửa hoặc xóa vi phạm.
-- Admin không nhìn thấy bản nháp.
-- Submit chuyển bản nháp thành `SUBMITTED` và khóa chỉnh sửa.
-- PH/HS không truy cập API vi phạm nội bộ.
-- Cô lập dữ liệu giữa hai năm học.
+- Kết quả rèn luyện đổi đúng theo số buổi nghỉ không phép.
+- Dữ liệu kết quả và chuyên cần được cô lập giữa các năm học.
+- Không còn API, giao diện hoặc dữ liệu vi phạm học sinh.
 
 ## Definition of Done
 
-Không còn entity, repository, service, controller, API client, route hoặc giao diện nhận xét định kỳ. GVCN là chủ thể duy nhất ghi và submit vi phạm; Admin chỉ thống kê dữ liệu đã submit.
-
----
+Không còn entity, repository, service, controller, API client, route, giao diện hoặc dữ liệu vi phạm học sinh.
 
 # Phase 6 — Hồ sơ học sinh nâng cao và báo cáo GVCN
 
@@ -261,39 +186,14 @@ Luồng:
 - Phụ huynh xác nhận tham gia hoặc từ chối.
 - GVCN ghi nhận kết quả và trạng thái tham dự.
 
-## 6C. Khen thưởng, vi phạm và báo cáo lớp
+## 6C. Báo cáo lớp
 
-Bảng `student_events`:
+Báo cáo tổng hợp lớp theo học kỳ gồm:
 
-```text
-student_id
-academic_year_id
-semester_id
-class_id
-event_type: REWARD | VIOLATION | NOTE
-category
-title
-description
-event_date
-status: DRAFT | PUBLISHED
-created_by
-published_at
-```
-
-Không xây hệ thống điểm phạt phức tạp trong phiên bản này.
-
-Báo cáo lớp phải được backend tổng hợp, gồm:
-
-- Sĩ số.
-- Tỷ lệ chuyên cần.
-- Học sinh nguy cơ.
-- GPA trung bình.
-- Phân bố học lực.
-- Phân bố hạnh kiểm.
-- Tiến độ nhận xét.
-- Số liên hệ phụ huynh.
-- Số lịch họp và tỷ lệ tham gia.
-- Khen thưởng/vi phạm.
+- Sĩ số, chuyên cần và GPA trung bình.
+- Phân bố học tập và rèn luyện.
+- Cảnh báo nguy cơ.
+- Số liên hệ phụ huynh, lịch họp và tỷ lệ tham gia.
 
 ## API đề xuất
 
@@ -313,11 +213,6 @@ PUT  /api/parent-meetings/{id}
 PUT  /api/parent-meetings/{id}/respond
 PUT  /api/parent-meetings/{id}/attendance
 
-GET  /api/students/{studentId}/events
-POST /api/students/{studentId}/events
-PUT  /api/student-events/{id}
-POST /api/student-events/{id}/publish
-
 GET /api/homeroom/reports/class-summary
 ```
 
@@ -331,14 +226,12 @@ GVCN App:
   - Kết quả/nhận xét.
   - Liên hệ phụ huynh.
   - Lịch hẹn.
-  - Khen thưởng/vi phạm.
 - Báo cáo tổng hợp lớp theo học kỳ.
 
 Phụ huynh App:
 
 - Xem lịch họp được mời.
 - Xác nhận tham gia.
-- Xem khen thưởng/vi phạm đã công bố.
 - Không thấy ghi chú nội bộ hoặc risk flag.
 
 Admin Web:

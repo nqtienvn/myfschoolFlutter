@@ -10,7 +10,6 @@ export interface ResultSummaryItem {
   className: string;
   gpa: number | null;
   rank: number | null;
-  violationCount: number;
   absentWithLeave: number;
   absentWithoutLeave: number;
   suggestedAcademicAbility: string | null;
@@ -135,26 +134,4 @@ export function downloadResultExport(academicYearId: number, semesterId?: number
   if (semesterId) query.set('semesterId', String(semesterId));
   if (classId) query.set('classId', String(classId));
   return apiDownload(`/result-files/export?${query}`);
-}
-
-export interface ViolationItem {
-  id: number;
-  studentId: number;
-  studentName: string;
-  classId: number;
-  eventType: 'VIOLATION';
-  category: string | null;
-  title: string;
-  description: string | null;
-  eventDate: string;
-  status: 'DRAFT' | 'SUBMITTED';
-}
-
-export function getStudentViolations(studentId: number, academicYearId: number, semesterId: number, classId: number) {
-  const query = new URLSearchParams({
-    academicYearId: String(academicYearId),
-    semesterId: String(semesterId),
-    classId: String(classId),
-  });
-  return apiFetch(`/students/${studentId}/events?${query}`) as Promise<ViolationItem[]>;
 }
