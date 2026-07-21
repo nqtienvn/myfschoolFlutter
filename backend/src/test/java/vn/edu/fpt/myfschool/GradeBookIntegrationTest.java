@@ -46,7 +46,7 @@ class GradeBookIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(token)).contentType(MediaType.APPLICATION_JSON).content(scores(adminItem,8,6))).andExpect(status().isUnauthorized());
     }
 
-    @Test void teacher_submit_publishes_new_and_edited_scores_to_student_and_parent_immediately() throws Exception {
+    @Test void teacher_submit_publishes_new_and_edited_scores_without_creating_notifications() throws Exception {
         String teacherToken=loginAsTeacher();var data=book(teacherToken);
         Long firstItem=data.get("items").get(0).get("id").asLong();
         mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(teacherToken)).contentType(MediaType.APPLICATION_JSON).content(scores(firstItem,8,6))).andExpect(status().isOk());
@@ -58,20 +58,10 @@ class GradeBookIntegrationTest extends BaseIntegrationTest {
         String parentToken=loginAsParent();
         mockMvc.perform(get("/api/notifications").header("Authorization",authHeader(studentToken)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data[0].title").value("Có điểm mới môn Toán"))
-            .andExpect(jsonPath("$.data[0].body").value(org.hamcrest.Matchers.containsString(": 8")))
-            .andExpect(jsonPath("$.data[0].tag").value("Bảng điểm"))
-            .andExpect(jsonPath("$.data[0].relatedId").value(testStudent1.getId()))
-            .andExpect(jsonPath("$.data[0].relatedType").value("GRADE_PUBLISHED"))
-            .andExpect(jsonPath("$.data[0].academicYearId").value(testAcademicYear.getId()))
-            .andExpect(jsonPath("$.data[0].semesterId").value(testSemester.getId()))
-            .andExpect(jsonPath("$.data[0].isRead").value(false));
+            .andExpect(jsonPath("$.data").isEmpty());
         mockMvc.perform(get("/api/notifications").header("Authorization",authHeader(parentToken)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data[*].relatedId").value(
-                org.hamcrest.Matchers.hasItem(testStudent1.getId().intValue())))
-            .andExpect(jsonPath("$.data[*].relatedType").value(
-                org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("GRADE_PUBLISHED"))));
+            .andExpect(jsonPath("$.data").isEmpty());
 
         var legacyScore=studentScoreRepository.findByGradeItemIdAndStudentId(firstItem,testStudent1.getId()).orElseThrow();
         legacyScore.setPublishedAt(null);studentScoreRepository.save(legacyScore);
@@ -92,8 +82,7 @@ class GradeBookIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.subjects[0].scores[0].score").value(9));
         mockMvc.perform(get("/api/notifications").header("Authorization",authHeader(parentToken)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data[0].title").value("Điểm đã được cập nhật môn Toán"))
-            .andExpect(jsonPath("$.data[0].body").value(org.hamcrest.Matchers.containsString(": 9")));
+            .andExpect(jsonPath("$.data").isEmpty());
     }
 
     @Test void transcript_keeps_scores_attached_when_configuration_code_changes() throws Exception {

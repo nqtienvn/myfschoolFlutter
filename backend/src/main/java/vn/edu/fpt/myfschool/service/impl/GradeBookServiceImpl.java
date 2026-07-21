@@ -10,7 +10,6 @@ import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.entity.*;
 import vn.edu.fpt.myfschool.repository.*;
 import vn.edu.fpt.myfschool.service.GradeBookService;
-import vn.edu.fpt.myfschool.service.NotificationService;
 import java.math.*;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -22,7 +21,6 @@ public class GradeBookServiceImpl implements GradeBookService {
     private final SemesterRepository semesters; private final StudentRepository students; private final TeacherRepository teachers;
     private final TeachingAssignmentRepository assignments; private final AcademicYearGradeConfigItemRepository configItems;
     private final AcademicYearSubjectRepository yearSubjects; private final UserRepository users; private final StudentScoreAuditRepository audits;
-    private final StudentGuardianRepository guardians; private final NotificationService notificationService;
 
     @Override @Transactional(readOnly=true)
     public GradeBookDto getByClassSubjectSemester(Long classId,Long subjectId,Long semesterId){GradeBook b=requireBook(classId,subjectId,semesterId);authorizeRead(b);return dto(b);}
@@ -73,32 +71,11 @@ public class GradeBookServiceImpl implements GradeBookService {
             score=scores.save(score);
             if(changed){
                 StudentScoreAudit audit=new StudentScoreAudit();audit.setStudentScore(score);audit.setOldScore(oldScore);audit.setNewScore(score.getScore());audit.setOldComment(oldComment);audit.setNewComment(score.getComment());audit.setOldIsGraded(oldIsGraded);audit.setNewIsGraded(score.getIsGraded());audit.setChangedBy(actor);audit.setReason(trimToNull(request.reason()));audit.setChangedAt(LocalDateTime.now());audits.save(audit);
-                if(Boolean.TRUE.equals(oldIsGraded)||value.graded())notifyGradeChange(score,item,Boolean.TRUE.equals(oldIsGraded));
             }
             result.add(scoreDto(score));
         }
         if(!request.entries().isEmpty()&&book.getStatus()!=GradeBookStatus.PUBLISHED){book.setStatus(GradeBookStatus.PUBLISHED);books.save(book);}
         return result;
-    }
-
-    private void notifyGradeChange(StudentScore score,GradeItem item,boolean wasGraded){
-        Student student=score.getStudent();
-        String title=Boolean.TRUE.equals(score.getIsGraded())
-            ?(wasGraded?"Điểm đã được cập nhật":"Có điểm mới")+" môn "+item.getGradeBook().getSubject().getName()
-            :"Điểm đã được điều chỉnh môn "+item.getGradeBook().getSubject().getName();
-        String value;
-        if(!Boolean.TRUE.equals(score.getIsGraded()))value="đã được để trống";
-        else if(item.getAssessmentType()==AssessmentType.SCORE)value=score.getScore().stripTrailingZeros().toPlainString();
-        else if(item.getAssessmentType()==AssessmentType.PASS_FAIL)value="PASS".equals(score.getComment())?"Đạt":"Chưa đạt";
-        else value=score.getComment();
-        String body=student.getUser().getName()+" - "+item.getName()+": "+value;
-        Set<Long> recipients=new LinkedHashSet<>();
-        recipients.add(student.getUser().getId());
-        guardians.findGuardiansByStudentId(student.getId()).stream()
-            .map(Parent::getUser).map(User::getId).forEach(recipients::add);
-        recipients.forEach(userId->notificationService.createNotification(
-            userId,title,body,"Bảng điểm",student.getId(),"GRADE_PUBLISHED",
-            item.getGradeBook().getCls().getAcademicYear().getId(),item.getGradeBook().getSemester().getId()));
     }
 
     private CanonicalAssessment canonicalAssessment(AssessmentType type,UpdateScoreEntry entry){
