@@ -69,10 +69,16 @@ export const getReceivedAnnouncements = (academicYearId: number) =>
 export const getSentAnnouncements = (academicYearId: number) =>
   teacherApiFetch(`/announcements/mine?academicYearId=${academicYearId}`);
 export const markAnnouncementRead = (id: number) => teacherApiFetch(`/announcements/${id}/read`, { method: 'PUT' });
-export const saveTeacherAnnouncement = (payload: unknown, id?: number) => teacherApiFetch(
-  id ? `/announcements/${id}` : '/announcements',
-  { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) },
-);
+export interface TeacherAnnouncementViolation { ruleId?: number; field: 'TITLE' | 'BODY'; phrase: string }
+export interface TeacherAnnouncementSubmissionResult {
+  outcome: 'PUBLISHED' | 'SYSTEM_REJECTED';
+  message: string;
+  announcement: { id: number };
+  violations: TeacherAnnouncementViolation[];
+}
+export const saveTeacherAnnouncement = (payload: unknown) => teacherApiFetch(
+  '/announcements', { method: 'POST', body: JSON.stringify(payload) },
+) as Promise<TeacherAnnouncementSubmissionResult>;
 export const deleteTeacherAnnouncement = (id: number) => teacherApiFetch(`/announcements/${id}`, { method: 'DELETE' });
 
 export const getHomeroomClass = (classId: number) => teacherApiFetch(`/classes/${classId}`);

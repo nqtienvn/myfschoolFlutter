@@ -10,7 +10,7 @@ class SchoolAnnouncement {
     required this.isRead,
     required this.createdAt,
     required this.academicYearId,
-    required this.approvalStatus,
+    required this.deliveryStatus,
   });
 
   final int id;
@@ -23,7 +23,7 @@ class SchoolAnnouncement {
   final bool isRead;
   final DateTime createdAt;
   final int academicYearId;
-  final String approvalStatus;
+  final String deliveryStatus;
 }
 
 class AnnouncementRecipient {

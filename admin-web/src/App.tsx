@@ -15,7 +15,6 @@ import GradesManagementPage from './pages/GradesManagementPage';
 import GradeConfigurationPage from './pages/GradeConfigurationPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import PaymentSettingsPage from './pages/PaymentSettingsPage';
-import { getPendingAnnouncementCount } from './api/announcement';
 import SetupWizardShell, { type WizardStepKey } from './components/SetupWizardShell';
 import TeacherPortal from './teacher/TeacherPortal';
 
@@ -110,7 +109,7 @@ const OPS_MODULES = [
   {
     key: 'announcements' as ModuleKey,
     label: 'Thông báo',
-    description: 'Gửi thông báo đến phụ huynh và học sinh. Duyệt các thông báo đang chờ phê duyệt.',
+    description: 'Gửi thông báo toàn trường, theo dõi kết quả và cấu hình chính sách kiểm tra nội dung tự động.',
     Icon: BellIcon,
   },
 ] as const;
@@ -121,14 +120,12 @@ function OperationsDashboard({
   semesters,
   yearId,
   semesterId,
-  pendingAnnouncements,
   onNavigate,
 }: {
   years: AcademicYearItem[];
   semesters: SemesterItem[];
   yearId: string;
   semesterId: string;
-  pendingAnnouncements: number;
   onNavigate: (module: ModuleKey) => void;
 }) {
   const selectedYear     = years.find(y => String(y.id) === yearId);
@@ -240,7 +237,6 @@ function OperationsDashboard({
         <nav className="ops-module-grid" aria-label="Menu phân hệ">
           {OPS_MODULES.map(item => {
             const Icon = item.Icon;
-            const isPending = item.key === 'announcements' && pendingAnnouncements > 0;
             return (
               <button
                 key={item.key}
@@ -252,11 +248,6 @@ function OperationsDashboard({
                 <div className="ops-card-body">
                   <div className="ops-card-header">
                     <strong>{item.label}</strong>
-                    {isPending && (
-                      <span className="nav-badge" aria-label={`${pendingAnnouncements} thông báo chờ duyệt`}>
-                        {pendingAnnouncements}
-                      </span>
-                    )}
                   </div>
                   <p>{item.description}</p>
                 </div>
@@ -320,7 +311,6 @@ function AdminApp() {
   const [yearId, setYearId]             = useState('');
   const [semesterId, setSemesterId]     = useState('');
   const [loadingCtx, setLoadingCtx]     = useState(false);
-  const [pendingAnn, setPendingAnn]     = useState(0);
 
   /* Data refresh helpers */
   async function refreshYears(preferredYearId?: string) {
@@ -358,21 +348,6 @@ function AdminApp() {
 
   useEffect(() => { if (loggedIn) refreshYears(); }, [loggedIn]);
   useEffect(() => { refreshSemesters(yearId); }, [yearId]);
-
-  /* Poll pending announcements */
-  useEffect(() => {
-    let alive = true;
-    const poll = async () => {
-      if (!yearId) { setPendingAnn(0); return; }
-      try {
-        const count = await getPendingAnnouncementCount(yearId);
-        if (alive) setPendingAnn(count);
-      } catch { /* silent */ }
-    };
-    void poll();
-    const t = window.setInterval(poll, 5_000);
-    return () => { alive = false; clearInterval(t); };
-  }, [yearId]);
 
   /* Sidebar lock on mobile */
   useEffect(() => {
@@ -474,7 +449,6 @@ function AdminApp() {
           semesters={semesters}
           yearId={yearId}
           semesterId={semesterId}
-          pendingAnnouncements={pendingAnn}
           onNavigate={navigate}
         />
       </div>
@@ -506,10 +480,7 @@ function AdminApp() {
       </div>
     ) : module === 'announcements' ? (
       <div className="page-content">
-        <AnnouncementsPage
-          selectedYearId={yearId}
-          onPendingCountChange={setPendingAnn}
-        />
+        <AnnouncementsPage selectedYearId={yearId} />
       </div>
     ) : null;
 
@@ -661,16 +632,11 @@ function AdminApp() {
               onClick={() => navigate('announcements')}
               title="Thông báo"
               aria-current={module === 'announcements' ? 'page' : undefined}
-              aria-label={pendingAnn > 0 ? `Thông báo — ${pendingAnn} chờ duyệt` : 'Thông báo'}
+              aria-label="Thông báo"
             >
               <span className="module-icon" aria-hidden="true"><BellIcon /></span>
               <span className="module-label">
                 Thông báo
-                {pendingAnn > 0 && (
-                  <span className="nav-badge" aria-label={`${pendingAnn} chờ duyệt`}>
-                    {pendingAnn}
-                  </span>
-                )}
               </span>
             </button>
           </nav>

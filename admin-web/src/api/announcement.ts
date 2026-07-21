@@ -1,6 +1,14 @@
 import { apiFetch } from './client';
 
-export type AnnouncementStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type AnnouncementDeliveryStatus = 'PUBLISHED' | 'SYSTEM_REJECTED';
+export type AnnouncementPolicyScope = 'TITLE' | 'BODY' | 'ALL';
+export type AnnouncementPolicyMatchType = 'CONTAINS' | 'EXACT';
+
+export interface AnnouncementViolation {
+  ruleId?: number;
+  field: 'TITLE' | 'BODY';
+  phrase: string;
+}
 
 export interface AnnouncementItem {
   id: number;
@@ -10,20 +18,83 @@ export interface AnnouncementItem {
   teacherName: string;
   classNames: string[];
   createdAt: string;
-  approvalStatus: AnnouncementStatus;
-  rejectionReason?: string;
+  academicYearId: number;
+  deliveryStatus: AnnouncementDeliveryStatus;
+  systemRejectionMessage?: string;
   senderType: string;
   recipientScope: 'SCHOOL' | 'CLASSES';
+  retryOfAnnouncementId?: number;
+  violations: AnnouncementViolation[];
 }
 
-export const getAnnouncements = (academicYearId: string, status?: string) =>
-  apiFetch(`/announcements/admin?academicYearId=${academicYearId}${status ? `&status=${status}` : ''}`) as Promise<AnnouncementItem[]>;
+export interface AnnouncementPage {
+  content: AnnouncementItem[];
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
 
-export const getPendingAnnouncementCount = (academicYearId: string) =>
-  apiFetch(`/announcements/admin/pending-count?academicYearId=${academicYearId}`) as Promise<number>;
+export interface AnnouncementSummary {
+  total: number;
+  published: number;
+  systemRejected: number;
+}
 
-export const reviewAnnouncement = (id: number, approve: boolean, reason?: string) =>
-  apiFetch(`/announcements/${id}/review`, { method: 'PUT', body: JSON.stringify({ approve, reason }) });
+export interface AnnouncementPolicyRule {
+  id?: number;
+  phrase: string;
+  scope: AnnouncementPolicyScope;
+  matchType: AnnouncementPolicyMatchType;
+}
+
+export interface AnnouncementPolicy {
+  academicYearId: number;
+  enabled: boolean;
+  rejectionMessage: string;
+  rules: AnnouncementPolicyRule[];
+  updatedAt?: string;
+}
+
+export interface AnnouncementPolicyPayload {
+  academicYearId: number;
+  enabled: boolean;
+  rejectionMessage: string;
+  rules: AnnouncementPolicyRule[];
+}
+
+export interface AnnouncementQuery {
+  academicYearId: string;
+  status?: AnnouncementDeliveryStatus | '';
+  keyword?: string;
+  page: number;
+  size: number;
+}
+
+export const getAnnouncements = (query: AnnouncementQuery) => {
+  const params = new URLSearchParams({
+    academicYearId: query.academicYearId,
+    page: String(query.page),
+    size: String(query.size),
+  });
+  if (query.status) params.set('status', query.status);
+  if (query.keyword) params.set('keyword', query.keyword);
+  return apiFetch(`/announcements/admin?${params}`) as Promise<AnnouncementPage>;
+};
+
+export const getAnnouncementSummary = (academicYearId: string) =>
+  apiFetch(`/announcements/admin/summary?academicYearId=${academicYearId}`) as Promise<AnnouncementSummary>;
+
+export const getAnnouncementPolicy = (academicYearId: string) =>
+  apiFetch(`/announcements/admin/policy?academicYearId=${academicYearId}`) as Promise<AnnouncementPolicy>;
+
+export const updateAnnouncementPolicy = (payload: AnnouncementPolicyPayload) =>
+  apiFetch('/announcements/admin/policy', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }) as Promise<AnnouncementPolicy>;
 
 export const deleteAnnouncement = (id: number) =>
   apiFetch(`/announcements/${id}`, { method: 'DELETE' });

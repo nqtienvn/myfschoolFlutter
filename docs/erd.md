@@ -690,13 +690,33 @@ Tối ưu hiệu năng (index, partition) và dễ scale.
 │ title            │ VARCHAR(500) NOT NULL             │
 │ body             │ TEXT NOT NULL                     │
 │ target_role      │ ENUM: PARENT, STUDENT, ALL        │
-│ approval_status  │ PENDING / APPROVED / REJECTED     │
+│ delivery_status  │ PUBLISHED / SYSTEM_REJECTED       │
+│ rejection_message│ Snapshot lời từ chối của hệ thống │
+│ retry_of_id      │ FK tự tham chiếu bản bị từ chối   │
 │ recipient_scope  │ CLASSES / SCHOOL                  │
 │ created_at       │ TIMESTAMP DEFAULT CURRENT         │
 ├──────────────────┴──────────────────────────────────┤
 │ INDEX idx_ann_teacher (teacher_id) — GV xem đã gửi │
-│ INDEX idx_ann_created (created_at) — sort mới nhất  │
+│ INDEX idx_ann_year_delivery_created — lọc + phân trang│
 └─────────────────────────────────────────────────────┘
+```
+
+### Chính sách nội dung thông báo
+
+```text
+academic_years (1)
+  ├── (0..1) announcement_policy_settings
+  │           ├── enabled
+  │           └── rejection_message
+  └── (0..N) announcement_content_rules
+              ├── phrase + normalized_phrase
+              ├── match_scope: TITLE / BODY / ALL
+              └── match_type: CONTAINS / EXACT
+
+announcements (1) ─── (0..N) announcement_policy_violations
+                              ├── rule_id (nullable khi cấu hình bị thay)
+                              ├── matched_field
+                              └── matched_phrase (snapshot lịch sử)
 ```
 
 ### `announcement_classes`

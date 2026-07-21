@@ -10,8 +10,9 @@ import java.util.List;
 
 public record CreateAnnouncementRequest(
     @NotBlank @Size(max = 500) String title,
-    @NotBlank String body,
+    @NotBlank @Size(max = 10000) String body,
     @NotNull TargetRole targetRole,
     Long academicYearId,
-    @NotEmpty List<Long> classIds
+    @NotEmpty List<Long> classIds,
+    Long retryOfAnnouncementId
 ) {}

@@ -145,7 +145,8 @@ class ConversationIntegrationTest extends BaseIntegrationTest {
                 .content("{\"title\":\"Thong bao lich thi\",\"body\":\"Lich thi cuoi ky\",\"targetRole\":\"ALL\",\"classIds\":[" + testClass.getId() + "]}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.title").value("Thong bao lich thi"));
+            .andExpect(jsonPath("$.data.outcome").value("PUBLISHED"))
+            .andExpect(jsonPath("$.data.announcement.title").value("Thong bao lich thi"));
     }
 
     @Test

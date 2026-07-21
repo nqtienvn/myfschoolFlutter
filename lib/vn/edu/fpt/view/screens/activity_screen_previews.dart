@@ -327,7 +327,7 @@ class MessagePreview extends StatelessWidget {
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
-                  'Soạn nội dung, chọn người nhận, gửi/phê duyệt và theo dõi đã đọc.',
+                  'Soạn nội dung, chọn người nhận, tự kiểm tra chính sách và theo dõi đã đọc.',
                   style: TextStyle(fontWeight: FontWeight.w800, height: 1.3),
                 ),
               ),

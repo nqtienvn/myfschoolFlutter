@@ -1,5 +1,6 @@
 package vn.edu.fpt.myfschool.common.dto;
 
+import vn.edu.fpt.myfschool.common.enums.AnnouncementDeliveryStatus;
 import vn.edu.fpt.myfschool.common.enums.TargetRole;
 
 import java.time.LocalDateTime;
@@ -17,8 +18,10 @@ public record AnnouncementDto(
     boolean isRead,
     LocalDateTime createdAt,
     Long academicYearId,
-    String approvalStatus,
-    String rejectionReason,
+    AnnouncementDeliveryStatus deliveryStatus,
+    String systemRejectionMessage,
     String senderType,
-    String recipientScope
+    String recipientScope,
+    Long retryOfAnnouncementId,
+    List<AnnouncementViolationDto> violations
 ) {}

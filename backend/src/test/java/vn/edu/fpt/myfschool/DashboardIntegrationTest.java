@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
+import vn.edu.fpt.myfschool.common.enums.AnnouncementDeliveryStatus;
 import vn.edu.fpt.myfschool.common.enums.Shift;
 import vn.edu.fpt.myfschool.common.enums.TargetRole;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
@@ -249,7 +250,7 @@ class DashboardIntegrationTest extends BaseIntegrationTest {
         announcement.setTeacher(testTeacher);
         announcement.setSender(testTeacher.getUser());
         announcement.setAcademicYear(testAcademicYear);
-        announcement.setApprovalStatus("APPROVED");
+        announcement.setDeliveryStatus(AnnouncementDeliveryStatus.PUBLISHED);
         announcement.setSenderType("HOMEROOM_TEACHER");
         announcement.setRecipientScope("CLASSES");
         announcement.setTitle(title);

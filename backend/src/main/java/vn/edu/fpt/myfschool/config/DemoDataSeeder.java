@@ -366,6 +366,7 @@ public class DemoDataSeeder implements ApplicationRunner {
             students12A1, students12A2, studentNam
         );
 
+        createAnnouncementPolicy(currentYear, admin);
         Map<String, Announcement> announcements = createAnnouncements(
             currentYear, admin, teacherMath, teacherLiterature,
             class12A1, class12A2, class10A1
@@ -1105,6 +1106,30 @@ public class DemoDataSeeder implements ApplicationRunner {
         return persist(transaction);
     }
 
+    private void createAnnouncementPolicy(AcademicYear year, User admin) {
+        AnnouncementPolicySetting setting = new AnnouncementPolicySetting();
+        setting.setAcademicYear(year);
+        setting.setEnabled(true);
+        setting.setRejectionMessage(
+            "Thông báo này đã vi phạm câu từ trong chính sách của nhà trường.");
+        setting.setUpdatedBy(admin);
+        persist(setting);
+
+        createAnnouncementRule(year, admin, "mua ngay");
+        createAnnouncementRule(year, admin, "thông báo nháp");
+    }
+
+    private void createAnnouncementRule(AcademicYear year, User admin, String phrase) {
+        AnnouncementContentRule rule = new AnnouncementContentRule();
+        rule.setAcademicYear(year);
+        rule.setPhrase(phrase);
+        rule.setNormalizedPhrase(phrase);
+        rule.setScope(AnnouncementPolicyScope.ALL);
+        rule.setMatchType(AnnouncementPolicyMatchType.CONTAINS);
+        rule.setUpdatedBy(admin);
+        persist(rule);
+    }
+
     private Map<String, Announcement> createAnnouncements(AcademicYear year, User admin,
                                                            Teacher teacherMath,
                                                            Teacher teacherLiterature,
@@ -1113,7 +1138,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                                                            SchoolClass class10A1) {
         Map<String, Announcement> announcements = new LinkedHashMap<>();
         Announcement meeting = createAnnouncement(
-            year, teacherMath, teacherMath.getUser(), "APPROVED", null,
+            year, teacherMath, teacherMath.getUser(), AnnouncementDeliveryStatus.PUBLISHED, null,
             "HOMEROOM_TEACHER", "CLASSES",
             "Họp phụ huynh đầu học kỳ",
             "Kính mời phụ huynh tham dự cuộc họp tại phòng D-A101 lúc 08:00 thứ Bảy.",
@@ -1121,32 +1146,32 @@ public class DemoDataSeeder implements ApplicationRunner {
         );
         announcements.put("MEETING", meeting);
         Announcement exam = createAnnouncement(
-            year, teacherMath, teacherMath.getUser(), "APPROVED", null,
+            year, teacherMath, teacherMath.getUser(), AnnouncementDeliveryStatus.PUBLISHED, null,
             "SUBJECT_TEACHER", "CLASSES",
             "Lịch kiểm tra Toán chương 1",
             "Bài kiểm tra 45 phút diễn ra vào tiết 2 thứ Tư. Học sinh chuẩn bị máy tính cầm tay.",
             TargetRole.STUDENT, List.of(class12A1, class12A2)
         );
         announcements.put("EXAM", exam);
-        Announcement pending = createAnnouncement(
-            year, teacherLiterature, teacherLiterature.getUser(), "PENDING", null,
+        Announcement readingActivity = createAnnouncement(
+            year, teacherLiterature, teacherLiterature.getUser(), AnnouncementDeliveryStatus.PUBLISHED, null,
             "SUBJECT_TEACHER", "CLASSES",
             "Đề xuất hoạt động đọc sách",
             "Kế hoạch đọc sách theo nhóm dành cho học sinh khối 12.",
             TargetRole.ALL, List.of(class12A1, class12A2)
         );
-        announcements.put("PENDING", pending);
+        announcements.put("READING_ACTIVITY", readingActivity);
         Announcement rejected = createAnnouncement(
-            year, teacherLiterature, teacherLiterature.getUser(), "REJECTED",
-            "Nội dung chưa ghi rõ thời gian và người phụ trách.",
+            year, teacherLiterature, teacherLiterature.getUser(), AnnouncementDeliveryStatus.SYSTEM_REJECTED,
+            "Thông báo này đã vi phạm câu từ trong chính sách của nhà trường.",
             "SUBJECT_TEACHER", "CLASSES",
             "Hoạt động ngoại khóa dự kiến",
             "Thông báo nháp để kiểm thử trạng thái từ chối.",
             TargetRole.PARENT, List.of(class10A1)
         );
-        announcements.put("REJECTED", rejected);
+        announcements.put("SYSTEM_REJECTED", rejected);
         Announcement schoolWide = createAnnouncement(
-            year, null, admin, "APPROVED", null,
+            year, null, admin, AnnouncementDeliveryStatus.PUBLISHED, null,
             "ADMIN", "SCHOOL",
             "Bảo trì hệ thống MyFschool",
             "Hệ thống tạm ngừng 30 phút từ 22:00 để nâng cấp định kỳ.",
@@ -1154,7 +1179,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         );
         announcements.put("SCHOOL", schoolWide);
         Announcement schoolPolicy = createAnnouncement(
-            year, null, admin, "APPROVED", null,
+            year, null, admin, AnnouncementDeliveryStatus.PUBLISHED, null,
             "ADMIN", "SCHOOL",
             "Cập nhật quy định sử dụng MyFschool",
             "Nhà trường cập nhật hướng dẫn bảo mật tài khoản dành cho toàn bộ phụ huynh, học sinh và giáo viên.",
@@ -1171,7 +1196,8 @@ public class DemoDataSeeder implements ApplicationRunner {
     }
 
     private Announcement createAnnouncement(AcademicYear year, Teacher teacher, User sender,
-                                            String approvalStatus, String rejectionReason,
+                                            AnnouncementDeliveryStatus deliveryStatus,
+                                            String systemRejectionMessage,
                                             String senderType, String recipientScope,
                                             String title, String body, TargetRole targetRole,
                                             List<SchoolClass> classes) {
@@ -1179,8 +1205,8 @@ public class DemoDataSeeder implements ApplicationRunner {
         announcement.setAcademicYear(year);
         announcement.setTeacher(teacher);
         announcement.setSender(sender);
-        announcement.setApprovalStatus(approvalStatus);
-        announcement.setRejectionReason(rejectionReason);
+        announcement.setDeliveryStatus(deliveryStatus);
+        announcement.setSystemRejectionMessage(systemRejectionMessage);
         announcement.setSenderType(senderType);
         announcement.setRecipientScope(recipientScope);
         announcement.setTitle(title);
@@ -1312,9 +1338,6 @@ public class DemoDataSeeder implements ApplicationRunner {
             "Yêu cầu điều chỉnh điểm danh đang chờ quản trị viên duyệt.", "ATTENDANCE", null,
             "ATTENDANCE_CORRECTION", false);
 
-        createNotification(admin, null, "Thông báo chờ duyệt",
-            announcements.get("PENDING").getTitle(), "ANNOUNCEMENT",
-            announcements.get("PENDING").getId(), "ANNOUNCEMENT", false);
         createNotification(admin, null, "Năm học nháp chưa hoàn tất",
             DRAFT_YEAR_NAME + " còn thiếu cấu hình bắt buộc.", "ACADEMIC_YEAR", null,
             "ACADEMIC_YEAR", true);

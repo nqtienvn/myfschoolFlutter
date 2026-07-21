@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.myfschool.common.dto.DashboardStudentStatsDto;
 import vn.edu.fpt.myfschool.common.dto.DashboardTeacherStatsDto;
 import vn.edu.fpt.myfschool.common.enums.AcademicYearStatus;
+import vn.edu.fpt.myfschool.common.enums.AnnouncementDeliveryStatus;
 import vn.edu.fpt.myfschool.common.enums.AttendanceStatus;
 import vn.edu.fpt.myfschool.common.enums.TargetRole;
 import vn.edu.fpt.myfschool.common.exception.BadRequestException;
@@ -233,7 +234,7 @@ public class DashboardServiceImpl implements DashboardService {
             .findByTeacherIdOrderByCreatedAtDesc(teacher.getId()).stream()
             .filter(item -> item.getAcademicYear().getId().equals(academicYearId))
             .filter(item -> isCreatedWithin(item, semester))
-            .filter(item -> "APPROVED".equals(item.getApprovalStatus()))
+            .filter(item -> item.getDeliveryStatus() == AnnouncementDeliveryStatus.PUBLISHED)
             .filter(item -> item.getTargetRole() == TargetRole.PARENT
                 || item.getTargetRole() == TargetRole.ALL)
             .filter(item -> announcementClassRepository.findByAnnouncementId(item.getId()).stream()

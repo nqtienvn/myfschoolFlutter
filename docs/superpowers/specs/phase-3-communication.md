@@ -1,6 +1,6 @@
 # Phase 3 — Communication (Messaging + Announcements + Notifications + WebSocket)
 
-> **Lưu ý hiện hành:** Phần thông báo trong tài liệu lịch sử này đã được thay thế bởi luồng giáo viên gửi duyệt → Admin duyệt và publish; Admin cũng có thể broadcast trực tiếp tới mọi tài khoản không phải Admin. Thông báo chỉ theo dõi đã đọc/chưa đọc, không còn xác nhận hoặc phản hồi.
+> **Lưu ý hiện hành:** Phần thông báo trong tài liệu lịch sử này đã được thay thế bởi cơ chế kiểm tra tự động theo chính sách của từng năm học. Thông báo hợp lệ được xuất bản ngay; thông báo vi phạm bị hệ thống từ chối và không tạo người nhận. Admin có thể broadcast trực tiếp tới mọi tài khoản không phải Admin. Thông báo chỉ theo dõi đã đọc/chưa đọc, không có bước duyệt thủ công, xác nhận hoặc phản hồi.
 
 > Tables: `conversations`, `conversation_participants`, `messages`, `announcements`, `announcement_classes`, `announcement_reads`, `notifications`
 > Tổng: **7 tables**, **~45 API endpoints + WebSocket**

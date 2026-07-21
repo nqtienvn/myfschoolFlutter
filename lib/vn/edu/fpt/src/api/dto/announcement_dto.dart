@@ -13,7 +13,7 @@ class AnnouncementDto {
     required this.isRead,
     required this.createdAt,
     required this.academicYearId,
-    required this.approvalStatus,
+    required this.deliveryStatus,
   });
 
   factory AnnouncementDto.fromJson(Map<String, dynamic> json) =>
@@ -30,7 +30,7 @@ class AnnouncementDto {
             _date(json['createdAt']) ??
             (throw const ParseException('createdAt must be a date.')),
         academicYearId: _int(json, 'academicYearId'),
-        approvalStatus: _string(json, 'approvalStatus'),
+        deliveryStatus: _string(json, 'deliveryStatus'),
       );
 
   final int id;
@@ -43,7 +43,7 @@ class AnnouncementDto {
   final bool isRead;
   final DateTime createdAt;
   final int academicYearId;
-  final String approvalStatus;
+  final String deliveryStatus;
 
   SchoolAnnouncement toDomain() => SchoolAnnouncement(
     id: id,
@@ -56,7 +56,7 @@ class AnnouncementDto {
     isRead: isRead,
     createdAt: createdAt,
     academicYearId: academicYearId,
-    approvalStatus: approvalStatus,
+    deliveryStatus: deliveryStatus,
   );
 }
 

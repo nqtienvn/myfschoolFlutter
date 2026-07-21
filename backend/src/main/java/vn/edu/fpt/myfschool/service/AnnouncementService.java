@@ -2,7 +2,12 @@ package vn.edu.fpt.myfschool.service;
 
 import org.springframework.data.domain.Page;
 import vn.edu.fpt.myfschool.common.dto.AnnouncementDto;
+import vn.edu.fpt.myfschool.common.dto.AnnouncementPolicyDto;
+import vn.edu.fpt.myfschool.common.dto.AnnouncementPolicyUpdateRequest;
 import vn.edu.fpt.myfschool.common.dto.AnnouncementRecipientDto;
+import vn.edu.fpt.myfschool.common.dto.AnnouncementSubmissionResultDto;
+import vn.edu.fpt.myfschool.common.dto.AnnouncementSummaryDto;
+import vn.edu.fpt.myfschool.common.enums.AnnouncementDeliveryStatus;
 import vn.edu.fpt.myfschool.common.enums.TargetRole;
 import vn.edu.fpt.myfschool.common.enums.UserRole;
 
@@ -10,19 +15,19 @@ import java.util.List;
 import java.util.Map;
 
 public interface AnnouncementService {
-    AnnouncementDto createAnnouncement(String title, String body, TargetRole targetRole,
-            Long academicYearId, List<Long> classIds, Long teacherUserId);
-
-    AnnouncementDto updateAnnouncement(Long id, String title, String body, TargetRole targetRole,
-            Long academicYearId, List<Long> classIds, Long userId);
+    AnnouncementSubmissionResultDto createAnnouncement(String title, String body, TargetRole targetRole,
+            Long academicYearId, List<Long> classIds, Long retryOfAnnouncementId, Long teacherUserId);
 
     void deleteAnnouncement(Long id, Long userId, UserRole role);
 
-    List<AnnouncementDto> getAdminAnnouncements(Long academicYearId, String status);
+    Page<AnnouncementDto> getAdminAnnouncements(Long academicYearId, AnnouncementDeliveryStatus status,
+            String keyword, int page, int size);
 
-    long getPendingCount(Long academicYearId);
+    AnnouncementSummaryDto getAdminSummary(Long academicYearId);
 
-    AnnouncementDto review(Long id, boolean approve, String reason, Long adminUserId);
+    AnnouncementPolicyDto getPolicy(Long academicYearId);
+
+    AnnouncementPolicyDto updatePolicy(AnnouncementPolicyUpdateRequest request, Long adminUserId);
 
     AnnouncementDto createAdminAnnouncement(String title, String body, Long academicYearId,
             Long adminUserId);

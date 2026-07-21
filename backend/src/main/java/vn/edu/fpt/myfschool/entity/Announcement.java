@@ -13,6 +13,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import vn.edu.fpt.myfschool.common.enums.AnnouncementDeliveryStatus;
 import vn.edu.fpt.myfschool.common.enums.TargetRole;
 
 import java.util.ArrayList;
@@ -37,11 +38,16 @@ public class Announcement extends BaseEntity {
     @JoinColumn(name = "academic_year_id", nullable = false)
     private AcademicYear academicYear;
 
-    @Column(name = "approval_status", nullable = false, length = 20)
-    private String approvalStatus = "PENDING";
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_status", nullable = false, length = 24)
+    private AnnouncementDeliveryStatus deliveryStatus;
 
-    @Column(name = "rejection_reason", length = 1000)
-    private String rejectionReason;
+    @Column(name = "system_rejection_message", length = 500)
+    private String systemRejectionMessage;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "retry_of_announcement_id")
+    private Announcement retryOfAnnouncement;
 
     @Column(name = "sender_type", nullable = false, length = 20)
     private String senderType = "SUBJECT_TEACHER";

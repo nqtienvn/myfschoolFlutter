@@ -41,7 +41,7 @@ Tất cả tài khoản dưới đây dùng mật khẩu `Demo@123` nếu không
 |---|---|---|---|
 | Admin | `0868589707` | Quản trị Demo | Toàn bộ cổng quản trị |
 | Giáo viên | `0901000001` | Nguyễn Thu Hà | GVCN 12A1, dạy Toán/Tin |
-| Giáo viên | `0901000002` | Trần Minh Anh | Dạy Ngữ văn, thông báo chờ duyệt |
+| Giáo viên | `0901000002` | Trần Minh Anh | Dạy Ngữ văn, thông báo tự động kiểm tra chính sách |
 | Phụ huynh | `0902000001` | Nguyễn Văn Hùng | Hai con ở 12A1 và 10A1 |
 | Học sinh | `0903000001` | Nguyễn Minh An | Điểm, chuyên cần, học phí, tin nhắn |
 | Học sinh | `0903000003` | Lê Mai Chi | Tin nhắn chưa đọc |
@@ -63,7 +63,7 @@ Tài khoản trạng thái biên dành cho trang quản lý người dùng:
 | Đơn nghỉ | `PENDING`, `APPROVED`, `REJECTED`, có tệp đính kèm và liên kết điểm danh |
 | Bảng điểm | `DRAFT`, `SUBMITTED`, `PUBLISHED`, `LOCKED`; điểm đủ, điểm thiếu, lịch sử sửa điểm và xếp hạng học kỳ |
 | Học phí | `UNPAID`, `PROCESSING`, `PAID`; giao dịch `PENDING`, `SUCCESS`, `FAILED` |
-| Thông báo | Theo lớp hoặc toàn bộ tài khoản không phải Admin; chờ duyệt, đã duyệt, từ chối, đã đọc/chưa đọc |
+| Thông báo | Theo lớp hoặc toàn bộ tài khoản không phải Admin; `PUBLISHED`, `SYSTEM_REJECTED`, đã đọc/chưa đọc; có cấu hình nhiều câu từ theo năm học |
 | Tin nhắn | Phụ huynh–giáo viên, học sinh–giáo viên, trạng thái đã đọc/chưa đọc và tệp đính kèm |
 | Hệ thống | Thông báo cá nhân và nhật ký thao tác admin |
 

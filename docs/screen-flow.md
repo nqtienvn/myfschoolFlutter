@@ -581,7 +581,9 @@ không nhận hướng dẫn chuyển khoản và không gửi xác nhận thanh
 ```text
 [CROSS-ACTOR: Thông báo (Tab 2)]
   │
-  ├── GV tạo thông báo → Admin duyệt → PH/HS mục tiêu thấy trong AnnouncementsScreen
+  ├── GV tạo thông báo → hệ thống kiểm tra chính sách
+  │     ├── Hợp lệ → phát hành ngay → PH/HS mục tiêu thấy trong AnnouncementsScreen
+  │     └── Vi phạm → SYSTEM_REJECTED → trả kết quả ngay cho GV, không tạo người nhận
   │
   └── Admin gửi trực tiếp → toàn bộ tài khoản không phải Admin nhận thông báo
 ```
@@ -652,6 +654,8 @@ không nhận hướng dẫn chuyển khoản và không gửi xác nhận thanh
 | GV | Grades | Upload Excel | `POST /api/grades/import` | `grades` |
 | GV | Grades | Tải template | `GET /api/grades/template` | — |
 | GV | Announcements | Tạo thông báo | `POST /api/announcements` | `announcements` |
+| Admin | Announcements | Cấu hình câu từ | `GET/PUT /api/announcements/admin/policy` | `announcement_policy_settings`, `announcement_content_rules` |
+| Admin | Announcements | Danh sách phân trang | `GET /api/announcements/admin` | `announcements`, `announcement_policy_violations` |
 | GV | Stats | Xem thống kê | `GET /api/stats/{classId}` | `attendance`, `grades` |
 | GV | Tuition | QL học phí | `GET /api/classes/{id}/tuition-status` | `tuition_bills` |
 | GV | Tuition | Nhắc nhở | `POST /api/tuition/remind/{studentId}` | `notifications` |

@@ -21,11 +21,13 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
   final _title = TextEditingController();
   final _body = TextEditingController();
   late final BackendApiClient _api;
-  List<Map<String, dynamic>> _classes = const [], _sent = const [];
+  List<Map<String, dynamic>> _classes = const [];
+  List<Map<String, dynamic>> _sent = const [];
   final Set<int> _classIds = {};
   String _target = 'ALL';
-  int? _editingId;
-  bool _loading = true, _sending = false;
+  int? _retryOfAnnouncementId;
+  bool _loading = true;
+  bool _sending = false;
   int? _yearId;
 
   @override
@@ -40,6 +42,7 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
     final id = AcademicPeriodScope.maybeOf(context)?.selected?.academicYearId;
     if (id != null && id != _yearId) {
       _yearId = id;
+      _resetDraft();
       _load();
     }
   }
@@ -73,9 +76,11 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
             .toList();
         _sent = (results[1] as List? ?? const [])
             .whereType<Map<String, dynamic>>()
-            .where((a) => a['academicYearId'] == _yearId)
+            .where((item) => item['academicYearId'] == _yearId)
             .toList();
       });
+    } catch (error) {
+      _message(error.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -90,49 +95,143 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
     }
     setState(() => _sending = true);
     try {
-      final payload = {
+      final payload = <String, dynamic>{
         'title': _title.text.trim(),
         'body': _body.text.trim(),
         'targetRole': _target,
         'academicYearId': _yearId,
         'classIds': _classIds.toList(),
+        if (_retryOfAnnouncementId != null)
+          'retryOfAnnouncementId': _retryOfAnnouncementId,
       };
-      if (_editingId == null) {
-        await _api.postData(
-          '/api/announcements',
-          token: widget.token,
-          body: payload,
-        );
-      } else {
-        await _api.putData(
-          '/api/announcements/$_editingId',
-          token: widget.token,
-          body: payload,
-        );
+      final raw = await _api.postData(
+        '/api/announcements',
+        token: widget.token,
+        body: payload,
+      );
+      if (raw is! Map<String, dynamic>) {
+        throw const FormatException('Kết quả kiểm tra thông báo không hợp lệ.');
       }
-      _clear();
-      await _load();
-      _message('Đã gửi thông báo tới admin để phê duyệt.');
-    } catch (e) {
-      _message(e.toString());
+      final outcome = raw['outcome'] as String?;
+      final message =
+          raw['message'] as String? ??
+          'Không nhận được kết quả kiểm tra nội dung.';
+      final announcement = raw['announcement'];
+      if (outcome != 'PUBLISHED' && outcome != 'SYSTEM_REJECTED' ||
+          announcement is! Map<String, dynamic>) {
+        throw const FormatException('Kết quả kiểm tra thông báo không hợp lệ.');
+      }
+      final violations = (raw['violations'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _sending = false;
+        _sent = [announcement, ..._sent];
+        if (outcome == 'PUBLISHED') {
+          _title.clear();
+          _body.clear();
+          _target = 'ALL';
+          _classIds.clear();
+          _retryOfAnnouncementId = null;
+        } else {
+          _retryOfAnnouncementId = announcement['id'] as int?;
+        }
+      });
+      await _showResult(
+        published: outcome == 'PUBLISHED',
+        message: message,
+        violations: violations,
+      );
+    } catch (error) {
+      _message(error.toString());
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (mounted && _sending) setState(() => _sending = false);
     }
   }
 
-  void _edit(Map<String, dynamic> item) {
+  Future<void> _showResult({
+    required bool published,
+    required String message,
+    required List<Map<String, dynamic>> violations,
+  }) {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        key: ValueKey(
+          published
+              ? 'announcement-published-dialog'
+              : 'announcement-rejected-dialog',
+        ),
+        icon: CircleAvatar(
+          radius: 28,
+          backgroundColor: published ? AppColors.green : AppColors.danger,
+          child: Icon(
+            published ? Icons.check_rounded : Icons.priority_high_rounded,
+            color: Colors.white,
+            size: 32,
+          ),
+        ),
+        title: Text(
+          published
+              ? 'Gửi thông báo thành công'
+              : 'Thông báo bị hệ thống từ chối',
+          textAlign: TextAlign.center,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message, textAlign: TextAlign.center),
+            if (violations.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              const Text(
+                'Câu từ vi phạm:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              ...violations.map(
+                (violation) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '• ${_fieldLabel(violation['field'])}: “${violation['phrase']}”',
+                    style: const TextStyle(color: AppColors.danger),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(published ? 'Đóng' : 'Quay lại chỉnh sửa'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _editAndRetry(Map<String, dynamic> item) {
     setState(() {
-      _editingId = item['id'] as int;
+      _retryOfAnnouncementId = item['id'] as int;
       _title.text = item['title'] as String? ?? '';
       _body.text = item['body'] as String? ?? '';
       _target = item['targetRole'] as String? ?? 'ALL';
-      _classIds.clear();
-      for (final c in _classes) {
-        if ((item['classNames'] as List? ?? const []).contains(c['name'])) {
-          _classIds.add(c['id'] as int);
+      _classIds
+        ..clear()
+        ..addAll((item['classIds'] as List? ?? const []).whereType<int>());
+      if (_classIds.isEmpty) {
+        final classNames = item['classNames'] as List? ?? const [];
+        for (final schoolClass in _classes) {
+          if (classNames.contains(schoolClass['name'])) {
+            _classIds.add(schoolClass['id'] as int);
+          }
         }
       }
     });
+    _message('Đã nạp nội dung bị từ chối. Hãy chỉnh sửa rồi gửi lại.');
   }
 
   Future<void> _delete(int id) async {
@@ -161,22 +260,22 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
     if (confirmed != true || !mounted) return;
     try {
       await _api.deleteData('/api/announcements/$id', token: widget.token);
-      if (_editingId == id) _clear();
-      await _load();
+      setState(() {
+        _sent = _sent.where((item) => item['id'] != id).toList();
+        if (_retryOfAnnouncementId == id) _retryOfAnnouncementId = null;
+      });
       _message('Đã xóa thông báo.');
     } catch (error) {
       _message(error.toString());
     }
   }
 
-  void _clear() {
-    setState(() {
-      _editingId = null;
-      _title.clear();
-      _body.clear();
-      _target = 'ALL';
-      _classIds.clear();
-    });
+  void _resetDraft() {
+    _retryOfAnnouncementId = null;
+    _title.clear();
+    _body.clear();
+    _target = 'ALL';
+    _classIds.clear();
   }
 
   void _message(String text) {
@@ -201,13 +300,22 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _editingId == null ? 'Tạo thông báo' : 'Sửa thông báo',
+                        _retryOfAnnouncementId == null
+                            ? 'Tạo thông báo'
+                            : 'Chỉnh sửa nội dung bị từ chối',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 6),
+                      Text(
+                        _retryOfAnnouncementId == null
+                            ? 'Hệ thống sẽ kiểm tra chính sách trước khi gửi ngay đến người nhận.'
+                            : 'Bản bị từ chối vẫn được giữ trong lịch sử.',
+                        style: const TextStyle(color: AppColors.muted),
+                      ),
+                      const SizedBox(height: 14),
                       SegmentedButton<String>(
                         segments: const [
                           ButtonSegment(value: 'ALL', label: Text('Cả hai')),
@@ -221,8 +329,10 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
                           ),
                         ],
                         selected: {_target},
-                        onSelectionChanged: (v) =>
-                            setState(() => _target = v.first),
+                        onSelectionChanged: _sending
+                            ? null
+                            : (values) =>
+                                  setState(() => _target = values.first),
                       ),
                       const SizedBox(height: 14),
                       const Text(
@@ -234,16 +344,22 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
                         spacing: 8,
                         children: _classes
                             .map(
-                              (c) => FilterChip(
+                              (schoolClass) => FilterChip(
                                 label: Text(
-                                  '${c['name']}${c['isHomeroom'] == true ? ' · GVCN' : ''}',
+                                  '${schoolClass['name']}${schoolClass['isHomeroom'] == true ? ' · GVCN' : ''}',
                                 ),
-                                selected: _classIds.contains(c['id']),
-                                onSelected: (v) => setState(() {
-                                  v
-                                      ? _classIds.add(c['id'] as int)
-                                      : _classIds.remove(c['id']);
-                                }),
+                                selected: _classIds.contains(schoolClass['id']),
+                                onSelected: _sending
+                                    ? null
+                                    : (selected) => setState(() {
+                                        selected
+                                            ? _classIds.add(
+                                                schoolClass['id'] as int,
+                                              )
+                                            : _classIds.remove(
+                                                schoolClass['id'],
+                                              );
+                                      }),
                               ),
                             )
                             .toList(),
@@ -258,6 +374,8 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: _title,
+                        enabled: !_sending,
+                        maxLength: 500,
                         decoration: const InputDecoration(
                           labelText: 'Tiêu đề',
                           border: OutlineInputBorder(),
@@ -266,6 +384,7 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: _body,
+                        enabled: !_sending,
                         minLines: 4,
                         maxLines: 8,
                         decoration: const InputDecoration(
@@ -274,25 +393,57 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
                         ),
                       ),
                       const SizedBox(height: 14),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: _sending
+                            ? const Padding(
+                                key: ValueKey('announcement-policy-loading'),
+                                padding: EdgeInsets.only(bottom: 12),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                      ),
+                                    ),
+                                    SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'Đang kiểm tra nội dung thông báo…',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
                       Row(
                         children: [
                           Expanded(
                             child: FilledButton.icon(
+                              key: const ValueKey('send-announcement'),
                               onPressed: _sending ? null : _save,
                               icon: const Icon(Icons.send),
                               label: Text(
                                 _sending
-                                    ? 'Đang gửi...'
-                                    : _editingId == null
-                                    ? 'Gửi duyệt'
-                                    : 'Gửi duyệt lại',
+                                    ? 'Đang kiểm tra nội dung…'
+                                    : _retryOfAnnouncementId == null
+                                    ? 'Gửi thông báo'
+                                    : 'Gửi lại thông báo',
                               ),
                             ),
                           ),
-                          if (_editingId != null)
+                          if (_retryOfAnnouncementId != null)
                             TextButton(
-                              onPressed: _clear,
-                              child: const Text('Hủy sửa'),
+                              onPressed: _sending
+                                  ? null
+                                  : () => setState(_resetDraft),
+                              child: const Text('Hủy gửi lại'),
                             ),
                         ],
                       ),
@@ -301,12 +452,14 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
                 ),
                 const SizedBox(height: 18),
                 const Text(
-                  'Thông báo đã gửi',
+                  'Lịch sử đã gửi',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
+                if (_sent.isEmpty)
+                  const AppCard(child: Text('Chưa có thông báo đã gửi.')),
                 ..._sent.map(
-                  (a) => Padding(
+                  (announcement) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: AppCard(
                       child: Column(
@@ -316,48 +469,65 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  a['title'] ?? '',
+                                  announcement['title'] as String? ?? '',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
                               Chip(
+                                backgroundColor:
+                                    announcement['deliveryStatus'] ==
+                                        'PUBLISHED'
+                                    ? AppColors.green.withValues(alpha: .12)
+                                    : AppColors.danger.withValues(alpha: .1),
                                 label: Text(
-                                  _status(a['approvalStatus'] as String?),
+                                  _status(
+                                    announcement['deliveryStatus'] as String?,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                           Text(
-                            a['body'] ?? '',
+                            announcement['body'] as String? ?? '',
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            '${(a['classNames'] as List? ?? const []).join(', ')} · ${_audience(a['targetRole'])}',
+                            '${(announcement['classNames'] as List? ?? const []).join(', ')} · ${_audience(announcement['targetRole'])}',
                             style: const TextStyle(color: AppColors.muted),
                           ),
-                          if (a['rejectionReason'] != null)
-                            Text(
-                              'Lý do từ chối: ${a['rejectionReason']}',
-                              style: const TextStyle(color: AppColors.danger),
+                          if (announcement['systemRejectionMessage'] is String)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                announcement['systemRejectionMessage']
+                                    as String,
+                                style: const TextStyle(color: AppColors.danger),
+                              ),
                             ),
-                          if (a['approvalStatus'] != 'APPROVED')
+                          ..._violationWidgets(announcement['violations']),
+                          if (announcement['deliveryStatus'] ==
+                              'SYSTEM_REJECTED')
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 TextButton.icon(
-                                  onPressed: () => _edit(a),
+                                  key: ValueKey(
+                                    'retry-announcement-${announcement['id']}',
+                                  ),
+                                  onPressed: () => _editAndRetry(announcement),
                                   icon: const Icon(Icons.edit),
-                                  label: const Text('Sửa'),
+                                  label: const Text('Sửa và gửi lại'),
                                 ),
                                 TextButton.icon(
                                   key: ValueKey(
-                                    'delete-announcement-${a['id']}',
+                                    'delete-announcement-${announcement['id']}',
                                   ),
-                                  onPressed: () => _delete(a['id'] as int),
+                                  onPressed: () =>
+                                      _delete(announcement['id'] as int),
                                   icon: const Icon(Icons.delete),
                                   label: const Text('Xóa'),
                                 ),
@@ -372,14 +542,32 @@ class _AnnouncementsCreateScreenState extends State<AnnouncementsCreateScreen> {
             ),
           ),
   );
-  String _status(String? s) => s == 'APPROVED'
-      ? 'Đã duyệt'
-      : s == 'REJECTED'
-      ? 'Từ chối'
-      : 'Chờ duyệt';
-  String _audience(Object? s) => s == 'PARENT'
+
+  List<Widget> _violationWidgets(Object? raw) {
+    final violations = (raw as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    if (violations.isEmpty) return const [];
+    return [
+      const SizedBox(height: 6),
+      ...violations.map(
+        (violation) => Text(
+          '${_fieldLabel(violation['field'])}: “${violation['phrase']}”',
+          style: const TextStyle(fontSize: 12, color: AppColors.danger),
+        ),
+      ),
+    ];
+  }
+
+  String _status(String? status) =>
+      status == 'PUBLISHED' ? 'Gửi thành công' : 'Hệ thống từ chối';
+
+  String _audience(Object? target) => target == 'PARENT'
       ? 'Phụ huynh'
-      : s == 'STUDENT'
+      : target == 'STUDENT'
       ? 'Học sinh'
       : 'Phụ huynh & học sinh';
+
+  static String _fieldLabel(Object? field) =>
+      field == 'TITLE' ? 'Tiêu đề' : 'Nội dung';
 }

@@ -507,8 +507,9 @@ CREATE TABLE announcements (
   teacher_id        BIGINT UNSIGNED NULL COMMENT 'Giáo viên tạo; NULL khi Admin gửi',
   sender_user_id    BIGINT UNSIGNED NOT NULL,
   academic_year_id  BIGINT UNSIGNED NOT NULL,
-  approval_status   VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-  rejection_reason  VARCHAR(1000) NULL,
+  delivery_status   ENUM('PUBLISHED','SYSTEM_REJECTED') NOT NULL,
+  system_rejection_message VARCHAR(500) NULL,
+  retry_of_announcement_id BIGINT UNSIGNED NULL,
   sender_type       VARCHAR(20) NOT NULL,
   recipient_scope   VARCHAR(20) NOT NULL DEFAULT 'CLASSES',
   title             VARCHAR(500) NOT NULL,
@@ -518,13 +519,76 @@ CREATE TABLE announcements (
 
   PRIMARY KEY (id),
   INDEX idx_ann_teacher (teacher_id),
-  INDEX idx_ann_created (created_at),
+  INDEX idx_ann_year_delivery_created (academic_year_id, delivery_status, created_at, id),
+  INDEX idx_ann_retry (retry_of_announcement_id),
   CONSTRAINT fk_ann_teacher FOREIGN KEY (teacher_id) REFERENCES teachers(id),
   CONSTRAINT fk_ann_sender FOREIGN KEY (sender_user_id) REFERENCES users(id),
-  CONSTRAINT fk_ann_year FOREIGN KEY (academic_year_id) REFERENCES academic_years(id)
+  CONSTRAINT fk_ann_year FOREIGN KEY (academic_year_id) REFERENCES academic_years(id),
+  CONSTRAINT fk_ann_retry FOREIGN KEY (retry_of_announcement_id) REFERENCES announcements(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='Thông báo do GV gửi duyệt hoặc Admin phát hành trực tiếp';
+  COMMENT='Thông báo tự động kiểm tra chính sách hoặc Admin phát hành trực tiếp';
 ```
+
+#### `announcement_policy_settings`
+
+```sql
+CREATE TABLE announcement_policy_settings (
+  id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  academic_year_id  BIGINT UNSIGNED NOT NULL,
+  enabled           BOOLEAN NOT NULL DEFAULT TRUE,
+  rejection_message VARCHAR(500) NOT NULL,
+  updated_by        BIGINT UNSIGNED NULL,
+  created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_announcement_policy_year (academic_year_id),
+  CONSTRAINT fk_announcement_policy_year FOREIGN KEY (academic_year_id) REFERENCES academic_years(id) ON DELETE CASCADE,
+  CONSTRAINT fk_announcement_policy_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+#### `announcement_content_rules`
+
+```sql
+CREATE TABLE announcement_content_rules (
+  id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  academic_year_id  BIGINT UNSIGNED NOT NULL,
+  phrase            VARCHAR(250) NOT NULL,
+  normalized_phrase VARCHAR(250) NOT NULL,
+  match_scope       ENUM('TITLE','BODY','ALL') NOT NULL,
+  match_type        ENUM('CONTAINS','EXACT') NOT NULL,
+  updated_by        BIGINT UNSIGNED NULL,
+  created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_announcement_rule (academic_year_id, normalized_phrase, match_scope, match_type),
+  INDEX idx_announcement_rule_year (academic_year_id),
+  CONSTRAINT fk_announcement_rule_year FOREIGN KEY (academic_year_id) REFERENCES academic_years(id) ON DELETE CASCADE,
+  CONSTRAINT fk_announcement_rule_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+Mỗi dòng input được Admin thêm bằng nút `+` tương ứng đúng một record quy tắc; backend không tách nội dung theo dấu phẩy.
+
+#### `announcement_policy_violations`
+
+```sql
+CREATE TABLE announcement_policy_violations (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  announcement_id BIGINT UNSIGNED NOT NULL,
+  rule_id         BIGINT UNSIGNED NULL,
+  matched_field   ENUM('TITLE','BODY') NOT NULL,
+  matched_phrase  VARCHAR(250) NOT NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_announcement_violation_announcement (announcement_id),
+  CONSTRAINT fk_announcement_violation_announcement FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE CASCADE,
+  CONSTRAINT fk_announcement_violation_rule FOREIGN KEY (rule_id) REFERENCES announcement_content_rules(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+`matched_phrase` là snapshot phục vụ lịch sử. Vì vậy Admin có thể thay cấu hình mà kết quả từ chối cũ vẫn giải thích được.
 
 #### `announcement_reads`
 
@@ -975,12 +1039,12 @@ INSERT INTO tuition_bills (student_id, class_id, semester_id, name, amount, due_
 
 ```sql
 INSERT INTO announcements
-  (teacher_id, sender_user_id, academic_year_id, approval_status, sender_type,
+  (teacher_id, sender_user_id, academic_year_id, delivery_status, sender_type,
    recipient_scope, title, body, target_role)
 VALUES
-  (1, 2, 1, 'APPROVED', 'SUBJECT_TEACHER', 'CLASSES',
+  (1, 2, 1, 'PUBLISHED', 'SUBJECT_TEACHER', 'CLASSES',
    'Lịch thi cuối kỳ II', 'Thông báo lịch thi cuối kỳ học kỳ II năm học 2026-2027', 'ALL'),
-  (NULL, 1, 1, 'APPROVED', 'ADMIN', 'SCHOOL',
+  (NULL, 1, 1, 'PUBLISHED', 'ADMIN', 'SCHOOL',
    'Bảo trì hệ thống', 'Hệ thống bảo trì lúc 22:00.', 'ALL');
 ```
 

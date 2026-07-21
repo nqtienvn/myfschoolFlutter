@@ -427,13 +427,13 @@ const teacherScreens = [
     components: [
       'Soạn nội dung',
       'Chọn người nhận',
-      'Gửi/phê duyệt',
+      'Kiểm tra/gửi',
       'Tracking đọc',
     ],
     flow: [
       'Chọn lớp/nhóm/học sinh.',
       'Soạn nội dung và file.',
-      'Gửi hoặc chuyển phê duyệt.',
+      'Tự kiểm tra chính sách rồi gửi ngay khi hợp lệ.',
       'Theo dõi delivered/read.',
     ],
     icon: Icons.campaign_outlined,
