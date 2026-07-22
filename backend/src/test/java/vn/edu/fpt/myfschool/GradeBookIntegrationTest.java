@@ -34,6 +34,87 @@ class GradeBookIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.data.items[2].entryRole").value("ADMIN"));
     }
 
+    @Test void component_overview_lists_every_class_subject_student_and_filters_without_creating_books() throws Exception {
+        var physics = new vn.edu.fpt.myfschool.entity.Subject();
+        physics.setName("Vật lý"); physics.setCode("VATLY12"); physics = subjectRepository.save(physics);
+        var applied = new vn.edu.fpt.myfschool.entity.AcademicYearSubject();
+        applied.setAcademicYear(testAcademicYear); applied.setSubject(physics); academicYearSubjectRepository.save(applied);
+        String token = loginAsAdmin();
+
+        mockMvc.perform(get("/api/grade-books").header("Authorization", authHeader(token))
+                .param("classId", testClass.getId().toString()).param("subjectId", testSubject.getId().toString())
+                .param("semesterId", testSemester.getId().toString())).andExpect(status().isOk());
+        mockMvc.perform(get("/api/grade-books").header("Authorization", authHeader(token))
+                .param("classId", testClass.getId().toString()).param("subjectId", physics.getId().toString())
+                .param("semesterId", testSemester.getId().toString())).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/grade-books/component-overview").header("Authorization", authHeader(token))
+                .param("academicYearId", testAcademicYear.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.columns.length()").value(4))
+            .andExpect(jsonPath("$.data.rows.length()").value(6))
+            .andExpect(jsonPath("$.data.rows[0].className").value("12A"))
+            .andExpect(jsonPath("$.data.rows[0].subjectName").value("Toán"))
+            .andExpect(jsonPath("$.data.rows[0].studentCode").value("12A-01"));
+
+        mockMvc.perform(get("/api/grade-books/component-overview").header("Authorization", authHeader(token))
+                .param("academicYearId", testAcademicYear.getId().toString())
+                .param("semesterId", testSemester.getId().toString()).param("subjectId", physics.getId().toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.rows.length()").value(3))
+            .andExpect(jsonPath("$.data.rows[0].subjectName").value("Vật lý"));
+    }
+
+    @Test void teacher_submitted_scores_are_visible_in_the_admin_component_overview() throws Exception {
+        String teacherToken = loginAsTeacher();
+        var data = book(teacherToken);
+        Long teacherItem = data.get("items").get(0).get("id").asLong();
+        mockMvc.perform(put("/api/grade-books/scores").header("Authorization", authHeader(teacherToken))
+                .contentType(MediaType.APPLICATION_JSON).content(scores(teacherItem, 8, 6)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/grade-books/component-overview").header("Authorization", authHeader(loginAsAdmin()))
+                .param("academicYearId", testAcademicYear.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.rows[0].values.TX_1.score").value(8))
+            .andExpect(jsonPath("$.data.rows[0].values.TX_1.isGraded").value(true));
+    }
+
+    @Test void existing_grade_book_adds_new_teacher_component_before_scores_are_entered() throws Exception {
+        String teacherToken = loginAsTeacher();
+        book(teacherToken);
+
+        var existingConfigItems = configItemRepository
+                .findByConfigAcademicYearIdOrderByDisplayOrderAsc(testAcademicYear.getId());
+        var additional = new vn.edu.fpt.myfschool.entity.AcademicYearGradeConfigItem();
+        additional.setConfig(existingConfigItems.getFirst().getConfig());
+        additional.setCode("BT"); additional.setDisplayName("Bài tập"); additional.setWeight(1);
+        additional.setQuantity(1); additional.setEntryRole(vn.edu.fpt.myfschool.common.enums.GradeEntryRole.SUBJECT_TEACHER);
+        additional.setAssessmentType(AssessmentType.SCORE); additional.setRequiredEntry(true); additional.setDisplayOrder(3);
+        configItemRepository.saveAndFlush(additional);
+
+        var refreshedBook = book(teacherToken);
+        Long addedItemId = refreshedBook.get("items").get(4).get("id").asLong();
+        org.junit.jupiter.api.Assertions.assertEquals("BT_1", refreshedBook.get("items").get(4).get("code").asText());
+
+        mockMvc.perform(put("/api/grade-books/scores").header("Authorization", authHeader(teacherToken))
+                .contentType(MediaType.APPLICATION_JSON).content(scores(addedItemId, 8, 6)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/transcripts/me").header("Authorization", authHeader(loginAsStudent1()))
+                .param("academicYearId", testAcademicYear.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.subjects[0].scores[4].code").value("BT_1"))
+            .andExpect(jsonPath("$.data.subjects[0].scores[4].score").value(8));
+
+        mockMvc.perform(get("/api/grade-books/component-overview").header("Authorization", authHeader(loginAsAdmin()))
+                .param("academicYearId", testAcademicYear.getId().toString())
+                .param("semesterId", testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.rows[0].values.BT_1.score").value(8));
+    }
+
     @Test void admin_can_enter_admin_items_but_not_teacher_items() throws Exception {
         String token=loginAsAdmin();var data=book(token);Long teacherItem=data.get("items").get(0).get("id").asLong();Long adminItem=data.get("items").get(2).get("id").asLong();
         mockMvc.perform(put("/api/grade-books/scores").header("Authorization",authHeader(token)).contentType(MediaType.APPLICATION_JSON).content(scores(adminItem,8,6))).andExpect(status().isOk());
@@ -108,6 +189,30 @@ class GradeBookIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.data.subjects[0].scores[0].name").value("Thường xuyên mới 1"))
             .andExpect(jsonPath("$.data.subjects[0].scores[0].score").value(8))
             .andExpect(jsonPath("$.data.subjects[0].scores[0].isGraded").value(true));
+    }
+
+    @Test void component_overview_keeps_scores_attached_when_configuration_code_changes() throws Exception {
+        String teacherToken=loginAsTeacher();var data=book(teacherToken);
+        Long firstItem=data.get("items").get(0).get("id").asLong();
+        mockMvc.perform(put("/api/grade-books/scores")
+                .header("Authorization",authHeader(teacherToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(scores(firstItem,8,6)))
+            .andExpect(status().isOk());
+
+        var configured=configItemRepository.findByConfigAcademicYearIdOrderByDisplayOrderAsc(testAcademicYear.getId());
+        configured.getFirst().setCode("TX_NEW");
+        configured.getFirst().setDisplayName("ThÆ°á»ng xuyÃªn má»›i");
+        configItemRepository.save(configured.getFirst());
+
+        mockMvc.perform(get("/api/grade-books/component-overview")
+                .header("Authorization",authHeader(loginAsAdmin()))
+                .param("academicYearId",testAcademicYear.getId().toString())
+                .param("semesterId",testSemester.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.columns[0].code").value("TX_NEW_1"))
+            .andExpect(jsonPath("$.data.rows[0].values.TX_NEW_1.score").value(8))
+            .andExpect(jsonPath("$.data.rows[0].values.TX_NEW_1.isGraded").value(true));
     }
 
     @Test void transcript_uses_year_configuration_for_full_empty_table_and_rejects_cross_year_scope() throws Exception {

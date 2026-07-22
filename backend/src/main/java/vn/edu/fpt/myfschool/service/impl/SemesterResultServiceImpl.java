@@ -180,6 +180,44 @@ public class SemesterResultServiceImpl implements SemesterResultService {
 
     @Override
     @Transactional
+    public void publishSchoolResults(SchoolSemesterResultRequest request, Long adminUserId) {
+        Semester semester = requireSchoolSemester(request.academicYearId(), request.semesterId());
+        requireSchoolEditable(semester);
+        List<Enrollment> roster = enrollmentRepository.findByAcademicYearIdAndStatus(
+                request.academicYearId(), EnrollmentStatus.ACTIVE);
+        if (roster.isEmpty()) {
+            throw new ConflictException("Năm học chưa có học sinh đang theo học để công bố kết quả");
+        }
+
+        Map<Long, SemesterResult> resultsByStudent = new HashMap<>();
+        semesterResultRepository.findBySemesterId(request.semesterId())
+                .forEach(result -> resultsByStudent.put(result.getStudent().getId(), result));
+        for (Enrollment enrollment : roster) {
+            Student student = enrollment.getStudent();
+            SemesterResult result = resultsByStudent.get(student.getId());
+            if (result == null || !result.getCls().getId().equals(enrollment.getCls().getId())) {
+                throw new ConflictException("Chưa tính kết quả học kỳ cho " + student.getStudentCode()
+                        + " của lớp " + enrollment.getCls().getName());
+            }
+            if (result.getAcademicAbility() == null || result.getConduct() == null || result.getHonor() == null) {
+                throw new ConflictException("Kết quả cuối của " + student.getStudentCode()
+                        + " ở lớp " + enrollment.getCls().getName() + " chưa đầy đủ");
+            }
+        }
+
+        LocalDateTime publishedAt = LocalDateTime.now();
+        for (Enrollment enrollment : roster) {
+            Student student = enrollment.getStudent();
+            SemesterResult result = resultsByStudent.get(student.getId());
+            boolean firstPublication = result.getPublishedAt() == null;
+            result.setPublishedAt(publishedAt);
+            semesterResultRepository.save(result);
+            if (firstPublication) sendPublishedNotifications(student, semester, result.getId());
+        }
+    }
+
+    @Override
+    @Transactional
     public void closeSemester(ResultCloseRequest request) {
         Semester semester = semesterRepository.findById(request.semesterId())
                 .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", request.semesterId()));
@@ -264,6 +302,15 @@ public class SemesterResultServiceImpl implements SemesterResultService {
         return new ResultScope(cls, semester);
     }
 
+    private Semester requireSchoolSemester(Long academicYearId, Long semesterId) {
+        Semester semester = semesterRepository.findById(semesterId)
+                .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+        if (!semester.getAcademicYear().getId().equals(academicYearId)) {
+            throw new ForbiddenException("Năm học và học kỳ không cùng phạm vi");
+        }
+        return semester;
+    }
+
     private Student requireSummaryStudent(ResultScope scope, Long studentId) {
         if (!enrollmentRepository.existsByStudentIdAndClsIdAndAcademicYearIdAndStatus(
                 studentId, scope.cls().getId(), scope.cls().getAcademicYear().getId(), EnrollmentStatus.ACTIVE)) {
@@ -286,6 +333,13 @@ public class SemesterResultServiceImpl implements SemesterResultService {
     private void requireEditable(ResultScope scope) {
         if (scope.semester().getStatus() == SemesterStatus.COMPLETED
                 || scope.cls().getAcademicYear().getStatus() == AcademicYearStatus.COMPLETED) {
+            throw new ConflictException("Kết quả đã đóng và chỉ còn quyền xem");
+        }
+    }
+
+    private void requireSchoolEditable(Semester semester) {
+        if (semester.getStatus() == SemesterStatus.COMPLETED
+                || semester.getAcademicYear().getStatus() == AcademicYearStatus.COMPLETED) {
             throw new ConflictException("Kết quả đã đóng và chỉ còn quyền xem");
         }
     }

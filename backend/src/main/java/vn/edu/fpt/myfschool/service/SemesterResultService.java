@@ -18,5 +18,7 @@ public interface SemesterResultService {
 
     List<ResultSummaryDto> publishResults(ResultPublishRequest request, Long adminUserId);
 
+    void publishSchoolResults(SchoolSemesterResultRequest request, Long adminUserId);
+
     void closeSemester(ResultCloseRequest request);
 }

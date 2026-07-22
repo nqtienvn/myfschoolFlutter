@@ -1,34 +1,30 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import AdminGradeImportPanel from '../components/AdminGradeImportPanel';
 import { completeAcademicYear } from '../api/academicYear';
 import { getAcademicYearMasterData } from '../api/academicYearConfig';
 import { getClasses } from '../api/class';
 import {
-  calculateSemesterResults,
-  calculateSubjectAverages,
-  getGradeBook,
-  getGradeBookStudents,
-  updateScores,
+  calculateSchoolSemesterResults,
+  getGradeComponentOverview,
 } from '../api/gradeBook';
-import type { AssessmentType, GradeEntryRole } from '../api/gradeConfiguration';
+import type { AssessmentType } from '../api/gradeConfiguration';
 import {
   calculateAcademicYearResults,
   closeSemesterResults,
-  downloadGradeTemplate,
   downloadResultExport,
   getAcademicYearResults,
   getResultSummary,
-  importAdminScores,
   overrideResult,
   publishAcademicYearResults,
-  publishSemesterResults,
+  publishSchoolSemesterResults,
   type AcademicYearResultItem,
   type ResultSummaryItem,
 } from '../api/resultManagement';
 import { getSubjects } from '../api/subject';
-import { gradeEntryPayload, numericAssessmentItems } from '../utils/gradeAssessment';
+import { numericAssessmentItems } from '../utils/gradeAssessment';
 
 type MainView = 'semester' | 'annual';
-type SemesterSection = 'grades' | 'attendance' | 'summary';
+type SemesterSection = 'import' | 'grades' | 'summary';
 
 interface SemesterContextItem {
   id: number;
@@ -37,40 +33,34 @@ interface SemesterContextItem {
   status: 'NOT_STARTED' | 'ACTIVE' | 'COMPLETED';
 }
 
-interface GradeItem {
-  id: number;
+interface GradeComponentColumn {
   code: string;
   name: string;
   weight: number;
-  entryRole: GradeEntryRole;
   assessmentType: AssessmentType;
-  requiredEntry: boolean;
 }
 
-interface GradeBook {
-  id: number;
-  status: 'DRAFT' | 'SUBMITTED' | 'PUBLISHED' | 'LOCKED';
-  subjectName: string;
-  items: GradeItem[];
-}
-
-interface ScoreRow {
-  studentId: number;
-  studentName: string;
-  studentCode: string;
-  gradeItemId: number;
+interface GradeComponentCell {
   score: number | null;
   comment: string | null;
   isGraded: boolean;
+}
+
+interface GradeComponentRow {
+  classId: number;
+  className: string;
+  subjectId: number;
+  subjectName: string;
+  studentId: number;
+  studentName: string;
+  studentCode: string;
+  values: Record<string, GradeComponentCell>;
   average: number | null;
 }
 
-interface StudentRow {
-  id: number;
-  name: string;
-  code: string;
-  values: Record<number, Pick<ScoreRow, 'score' | 'comment' | 'isGraded'>>;
-  average: number | null;
+interface GradeComponentOverview {
+  columns: GradeComponentColumn[];
+  rows: GradeComponentRow[];
 }
 
 const PAGE_SIZE = 15;
@@ -127,24 +117,19 @@ export default function GradesManagementPage({
   const [subjects, setSubjects] = useState<any[]>([]);
   const [classId, setClassId] = useState('');
   const [subjectId, setSubjectId] = useState('');
-  const [book, setBook] = useState<GradeBook | null>(null);
-  const [scores, setScores] = useState<ScoreRow[]>([]);
+  const [componentOverview, setComponentOverview] = useState<GradeComponentOverview | null>(null);
   const [summary, setSummary] = useState<ResultSummaryItem[]>([]);
   const [annualResults, setAnnualResults] = useState<AcademicYearResultItem[]>([]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [savingItemId, setSavingItemId] = useState<number | null>(null);
   const [gradePage, setGradePage] = useState(1);
-  const [attendancePage, setAttendancePage] = useState(1);
   const [summaryPage, setSummaryPage] = useState(1);
   const [annualPage, setAnnualPage] = useState(1);
-  const importRef = useRef<HTMLInputElement>(null);
 
   const locked = selectedYearStatus === 'COMPLETED'
     || (view === 'semester' && selectedSemesterStatus === 'COMPLETED');
   const bothSemestersClosed = semesters.length >= 2 && semesters.every(item => item.status === 'COMPLETED');
-  const selectedClass = classes.find(item => String(item.id) === classId);
 
   const showError = (cause: unknown) => {
     setMessage('');
@@ -153,9 +138,9 @@ export default function GradesManagementPage({
   const beginAction = () => { setError(''); setMessage(''); };
 
   useEffect(() => {
-    setClasses([]); setSubjects([]); setClassId(''); setSubjectId(''); setBook(null);
-    setScores([]); setSummary([]); setAnnualResults([]);
-    setGradePage(1); setAttendancePage(1); setSummaryPage(1); setAnnualPage(1); beginAction();
+    setClasses([]); setSubjects([]); setClassId(''); setSubjectId(''); setComponentOverview(null);
+    setSummary([]); setAnnualResults([]);
+    setGradePage(1); setSummaryPage(1); setAnnualPage(1); beginAction();
     if (!selectedYearId) return;
     Promise.all([
       getClasses({ academicYearId: selectedYearId, size: 500 }),
@@ -168,9 +153,8 @@ export default function GradesManagementPage({
   }, [selectedYearId]);
 
   useEffect(() => {
-    setBook(null); setScores([]); setSummary([]); setAnnualResults([]);
-    setGradePage(1); setAttendancePage(1);
-    setSummaryPage(1); setAnnualPage(1);
+    setSummary([]); setAnnualResults([]);
+    setGradePage(1); setSummaryPage(1); setAnnualPage(1);
     if (!classId || !selectedYearId) return;
     if (view === 'annual') {
       getAcademicYearResults(selectedYearId, classId).then(setAnnualResults).catch(showError);
@@ -183,34 +167,22 @@ export default function GradesManagementPage({
   }, [selectedYearId, selectedSemesterId, classId, view]);
 
   useEffect(() => {
-    setBook(null); setScores([]); setSubjectId('');
+    setComponentOverview(null); setSubjectId('');
   }, [selectedSemesterId]);
-
-  const students = useMemo(() => {
-    const map = new Map<number, StudentRow>();
-    for (const row of scores) {
-      const student = map.get(row.studentId) || {
-        id: row.studentId, name: row.studentName, code: row.studentCode, values: {}, average: row.average,
-      };
-      student.values[row.gradeItemId] = { score: row.score, comment: row.comment, isGraded: row.isGraded };
-      student.average = row.average; map.set(row.studentId, student);
-    }
-    return [...map.values()];
-  }, [scores]);
 
   useEffect(() => {
     let cancelled = false;
-    setBook(null); setScores([]); setGradePage(1); setBusy(false);
-    if (view !== 'semester' || !classId || !subjectId || !selectedSemesterId) return;
+    setComponentOverview(null); setGradePage(1); setBusy(false);
+    if (view !== 'semester' || section !== 'grades' || !selectedYearId || !selectedSemesterId) return;
 
     beginAction(); setBusy(true);
     void (async () => {
       try {
-        const loaded = await getGradeBook(
-          Number(classId), Number(subjectId), Number(selectedSemesterId),
-        ) as GradeBook;
-        const loadedScores = await getGradeBookStudents(loaded.id) as ScoreRow[];
-        if (!cancelled) { setBook(loaded); setScores(loadedScores); }
+        const overview = await getGradeComponentOverview(
+          Number(selectedYearId), Number(selectedSemesterId),
+          classId ? Number(classId) : undefined, subjectId ? Number(subjectId) : undefined,
+        ) as GradeComponentOverview;
+        if (!cancelled) setComponentOverview(overview);
       } catch (cause) {
         if (!cancelled) showError(cause);
       } finally {
@@ -219,52 +191,27 @@ export default function GradesManagementPage({
     })();
 
     return () => { cancelled = true; };
-  }, [view, classId, subjectId, selectedSemesterId]);
+  }, [view, section, selectedYearId, selectedSemesterId, classId, subjectId]);
 
-  async function loadGradeBook() {
-    if (!classId || !subjectId || !selectedSemesterId) return;
-    beginAction(); setBusy(true);
-    try {
-      const loaded = await getGradeBook(Number(classId), Number(subjectId), Number(selectedSemesterId)) as GradeBook;
-      setBook(loaded); setScores(await getGradeBookStudents(loaded.id) as ScoreRow[]); setGradePage(1);
-    } catch (cause) { showError(cause); } finally { setBusy(false); }
-  }
-
-  function changeValue(studentId: number, itemId: number, patch: Partial<ScoreRow>) {
-    setScores(rows => rows.map(row => row.studentId === studentId && row.gradeItemId === itemId
-      ? { ...row, ...patch } : row));
-  }
-
-  const canAdminEdit = (item: GradeItem) => !locked && book?.status !== 'LOCKED'
-    && item.entryRole !== 'SUBJECT_TEACHER';
-
-  async function saveItem(item: GradeItem) {
-    const entries = students.map(student => {
-      const value = student.values[item.id] || { score: null, comment: null, isGraded: false };
-      const score = item.assessmentType === 'SCORE' ? (value.score ?? 0) : value.score;
-      return gradeEntryPayload(item.assessmentType, student.id, score, value.comment);
-    });
-    beginAction(); setSavingItemId(item.id);
-    try {
-      await updateScores(item.id, entries, `Admin cập nhật đầu điểm ${item.name}`);
-      await loadGradeBook(); setMessage(`Đã lưu và công bố cột ${item.name}.`);
-    } catch (cause) { showError(cause); } finally { setSavingItemId(null); }
-  }
-
-  async function calculateSubject() {
-    if (!book) return;
-    beginAction(); setBusy(true);
-    try { await calculateSubjectAverages(book.id); await loadGradeBook(); setMessage('Đã đối soát và tính ĐTB môn.'); }
-    catch (cause) { showError(cause); } finally { setBusy(false); }
-  }
+  useEffect(() => {
+    if (view !== 'semester' || section !== 'grades' || !selectedYearId || !selectedSemesterId) return;
+    let cancelled = false;
+    const refresh = () => {
+      void getGradeComponentOverview(
+        Number(selectedYearId), Number(selectedSemesterId),
+        classId ? Number(classId) : undefined, subjectId ? Number(subjectId) : undefined,
+      ).then(data => { if (!cancelled) setComponentOverview(data as GradeComponentOverview); }).catch(() => undefined);
+    };
+    const intervalId = window.setInterval(refresh, 10000);
+    return () => { cancelled = true; window.clearInterval(intervalId); };
+  }, [view, section, selectedYearId, selectedSemesterId, classId, subjectId]);
 
   async function calculateSemester() {
-    if (!classId) return;
     beginAction(); setBusy(true);
     try {
-      const result: any = await calculateSemesterResults(Number(classId), Number(selectedSemesterId));
-      setSummary(await getResultSummary(selectedYearId, selectedSemesterId, classId));
-      setMessage(`Đã tính kết quả cho ${result?.updated ?? 0} học sinh. Xếp mức theo kết quả từng môn.`);
+      const result: any = await calculateSchoolSemesterResults(Number(selectedYearId), Number(selectedSemesterId));
+      if (classId) setSummary(await getResultSummary(selectedYearId, selectedSemesterId, classId));
+      setMessage(`Đã tính kết quả học kỳ toàn trường cho ${result?.updated ?? 0} học sinh.`);
     } catch (cause) { showError(cause); } finally { setBusy(false); }
   }
 
@@ -285,13 +232,12 @@ export default function GradesManagementPage({
   }
 
   async function publishSummary() {
-    if (!classId || locked || !confirm('Công bố kết quả học kỳ của lớp cho học sinh và phụ huynh?')) return;
+    if (locked || !confirm('Công bố kết quả học kỳ của TOÀN TRƯỜNG cho học sinh và phụ huynh?')) return;
     beginAction(); setBusy(true);
     try {
-      setSummary(await publishSemesterResults({
-        academicYearId: Number(selectedYearId), semesterId: Number(selectedSemesterId), classId: Number(classId),
-      }));
-      setMessage('Đã công bố điểm và kết quả học kỳ cho các vai trò liên quan.');
+      await publishSchoolSemesterResults(Number(selectedYearId), Number(selectedSemesterId));
+      if (classId) setSummary(await getResultSummary(selectedYearId, selectedSemesterId, classId));
+      setMessage('Đã công bố kết quả học kỳ cho toàn trường.');
     } catch (cause) { showError(cause); } finally { setBusy(false); }
   }
 
@@ -326,29 +272,6 @@ export default function GradesManagementPage({
     catch (cause) { showError(cause); } finally { setBusy(false); }
   }
 
-  async function getTemplate() {
-    if (!classId || !subjectId || !selectedSemesterId) return;
-    beginAction(); setBusy(true);
-    try {
-      const file = await downloadGradeTemplate(Number(selectedYearId), Number(selectedSemesterId), Number(classId), Number(subjectId));
-      downloadBlob(file.blob, `template-diem-${selectedClass?.name || 'lop'}.xlsx`, file.filename);
-      setMessage('Đã tải template khớp cấu hình đầu điểm của năm học.');
-    } catch (cause) { showError(cause); } finally { setBusy(false); }
-  }
-
-  async function importExcel(file?: File) {
-    if (!file || !classId || !subjectId || !selectedSemesterId || locked) return;
-    beginAction(); setBusy(true);
-    try {
-      const result = await importAdminScores(Number(selectedYearId), Number(selectedSemesterId),
-        Number(classId), Number(subjectId), file);
-      await loadGradeBook();
-      setMessage(`Đã import ${result.updatedScores} điểm; ${result.zeroFilledScores} ô trống được ghi là 0.`);
-    } catch (cause) { showError(cause); } finally {
-      setBusy(false); if (importRef.current) importRef.current.value = '';
-    }
-  }
-
   async function exportExcel() {
     if (!selectedYearId) return;
     beginAction(); setBusy(true);
@@ -361,7 +284,7 @@ export default function GradesManagementPage({
   }
 
   if (!selectedYearId) return <div className="notice warning">Chọn năm học để quản lý kết quả.</div>;
-  const numericItems = numericAssessmentItems(book?.items || []);
+  const numericItems = numericAssessmentItems(componentOverview?.columns || []);
 
   return <main className="page-stack result-management" aria-label="Quản lý kết quả">
     <header className="result-hero">
@@ -379,65 +302,52 @@ export default function GradesManagementPage({
       <span aria-hidden="true">✓</span><div><strong>Kết quả đã hoàn thành</strong><p>Dữ liệu được khóa ở chế độ chỉ xem. Import, sửa và tính lại đã bị vô hiệu hóa.</p></div>
     </div>}
 
-    <section className="panel result-toolbar">
+    {!(view === 'semester' && section === 'import') && <section className="panel result-toolbar">
       <div className="result-filter-grid">
-        <label>Lớp<select value={classId} onChange={event => { setClassId(event.target.value); setBook(null); setScores([]); }}>
-          <option value="">Tất cả lớp</option>{classes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        {view === 'semester' && <label>Môn học<select value={subjectId} onChange={event => { setSubjectId(event.target.value); setBook(null); setScores([]); }}>
-          <option value="">Chọn môn</option>{subjects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
+        <label>{view === 'semester' && section === 'grades' ? 'Lọc lớp' : 'Lớp'}<select value={classId} onChange={event => setClassId(event.target.value)}>
+          <option value="">{view === 'semester' && section === 'grades' ? 'Tất cả lớp' : 'Chọn lớp'}</option>{classes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        {view === 'semester' && <label>{section === 'grades' ? 'Lọc môn' : 'Môn học'}<select value={subjectId} onChange={event => setSubjectId(event.target.value)}>
+          <option value="">{section === 'grades' ? 'Tất cả môn' : 'Chọn môn'}</option>{subjects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
       </div>
       <div className="result-file-actions">
-        {view === 'semester' && <button className="excel-action" disabled={!classId || !subjectId || busy} onClick={getTemplate}>
-          <span>↓</span><div><strong>Template Excel</strong><small>Đúng cấu hình năm học</small></div></button>}
-        {view === 'semester' && <button className="excel-action" disabled={!classId || !subjectId || locked || busy} onClick={() => importRef.current?.click()}>
-          <span>↑</span><div><strong>Import Excel</strong><small>Chỉ đầu điểm Admin</small></div></button>}
-        <input ref={importRef} hidden type="file" accept=".xlsx" onChange={event => importExcel(event.target.files?.[0])} />
         <button className="excel-action primary" disabled={busy} onClick={exportExcel}>
           <span>⇩</span><div><strong>Export toàn bộ</strong><small>Điểm · học tập · rèn luyện</small></div></button>
       </div>
-    </section>
+    </section>}
 
     {view === 'semester' && <>
       <nav className="result-section-tabs" aria-label="Các phần kết quả học kỳ">
+        <button className={section === 'import' ? 'active' : ''} onClick={() => setSection('import')}><b>0</b> Import đầu điểm</button>
         <button className={section === 'grades' ? 'active' : ''} onClick={() => setSection('grades')}><b>1</b> Điểm thành phần</button>
-        <button className={section === 'attendance' ? 'active' : ''} onClick={() => setSection('attendance')}><b>2</b> Chuyên cần</button>
-        <button className={section === 'summary' ? 'active' : ''} onClick={() => setSection('summary')}><b>3</b> Tổng kết học kỳ</button>
+        <button className={section === 'summary' ? 'active' : ''} onClick={() => setSection('summary')}><b>2</b> Tổng kết học kỳ</button>
       </nav>
 
+      {section === 'import' && <AdminGradeImportPanel disabled={locked} />}
+
       {section === 'grades' && <section className="panel result-panel">
-        <div className="result-panel-heading"><div><h2>Điểm thành phần</h2><p>Cột điểm sinh từ cấu hình năm học; mỗi lần lưu sẽ công bố ngay cho phụ huynh và học sinh.</p></div>
-          {book && <div className="monitoring-actions"><span className={`badge-status ${book.status === 'LOCKED' ? 'completed' : 'active'}`}>{book.status}</span>
-            <button className="secondary-button" disabled={busy} onClick={calculateSubject}>Tính ĐTB môn</button></div>}</div>
-        {!book ? <div className="result-empty"><span>01</span><strong>Chọn lớp và môn để xem bảng điểm</strong><p>Admin sẽ thấy cả điểm giáo viên đã nhập và các cột mình phụ trách.</p></div> : <>
+        <div className="result-panel-heading"><div><h2>Điểm thành phần</h2><p>Mặc định hiển thị toàn bộ lớp, môn và học sinh theo thứ tự. Dùng bộ lọc để thu hẹp danh sách; bảng tự làm mới mỗi 10 giây khi đang mở.</p></div></div>
+        {!componentOverview ? <div className="result-empty"><span>01</span><strong>Đang tải bảng điểm thành phần</strong></div>
+          : componentOverview.rows.length === 0 ? <div className="result-empty"><span>01</span><strong>Chưa có dữ liệu điểm theo bộ lọc hiện tại</strong></div> : <>
           <div className="result-formula">Công thức cấu hình: {numericItems.length ? numericItems.map(item => `${item.name} × ${item.weight}`).join(' + ') : 'Không có đầu điểm số'}</div>
-          <div className="table-responsive"><table className="result-grade-table"><thead><tr><th>Học sinh</th>{book.items.map(item => <th key={item.id}>
+          <div className="table-responsive"><table className="result-grade-table"><thead><tr><th>#</th><th>Lớp</th><th>Môn học</th><th>Học sinh</th>{componentOverview.columns.map(item => <th key={item.code}>
             <span>{item.name}</span><small>{assessmentLabel[item.assessmentType]} · HS {item.weight}</small>
-            <div className="grade-column-actions">{canAdminEdit(item) && <button className="secondary-button" disabled={savingItemId === item.id} onClick={() => saveItem(item)}>Lưu &amp; công bố</button>}</div></th>)}<th>ĐTB</th></tr></thead>
-            <tbody>{pageOf(students, gradePage).map(student => <tr key={student.id}><td><strong>{student.name}</strong><small>{student.code}</small></td>{book.items.map(item => {
-              const value = student.values[item.id] || { score: null, comment: null, isGraded: false };
-              const disabled = !canAdminEdit(item);
-              return <td key={item.id}>{item.assessmentType === 'SCORE' && <input type="number" min="0" max="10" step="0.1" disabled={disabled} value={value.score ?? 0}
-                onChange={event => changeValue(student.id, item.id, { score: Number(event.target.value || 0), comment: null, isGraded: true })} />} {item.assessmentType === 'PASS_FAIL' && <select disabled={disabled} value={value.comment || ''}
-                  onChange={event => changeValue(student.id, item.id, { score: null, comment: event.target.value || null, isGraded: !!event.target.value })}><option value="">—</option><option value="PASS">Đạt</option><option value="FAIL">Chưa đạt</option></select>}
-                {item.assessmentType === 'COMMENT' && <textarea disabled={disabled} rows={2} value={value.comment || ''}
-                  onChange={event => changeValue(student.id, item.id, { score: null, comment: event.target.value, isGraded: !!event.target.value.trim() })} />}</td>;
-            })}<td><strong>{student.average ?? '—'}</strong></td></tr>)}</tbody></table></div>
-          <Pagination total={students.length} page={gradePage} onChange={setGradePage} />
+          </th>)}<th>ĐTB</th></tr></thead>
+            <tbody>{pageOf(componentOverview.rows, gradePage).map((row, index) => <tr key={`${row.classId}-${row.subjectId}-${row.studentId}`}><td>{(gradePage - 1) * PAGE_SIZE + index + 1}</td><td>{row.className}</td><td>{row.subjectName}</td><td><strong>{row.studentName}</strong><small>{row.studentCode}</small></td>{componentOverview.columns.map(item => {
+              const value = row.values[item.code];
+              return <td key={item.code}>{item.assessmentType === 'SCORE' && <input type="number" disabled value={value?.score ?? ''} />} {item.assessmentType === 'PASS_FAIL' && <select disabled value={value?.comment || ''}>
+                  <option value="">—</option><option value="PASS">Đạt</option><option value="FAIL">Chưa đạt</option></select>}
+                {item.assessmentType === 'COMMENT' && <textarea disabled rows={2} value={value?.comment || ''} />}</td>;
+            })}<td><strong>{row.average ?? '—'}</strong></td></tr>)}</tbody></table></div>
+          <Pagination total={componentOverview.rows.length} page={gradePage} onChange={setGradePage} />
         </>}
       </section>}
 
-      {section === 'attendance' && <section className="panel result-panel"><div className="result-panel-heading"><div><h2>Chuyên cần</h2><p>Gợi ý rèn luyện dựa trên số buổi nghỉ không phép trong học kỳ: Tốt ≤2; Khá ≤4; Đạt ≤9; còn lại Chưa đạt.</p></div></div>
-        {!classId ? <div className="result-empty"><strong>Chọn lớp để xem dữ liệu</strong></div> : <><div className="table-responsive"><table><thead><tr><th>Học sinh</th><th>Nghỉ có phép</th><th>Nghỉ không phép</th><th>Gợi ý rèn luyện</th></tr></thead><tbody>
-          {pageOf(summary, attendancePage).map(row => <tr key={row.studentId}><td><strong>{row.studentName}</strong><small className="table-subtext">{row.studentCode}</small></td><td>{row.absentWithLeave}</td><td>{row.absentWithoutLeave}</td><td><span className="result-level">{row.suggestedConduct || '—'}</span></td></tr>)}</tbody></table></div>
-          <Pagination total={summary.length} page={attendancePage} onChange={setAttendancePage} /></>}
-      </section>}
-
-      {section === 'summary' && <section className="panel result-panel"><div className="result-panel-heading"><div><h2>Tổng kết học kỳ</h2><p>Điểm TB chỉ tham khảo; mức học tập được xét theo từng môn theo Thông tư 22/2021/TT-BGDĐT.</p></div>
-        <div className="monitoring-actions"><button className="secondary-button" disabled={!classId || locked || busy} onClick={calculateSemester}>Tính kết quả lớp</button>
-          <button disabled={!classId || locked || busy || !summary.length} onClick={publishSummary}>Công bố lớp</button>
+      {section === 'summary' && <section className="panel result-panel"><div className="result-panel-heading"><div><h2>Tổng kết học kỳ</h2><p>Tính và công bố áp dụng cho toàn trường. Hạnh kiểm được điền sẵn từ chuyên cần; chọn lớp bên trên chỉ để xem hoặc điều chỉnh từng học sinh trước khi công bố.</p></div>
+        <div className="monitoring-actions"><button className="secondary-button" disabled={locked || busy} onClick={calculateSemester}>Tính kết quả toàn trường</button>
+          <button disabled={locked || busy} onClick={publishSummary}>Công bố toàn trường</button>
           <button className="danger" disabled={locked || busy || selectedSemesterStatus !== 'ACTIVE'} onClick={closeSemester}>Đóng học kỳ toàn trường</button></div></div>
-        {!classId ? <div className="result-empty"><strong>Chọn lớp để tổng kết</strong></div> : <><div className="table-responsive"><table className="summary-result-table"><thead><tr><th>Học sinh</th><th>ĐTB / Hạng</th><th>Nghỉ không phép</th><th>Học tập gợi ý</th><th>Rèn luyện gợi ý</th><th>Học tập cuối</th><th>Rèn luyện cuối</th><th>Danh hiệu</th><th>Trạng thái</th><th /></tr></thead><tbody>
-          {pageOf(summary, summaryPage).map(row => <tr key={row.studentId}><td><strong>{row.studentName}</strong><small>{row.studentCode}</small></td><td>{row.gpa ?? '—'} / {row.rank ?? '—'}</td><td>{row.absentWithoutLeave}</td><td>{row.suggestedAcademicAbility || '—'}</td><td>{row.suggestedConduct || '—'}</td>
+        {!classId ? <div className="result-empty"><strong>Chọn lớp để xem và điều chỉnh kết quả từng học sinh</strong><p>Nút tính và công bố bên trên luôn áp dụng cho toàn trường.</p></div> : <><div className="table-responsive"><table className="summary-result-table"><thead><tr><th>Học sinh</th><th>ĐTB / Hạng</th><th>Học tập gợi ý</th><th>Học tập cuối</th><th>Rèn luyện cuối</th><th>Danh hiệu</th><th>Trạng thái</th><th /></tr></thead><tbody>
+          {pageOf(summary, summaryPage).map(row => <tr key={row.studentId}><td><strong>{row.studentName}</strong><small>{row.studentCode}</small></td><td>{row.gpa ?? '—'} / {row.rank ?? '—'}</td><td>{row.suggestedAcademicAbility || '—'}</td>
             <td><select disabled={locked} value={row.academicAbility || ''} onChange={event => patchSummary(row.studentId, { academicAbility: event.target.value })}><option value="">—</option>{[...new Set([row.academicAbility, ...resultLevels].filter(Boolean))].map(value => <option key={value!}>{value}</option>)}</select></td>
             <td><select disabled={locked} value={row.conduct || ''} onChange={event => patchSummary(row.studentId, { conduct: event.target.value })}><option value="">—</option>{[...new Set([row.conduct, ...resultLevels].filter(Boolean))].map(value => <option key={value!}>{value}</option>)}</select></td>
             <td><select disabled={locked} value={row.honor || ''} onChange={event => patchSummary(row.studentId, { honor: event.target.value })}><option value="">—</option>{[...new Set([row.honor, ...honorOptions].filter(Boolean))].map(value => <option key={value!}>{value}</option>)}</select></td>

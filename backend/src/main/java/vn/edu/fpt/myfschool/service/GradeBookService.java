@@ -12,4 +12,5 @@ public interface GradeBookService {
     void changeStatus(Long gradeBookId, vn.edu.fpt.myfschool.common.enums.GradeBookStatus status);
     List<StudentScoreDto> getStudentScores(Long gradeBookId);
     List<GradeCalculationDto> calculateSubjectAverages(Long gradeBookId);
+    GradeComponentOverviewDto getComponentOverview(Long academicYearId, Long semesterId, Long classId, Long subjectId);
 }

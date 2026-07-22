@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/api/api.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/models/auth_session.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/src/services/services.dart';
+import 'package:myfschoolse1913/vn/edu/fpt/view/design_system/app_colors.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/actor_models.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen_giaovien.dart';
 import 'package:myfschoolse1913/vn/edu/fpt/view/screens/home_screen_phuhuynh.dart';
@@ -187,39 +188,46 @@ class _AppShellState extends State<AppShell> {
           index: _selectedIndex,
           children: List.generate(4, (index) => _buildTabNavigator(index)),
         ),
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: AnimatedBuilder(
-            animation: Listenable.merge([
-              ?_notificationService,
-              ?_announcementInboxService,
-              ?widget.chatService,
-            ]),
-            builder: (context, _) => BottomNavigationBar(
-              currentIndex: _selectedIndex,
-              onTap: _selectTab,
-              items: [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.home_outlined),
-                  activeIcon: Icon(Icons.home),
-                  label: 'Trang chủ',
-                ),
-                BottomNavigationBarItem(
-                  icon: _chatIcon(Icons.chat_bubble_outline),
-                  activeIcon: _chatIcon(Icons.chat_bubble),
-                  label: 'Tin nhắn',
-                ),
-                BottomNavigationBarItem(
-                  icon: _notificationIcon(Icons.mail_outline),
-                  activeIcon: _notificationIcon(Icons.mail),
-                  label: 'Thông báo',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.account_circle_outlined),
-                  activeIcon: Icon(Icons.account_circle),
-                  label: 'Tài khoản',
-                ),
-              ],
+        bottomNavigationBar: DecoratedBox(
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            border: Border(top: BorderSide(color: AppColors.line)),
+          ),
+          child: SafeArea(
+            top: false,
+            maintainBottomViewPadding: true,
+            child: AnimatedBuilder(
+              animation: Listenable.merge([
+                ?_notificationService,
+                ?_announcementInboxService,
+                ?widget.chatService,
+              ]),
+              builder: (context, _) => BottomNavigationBar(
+                currentIndex: _selectedIndex,
+                onTap: _selectTab,
+                items: [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home_outlined),
+                    activeIcon: Icon(Icons.home),
+                    label: 'Trang chủ',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: _chatIcon(Icons.chat_bubble_outline),
+                    activeIcon: _chatIcon(Icons.chat_bubble),
+                    label: 'Tin nhắn',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: _notificationIcon(Icons.mail_outline),
+                    activeIcon: _notificationIcon(Icons.mail),
+                    label: 'Thông báo',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.account_circle_outlined),
+                    activeIcon: Icon(Icons.account_circle),
+                    label: 'Tài khoản',
+                  ),
+                ],
+              ),
             ),
           ),
         ),

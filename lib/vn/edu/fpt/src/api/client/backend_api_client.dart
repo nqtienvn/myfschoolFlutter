@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../dto/api_response.dart';
@@ -7,13 +8,22 @@ import '../exception/backend_api_exception.dart';
 
 class BackendApiClient {
   BackendApiClient({String? baseUrl})
-    : baseUri = Uri.parse(
-        baseUrl ??
-            const String.fromEnvironment(
-              'API_BASE_URL',
-              defaultValue: 'http://localhost:8080',
-            ),
-      );
+    : baseUri = Uri.parse(baseUrl ?? _defaultBaseUrl);
+
+  static const _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
+
+  static String get _defaultBaseUrl {
+    if (_configuredBaseUrl.isNotEmpty) {
+      return _configuredBaseUrl;
+    }
+
+    // 10.0.2.2 is Android Emulator's alias for the development machine.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8080';
+    }
+
+    return 'http://localhost:8080';
+  }
 
   final Uri baseUri;
   final http.Client _client = http.Client();

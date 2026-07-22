@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
 import vn.edu.fpt.myfschool.common.dto.CalculateSemesterResultRequest;
 import vn.edu.fpt.myfschool.common.dto.CalculateSemesterResultResponse;
+import vn.edu.fpt.myfschool.common.dto.SchoolSemesterResultRequest;
 import vn.edu.fpt.myfschool.service.SemesterResultCalculationService;
 
 @RestController
@@ -31,5 +32,15 @@ public class SemesterResultCalculationController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Tinh tong ket thanh cong",
                 semesterResultCalculationService.calculate(request.classId(), request.semesterId())));
+    }
+
+    @PostMapping("/calculate-school")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Tu dong tinh tong ket hoc ky cho toan truong")
+    public ResponseEntity<ApiResponse<CalculateSemesterResultResponse>> calculateSchool(
+            @Valid @RequestBody SchoolSemesterResultRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Da tinh tong ket hoc ky cho toan truong",
+                semesterResultCalculationService.calculateSchool(request.academicYearId(), request.semesterId())));
     }
 }

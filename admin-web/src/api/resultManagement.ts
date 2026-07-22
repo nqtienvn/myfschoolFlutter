@@ -85,6 +85,12 @@ export function publishSemesterResults(payload: {
   }) as Promise<ResultSummaryItem[]>;
 }
 
+export function publishSchoolSemesterResults(academicYearId: number, semesterId: number) {
+  return apiFetch('/semester-results/admin/publish-school', {
+    method: 'POST', body: JSON.stringify({ academicYearId, semesterId }),
+  }) as Promise<void>;
+}
+
 export function closeSemesterResults(academicYearId: number, semesterId: number) {
   return apiFetch('/semester-results/admin/close', {
     method: 'POST',

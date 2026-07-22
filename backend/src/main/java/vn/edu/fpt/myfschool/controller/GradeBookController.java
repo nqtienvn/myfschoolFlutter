@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.fpt.myfschool.common.dto.ApiResponse;
+import vn.edu.fpt.myfschool.common.dto.GradeComponentOverviewDto;
 import vn.edu.fpt.myfschool.common.dto.GradeBookDto;
 import vn.edu.fpt.myfschool.common.dto.GradeItemDto;
 import vn.edu.fpt.myfschool.common.dto.StudentScoreDto;
@@ -39,6 +40,16 @@ public class GradeBookController {
             @RequestParam Long classId, @RequestParam Long subjectId, @RequestParam Long semesterId) {
         return ResponseEntity.ok(ApiResponse.success(
                 gradeBookService.getOrCreate(classId, subjectId, semesterId)));
+    }
+
+    @GetMapping("/component-overview")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Xem tat ca diem thanh phan theo lop va mon hoc")
+    public ResponseEntity<ApiResponse<GradeComponentOverviewDto>> componentOverview(
+            @RequestParam Long academicYearId, @RequestParam Long semesterId,
+            @RequestParam(required = false) Long classId, @RequestParam(required = false) Long subjectId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                gradeBookService.getComponentOverview(academicYearId, semesterId, classId, subjectId)));
     }
 
     @PutMapping("/scores")

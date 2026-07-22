@@ -124,6 +124,43 @@ public class SemesterResultCalculationServiceImpl implements SemesterResultCalcu
         return new CalculateSemesterResultResponse(processed, updated, skipped, warnings);
     }
 
+    @Override
+    public CalculateSemesterResultResponse calculateSchool(Long academicYearId, Long semesterId) {
+        Semester semester = semesterRepository.findById(semesterId)
+            .orElseThrow(() -> new ResourceNotFoundException("Semester", "id", semesterId));
+        if (!semester.getAcademicYear().getId().equals(academicYearId)) {
+            throw new ConflictException("Học kỳ không thuộc năm học đã chọn");
+        }
+
+        int processed = 0, updated = 0, skipped = 0;
+        List<String> warnings = new ArrayList<>();
+        List<SchoolClass> classes = classRepository.findByAcademicYearId(academicYearId).stream()
+            .sorted(Comparator.comparing(SchoolClass::getName, String.CASE_INSENSITIVE_ORDER))
+            .toList();
+        boolean hasActiveStudents = false;
+        for (SchoolClass cls : classes) {
+            if (enrollmentRepository.findByClsIdAndAcademicYearIdAndStatus(
+                    cls.getId(), academicYearId, EnrollmentStatus.ACTIVE).isEmpty()) {
+                continue;
+            }
+            hasActiveStudents = true;
+            try {
+                CalculateSemesterResultResponse result = calculate(cls.getId(), semesterId);
+                processed += result.processed();
+                updated += result.updated();
+                skipped += result.skipped();
+                result.warnings().forEach(warning -> warnings.add(cls.getName() + ": " + warning));
+            } catch (ConflictException exception) {
+                throw new ConflictException("Không thể tính kết quả toàn trường vì lớp "
+                        + cls.getName() + ": " + exception.getMessage());
+            }
+        }
+        if (!hasActiveStudents) {
+            throw new ConflictException("Năm học chưa có học sinh đang theo học để tính kết quả");
+        }
+        return new CalculateSemesterResultResponse(processed, updated, skipped, warnings);
+    }
+
     private void validateScoresBeforeCalculation(SchoolClass cls, Semester semester, List<Enrollment> enrollments) {
         List<GradeBook> books = gradeBookRepository.findByClsIdAndSemesterId(cls.getId(), semester.getId());
         if (books.isEmpty()) throw new ConflictException("Không thể tính kết quả học kỳ vì lớp chưa có sổ điểm môn học");

@@ -22,6 +22,7 @@ import vn.edu.fpt.myfschool.common.dto.ResultSummaryDto;
 import vn.edu.fpt.myfschool.common.dto.ResultCloseRequest;
 import vn.edu.fpt.myfschool.common.dto.AcademicYearResultDto;
 import vn.edu.fpt.myfschool.common.dto.AcademicYearResultRequest;
+import vn.edu.fpt.myfschool.common.dto.SchoolSemesterResultRequest;
 import vn.edu.fpt.myfschool.common.util.SecurityUtil;
 import vn.edu.fpt.myfschool.service.SemesterResultService;
 import vn.edu.fpt.myfschool.service.AcademicYearResultService;
@@ -83,6 +84,14 @@ public class SemesterResultController {
             @Valid @RequestBody ResultPublishRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Đã công bố kết quả học kỳ",
                 semesterResultService.publishResults(request, SecurityUtil.getCurrentUserId())));
+    }
+
+    @PostMapping("/admin/publish-school")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> publishSchoolResults(
+            @Valid @RequestBody SchoolSemesterResultRequest request) {
+        semesterResultService.publishSchoolResults(request, SecurityUtil.getCurrentUserId());
+        return ResponseEntity.ok(ApiResponse.success("Đã công bố kết quả học kỳ cho toàn trường", null));
     }
 
     @PostMapping("/admin/close")

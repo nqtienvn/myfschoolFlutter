@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 import vn.edu.fpt.myfschool.entity.StudentScore;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 @Repository
 public interface StudentScoreRepository extends JpaRepository<StudentScore, Long> {
@@ -12,4 +13,5 @@ public interface StudentScoreRepository extends JpaRepository<StudentScore, Long
     Optional<StudentScore> findByGradeItemIdAndStudentId(Long gradeItemId, Long studentId);
     List<StudentScore> findByStudentIdAndGradeItemGradeBookSemesterId(Long studentId, Long semesterId);
     List<StudentScore> findByGradeItemGradeBookId(Long gradeBookId);
+    List<StudentScore> findByGradeItemIdInAndStudentIdIn(Collection<Long> gradeItemIds, Collection<Long> studentIds);
 }

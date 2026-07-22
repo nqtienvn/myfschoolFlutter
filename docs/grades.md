@@ -19,7 +19,7 @@ Mỗi đầu điểm có mã, tên, hệ số, số lượng, loại đánh giá
 
 ## Tính điểm và trạng thái
 
-Điểm trung bình môn học kỳ được tính bằng `sum(score * weight) / sum(weight)`, làm tròn `HALF_UP` một chữ số ở kết quả. Khi nhập trực tiếp, ô chưa nhập vẫn là dữ liệu thiếu và được hiển thị trống trên ứng dụng. Riêng luồng import Excel của admin chuẩn hóa ô điểm số để trống thành `0` theo nghiệp vụ đối soát; giao diện quản lý kết quả cũng hiển thị ô chưa có dữ liệu là `0` nhưng không âm thầm ghi dữ liệu vào cơ sở dữ liệu.
+Điểm trung bình môn học kỳ được tính bằng `sum(score * weight) / sum(weight)`, làm tròn `HALF_UP` một chữ số ở kết quả. Khi nhập trực tiếp, ô chưa nhập vẫn là dữ liệu thiếu và được hiển thị trống trên ứng dụng. Với import Excel đầu điểm của admin, ô trống được bỏ qua và không ghi đè dữ liệu đã có; giá trị `0` là điểm 0 hợp lệ. Giao diện không âm thầm ghi dữ liệu vào cơ sở dữ liệu.
 
 Trạng thái GradeBook: `DRAFT -> PUBLISHED -> LOCKED`. Submit đầu điểm chuyển sổ sang `PUBLISHED`; admin chỉ có thể chuyển sang `LOCKED` sau khi mọi đầu điểm bắt buộc đã đủ. Mọi thay đổi điểm được ghi vào `student_score_audits` với người sửa, điểm cũ, điểm mới, lý do và thời gian.
 
@@ -34,6 +34,10 @@ Trạng thái GradeBook: `DRAFT -> PUBLISHED -> LOCKED`. Submit đầu điểm c
 - `GET /api/result-files/template?academicYearId=&semesterId=&classId=&subjectId=`
 - `POST /api/result-files/import?academicYearId=&semesterId=&classId=&subjectId=`
 - `GET /api/result-files/export?academicYearId=&semesterId=&classId=`
+- `GET /api/admin-grade-imports/context|items|template/{itemCode}`
+- `POST /api/admin-grade-imports/import`
+- `GET /api/admin-grade-imports/batches` và `GET /api/admin-grade-imports/batches/{batchId}?classId=`
+- `PUT /api/admin-grade-imports/batches/{batchId}/students/{studentId}`
 - `POST /api/semester-results/admin/close`
 - `GET/POST /api/semester-results/admin/annual`
 - `POST /api/semester-results/admin/annual/calculate`
@@ -42,6 +46,9 @@ Trạng thái GradeBook: `DRAFT -> PUBLISHED -> LOCKED`. Submit đầu điểm c
 ## Quản lý kết quả học kỳ và năm học
 
 - Template Excel được sinh động từ snapshot cấu hình đầu điểm của đúng năm học. File có metadata và dấu vân tay cấu hình; import sai năm, học kỳ, lớp, môn hoặc dùng template cũ sẽ bị từ chối toàn bộ.
+- Import đầu điểm toàn trường của Admin dùng template V2: mỗi file chỉ mang một đầu điểm Admin, có tất cả học sinh đang học và toàn bộ môn áp dụng trong học kỳ hiện hành. Admin không chọn năm học, học kỳ, lớp hoặc môn ở màn import; backend chỉ chấp nhận học kỳ được đánh dấu hiện hành và đang `ACTIVE`.
+- Ô dưới từng môn là giá trị của đầu điểm đang import; ô trống không ghi đè dữ liệu, còn `0` là điểm 0. Import chỉ lưu điểm nháp, không tự tính điểm trung bình hoặc công bố kết quả.
+- Mỗi đợt import lưu thứ tự dòng Excel để màn hình mặc định hiển thị toàn bộ học sinh đúng thứ tự file; lọc lớp chỉ thu hẹp danh sách, không sắp xếp lại. Admin có thể sửa điểm từng học sinh sau import, và mọi thay đổi tiếp tục được ghi audit.
 - Admin chỉ import các đầu điểm có quyền `ADMIN` hoặc `SUBJECT_TEACHER_AND_ADMIN`. Import là giao dịch nguyên tử: có bất kỳ dòng không hợp lệ thì không dòng nào được lưu.
 - Export tạo ba sheet: điểm thành phần, tổng kết học kỳ và tổng kết năm học.
 - Xếp mức học tập dùng kết quả từng môn theo Thông tư 22/2021/TT-BGDĐT: `Tốt`, `Khá`, `Đạt`, `Chưa đạt`; GPA chỉ là chỉ số tham khảo. Kết quả cả năm của từng môn dùng `(HK1 + 2 × HK2) / 3`.
